@@ -1,0 +1,48 @@
+import type { World } from "./types";
+import { spawnerTick, checkRunEnd } from "./spawner";
+import { updateEnemies } from "./enemies";
+import { updateTowers } from "./towers";
+import { updateProjectiles } from "./projectiles";
+
+export const TICK_RATE = 60;
+export const TICK_DT = 1 / TICK_RATE;
+const MAX_FRAME_DT = 0.25;
+
+export class Engine {
+  private accumulator = 0;
+  private lastRealTime: number | null = null;
+
+  reset() {
+    this.accumulator = 0;
+    this.lastRealTime = null;
+  }
+
+  step(world: World, realTimeSec: number) {
+    if (this.lastRealTime === null) {
+      this.lastRealTime = realTimeSec;
+      return;
+    }
+    if (world.status !== "running") {
+      this.lastRealTime = realTimeSec;
+      this.accumulator = 0;
+      return;
+    }
+    const frameDt = Math.min(realTimeSec - this.lastRealTime, MAX_FRAME_DT);
+    this.lastRealTime = realTimeSec;
+    this.accumulator += frameDt;
+    while (this.accumulator >= TICK_DT) {
+      this.tick(world);
+      this.accumulator -= TICK_DT;
+    }
+  }
+
+  private tick(world: World) {
+    world.time += TICK_DT;
+    world.tickCount += 1;
+    spawnerTick(world, TICK_DT);
+    updateEnemies(world, TICK_DT);
+    updateTowers(world, TICK_DT);
+    updateProjectiles(world, TICK_DT);
+    checkRunEnd(world);
+  }
+}

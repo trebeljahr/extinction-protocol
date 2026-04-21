@@ -1,0 +1,18 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# TypeScript composite project outputs
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# Tauri
+src-tauri/target
+src-tauri/gen
