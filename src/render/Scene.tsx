@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { Ground } from "./Ground";
 import { PathLine } from "./PathLine";
 import { EnemyMesh } from "./EnemyMesh";
+import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { TowerMesh } from "./TowerMesh";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
@@ -36,6 +37,8 @@ export const Scene = () => (
     <Placement />
     <PathLine />
     <EnemyMesh />
+    <ModelEnemyMesh kind="allosaur" url="/models/walker.glb" targetSize={1.8} yOffset={0.9} />
+    <ModelEnemyMesh kind="swarm" url="/models/flyer.glb" targetSize={0.9} yOffset={0.9} />
     <TowerMesh />
     <ProjectileMesh />
     <Effects />

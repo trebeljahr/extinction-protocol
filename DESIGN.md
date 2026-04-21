@@ -123,11 +123,15 @@ Asset reuse plan: everything draws from `../3d-assets/`:
 - Terrain tiles: `Hex Kit.glb`, `Platform Kit Revamped-glb`, `Stylized Nature MegaKit-glb`
 - Environment textures from `textures/` (PBR-ready)
 
-**Asset caveat (current state)**: most dino/enemy/turret GLBs in `../3d-assets/` are git-lfs pointer files; the directory is not a git repo so they can't be pulled. M1–M2 uses polished primitives (cones/boxes/dodecahedra/octahedra + varied materials). To swap in real GLBs:
-1. Initialize `../3d-assets/` as a git repo pointing to the original LFS-enabled remote, or download the full pack separately.
-2. Run `git lfs install && git lfs pull` to fetch binaries.
-3. Copy or symlink desired GLBs into `public/models/` in this project.
-4. Replace geometry definitions in `render/EnemyMesh.tsx` and `render/TowerMesh.tsx` with `useGLTF()` calls (drei exposes this).
+**Asset state**: 33 GLBs in `../3d-assets/` are real binary files (the rest — including most named dino/turret GLBs — are git-lfs pointers that haven't been pulled). Of the real ones, we currently use:
+- `star_wars_at-st.glb` → copied to `public/models/walker.glb` (allosaur enemy)
+- `star_wars_x-wing.glb` → copied to `public/models/flyer.glb` (swarm enemy)
+
+Remaining primitives: raptor (cone), stego (dodecahedron), all four tower kinds. To swap in more real assets:
+1. Copy desired `.glb` into `public/models/`.
+2. Add a `<ModelEnemyMesh>` or `<ModelTowerMesh>` in `render/Scene.tsx`.
+3. The `render/ModelEnemyMesh.tsx` component handles scene cloning, scale normalization, and hit-flash / slow tints.
+4. For the full dino lineup, either (a) initialize `../3d-assets/` as a git repo against the original LFS remote and `git lfs pull`, or (b) download the originals separately.
 
 ## 7. Sound Direction
 

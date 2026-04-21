@@ -20,7 +20,7 @@ const KIND_SCALE: Record<EnemyKind, number> = {
   swarm: 0.35,
 };
 
-const KINDS: EnemyKind[] = ["raptor", "allosaur", "stego", "swarm"];
+const PRIMITIVE_KINDS: EnemyKind[] = ["raptor", "stego"];
 
 const geomFor = (kind: EnemyKind): THREE.BufferGeometry => {
   switch (kind) {
@@ -32,20 +32,14 @@ const geomFor = (kind: EnemyKind): THREE.BufferGeometry => {
 };
 
 export const EnemyMesh = () => {
-  const meshRefs = useRef<Record<EnemyKind, THREE.InstancedMesh | null>>({
-    raptor: null,
-    allosaur: null,
-    stego: null,
-    swarm: null,
-  });
+  const meshRefs = useRef<Partial<Record<EnemyKind, THREE.InstancedMesh | null>>>({});
   const healthRef = useRef<THREE.InstancedMesh>(null);
 
-  const geoms = useMemo(() => ({
-    raptor: geomFor("raptor"),
-    allosaur: geomFor("allosaur"),
-    stego: geomFor("stego"),
-    swarm: geomFor("swarm"),
-  }), []);
+  const geoms = useMemo(() => {
+    const out: Partial<Record<EnemyKind, THREE.BufferGeometry>> = {};
+    for (const k of PRIMITIVE_KINDS) out[k] = geomFor(k);
+    return out;
+  }, []);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
@@ -54,24 +48,22 @@ export const EnemyMesh = () => {
   useFrame(() => {
     const { world } = useGame.getState();
 
-    const count: Record<EnemyKind, number> = { raptor: 0, allosaur: 0, stego: 0, swarm: 0 };
+    const count: Partial<Record<EnemyKind, number>> = {};
+    for (const k of PRIMITIVE_KINDS) count[k] = 0;
 
     for (const e of world.enemies) {
+      if (!PRIMITIVE_KINDS.includes(e.kind)) continue;
       const mesh = meshRefs.current[e.kind];
       if (!mesh) continue;
-      const i = count[e.kind]++;
+      const i = (count[e.kind] ?? 0);
+      count[e.kind] = i + 1;
       if (i >= MAX_ENEMIES) continue;
 
-      const jiggle = e.kind === "swarm" ? Math.sin(world.time * 14 + e.id) * 0.1 : 0;
-      dummy.position.set(
-        e.pos.x,
-        0.4 * KIND_SCALE[e.kind] + jiggle,
-        -e.pos.y,
-      );
+      dummy.position.set(e.pos.x, 0.4 * KIND_SCALE[e.kind], -e.pos.y);
       if (e.kind === "raptor") {
         dummy.rotation.set(Math.PI / 2, 0, 0);
       } else {
-        dummy.rotation.set(0, world.time * 1.5 * (e.kind === "swarm" ? 4 : 1) + e.id, 0);
+        dummy.rotation.set(0, world.time * 1.5 + e.id, 0);
       }
       dummy.scale.setScalar(KIND_SCALE[e.kind]);
       dummy.updateMatrix();
@@ -91,10 +83,10 @@ export const EnemyMesh = () => {
       }
     }
 
-    for (const kind of KINDS) {
+    for (const kind of PRIMITIVE_KINDS) {
       const mesh = meshRefs.current[kind];
       if (!mesh) continue;
-      mesh.count = count[kind];
+      mesh.count = count[kind] ?? 0;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
@@ -106,7 +98,7 @@ export const EnemyMesh = () => {
         if (hi >= MAX_ENEMIES) break;
         const ratio = e.hp / e.maxHp;
         const w = Math.max(0.001, 0.9 * ratio);
-        dummy.position.set(e.pos.x - 0.45 + w / 2, 1.05, -e.pos.y);
+        dummy.position.set(e.pos.x - 0.45 + w / 2, 1.25, -e.pos.y);
         dummy.rotation.set(-Math.PI / 2, 0, 0);
         dummy.scale.set(w, 1, 1);
         dummy.updateMatrix();
@@ -123,11 +115,11 @@ export const EnemyMesh = () => {
 
   return (
     <group>
-      {KINDS.map(kind => (
+      {PRIMITIVE_KINDS.map(kind => (
         <instancedMesh
           key={kind}
           ref={m => { meshRefs.current[kind] = m; }}
-          args={[geoms[kind], undefined, MAX_ENEMIES]}
+          args={[geoms[kind]!, undefined, MAX_ENEMIES]}
           castShadow
           receiveShadow
         >

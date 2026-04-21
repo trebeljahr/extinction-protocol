@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173>.
+Open <http://localhost:3286>.
 
 ## Controls
 
@@ -107,9 +107,15 @@ src-tauri/                   Tauri v2 desktop shell
 
 Sim runs at fixed 60 Hz. Render reads the world from a ref and renders at display rate. Game events (`shoot`, `impact`, `death`, `wave-start`, etc.) are pushed to a queue each tick and drained by the store into a subscriber list — audio is one subscriber.
 
-## Asset caveat
+## Assets
 
-Most dino/enemy/turret GLBs in `../3d-assets/` are git-lfs pointer files that haven't been pulled (the directory isn't a git repo, so `git lfs pull` can't run). Current build uses polished primitives (cones, boxes, dodecahedra, octahedra). When the real GLBs are available, swap in via `useGLTF()` in `render/EnemyMesh.tsx` and `render/TowerMesh.tsx`. Audio files in `../3d-assets/sounds/` are regular MP3s and are wired up.
+Audio is sourced from `../3d-assets/sounds/` (real MP3s, copied to `public/audio/`).
+
+Models:
+- `public/models/walker.glb` (allosaur enemy) — from `../3d-assets/models/glb/star_wars_at-st.glb`
+- `public/models/flyer.glb` (swarm enemy) — from `../3d-assets/models/glb/star_wars_x-wing.glb`
+
+Other enemies and all towers are primitives. Many named GLBs in `../3d-assets/` (including the dino pack and sci-fi turrets) are git-lfs pointer files and haven't been pulled — `../3d-assets/` is not itself a git repo, so `git lfs pull` can't run there. To add more real GLBs: drop them into `public/models/` and reference via `<ModelEnemyMesh>` in `render/Scene.tsx`.
 
 ## License
 
