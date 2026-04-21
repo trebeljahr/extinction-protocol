@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World } from "./sim/types";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
+import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { Engine } from "./sim/loop";
 import { PATH } from "./level";
 import { distSq } from "./sim/vec2";
@@ -14,9 +15,11 @@ type UiSnapshot = {
   status: RunStatus;
   waveActive: boolean;
   nextWaveIn: number;
+  selectedTowerId: number | null;
+  towerVersion: number;
 };
 
-const snapshot = (w: World): UiSnapshot => ({
+const snapshot = (w: World, towerVersion: number): UiSnapshot => ({
   gold: w.gold,
   lives: w.lives,
   wave: w.wave,
@@ -24,6 +27,8 @@ const snapshot = (w: World): UiSnapshot => ({
   status: w.status,
   waveActive: w.waveActive,
   nextWaveIn: Math.ceil(w.nextWaveIn),
+  selectedTowerId: w.selectedTowerId,
+  towerVersion,
 });
 
 const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
@@ -33,7 +38,9 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.totalWaves === b.totalWaves &&
   a.status === b.status &&
   a.waveActive === b.waveActive &&
-  a.nextWaveIn === b.nextWaveIn;
+  a.nextWaveIn === b.nextWaveIn &&
+  a.selectedTowerId === b.selectedTowerId &&
+  a.towerVersion === b.towerVersion;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
@@ -67,56 +74,131 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   return true;
 };
 
+const towerAt = (world: World, pos: Vec2, radius = 0.7): Tower | null => {
+  const r2 = radius * radius;
+  for (const t of world.towers) {
+    if (distSq(t.pos, pos) <= r2) return t;
+  }
+  return null;
+};
+
 type GameStore = {
   world: World;
   engine: Engine;
   ui: UiSnapshot;
+  selectedKind: TowerKind;
+  towerVersion: number;
+  eventListeners: ((e: GameEvent) => void)[];
+
   reset: () => void;
   togglePause: () => void;
   tick: (realTimeSec: number) => void;
-  placeTower: (pos: Vec2) => boolean;
+
+  setSelectedKind: (kind: TowerKind) => void;
+  tryPlaceOrSelect: (pos: Vec2) => void;
   canPlace: (pos: Vec2) => boolean;
+
+  selectTower: (id: number | null) => void;
+  upgradeSelected: (branch: "a" | "b") => void;
+  sellSelected: () => void;
+
+  onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
 
 const initial = () => {
   const world = createWorld(PATH);
-  return { world, ui: snapshot(world) };
+  return { world, ui: snapshot(world, 0), towerVersion: 0 };
 };
 
 export const useGame = create<GameStore>((set, get) => ({
   ...initial(),
   engine: new Engine(),
+  selectedKind: "pulse",
+  eventListeners: [],
 
   reset: () => {
     const { engine } = get();
     engine.reset();
-    set(initial());
+    set({ ...initial(), selectedKind: "pulse" });
   },
 
   togglePause: () => {
     const { world } = get();
     if (world.status === "running") world.status = "paused";
     else if (world.status === "paused") world.status = "running";
-    set({ ui: snapshot(world) });
+    set({ ui: snapshot(world, get().towerVersion) });
   },
 
   tick: (realTimeSec: number) => {
-    const { world, engine, ui } = get();
-    engine.step(world, realTimeSec);
-    const next = snapshot(world);
-    if (!uiEqual(ui, next)) set({ ui: next });
+    const s = get();
+    s.engine.step(s.world, realTimeSec);
+    if (s.world.events.length > 0) {
+      for (const ev of s.world.events) {
+        for (const fn of s.eventListeners) fn(ev);
+      }
+      s.world.events.length = 0;
+    }
+    const next = snapshot(s.world, s.towerVersion);
+    if (!uiEqual(s.ui, next)) set({ ui: next });
   },
 
-  placeTower: (pos: Vec2) => {
-    const { world } = get();
-    if (world.status !== "running") return false;
-    if (world.gold < TOWER_COST.pulse) return false;
-    if (!canPlaceAt(world, pos)) return false;
-    world.gold -= TOWER_COST.pulse;
-    createTower(world, pos);
-    set({ ui: snapshot(world) });
-    return true;
+  setSelectedKind: (kind) => set({ selectedKind: kind }),
+
+  canPlace: (pos) => canPlaceAt(get().world, pos),
+
+  tryPlaceOrSelect: (pos) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+
+    const hit = towerAt(w, pos);
+    if (hit) {
+      w.selectedTowerId = hit.id;
+      set({ ui: snapshot(w, s.towerVersion) });
+      return;
+    }
+
+    const cost = TOWER_COST[s.selectedKind];
+    if (w.gold < cost) return;
+    if (!canPlaceAt(w, pos)) return;
+    w.gold -= cost;
+    const t = createTower(w, s.selectedKind, pos);
+    w.selectedTowerId = t.id;
+    const newVersion = s.towerVersion + 1;
+    set({ towerVersion: newVersion, ui: snapshot(w, newVersion) });
   },
 
-  canPlace: (pos: Vec2) => canPlaceAt(get().world, pos),
+  selectTower: (id) => {
+    const { world, towerVersion } = get();
+    world.selectedTowerId = id;
+    set({ ui: snapshot(world, towerVersion) });
+  },
+
+  upgradeSelected: (branch) => {
+    const s = get();
+    if (s.world.selectedTowerId === null) return;
+    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    if (!t) return;
+    if (applyUpgrade(s.world, t, branch)) {
+      const newVersion = s.towerVersion + 1;
+      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+    }
+  },
+
+  sellSelected: () => {
+    const s = get();
+    if (s.world.selectedTowerId === null) return;
+    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    if (!t) return;
+    sellTower(s.world, t);
+    const newVersion = s.towerVersion + 1;
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+  },
+
+  onEvent: (fn) => {
+    set(state => ({ eventListeners: [...state.eventListeners, fn] }));
+    return () => {
+      set(state => ({ eventListeners: state.eventListeners.filter(f => f !== fn) }));
+    };
+  },
 }));

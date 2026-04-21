@@ -6,7 +6,7 @@ See [DESIGN.md](DESIGN.md) for the full design document.
 
 ## Status
 
-**M1 scaffold.** Fixed-timestep simulation, orthographic scene, one tower, one enemy walking a hardcoded path, click-to-place additional towers. Proves the sim/render split and the core loop.
+**M2 complete.** Four tower kinds with distinct behaviors, four enemy kinds including swarm, a 2-branch × 3-tier upgrade tree per tower, audio wired to game events, hit feedback (flash, particles, explosions, screenshake), tower selection + sell, clean game-feel pass.
 
 ## Prerequisites
 
@@ -22,10 +22,25 @@ npm run dev
 
 Open <http://localhost:5173>.
 
-Controls:
-- **Click** empty tile — place a Pulse Rifle (50 gold).
-- **Space** — pause/resume.
-- **R** — restart run.
+## Controls
+
+- **1–4** — pick tower kind (Pulse / Chain / Cryo / Mortar)
+- **Click empty tile** — place selected tower
+- **Click a tower** — open upgrade/sell panel
+- **Space** — pause/resume
+- **R** — restart run
+- **M** — mute / unmute
+
+## Towers
+
+| # | Name | Role | Cost |
+|---|------|------|------|
+| 1 | Pulse Rifle | Single-target DPS | 50g |
+| 2 | Chain Coil | Electric chain (3 bounces) | 90g |
+| 3 | Cryo Emitter | AoE slow + damage pulse | 75g |
+| 4 | Mortar | Slow arcing splash | 120g |
+
+Each tower has two upgrade branches with three tiers each. Gold is earned from kills and wave completion.
 
 ## Run (desktop, Tauri)
 
@@ -47,39 +62,54 @@ npm run tauri build   # desktop (.app / .exe / .AppImage)
 
 ```
 src/
-  main.tsx              entry
-  App.tsx               root component
-  store.ts              Zustand world ref + selector hooks
-  level.ts              starting level config (path, waves)
-  sim/                  headless simulation (no React, no Three.js)
-    types.ts
-    vec2.ts
-    world.ts            world state + factory
-    loop.ts             fixed-timestep accumulator
-    path.ts             polyline utilities
-    enemies.ts          enemy update
-    towers.ts           target acquisition + firing
-    projectiles.ts      projectile update + hit resolution
-    spawner.ts          wave scheduling
-  render/               R3F layer — reads sim, renders
-    Scene.tsx
+  main.tsx                   entry
+  App.tsx                    root component
+  store.ts                   Zustand world ref, UI snapshot, actions
+  level.ts                   starting level config (path, map)
+  vite-env.d.ts              vite client types
+  sim/                       headless simulation (no React, no Three.js)
+    types.ts                 all shared types
+    vec2.ts                  2D vector utilities
+    path.ts                  polyline utilities
+    world.ts                 world state + factories + events + shake
+    loop.ts                  fixed-timestep accumulator
+    spawner.ts               wave composition + lifecycle
+    enemies.ts               enemy movement + slow + leak
+    towers.ts                target acquisition + per-kind firing
+    projectiles.ts           projectile flight + direct/splash hit
+    effects.ts               beams + explosions + particles + shake decay
+    upgrades.ts              upgrade tree + apply/sell
+  render/                    R3F layer — reads sim, renders
+    Scene.tsx                Canvas + lights
+    CameraRig.tsx            ortho camera + screenshake offset
     Ground.tsx
     PathLine.tsx
-    EnemyMesh.tsx
-    TowerMesh.tsx
-    ProjectileMesh.tsx
-    SimTicker.tsx       drives sim.step each frame
-    Placement.tsx       click-to-place towers
+    EnemyMesh.tsx            instanced per-kind with hit flash + slow tint
+    TowerMesh.tsx            instanced per-kind with turret rotation + selection ring
+    ProjectileMesh.tsx       direct vs splash projectiles
+    Effects.tsx              particles, explosions, chain-lightning beams
+    Placement.tsx            hover preview + click-to-place-or-select
+    SimTicker.tsx            drives sim.step each frame
   ui/
-    HUD.tsx             gold, lives, wave
-src-tauri/              Tauri v2 desktop shell
+    HUD.tsx                  stats, tower picker, help bar, game-over overlay
+    TowerPanel.tsx           selected-tower upgrade + sell UI
+  audio/
+    AudioManager.ts          WebAudio preloader + playback
+    useAudioBridge.ts        subscribes to sim events, plays SFX
+public/
+  audio/                     curated SFX + music (copied from ../3d-assets/sounds/)
+src-tauri/                   Tauri v2 desktop shell
 ```
 
 ## Architecture
 
 **Sim never imports from `render/`, `three`, or `react`. Render never mutates sim state.** This split is load-bearing — it's what lets us do deterministic replays, headless tests, and clean pause/resume later. Keep it clean.
 
-Sim runs at fixed 60 Hz. Render reads the world from a ref and renders at display rate. No interpolation yet — will add in M2 if it feels stuttery.
+Sim runs at fixed 60 Hz. Render reads the world from a ref and renders at display rate. Game events (`shoot`, `impact`, `death`, `wave-start`, etc.) are pushed to a queue each tick and drained by the store into a subscriber list — audio is one subscriber.
+
+## Asset caveat
+
+Most dino/enemy/turret GLBs in `../3d-assets/` are git-lfs pointer files that haven't been pulled (the directory isn't a git repo, so `git lfs pull` can't run). Current build uses polished primitives (cones, boxes, dodecahedra, octahedra). When the real GLBs are available, swap in via `useGLTF()` in `render/EnemyMesh.tsx` and `render/TowerMesh.tsx`. Audio files in `../3d-assets/sounds/` are regular MP3s and are wired up.
 
 ## License
 

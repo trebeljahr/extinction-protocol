@@ -1,23 +1,34 @@
 import { useEffect } from "react";
 import { useGame } from "../store";
+import type { TowerKind } from "../sim/types";
+import { TOWER_COST, TOWER_LABEL } from "../sim/world";
+import { useAudioBridge } from "../audio/useAudioBridge";
+import { TowerPanel } from "./TowerPanel";
+import { audio } from "../audio/AudioManager";
+
+const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
+const HOTKEYS: Record<TowerKind, string> = { pulse: "1", chain: "2", cryo: "3", mortar: "4" };
 
 export const HUD = () => {
+  useAudioBridge();
   const ui = useGame(s => s.ui);
+  const selectedKind = useGame(s => s.selectedKind);
+  const setSelectedKind = useGame(s => s.setSelectedKind);
   const reset = useGame(s => s.reset);
   const togglePause = useGame(s => s.togglePause);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        togglePause();
-      } else if (e.code === "KeyR") {
-        reset();
-      }
+      if (e.code === "Space") { e.preventDefault(); togglePause(); return; }
+      if (e.code === "KeyR") { reset(); return; }
+      if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
+      const digit = e.key;
+      const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
+      if (kind) setSelectedKind(kind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, reset]);
+  }, [togglePause, reset, setSelectedKind]);
 
   return (
     <div className="hud">
@@ -32,12 +43,38 @@ export const HUD = () => {
         />
       </div>
 
+      <div className="tower-picker">
+        {KINDS.map(kind => {
+          const cost = TOWER_COST[kind];
+          const affordable = ui.gold >= cost;
+          const active = selectedKind === kind;
+          return (
+            <button
+              key={kind}
+              className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
+              onClick={() => setSelectedKind(kind)}
+            >
+              <div className={`tower-swatch kind-${kind}`} />
+              <div className="tower-name">{TOWER_LABEL[kind]}</div>
+              <div className="tower-cost">{cost}g</div>
+              <div className="tower-hot">[{HOTKEYS[kind]}]</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <TowerPanel />
+
       <div className="hud-bottom">
-        <span>Click empty tile to place a Pulse Rifle (50g)</span>
+        <span>Click empty tile to build · click a tower to inspect</span>
+        <span className="sep">·</span>
+        <span>1–4: pick tower</span>
         <span className="sep">·</span>
         <span>Space: pause</span>
         <span className="sep">·</span>
         <span>R: restart</span>
+        <span className="sep">·</span>
+        <span>M: mute</span>
       </div>
 
       {ui.status !== "running" && (
@@ -62,14 +99,8 @@ export const HUD = () => {
 };
 
 const Stat = ({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent: string;
-}) => (
+  label, value, accent,
+}: { label: string; value: string | number; accent: string }) => (
   <div className="stat">
     <div className="stat-label" style={{ color: accent }}>{label}</div>
     <div className="stat-value">{value}</div>

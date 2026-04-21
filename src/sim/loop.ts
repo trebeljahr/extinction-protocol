@@ -3,6 +3,7 @@ import { spawnerTick, checkRunEnd } from "./spawner";
 import { updateEnemies } from "./enemies";
 import { updateTowers } from "./towers";
 import { updateProjectiles } from "./projectiles";
+import { updateBeams, updateExplosions, updateParticles, updateShake } from "./effects";
 
 export const TICK_RATE = 60;
 export const TICK_DT = 1 / TICK_RATE;
@@ -43,6 +44,10 @@ export class Engine {
     updateEnemies(world, TICK_DT);
     updateTowers(world, TICK_DT);
     updateProjectiles(world, TICK_DT);
+    updateBeams(world);
+    updateExplosions(world);
+    updateParticles(world, TICK_DT);
+    updateShake(world, TICK_DT);
     checkRunEnd(world);
   }
 }

@@ -6,32 +6,53 @@ import { useGame } from "../store";
 const MAX_PROJECTILES = 512;
 
 export const ProjectileMesh = () => {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const directRef = useRef<THREE.InstancedMesh>(null);
+  const splashRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useFrame(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
     const { world } = useGame.getState();
+    const direct = directRef.current;
+    const splash = splashRef.current;
+    if (!direct || !splash) return;
 
-    let i = 0;
+    let d = 0, s = 0;
     for (const p of world.projectiles) {
-      if (i >= MAX_PROJECTILES) break;
-      dummy.position.set(p.pos.x, 0.8, -p.pos.y);
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(1);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      i++;
+      if (p.kind === "splash") {
+        if (s < MAX_PROJECTILES) {
+          const arcH = 0.3 + Math.sin((p.pos.x + p.pos.y) * 0.1) * 0.2;
+          dummy.position.set(p.pos.x, 0.6 + arcH, -p.pos.y);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          splash.setMatrixAt(s++, dummy.matrix);
+        }
+      } else {
+        if (d < MAX_PROJECTILES) {
+          dummy.position.set(p.pos.x, 0.8, -p.pos.y);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          direct.setMatrixAt(d++, dummy.matrix);
+        }
+      }
     }
-    mesh.count = i;
-    mesh.instanceMatrix.needsUpdate = true;
+    direct.count = d;
+    splash.count = s;
+    direct.instanceMatrix.needsUpdate = true;
+    splash.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_PROJECTILES]}>
-      <sphereGeometry args={[0.1, 8, 8]} />
-      <meshBasicMaterial color="#ffe866" toneMapped={false} />
-    </instancedMesh>
+    <group>
+      <instancedMesh ref={directRef} args={[undefined, undefined, MAX_PROJECTILES]}>
+        <sphereGeometry args={[0.12, 8, 8]} />
+        <meshBasicMaterial color="#ffe866" toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={splashRef} args={[undefined, undefined, MAX_PROJECTILES]}>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshBasicMaterial color="#ff9944" toneMapped={false} />
+      </instancedMesh>
+    </group>
   );
 };

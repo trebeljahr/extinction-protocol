@@ -123,6 +123,12 @@ Asset reuse plan: everything draws from `../3d-assets/`:
 - Terrain tiles: `Hex Kit.glb`, `Platform Kit Revamped-glb`, `Stylized Nature MegaKit-glb`
 - Environment textures from `textures/` (PBR-ready)
 
+**Asset caveat (current state)**: most dino/enemy/turret GLBs in `../3d-assets/` are git-lfs pointer files; the directory is not a git repo so they can't be pulled. M1–M2 uses polished primitives (cones/boxes/dodecahedra/octahedra + varied materials). To swap in real GLBs:
+1. Initialize `../3d-assets/` as a git repo pointing to the original LFS-enabled remote, or download the full pack separately.
+2. Run `git lfs install && git lfs pull` to fetch binaries.
+3. Copy or symlink desired GLBs into `public/models/` in this project.
+4. Replace geometry definitions in `render/EnemyMesh.tsx` and `render/TowerMesh.tsx` with `useGLTF()` calls (drei exposes this).
+
 ## 7. Sound Direction
 
 Your sorted folders map cleanly:
@@ -196,14 +202,14 @@ Classic accumulator pattern. Sim advances in fixed 16.67ms ticks regardless of r
 
 ## 10. Roadmap
 
-| Month | Focus | Deliverable |
-|-------|-------|-------------|
-| M1    | Tech spine | Sim loop, path, 1 tower, 1 enemy, projectiles, ortho scene, HUD. Playable solo. |
-| M2    | Game feel + content pass 1 | 4 towers, 4 enemies, economy, upgrades, hit feedback, audio wired, 1 polished map. |
-| M3    | Roguelite meta + Steam page | Per-run perks, meta tree skeleton, 3 maps, 2 commanders. **Steam page live.** |
-| M4    | Splice system + content pass 2 | Tower DNA, 8 towers, bosses, sector collapse events, 5 maps. |
-| M5    | Balance + closed beta | Steam playtest, telemetry, balance passes. Marketing gif cadence. |
-| M6    | Polish + trailer + EA launch | Launch trailer, UI pass, accessibility, Early Access on Steam. |
+| Month | Focus | Status | Deliverable |
+|-------|-------|--------|-------------|
+| M1    | Tech spine | ✅ done | Sim loop, path, 1 tower, 1 enemy, projectiles, ortho scene, HUD. Playable solo. |
+| M2    | Game feel + content pass 1 | ✅ done | 4 towers (pulse/chain/cryo/mortar), 4 enemies (+ swarm), upgrade tree (2 branches × 3 tiers), audio wired, hit feedback + screenshake. |
+| M3    | Roguelite meta + Steam page | — | Per-run perks, meta tree skeleton, 3 maps, 2 commanders. **Steam page live.** |
+| M4    | Splice system + content pass 2 | — | Tower DNA, 8 towers, bosses, sector collapse events, 5 maps. |
+| M5    | Balance + closed beta | — | Steam playtest, telemetry, balance passes. Marketing gif cadence. |
+| M6    | Polish + trailer + EA launch | — | Launch trailer, UI pass, accessibility, Early Access on Steam. |
 
 Post-EA (M7–M9): content, mod support, endless mode, v1.0.
 
