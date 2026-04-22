@@ -19,17 +19,19 @@ const p = (...coords: number[]): Vec2[] => {
 type EnemyCounts = {
   raptor?: number;
   swarm?: number;
+  para?: number;
   allosaur?: number;
   stego?: number;
   armored?: number;
+  titan?: number;
 };
 
-const toSpawns = (c: EnemyCounts) => {
-  const kinds: EnemyKind[] = ["raptor", "swarm", "allosaur", "stego", "armored"];
-  return kinds
+const SPAWN_ORDER: EnemyKind[] = ["raptor", "swarm", "para", "allosaur", "stego", "armored", "titan"];
+
+const toSpawns = (c: EnemyCounts) =>
+  SPAWN_ORDER
     .filter(k => (c[k] ?? 0) > 0)
     .map(k => ({ kind: k, count: c[k]! }));
-};
 
 const intro = (raptor: number, swarm = 0): WaveSpec => ({
   archetype: "intro",
@@ -128,12 +130,12 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 2, y: -14 },
     waves: [
       intro(14, 8),
-      mixed({ raptor: 14, swarm: 12, allosaur: 3, stego: 1 }),
+      mixed({ raptor: 14, swarm: 12, para: 2, allosaur: 3, stego: 1 }),
       rush(55, 10),
       heavy({ armored: 3, stego: 2, allosaur: 2 }),
-      mixed({ raptor: 20, swarm: 14, allosaur: 5, stego: 2 }),
+      mixed({ raptor: 20, swarm: 14, para: 4, allosaur: 5, stego: 2 }),
       heavy({ armored: 5, stego: 3, allosaur: 2 }),
-      chaos({ raptor: 18, swarm: 22, allosaur: 5, stego: 3, armored: 1 }),
+      chaos({ raptor: 18, swarm: 22, para: 4, allosaur: 5, stego: 3, armored: 1 }),
     ],
   },
   {
@@ -180,13 +182,13 @@ export const LEVELS: LevelConfig[] = [
     hpScale: 1.1,
     waves: [
       intro(14, 10),
-      mixed({ raptor: 16, swarm: 14, allosaur: 4, stego: 2 }),
+      mixed({ raptor: 16, swarm: 14, para: 3, allosaur: 4, stego: 2 }),
       rush(70, 12),
       heavy({ armored: 5, stego: 3, allosaur: 2 }),
-      mixed({ raptor: 20, swarm: 16, allosaur: 6, stego: 3 }),
+      mixed({ raptor: 20, swarm: 16, para: 5, allosaur: 6, stego: 3 }),
       rush(80, 14),
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
-      chaos({ raptor: 24, swarm: 28, allosaur: 7, stego: 4, armored: 2 }),
+      chaos({ raptor: 24, swarm: 28, para: 4, allosaur: 7, stego: 4, armored: 2 }),
     ],
   },
   {
@@ -317,18 +319,18 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: -24, y: 6 },
     hpScale: 1.28,
     waves: [
-      mixed({ raptor: 16, swarm: 12, allosaur: 4, stego: 1 }),
+      mixed({ raptor: 16, swarm: 12, para: 4, allosaur: 4, stego: 1 }),
       rush(90, 18),
       heavy({ armored: 8, stego: 5, allosaur: 4 }),
-      mixed({ raptor: 24, swarm: 20, allosaur: 7, stego: 4 }),
-      chaos({ raptor: 20, swarm: 26, allosaur: 7, stego: 4, armored: 2 }),
+      mixed({ raptor: 24, swarm: 20, para: 6, allosaur: 7, stego: 4 }),
+      chaos({ raptor: 20, swarm: 26, para: 5, allosaur: 7, stego: 4, armored: 2 }),
       rush(105, 24),
-      heavy({ armored: 13, stego: 7, allosaur: 5 }),
-      mixed({ raptor: 28, swarm: 24, allosaur: 10, stego: 6 }),
-      chaos({ raptor: 24, swarm: 30, allosaur: 9, stego: 5, armored: 3 }),
-      heavy({ armored: 16, stego: 8, allosaur: 7 }),
-      chaos({ raptor: 30, swarm: 40, allosaur: 12, stego: 7, armored: 5 }),
-      chaos({ raptor: 34, swarm: 44, allosaur: 14, stego: 8, armored: 6 }),
+      heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
+      mixed({ raptor: 28, swarm: 24, para: 8, allosaur: 10, stego: 6 }),
+      chaos({ raptor: 24, swarm: 30, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
+      heavy({ armored: 16, stego: 8, allosaur: 7, titan: 1 }),
+      chaos({ raptor: 30, swarm: 40, allosaur: 12, stego: 7, armored: 5, titan: 1 }),
+      chaos({ raptor: 34, swarm: 44, para: 10, allosaur: 14, stego: 8, armored: 6, titan: 2 }),
     ],
   },
   {
@@ -432,20 +434,20 @@ export const LEVELS: LevelConfig[] = [
     hpScale: 1.55,
     waves: [
       intro(24, 20),
-      mixed({ raptor: 26, swarm: 22, allosaur: 8, stego: 4 }),
+      mixed({ raptor: 26, swarm: 22, para: 6, allosaur: 8, stego: 4 }),
       rush(110, 24),
-      heavy({ armored: 14, stego: 7, allosaur: 6 }),
-      mixed({ raptor: 30, swarm: 26, allosaur: 11, stego: 6 }),
-      chaos({ raptor: 26, swarm: 34, allosaur: 11, stego: 6, armored: 4 }),
+      heavy({ armored: 14, stego: 7, allosaur: 6, titan: 1 }),
+      mixed({ raptor: 30, swarm: 26, para: 10, allosaur: 11, stego: 6 }),
+      chaos({ raptor: 26, swarm: 34, para: 8, allosaur: 11, stego: 6, armored: 4 }),
       rush(130, 30),
-      heavy({ armored: 18, stego: 9, allosaur: 8 }),
-      mixed({ raptor: 34, swarm: 30, allosaur: 14, stego: 9 }),
-      chaos({ raptor: 30, swarm: 40, allosaur: 13, stego: 8, armored: 5 }),
-      heavy({ armored: 24, stego: 12, allosaur: 10 }),
+      heavy({ armored: 18, stego: 9, allosaur: 8, titan: 2 }),
+      mixed({ raptor: 34, swarm: 30, para: 12, allosaur: 14, stego: 9 }),
+      chaos({ raptor: 30, swarm: 40, allosaur: 13, stego: 8, armored: 5, titan: 2 }),
+      heavy({ armored: 24, stego: 12, allosaur: 10, titan: 2 }),
       rush(150, 36),
-      chaos({ raptor: 40, swarm: 56, allosaur: 18, stego: 12, armored: 8 }),
-      chaos({ raptor: 44, swarm: 60, allosaur: 20, stego: 14, armored: 10 }),
-      chaos({ raptor: 50, swarm: 66, allosaur: 24, stego: 16, armored: 12 }),
+      chaos({ raptor: 40, swarm: 56, para: 14, allosaur: 18, stego: 12, armored: 8, titan: 2 }),
+      chaos({ raptor: 44, swarm: 60, para: 16, allosaur: 20, stego: 14, armored: 10, titan: 3 }),
+      chaos({ raptor: 50, swarm: 66, para: 20, allosaur: 24, stego: 16, armored: 12, titan: 4 }),
     ],
   },
 ];

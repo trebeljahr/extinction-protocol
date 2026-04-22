@@ -111,6 +111,8 @@ canvas { display: block; touch-action: none; }
 .enemy-swatch.kind-allosaur { background: linear-gradient(135deg, #4a2d10 40%, #b86b2a); }
 .enemy-swatch.kind-stego    { background: linear-gradient(135deg, #2a4a1c 40%, #5a8c3a); }
 .enemy-swatch.kind-armored  { background: linear-gradient(135deg, #1e2834 40%, #4a5c6e); }
+.enemy-swatch.kind-para     { background: linear-gradient(135deg, #2a3820 40%, #8aa868); }
+.enemy-swatch.kind-titan    { background: linear-gradient(135deg, #2a1e14 40%, #6a4e30); }
 
 .enemy-status {
   font-size: 9px;
@@ -255,6 +257,7 @@ canvas { display: block; touch-action: none; }
 .resist-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
   gap: 4px;
   margin-bottom: 12px;
 }

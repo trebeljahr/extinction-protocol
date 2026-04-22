@@ -10,7 +10,7 @@ import {
 import { UPGRADES, nextUpgrade, sellRefund } from "../sim/upgrades";
 import type { Tower, EnemyKind, TargetingMode } from "../sim/types";
 
-const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "allosaur", "stego"];
+const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "para", "allosaur", "stego", "armored", "titan"];
 
 const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] = [
   { mode: "tower", label: "Near", title: "Closest to tower" },

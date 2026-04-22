@@ -2,6 +2,7 @@ import { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { useGame } from "../store";
 import type { EnemyKind } from "../sim/types";
 
@@ -12,14 +13,20 @@ type Props = {
   yOffset?: number;
   baseRotY?: number;
   bob?: boolean;
+  clip?: string;
 };
 
+type Item = { obj: THREE.Object3D; mixer: THREE.AnimationMixer };
+
+const findClip = (clips: THREE.AnimationClip[], needle: string) =>
+  clips.find(c => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
+
 export const ModelEnemyMesh = ({
-  kind, url, targetSize, yOffset = 0, baseRotY = 0, bob = false,
+  kind, url, targetSize, yOffset = 0, baseRotY = 0, bob = false, clip = "Run",
 }: Props) => {
-  const { scene } = useGLTF(url);
+  const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
-  const itemsRef = useRef<Map<number, THREE.Object3D>>(new Map());
+  const itemsRef = useRef<Map<number, Item>>(new Map());
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
@@ -34,24 +41,22 @@ export const ModelEnemyMesh = ({
     };
   }, [scene, targetSize]);
 
-  useEffect(() => {
-    scene.traverse(obj => {
-      if ((obj as THREE.Mesh).isMesh) {
-        const m = obj as THREE.Mesh;
-        m.castShadow = true;
-        m.receiveShadow = true;
-      }
-    });
-  }, [scene]);
+  const activeClip = useMemo(
+    () => findClip(animations, clip) ?? findClip(animations, "Walk") ?? animations[0] ?? null,
+    [animations, clip],
+  );
 
   useEffect(() => () => {
     const parent = groupRef.current;
     if (!parent) return;
-    for (const [, item] of itemsRef.current) parent.remove(item);
+    for (const [, item] of itemsRef.current) {
+      item.mixer.stopAllAction();
+      parent.remove(item.obj);
+    }
     itemsRef.current.clear();
   }, []);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
@@ -64,20 +69,32 @@ export const ModelEnemyMesh = ({
       live.add(e.id);
       let item = itemsRef.current.get(e.id);
       if (!item) {
-        item = scene.clone(true);
-        item.scale.setScalar(normalizedScale);
-        item.userData.enemyId = e.id;
-        item.userData.enemyMaxHp = e.maxHp;
-        item.traverse(obj => {
-          obj.userData.enemyId = e.id;
-          obj.userData.enemyMaxHp = e.maxHp;
+        const obj = cloneSkinned(scene);
+        obj.scale.setScalar(normalizedScale);
+        obj.userData.enemyId = e.id;
+        obj.userData.enemyMaxHp = e.maxHp;
+        obj.traverse(o => {
+          o.userData.enemyId = e.id;
+          o.userData.enemyMaxHp = e.maxHp;
+          const m = o as THREE.Mesh;
+          if (m.isMesh) {
+            m.castShadow = true;
+            m.receiveShadow = true;
+          }
         });
-        parent.add(item);
+        const mixer = new THREE.AnimationMixer(obj);
+        if (activeClip) mixer.clipAction(activeClip).play();
+        parent.add(obj);
+        item = { obj, mixer };
         itemsRef.current.set(e.id, item);
       }
 
+      const slowed = world.time < e.slowUntil;
+      item.mixer.timeScale = slowed ? e.slowFactor : 1;
+      item.mixer.update(delta);
+
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
-      item.position.set(
+      item.obj.position.set(
         e.pos.x - centerXZ.x,
         yOffset - scaledMinY + bobY,
         -e.pos.y - centerXZ.z,
@@ -88,12 +105,11 @@ export const ModelEnemyMesh = ({
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const pathYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : 0;
-      item.rotation.set(0, baseRotY + pathYaw, 0);
+      item.obj.rotation.set(0, baseRotY + pathYaw, 0);
 
       const flashing = world.time < e.flashUntil;
-      const slowed = world.time < e.slowUntil;
-      item.traverse(obj => {
-        const m = obj as THREE.Mesh;
+      item.obj.traverse(o => {
+        const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
         const apply = (mm: THREE.MeshStandardMaterial) => {
@@ -109,7 +125,8 @@ export const ModelEnemyMesh = ({
 
     for (const [id, item] of itemsRef.current) {
       if (!live.has(id)) {
-        parent.remove(item);
+        item.mixer.stopAllAction();
+        parent.remove(item.obj);
         itemsRef.current.delete(id);
       }
     }
@@ -130,8 +147,9 @@ export const ModelEnemyMesh = ({
   return <group ref={groupRef} onClick={handleClick} />;
 };
 
-useGLTF.preload("/models/raptor.glb");
-useGLTF.preload("/models/allosaurus.glb");
-useGLTF.preload("/models/stegoknight.glb");
-useGLTF.preload("/models/spinosaurobot.glb");
-useGLTF.preload("/models/flyer.glb");
+useGLTF.preload("/models/Velociraptor.glb");
+useGLTF.preload("/models/Trex.glb");
+useGLTF.preload("/models/Stegosaurus.glb");
+useGLTF.preload("/models/Triceratops.glb");
+useGLTF.preload("/models/Parasaurolophus.glb");
+useGLTF.preload("/models/Apatosaurus.glb");

@@ -50,11 +50,13 @@ export const createWorld = (level: LevelConfig): World => ({
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
 const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
-  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2, bounty:  3, damage: 1 },
-  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty:  7, damage: 2 },
-  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 14, damage: 3 },
-  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  1, damage: 1 },
-  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1, bounty: 18, damage: 4 },
+  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2,  bounty:  3, damage: 1 },
+  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4,  bounty:  7, damage: 2 },
+  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9,  bounty: 14, damage: 3 },
+  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0,  bounty:  1, damage: 1 },
+  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1,  bounty: 18, damage: 4 },
+  para:     { kind: "para",     hp: 45,  maxHp: 45,  speed: 1.8,  bounty:  5, damage: 2 },
+  titan:    { kind: "titan",    hp: 420, maxHp: 420, speed: 0.65, bounty: 36, damage: 8 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
@@ -84,14 +86,18 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
   swarm:    { kinetic: 0.6, electric: 1.4, cold: 0.8, explosive: 1.7 },
   armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
+  para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
+  titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
   raptor:   "Raptor",
-  allosaur: "Allosaur",
-  stego:    "Stegoknight",
+  allosaur: "T-Rex",
+  stego:    "Stegosaur",
   swarm:    "Swarm",
-  armored:  "Juggernaut",
+  armored:  "Triceratops",
+  para:     "Parasaur",
+  titan:    "Apatosaur",
 };
 
 export const applyDamage = (
