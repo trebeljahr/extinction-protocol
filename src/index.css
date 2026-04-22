@@ -208,11 +208,14 @@ canvas { display: block; touch-action: none; }
 .card-cancel:hover { background: rgba(255, 122, 154, 0.2); color: #ff9db3; }
 
 .tower-swatch {
-  width: 28px;
-  height: 28px;
+  width: 56px;
+  height: 56px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
 }
+
+.tower-swatch > canvas { display: block; width: 100% !important; height: 100% !important; }
 
 .tower-swatch.kind-pulse  { background: linear-gradient(135deg, #3a5068 40%, #9fd8ff); }
 .tower-swatch.kind-chain  { background: linear-gradient(135deg, #4a3868 40%, #c48cff); }

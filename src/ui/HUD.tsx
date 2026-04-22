@@ -4,6 +4,7 @@ import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
+import { TowerPreview } from "./TowerPreview";
 import { EnemyPanel } from "./EnemyPanel";
 import { PauseMenu } from "./PauseMenu";
 import { getLevel } from "../levels";
@@ -108,7 +109,7 @@ export const HUD = () => {
                   onClick={(e) => { e.stopPropagation(); setSelectedKind(null); }}
                 >×</span>
               )}
-              <div className={`tower-swatch kind-${kind}`} />
+              <TowerPreview kind={kind} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
               <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
                 {DAMAGE_TYPE_LABEL[dmgType]}
