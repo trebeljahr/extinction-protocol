@@ -26,7 +26,8 @@ export const HUD = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space") { e.preventDefault(); togglePause(); return; }
+      if (e.code === "Space") { e.preventDefault(); callWaveEarly(); return; }
+      if (e.code === "KeyP") { togglePause(); return; }
       if (e.code === "KeyR") { retry(); return; }
       if (e.code === "Escape") {
         const s = useGame.getState();
@@ -43,7 +44,6 @@ export const HUD = () => {
         return;
       }
       if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
-      if (e.code === "KeyN") { callWaveEarly(); return; }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
@@ -59,13 +59,13 @@ export const HUD = () => {
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
         {ui.wave === 0 ? (
-          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Start waves (N)">
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>START WAVES [N]</div>
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Start waves (Space)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>START WAVES [Space]</div>
             <div className="stat-value">Ready</div>
           </button>
         ) : ui.canCallEarly ? (
-          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (N)">
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [N]</div>
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (Space)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [Space]</div>
             <div className="stat-value">
               +{ui.callEarlyBonus}g
               {!ui.waveActive && <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>}
@@ -136,11 +136,11 @@ export const HUD = () => {
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>
-        <span>Space: pause</span>
+        <span>Space: call wave</span>
+        <span className="sep">·</span>
+        <span>P: pause</span>
         <span className="sep">·</span>
         <span>R: restart</span>
-        <span className="sep">·</span>
-        <span>N: call wave</span>
         <span className="sep">·</span>
         <span>Esc: deselect / map</span>
         <span className="sep">·</span>
@@ -151,7 +151,7 @@ export const HUD = () => {
         <div className="overlay">
           <div className="overlay-card">
             <h1>Paused</h1>
-            <button onClick={togglePause} className="btn">Resume (Space)</button>
+            <button onClick={togglePause} className="btn">Resume (P)</button>
           </div>
         </div>
       )}
