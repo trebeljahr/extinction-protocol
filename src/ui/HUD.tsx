@@ -132,7 +132,7 @@ export const HUD = () => {
       <EnemyPanel />
 
       <div className="hud-bottom">
-        <span>Click empty tile to build · click a tower to inspect</span>
+        <span>Click empty tile to build · click a tower to inspect · click a tree to clear (8g)</span>
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>

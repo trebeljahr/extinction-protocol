@@ -49,6 +49,14 @@ export type Tower = {
   slowDuration: number;
 };
 
+export type Tree = {
+  id: EntityId;
+  pos: Vec2;
+  variant: number;
+  scale: number;
+  rot: number;
+};
+
 export type ProjectileKind = "direct" | "splash";
 
 export type Projectile = {
@@ -135,6 +143,7 @@ export type World = {
   plannedWaves: WaveSpec[];
   enemies: Enemy[];
   towers: Tower[];
+  trees: Tree[];
   projectiles: Projectile[];
   beams: Beam[];
   explosions: Explosion[];
