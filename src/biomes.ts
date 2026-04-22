@@ -256,15 +256,16 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
 export type PropRole = "building" | "tree" | "bush" | "rock" | "grass" | "cosmetic";
 
 // Target visual max-dim (in world units) per role. Gaps are wide so the
-// hierarchy reads from any camera distance: buildings dominate, trees are
-// clearly the tallest natural prop, rocks + cosmetics are quiet dressing.
+// hierarchy reads from any camera distance: buildings and trees are
+// roughly siblings (buildings slightly taller), rocks are ~1/3 of a tree,
+// cosmetics are quiet dressing half the size of a rock.
 export const TARGET_SIZE_BY_ROLE: Record<PropRole, number> = {
-  building: 3.8,
-  tree:     3.0,
-  bush:     0.9,
-  rock:     0.75,
+  building: 2.8,
+  tree:     2.4,
+  bush:     0.85,
+  rock:     0.7,
   grass:    0.4,
-  cosmetic: 0.55,
+  cosmetic: 0.5,
 };
 
 export const classifyPropUrl = (url: string): PropRole => {
