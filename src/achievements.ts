@@ -1,6 +1,6 @@
-import type { GameEvent, TowerKind, World } from "./sim/types";
+import type { EnemyKind, GameEvent, TowerKind, World } from "./sim/types";
 import type { ProgressData } from "./progress";
-import { getStars } from "./progress";
+import { getStars, starsForLives } from "./progress";
 import { LEVELS } from "./levels";
 
 export type AchievementId =
@@ -13,6 +13,9 @@ export type AchievementId =
   | "fully_armed"
   | "architect"
   | "flawless"
+  | "triple_star"
+  | "full_spectrum"
+  | "master_engineer"
   | "campaign"
   | "perfect_run";
 
@@ -33,6 +36,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "fully_armed",   name: "Fully Armed",       desc: "Fully upgrade both branches of a single tower.",      hint: "Tier 3 on A and B." },
   { id: "architect",     name: "Architect",         desc: "Deploy ten towers in a single mission.",              hint: "Ten standing at once." },
   { id: "flawless",      name: "Flawless",          desc: "Win a mission without losing a single life.",         hint: "All 20 lives intact." },
+  { id: "triple_star",   name: "Triple Star",       desc: "Earn a three-star rating on any mission.",            hint: "First perfect clear." },
+  { id: "full_spectrum", name: "Full Spectrum",     desc: "Face every enemy species and build every tower type in one mission.", hint: "Late-game map + every tower." },
+  { id: "master_engineer", name: "Master Engineer", desc: "Have one of every tower type fully upgraded at once.", hint: "Four towers, each tier 3 on both branches." },
   { id: "campaign",      name: "Campaign Complete", desc: "Win every mission.",                                  hint: "Clear the whole map." },
   { id: "perfect_run",   name: "Perfect Run",       desc: "Earn three stars on every mission.",                  hint: "Max rating everywhere." },
 ];
@@ -44,6 +50,7 @@ export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.f
 export const TOTAL_ENEMY_KINDS = 7;
 
 const ALL_TOWER_KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
+const ALL_ENEMY_KINDS: EnemyKind[] = ["raptor", "swarm", "para", "allosaur", "stego", "armored", "titan"];
 
 export const isAchievementUnlocked = (p: ProgressData, id: AchievementId): boolean =>
   p.unlocked[id] !== undefined;
@@ -78,6 +85,18 @@ const satisfies = (
       return w.towers.length >= 10;
     case "flawless":
       return ev !== null && ev.type === "game-over" && ev.won && w.lives >= w.startLives;
+    case "triple_star":
+      return ev !== null && ev.type === "game-over" && ev.won && starsForLives(w.lives) === 3;
+    case "full_spectrum":
+      return ALL_ENEMY_KINDS.every(k => w.runEnemyKinds[k])
+        && ALL_TOWER_KINDS.every(k => w.runTowerKinds[k]);
+    case "master_engineer": {
+      const maxed: Partial<Record<TowerKind, boolean>> = {};
+      for (const t of w.towers) {
+        if (t.upgrades.a === 3 && t.upgrades.b === 3) maxed[t.kind] = true;
+      }
+      return ALL_TOWER_KINDS.every(k => maxed[k]);
+    }
     case "campaign":
       return LEVELS.every(l => getStars(p, l.id) >= 1);
     case "perfect_run":

@@ -189,4 +189,6 @@ export type World = {
   events: GameEvent[];
   shake: Shake;
   selectedTowerId: EntityId | null;
+  runEnemyKinds: Partial<Record<EnemyKind, boolean>>;
+  runTowerKinds: Partial<Record<TowerKind, boolean>>;
 };

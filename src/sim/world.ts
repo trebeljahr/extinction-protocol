@@ -204,6 +204,8 @@ export const createWorld = (level: LevelConfig): World => {
     events: [],
     shake: { magnitude: 0, decay: 0 },
     selectedTowerId: null,
+    runEnemyKinds: {},
+    runTowerKinds: {},
   };
 };
 
@@ -343,6 +345,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex =
     flashUntil: 0,
   };
   world.enemies.push(enemy);
+  world.runEnemyKinds[kind] = true;
   return enemy;
 };
 
@@ -402,6 +405,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     slowDuration: stats.slowDuration,
   };
   world.towers.push(tower);
+  world.runTowerKinds[kind] = true;
   return tower;
 };
 
