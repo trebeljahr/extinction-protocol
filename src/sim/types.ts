@@ -27,6 +27,8 @@ export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 
 export type TowerUpgrades = { a: number; b: number };
 
+export type TargetingMode = "tower" | "start" | "end";
+
 export type Tower = {
   id: EntityId;
   kind: TowerKind;
@@ -36,6 +38,7 @@ export type Tower = {
   fireRate: number;
   cooldown: number;
   targetId: EntityId | null;
+  targetingMode: TargetingMode;
   upgrades: TowerUpgrades;
   totalSpent: number;
   splashRadius: number;

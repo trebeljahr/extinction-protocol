@@ -174,6 +174,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     fireRate: stats.fireRate,
     cooldown: 0,
     targetId: null,
+    targetingMode: "end",
     upgrades: { a: 0, b: 0 },
     totalSpent: TOWER_COST[kind],
     splashRadius: stats.splashRadius,

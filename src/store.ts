@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower } from "./sim/types";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly } from "./sim/spawner";
@@ -104,6 +104,7 @@ type GameStore = {
   selectTower: (id: number | null) => void;
   upgradeSelected: (branch: "a" | "b") => void;
   sellSelected: () => void;
+  setTargetingMode: (mode: TargetingMode) => void;
   callWaveEarly: () => void;
 
   onEvent: (fn: (e: GameEvent) => void) => () => void;
@@ -208,6 +209,17 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
     if (!t) return;
     sellTower(s.world, t);
+    const newVersion = s.towerVersion + 1;
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+  },
+
+  setTargetingMode: (mode) => {
+    const s = get();
+    if (s.world.selectedTowerId === null) return;
+    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    if (!t || t.targetingMode === mode) return;
+    t.targetingMode = mode;
+    t.targetId = null;
     const newVersion = s.towerVersion + 1;
     set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
   },

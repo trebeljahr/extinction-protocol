@@ -212,6 +212,48 @@ canvas { display: block; touch-action: none; }
 }
 .btn-close:hover { color: #fff; border-color: #9fd8ff; }
 
+.targeting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 160, 200, 0.12);
+  border-radius: 8px;
+  background: rgba(6, 10, 14, 0.4);
+}
+.targeting-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9fd8ff;
+  text-transform: uppercase;
+}
+.targeting-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  flex: 1;
+}
+.targeting-btn {
+  padding: 5px 4px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #a8b4c2;
+  border: 1px solid rgba(120, 160, 200, 0.18);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.targeting-btn:hover { border-color: rgba(180, 220, 255, 0.55); color: #fff; }
+.targeting-btn.active {
+  background: rgba(159, 216, 255, 0.18);
+  border-color: #9fd8ff;
+  color: #fff;
+  box-shadow: 0 0 0 1px #9fd8ff, 0 0 10px rgba(159, 216, 255, 0.2);
+}
+
 .branches { display: flex; flex-direction: column; gap: 12px; }
 .branch {
   border: 1px solid rgba(120, 160, 200, 0.12);
