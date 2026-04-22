@@ -32,6 +32,9 @@ importers:
       three:
         specifier: ^0.167.0
         version: 0.167.1
+      three-stdlib:
+        specifier: ^2.36.1
+        version: 2.36.1(three@0.167.1)
       zustand:
         specifier: ^4.5.5
         version: 4.5.7(@types/react@18.3.28)(react@18.3.1)

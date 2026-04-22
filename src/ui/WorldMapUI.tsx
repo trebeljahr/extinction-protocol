@@ -6,6 +6,7 @@ import { StarDisplay } from "./StarDisplay";
 export const WorldMapUI = () => {
   const progress = useGame(s => s.progress);
   const hoveredLevelId = useGame(s => s.hoveredLevelId);
+  const setCompendiumOpen = useGame(s => s.setCompendiumOpen);
 
   const hovered = LEVELS.find(l => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;
@@ -35,6 +36,12 @@ export const WorldMapUI = () => {
             {completed} <span className="meta-dim">/ {LEVELS.length}</span>
           </div>
         </div>
+        <button
+          className="btn btn-ghost worldmap-compendium-btn"
+          onClick={() => setCompendiumOpen(true)}
+        >
+          Compendium
+        </button>
       </div>
 
       {hovered && (

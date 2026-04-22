@@ -208,7 +208,7 @@ export const createWorld = (level: LevelConfig): World => {
 
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
-const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
+export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2,  bounty:  3, damage: 1 },
   allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4,  bounty:  7, damage: 2 },
   stego:    { kind: "stego",    hp: 180, maxHp: 180, speed: 0.9,  bounty: 16, damage: 3 },
@@ -260,6 +260,16 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
 };
 
 export const MIN_SLOW_FACTOR = 0.25;
+
+export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; clip?: string }> = {
+  raptor:   { url: "/models/Velociraptor.glb",    targetSize: 1.6 },
+  swarm:    { url: "/models/Velociraptor.glb",    targetSize: 0.8 },
+  para:     { url: "/models/Parasaurolophus.glb", targetSize: 1.7 },
+  allosaur: { url: "/models/Trex.glb",            targetSize: 2.2 },
+  stego:    { url: "/models/Stegosaurus.glb",     targetSize: 1.9 },
+  armored:  { url: "/models/Triceratops.glb",     targetSize: 2.0 },
+  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 3.0, clip: "Walk" },
+};
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
   raptor:   "Raptor",

@@ -15,6 +15,7 @@ import {
   recordLevelResult,
   getStars,
   isLevelUnlocked,
+  markEncountered,
 } from "./progress";
 import type { ProgressData, Stars } from "./progress";
 
@@ -177,11 +178,13 @@ type GameStore = {
   progress: ProgressData;
   hoveredLevelId: number | null;
   lastResult: LastResult | null;
+  compendiumOpen: boolean;
 
   startLevel: (id: number) => void;
   retryCurrentLevel: () => void;
   goToWorldMap: () => void;
   setHoveredLevel: (id: number | null) => void;
+  setCompendiumOpen: (open: boolean) => void;
 
   reset: () => void;
   togglePause: () => void;
@@ -237,6 +240,7 @@ export const useGame = create<GameStore>((set, get) => ({
   progress: loadProgress(),
   hoveredLevelId: null,
   lastResult: null,
+  compendiumOpen: false,
 
   startLevel: (id) => {
     const level = LEVELS.find(l => l.id === id);
@@ -272,6 +276,8 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setHoveredLevel: (id) => set({ hoveredLevelId: id }),
 
+  setCompendiumOpen: (open) => set({ compendiumOpen: open }),
+
   reset: () => {
     get().retryCurrentLevel();
   },
@@ -287,6 +293,16 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: (realTimeSec: number) => {
     const s = get();
     s.engine.step(s.world, realTimeSec);
+    // Track encountered enemy kinds
+    if (s.world.enemies.length > 0) {
+      const kinds = new Set<EnemyKind>();
+      for (const e of s.world.enemies) kinds.add(e.kind);
+      const nextProgress = markEncountered(s.progress, Array.from(kinds));
+      if (nextProgress) {
+        saveProgress(nextProgress);
+        set({ progress: nextProgress });
+      }
+    }
     if (s.world.events.length > 0) {
       for (const ev of s.world.events) {
         if (ev.type === "game-over") {

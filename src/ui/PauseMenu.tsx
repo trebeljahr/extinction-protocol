@@ -27,6 +27,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const selectedLevelId = useGame(s => s.selectedLevelId);
   const goToWorldMap = useGame(s => s.goToWorldMap);
   const retry = useGame(s => s.retryCurrentLevel);
+  const setCompendiumOpen = useGame(s => s.setCompendiumOpen);
 
   const [sfx, setSfx] = useState(audio.getSfxVolume());
   const [music, setMusic] = useState(audio.getMusicVolume());
@@ -145,6 +146,7 @@ export const PauseMenu = ({ onResume }: Props) => {
         <div className="pause-actions">
           <button className="btn" onClick={onResume}>Resume (Esc)</button>
           <button className="btn btn-secondary" onClick={retry}>Restart (R)</button>
+          <button className="btn btn-secondary" onClick={() => setCompendiumOpen(true)}>Compendium</button>
           <button className="btn btn-secondary" onClick={() => setConfirming(true)}>World Map</button>
         </div>
       </div>
