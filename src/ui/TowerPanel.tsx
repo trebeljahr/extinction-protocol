@@ -9,6 +9,7 @@ import {
 } from "../sim/world";
 import { UPGRADES, nextUpgrade, sellRefund } from "../sim/upgrades";
 import type { Tower, EnemyKind, TargetingMode } from "../sim/types";
+import { DamageIcon } from "./DamageIcon";
 
 const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "para", "allosaur", "stego", "armored", "titan"];
 
@@ -41,6 +42,7 @@ export const TowerPanel = () => {
               className="dmg-tag"
               style={{ color: DAMAGE_TYPE_COLOR[damageType], borderColor: DAMAGE_TYPE_COLOR[damageType] }}
             >
+              <DamageIcon type={damageType} size={12} title={DAMAGE_TYPE_LABEL[damageType]} />
               {DAMAGE_TYPE_LABEL[damageType]}
             </span>
           </div>

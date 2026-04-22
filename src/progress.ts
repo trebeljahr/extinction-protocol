@@ -1,23 +1,30 @@
+import type { EnemyKind } from "./sim/types";
+
 export type Stars = 0 | 1 | 2 | 3;
 
 export type ProgressData = {
   version: 1;
   starsByLevel: Record<number, Stars>;
+  encountered: Partial<Record<EnemyKind, boolean>>;
 };
 
 const STORAGE_KEY = "extinction-protocol:progress:v1";
 const STARTING_LIVES = 20;
 
-const empty = (): ProgressData => ({ version: 1, starsByLevel: {} });
+const empty = (): ProgressData => ({ version: 1, starsByLevel: {}, encountered: {} });
 
 export const loadProgress = (): ProgressData => {
   if (typeof window === "undefined" || !window.localStorage) return empty();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return empty();
-    const parsed = JSON.parse(raw) as ProgressData;
+    const parsed = JSON.parse(raw) as Partial<ProgressData>;
     if (parsed?.version !== 1 || typeof parsed.starsByLevel !== "object") return empty();
-    return parsed;
+    return {
+      version: 1,
+      starsByLevel: parsed.starsByLevel as Record<number, Stars>,
+      encountered: (parsed.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
+    };
   } catch {
     return empty();
   }
@@ -65,3 +72,17 @@ export const totalStars = (p: ProgressData): number => {
   for (const s of Object.values(p.starsByLevel)) sum += s;
   return sum;
 };
+
+export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressData | null => {
+  const missing = kinds.filter(k => !p.encountered[k]);
+  if (missing.length === 0) return null;
+  const next: ProgressData = {
+    ...p,
+    encountered: { ...p.encountered },
+  };
+  for (const k of missing) next.encountered[k] = true;
+  return next;
+};
+
+export const hasEncountered = (p: ProgressData, kind: EnemyKind): boolean =>
+  p.encountered[kind] === true;

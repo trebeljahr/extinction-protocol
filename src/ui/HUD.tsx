@@ -6,6 +6,7 @@ import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { EnemyPanel } from "./EnemyPanel";
 import { PauseMenu } from "./PauseMenu";
+import { DamageIcon } from "./DamageIcon";
 import { getLevel } from "../levels";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
@@ -111,6 +112,7 @@ export const HUD = () => {
               <div className={`tower-swatch kind-${kind}`} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
               <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
+                <DamageIcon type={dmgType} size={11} title={DAMAGE_TYPE_LABEL[dmgType]} />
                 {DAMAGE_TYPE_LABEL[dmgType]}
               </div>
               <div className="tower-cost">{cost}g</div>
