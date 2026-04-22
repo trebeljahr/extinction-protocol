@@ -84,7 +84,7 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
 // Flamethrower — burns everything inside a forward cone. Damage is small
 // but applied frequently so it reads as DoT on anything lingering in the
 // stream.
-const FLAME_HALF_CONE = Math.PI / 5; // 36° → 72° total spread
+const FLAME_HALF_CONE = Math.PI / 4; // 45° → 90° total spread
 const FLAME_COS_HALF = Math.cos(FLAME_HALF_CONE);
 
 const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
@@ -127,12 +127,13 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   // its body.
   const nozzle = { x: t.pos.x + dirX * 0.55, y: t.pos.y + dirY * 0.55 };
 
-  // Hot inner jet — bright yellow, narrow, fast, short-lived.
-  spawnParticles(world, nozzle, 4, "#fff0a0", [4.5, 6.5], 0.18, dir, Math.PI / 14);
-  // Mid orange flames — wider, slower.
-  spawnParticles(world, nozzle, 5, "#ffb54a", [3.0, 5.0], 0.32, dir, Math.PI / 8);
-  // Outer red wash + trailing embers, widest cone, longest life.
-  spawnParticles(world, nozzle, 3, "#ff5a30", [2.0, 3.5], 0.5, dir, Math.PI / 5);
+  // Hot inner jet — bright yellow, narrowish, fast, short-lived.
+  spawnParticles(world, nozzle, 6, "#fff0a0", [7.5, 10.5], 0.28, dir, Math.PI / 10);
+  // Mid orange flames — main flame body, fills most of the cone.
+  spawnParticles(world, nozzle, 8, "#ffb54a", [5.5, 8.5], 0.45, dir, Math.PI / 6);
+  // Outer red wash + trailing embers, full damage cone, longest life so
+  // they linger and drift after the stream sweeps past.
+  spawnParticles(world, nozzle, 6, "#ff5a30", [4.0, 6.5], 0.7, dir, Math.PI / 4);
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {

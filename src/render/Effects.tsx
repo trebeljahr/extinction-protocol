@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useGame } from "../store";
 
-const MAX_PARTICLES = 512;
+const MAX_PARTICLES = 1024;
 const MAX_EXPLOSIONS = 32;
 const MAX_CRYO_WAVES = 16;
 const MAX_BEAMS = 32;

@@ -376,9 +376,9 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   cannon:  { range: 10.0, damage: 60, fireRate: 0.4, splashRadius: 0,   chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   // Plasma — electric splash shot, mid rate, good vs crowds.
   plasma:  { range: 7.0, damage: 22, fireRate: 0.9, splashRadius: 1.2,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
-  // Flame — short-range forward cone, low damage per tick at high rate so
-  // it reads as a continuous burn on anything stuck in the stream.
-  flame:   { range: 4.2, damage: 3,  fireRate: 5.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
+  // Flame — mid-range forward cone, base damage at high tick rate so it
+  // reads as a continuous burn on anything stuck in the stream.
+  flame:   { range: 6.0, damage: 5,  fireRate: 5.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   // Hive — chain drones, more bounces than chain coil but less damage each.
   hive:    { range: 6.0, damage: 6,  fireRate: 1.5, splashRadius: 0,    chainCount: 10, chainFalloff: 0.75, slowFactor: 1, slowDuration: 0 },
 };
