@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
 import * as THREE from "three";
 import { ThreeEvent } from "@react-three/fiber";
 import { useGame } from "../store";
 import { MAP_WIDTH, MAP_HEIGHT } from "../level";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
+import { GhostTower } from "./GhostTower";
 
 type Vec2 = { x: number; y: number };
 
@@ -68,18 +69,23 @@ export const Placement = () => {
       )}
 
       {showPlacement && (
-        <group position={[hover!.x, 0, -hover!.y]}>
-          <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.55, 0.7, 24]} />
-            <meshBasicMaterial color={placementColor} transparent opacity={0.9} side={THREE.DoubleSide} />
-          </mesh>
-          {canPlaceHere && (
-            <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[range - 0.04, range, 64]} />
-              <meshBasicMaterial color={placementColor} transparent opacity={0.25} side={THREE.DoubleSide} />
+        <>
+          <group position={[hover!.x, 0, -hover!.y]}>
+            <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.55, 0.7, 24]} />
+              <meshBasicMaterial color={placementColor} transparent opacity={0.9} side={THREE.DoubleSide} />
             </mesh>
-          )}
-        </group>
+            {canPlaceHere && (
+              <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[range - 0.04, range, 64]} />
+                <meshBasicMaterial color={placementColor} transparent opacity={0.25} side={THREE.DoubleSide} />
+              </mesh>
+            )}
+          </group>
+          <Suspense fallback={null}>
+            <GhostTower kind={selectedKind!} pos={hover!} ok={canPlaceHere} />
+          </Suspense>
+        </>
       )}
     </group>
   );
