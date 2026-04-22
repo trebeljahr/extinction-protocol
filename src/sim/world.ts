@@ -376,8 +376,9 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   cannon:  { range: 10.0, damage: 60, fireRate: 0.4, splashRadius: 0,   chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   // Plasma — electric splash shot, mid rate, good vs crowds.
   plasma:  { range: 7.0, damage: 22, fireRate: 0.9, splashRadius: 1.2,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
-  // Flame — short-range cryo-like AoE but with damage and no slow.
-  flame:   { range: 3.8, damage: 5,  fireRate: 3.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
+  // Flame — short-range forward cone, low damage per tick at high rate so
+  // it reads as a continuous burn on anything stuck in the stream.
+  flame:   { range: 4.2, damage: 3,  fireRate: 5.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   // Hive — chain drones, more bounces than chain coil but less damage each.
   hive:    { range: 6.0, damage: 6,  fireRate: 1.5, splashRadius: 0,    chainCount: 10, chainFalloff: 0.75, slowFactor: 1, slowDuration: 0 },
 };
@@ -519,9 +520,16 @@ export const spawnParticles = (
   color: string,
   speedRange: [number, number] = [2, 5],
   lifeSec = 0.35,
+  baseDir?: Vec2,
+  halfConeRadians?: number,
 ) => {
+  const hasDir = baseDir && (baseDir.x !== 0 || baseDir.y !== 0);
+  const baseAngle = hasDir ? Math.atan2(baseDir!.y, baseDir!.x) : 0;
+  const halfCone = hasDir ? (halfConeRadians ?? Math.PI / 6) : Math.PI;
   for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
+    const angle = hasDir
+      ? baseAngle + (Math.random() * 2 - 1) * halfCone
+      : Math.random() * Math.PI * 2;
     const spd = speedRange[0] + Math.random() * (speedRange[1] - speedRange[0]);
     world.particles.push({
       id: world.nextEntityId++,

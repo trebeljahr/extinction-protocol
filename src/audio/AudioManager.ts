@@ -131,9 +131,14 @@ export class AudioManager {
   }
 
   playShoot(kind: TowerKind) {
+    // Flame uses a synthesised whoosh instead of a sample so it reads as a
+    // continuous noise burst rather than a discrete shot.
+    if (kind === "flame") {
+      this.playWhoosh(0.35, 0.45);
+      return;
+    }
     // New towers reuse existing sfx keys mapped to their family:
-    //   gatling/cannon → pulse (kinetic), plasma/hive → chain (electric),
-    //   flame         → mortar (explosive boom).
+    //   gatling/cannon → pulse (kinetic), plasma/hive → chain (electric).
     const map: Record<TowerKind, [string, number, number, number]> = {
       pulse:   ["shoot-pulse",  0.35, 60,  0.7],
       chain:   ["shoot-chain",  0.35, 90,  0.9],
@@ -142,11 +147,59 @@ export class AudioManager {
       gatling: ["shoot-pulse",  0.25, 50,  0.6],
       cannon:  ["shoot-pulse",  0.55, 180, 1.0],
       plasma:  ["shoot-chain",  0.45, 120, 1.0],
-      flame:   ["shoot-mortar", 0.3,  80,  0.6],
+      flame:   ["shoot-mortar", 0.3,  80,  0.6], // unused — see early return
       hive:    ["shoot-chain",  0.35, 100, 0.9],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, vol, cd, maxDur);
+  }
+
+  // Synthesised flamethrower whoosh: filtered white noise with an envelope
+  // and a frequency sweep. Played once per damage tick — overlapping bursts
+  // stack into a continuous roar while the tower is firing.
+  private lastWhooshAt = 0;
+  private activeWhooshes = new Set<AudioBufferSourceNode>();
+  playWhoosh(volumeScale = 0.35, durationSec = 0.45) {
+    if (!this.ctx || !this.sfxGain || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const wallNow = performance.now();
+    if (wallNow - this.lastWhooshAt < 70) return;
+    if (this.activeWhooshes.size >= 4) return;
+    this.lastWhooshAt = wallNow;
+
+    const sampleRate = ctx.sampleRate;
+    const length = Math.ceil(durationSec * sampleRate);
+    const buf = ctx.createBuffer(1, length, sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(260, now);
+    bp.frequency.exponentialRampToValueAtTime(1400, now + durationSec * 0.45);
+    bp.frequency.exponentialRampToValueAtTime(700, now + durationSec);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 2400;
+
+    const gain = ctx.createGain();
+    const peak = Math.min(0.5, volumeScale);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(peak, now + 0.04);
+    gain.gain.linearRampToValueAtTime(peak * 0.7, now + durationSec * 0.6);
+    gain.gain.linearRampToValueAtTime(0, now + durationSec);
+
+    src.connect(bp).connect(lp).connect(gain).connect(this.sfxGain);
+    this.activeWhooshes.add(src);
+    src.onended = () => { this.activeWhooshes.delete(src); };
+    src.start(now);
+    src.stop(now + durationSec);
   }
 
   startMusic() {

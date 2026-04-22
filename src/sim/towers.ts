@@ -81,20 +81,58 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
   createProjectile(world, "splash", "explosive", t.pos, target.pos, t.damage, t.splashRadius, 14);
 };
 
-// Flamethrower — hit every enemy in short range each tick. Damage per hit is
-// small but fire rate is high, so it reads as DoT on anything lingering in
-// the cone. No slow, no projectiles — just direct AoE damage.
-const fireFlame = (world: World, t: Tower): boolean => {
+// Flamethrower — burns everything inside a forward cone. Damage is small
+// but applied frequently so it reads as DoT on anything lingering in the
+// stream.
+const FLAME_HALF_CONE = Math.PI / 5; // 36° → 72° total spread
+const FLAME_COS_HALF = Math.cos(FLAME_HALF_CONE);
+
+const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
+  const dx = target.pos.x - t.pos.x;
+  const dy = target.pos.y - t.pos.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const dirX = dx / len;
+  const dirY = dy / len;
+
   const rangeSq = t.range * t.range;
   let hit = false;
   for (const e of world.enemies) {
     if (!e.alive) continue;
-    if (distSq(e.pos, t.pos) > rangeSq) continue;
+    const ex = e.pos.x - t.pos.x;
+    const ey = e.pos.y - t.pos.y;
+    const d2 = ex * ex + ey * ey;
+    if (d2 > rangeSq) continue;
+    const eLen = Math.sqrt(d2) || 1;
+    const dot = (ex * dirX + ey * dirY) / eLen;
+    // Always include the locked target (avoid edge-case where target sits
+    // right at the cone boundary and gets dropped due to FP noise).
+    if (e !== target && dot < FLAME_COS_HALF) continue;
     hit = true;
-    applyDamage(world, e, t.damage, "explosive", "#ffb54a", 4);
-    spawnParticles(world, e.pos, 2, "#ffb54a", [1.4, 2.6], 0.4);
+    applyDamage(world, e, t.damage, "explosive", "#ffb54a", 3);
   }
   return hit;
+};
+
+// Continuous flame stream — emits a directed cone of particles every tick
+// while the tower is targeting. Layered colours give a hot core + outer
+// flame + trailing embers look.
+const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
+  const dx = target.pos.x - t.pos.x;
+  const dy = target.pos.y - t.pos.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const dirX = dx / len;
+  const dirY = dy / len;
+  const dir = { x: dirX, y: dirY };
+  // Nozzle slightly in front of the tower so particles don't pop out of
+  // its body.
+  const nozzle = { x: t.pos.x + dirX * 0.55, y: t.pos.y + dirY * 0.55 };
+
+  // Hot inner jet — bright yellow, narrow, fast, short-lived.
+  spawnParticles(world, nozzle, 4, "#fff0a0", [4.5, 6.5], 0.18, dir, Math.PI / 14);
+  // Mid orange flames — wider, slower.
+  spawnParticles(world, nozzle, 5, "#ffb54a", [3.0, 5.0], 0.32, dir, Math.PI / 8);
+  // Outer red wash + trailing embers, widest cone, longest life.
+  spawnParticles(world, nozzle, 3, "#ff5a30", [2.0, 3.5], 0.5, dir, Math.PI / 5);
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
@@ -149,17 +187,30 @@ export const updateTowers = (world: World, dt: number) => {
     const target = findTargetInRange(world, t);
     t.targetId = target?.id ?? null;
 
+    // Flame is special — the *visible* stream runs every tick while a target
+    // is in range, but damage ticks are gated by the cooldown so DPS stays
+    // tunable. The shoot event (which drives audio) follows the damage tick.
+    if (t.kind === "flame") {
+      if (target) {
+        spawnFlameStream(world, t, target);
+        if (t.cooldown === 0) {
+          fireFlameDamage(world, t, target);
+          t.cooldown = 1 / t.fireRate;
+          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+        }
+      }
+      continue;
+    }
+
     if (target && t.cooldown === 0) {
       // New towers reuse existing fire logic:
       //   gatling / cannon — single-target direct shot (same as pulse)
       //   plasma          — splash projectile (same as mortar, electric dmg)
-      //   flame           — cryo-like AoE but with damage instead of slow
       //   hive            — chain drones (same chain logic, more bounces)
       if (t.kind === "pulse" || t.kind === "gatling" || t.kind === "cannon") firePulse(world, t, target);
       else if (t.kind === "chain" || t.kind === "hive") fireChain(world, t, target);
       else if (t.kind === "mortar") fireMortar(world, t, target);
       else if (t.kind === "plasma") fireMortar(world, t, target);
-      else if (t.kind === "flame") fireFlame(world, t);
       t.cooldown = 1 / t.fireRate;
       emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
     }
