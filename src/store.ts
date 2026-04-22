@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
+import { callWaveEarly as simCallWaveEarly } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { PATH } from "./level";
 import { distSq } from "./sim/vec2";
@@ -101,6 +102,7 @@ type GameStore = {
   selectTower: (id: number | null) => void;
   upgradeSelected: (branch: "a" | "b") => void;
   sellSelected: () => void;
+  callWaveEarly: () => void;
 
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
@@ -193,6 +195,12 @@ export const useGame = create<GameStore>((set, get) => ({
     sellTower(s.world, t);
     const newVersion = s.towerVersion + 1;
     set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+  },
+
+  callWaveEarly: () => {
+    const s = get();
+    if (!simCallWaveEarly(s.world)) return;
+    set({ ui: snapshot(s.world, s.towerVersion) });
   },
 
   onEvent: (fn) => {

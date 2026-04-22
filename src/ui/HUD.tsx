@@ -5,6 +5,7 @@ import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_T
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { audio } from "../audio/AudioManager";
+import { earlyCallBonus } from "../sim/spawner";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
 const HOTKEYS: Record<TowerKind, string> = { pulse: "1", chain: "2", cryo: "3", mortar: "4" };
@@ -16,19 +17,23 @@ export const HUD = () => {
   const setSelectedKind = useGame(s => s.setSelectedKind);
   const reset = useGame(s => s.reset);
   const togglePause = useGame(s => s.togglePause);
+  const callWaveEarly = useGame(s => s.callWaveEarly);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") { e.preventDefault(); togglePause(); return; }
       if (e.code === "KeyR") { reset(); return; }
       if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
+      if (e.code === "KeyN") { callWaveEarly(); return; }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(kind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, reset, setSelectedKind]);
+  }, [togglePause, reset, setSelectedKind, callWaveEarly]);
+
+  const canCallEarly = !ui.waveActive && ui.wave < ui.totalWaves && ui.status === "running";
 
   return (
     <div className="hud">
@@ -36,11 +41,21 @@ export const HUD = () => {
         <Stat label="GOLD" value={ui.gold} accent="#ffd66a" />
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
-        <Stat
-          label={ui.waveActive ? "WAVE" : "NEXT"}
-          value={ui.waveActive ? "ACTIVE" : `${ui.nextWaveIn}s`}
-          accent="#b4ffc9"
-        />
+        {canCallEarly ? (
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (N)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [N]</div>
+            <div className="stat-value">
+              +{earlyCallBonus(ui.nextWaveIn)}g
+              <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>
+            </div>
+          </button>
+        ) : (
+          <Stat
+            label={ui.waveActive ? "WAVE" : "NEXT"}
+            value={ui.waveActive ? "ACTIVE" : `${ui.nextWaveIn}s`}
+            accent="#b4ffc9"
+          />
+        )}
       </div>
 
       <div className="tower-picker">
@@ -79,6 +94,8 @@ export const HUD = () => {
         <span>R: restart</span>
         <span className="sep">·</span>
         <span>M: mute</span>
+        <span className="sep">·</span>
+        <span>N: call wave</span>
       </div>
 
       {ui.status !== "running" && (

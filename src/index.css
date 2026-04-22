@@ -56,6 +56,38 @@ canvas { display: block; touch-action: none; }
   margin-top: 2px;
 }
 
+.call-wave-btn {
+  cursor: pointer;
+  color: #e6ecf2;
+  font-family: inherit;
+  text-align: left;
+  border-color: rgba(180, 255, 201, 0.45);
+  pointer-events: auto;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+  animation: call-wave-pulse 1.8s ease-in-out infinite;
+}
+
+.call-wave-btn:hover {
+  border-color: #b4ffc9;
+  box-shadow: 0 0 0 1px #b4ffc9, 0 0 18px rgba(180, 255, 201, 0.3);
+  transform: translateY(-1px);
+  animation: none;
+}
+
+.call-wave-btn:active { transform: translateY(0); }
+
+.call-wave-sub {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+@keyframes call-wave-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 255, 201, 0.0); }
+  50%      { box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22); }
+}
+
 /* Tower picker (bottom-left column) */
 .tower-picker {
   position: absolute;

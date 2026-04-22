@@ -40,6 +40,18 @@ const startWave = (world: World) => {
   emit(world, { type: "wave-start", wave: world.wave });
 };
 
+export const earlyCallBonus = (nextWaveIn: number) => Math.ceil(nextWaveIn * 2);
+
+export const callWaveEarly = (world: World): boolean => {
+  if (world.status !== "running") return false;
+  if (world.waveActive) return false;
+  if (world.wave >= world.totalWaves) return false;
+  world.gold += earlyCallBonus(world.nextWaveIn);
+  world.nextWaveIn = 0;
+  startWave(world);
+  return true;
+};
+
 export const spawnerTick = (world: World, dt: number) => {
   if (!world.waveActive) {
     world.nextWaveIn = Math.max(0, world.nextWaveIn - dt);
