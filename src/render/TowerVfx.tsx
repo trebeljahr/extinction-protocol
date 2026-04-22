@@ -104,8 +104,12 @@ export const TowerVfx = () => {
         if (glow <= 0.001) continue;
 
         const yaw = barrelYaw(t, world);
+        // A Y-rotation of `yaw` maps local +Z to world (sin yaw, 0, cos yaw),
+        // which with yaw = atan2(dx, -dy) is exactly the normalized forward
+        // vector from tower to target. Using -cos(yaw) here flipped Z and
+        // placed the rail on the wrong side of the tower.
         const fx = Math.sin(yaw);
-        const fz = -Math.cos(yaw);
+        const fz = Math.cos(yaw);
         const barrelLen = 1.15;
         const barrelY = 0.85;
 
