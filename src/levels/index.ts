@@ -154,6 +154,7 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 6,
     name: "Fossil Ridge",
+    biome: "wasteland",
     paths: [p(-20, 8, -12, 8, -12, -6, -4, -6, -4, 8, 4, 8, 4, -6, 12, -6, 12, 8, 20, 8)],
     startGold: 180,
     nodePos: { x: 10, y: -11 },

@@ -76,8 +76,12 @@ const rockUrls = (biome: Biome): string[] =>
     .filter(u => /rock/i.test(u));
 
 // Per-level cluster geometry.
-const CLUSTER_R = 5.5;   // outer radius
-const NODE_CLEAR = 2.4;  // inner hole so the clickable node is legible
+// Nodes need a generous ring of empty ground around them — a hangar's
+// footprint is ~3 units wide and sitting 2.4u from the node center put
+// its silhouette basically touching the bubble. Bumped the inner hole to
+// 4.0 and pushed the outer ring out so props still have room to land.
+const CLUSTER_R = 7.0;   // outer radius
+const NODE_CLEAR = 4.0;  // inner hole — keep hero props off the node
 const MIN_GAP = 1.2;
 const MAX_RETRIES = 14;
 

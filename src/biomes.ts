@@ -153,10 +153,12 @@ const snowLayers = (): BiomeLayer[] => [
   },
   {
     seed: 4242,
+    // Rock3 pulled — it renders as a broken/hollow shard that reads worse
+    // than the other two and (because of the pnpm strict mesh paths) isn't
+    // cleanly selectable as an in-level rock.
     urls: [
       "/models/biomes/snow/Rock1.glb",
       "/models/biomes/snow/Rock2.glb",
-      "/models/biomes/snow/Rock3.glb",
     ],
     count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
@@ -210,7 +212,10 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   snow: [
     "/models/biomes/snow/Tree1.glb",
     "/models/biomes/snow/Tree2.glb",
-    "/models/biomes/snow/Tree3.glb",
+    // Tree3 pulled — it renders with a shiny material and holes punched
+    // through the trunk; swapped the slot for Tree5 which is a clean
+    // snow-capped pine.
+    "/models/biomes/snow/Tree5.glb",
     "/models/biomes/snow/Tree4.glb",
   ],
   wasteland: [
@@ -223,12 +228,11 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 
 // Small cosmetic props rendered as decor in levels AND on the world map.
 // Only Quaternius-style organic assets and Kenney space-kit sci-fi props
-// belong here — the low-poly cubic (Kenney TD) crystals, snow/ice blocks,
-// etc. clash with the rest of the art and are off the table. Man-made
-// wooden props (Barrel, Chest) were swapped for sci-fi machine/satellite
-// variants so non-nature biomes read as post-human tech, not woodwork.
-// Snow is intentionally empty: nothing cosmetic-sized in the current set
-// reads cleanly against snow — snow gets its sci-fi flavor via bases.
+// belong here — man-made wooden props (Barrel, Chest) were swapped for
+// sci-fi machine/satellite variants so non-nature biomes read as post-
+// human tech, not woodwork. The low-poly blue crystal shards are back
+// as small cosmetic sparkle for snow + wasteland; they sit next to the
+// Quaternius rocks at cosmetic scale so they don't dominate.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/Mushroom.glb",
@@ -241,10 +245,13 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/desert/DeadTree.glb",
     "/models/scifi/satelliteDish.glb",
   ],
-  snow: [],
+  snow: [
+    "/models/landmarks/snow/Crystal1.glb",
+  ],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",
     "/models/landmarks/wasteland/DeadTree.glb",
+    "/models/landmarks/wasteland/Crystal1.glb",
     "/models/scifi/machine_generator.glb",
     "/models/scifi/meteor_detailed.glb",
   ],
