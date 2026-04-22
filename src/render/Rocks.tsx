@@ -5,50 +5,69 @@ import type { Rock } from "../sim/types";
 import { useGame } from "../store";
 import { BIOME_LAYERS } from "../biomes";
 
+type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
+type Source = { parts: Part[]; minY: number };
+
+// Collect every primitive under the scene — many Quaternius rocks/bushes
+// are authored as a single mesh with 2+ primitives (body + Snow cap),
+// which GLTFLoader flattens into multiple Three.Meshes under the scene.
+const collectParts = (scene: THREE.Object3D): Source | null => {
+  scene.updateMatrixWorld(true);
+  const parts: Part[] = [];
+  let minY = Infinity;
+  scene.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    mats.forEach(mat => {
+      const geom = m.geometry.clone();
+      geom.applyMatrix4(m.matrixWorld);
+      geom.computeBoundingBox();
+      if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
+      parts.push({ geom, material: mat as THREE.Material });
+    });
+  });
+  if (parts.length === 0) return null;
+  return { parts, minY: isFinite(minY) ? minY : 0 };
+};
+
 const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
   const { scene } = useGLTF(url);
-  const instRef = useRef<THREE.InstancedMesh>(null);
-
-  const source = useMemo(() => {
-    let mesh: THREE.Mesh | null = null;
-    scene.traverse(o => {
-      if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
-    });
-    if (!mesh) return null;
-    const m = mesh as THREE.Mesh;
-    m.updateMatrixWorld(true);
-    const geom = m.geometry.clone();
-    geom.applyMatrix4(m.matrixWorld);
-    geom.computeBoundingBox();
-    const minY = geom.boundingBox?.min.y ?? 0;
-    return { geom, material: m.material as THREE.Material, minY };
-  }, [scene]);
+  const source = useMemo(() => collectParts(scene), [scene]);
+  const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
-    const im = instRef.current;
-    if (!im || !source) return;
+    if (!source) return;
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < rocks.length; i++) {
-      const r = rocks[i];
-      dummy.position.set(r.pos.x, -source.minY * r.scale, -r.pos.y);
-      dummy.rotation.set(0, r.rot, 0);
-      dummy.scale.setScalar(r.scale);
-      dummy.updateMatrix();
-      im.setMatrixAt(i, dummy.matrix);
+    for (const im of partRefs.current) {
+      if (!im) continue;
+      for (let i = 0; i < rocks.length; i++) {
+        const r = rocks[i];
+        dummy.position.set(r.pos.x, -source.minY * r.scale, -r.pos.y);
+        dummy.rotation.set(0, r.rot, 0);
+        dummy.scale.setScalar(r.scale);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      }
+      im.count = rocks.length;
+      im.instanceMatrix.needsUpdate = true;
     }
-    im.count = rocks.length;
-    im.instanceMatrix.needsUpdate = true;
   }, [rocks, source]);
 
   if (!source || rocks.length === 0) return null;
 
   return (
-    <instancedMesh
-      ref={instRef}
-      args={[source.geom, source.material, rocks.length]}
-      castShadow
-      receiveShadow
-    />
+    <group>
+      {source.parts.map((part, pi) => (
+        <instancedMesh
+          key={pi}
+          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          args={[part.geom, part.material, rocks.length]}
+          castShadow
+          receiveShadow
+        />
+      ))}
+    </group>
   );
 };
 

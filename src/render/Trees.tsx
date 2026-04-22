@@ -7,8 +7,13 @@ import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import type { Tree } from "../sim/types";
 import { BIOME_TREE_URLS } from "../biomes";
 
-type VariantSource = { geom: THREE.BufferGeometry; material: THREE.Material; minY: number };
+type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
+type VariantSource = { parts: Part[]; minY: number };
 
+// Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
+// primitives) come in from GLTFLoader as multiple Meshes under the scene.
+// We collect every one of them so each instance renders all pieces, not
+// just the first primitive.
 const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   const a = useGLTF(urls[0]);
   const b = useGLTF(urls[1]);
@@ -18,18 +23,23 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   return useMemo(
     () =>
       scenes.map(scene => {
-        let mesh: THREE.Mesh | null = null;
+        scene.updateMatrixWorld(true);
+        const parts: Part[] = [];
+        let minY = Infinity;
         scene.traverse(o => {
-          if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          mats.forEach(mat => {
+            const geom = m.geometry.clone();
+            geom.applyMatrix4(m.matrixWorld);
+            geom.computeBoundingBox();
+            if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
+            parts.push({ geom, material: mat as THREE.Material });
+          });
         });
-        if (!mesh) return null;
-        const m = mesh as THREE.Mesh;
-        m.updateMatrixWorld(true);
-        const geom = m.geometry.clone();
-        geom.applyMatrix4(m.matrixWorld);
-        geom.computeBoundingBox();
-        const minY = geom.boundingBox?.min.y ?? 0;
-        return { geom, material: m.material as THREE.Material, minY };
+        if (parts.length === 0) return null;
+        return { parts, minY: isFinite(minY) ? minY : 0 };
       }),
     scenes,
   );
@@ -126,22 +136,24 @@ const VariantGroup = ({
   hoveredId: number | null;
   setHoveredId: (id: number | null) => void;
 }) => {
-  const instRef = useRef<THREE.InstancedMesh>(null);
+  // One InstancedMesh per primitive part, all driven by the same transforms.
+  const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
-    const im = instRef.current;
-    if (!im) return;
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < bucket.length; i++) {
-      const t = bucket[i];
-      dummy.position.set(t.pos.x, -source.minY * t.scale, -t.pos.y);
-      dummy.rotation.set(0, t.rot, 0);
-      dummy.scale.setScalar(t.scale);
-      dummy.updateMatrix();
-      im.setMatrixAt(i, dummy.matrix);
+    for (const im of partRefs.current) {
+      if (!im) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const t = bucket[i];
+        dummy.position.set(t.pos.x, -source.minY * t.scale, -t.pos.y);
+        dummy.rotation.set(0, t.rot, 0);
+        dummy.scale.setScalar(t.scale);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      }
+      im.count = bucket.length;
+      im.instanceMatrix.needsUpdate = true;
     }
-    im.count = bucket.length;
-    im.instanceMatrix.needsUpdate = true;
   }, [bucket, source]);
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
@@ -164,15 +176,22 @@ const VariantGroup = ({
   };
 
   return (
-    <instancedMesh
-      ref={instRef}
-      args={[source.geom, source.material, Math.max(1, bucket.length)]}
-      castShadow
-      receiveShadow
-      onClick={onClick}
-      onPointerMove={onMove}
-      onPointerOut={onOut}
-    />
+    <group>
+      {source.parts.map((part, pi) => (
+        <instancedMesh
+          key={pi}
+          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          args={[part.geom, part.material, Math.max(1, bucket.length)]}
+          castShadow
+          receiveShadow
+          // Only attach pointer events to the first part — otherwise we
+          // fire double events and instanceId collides across parts.
+          onClick={pi === 0 ? onClick : undefined}
+          onPointerMove={pi === 0 ? onMove : undefined}
+          onPointerOut={pi === 0 ? onOut : undefined}
+        />
+      ))}
+    </group>
   );
 };
 
