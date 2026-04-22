@@ -8,6 +8,7 @@ import { HUD } from "./ui/HUD";
 import { WorldMapUI } from "./ui/WorldMapUI";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { Compendium } from "./ui/Compendium";
+import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 
 const SceneRoot = () => {
   const screen = useGame(s => s.screen);
@@ -39,6 +40,7 @@ export const App = () => {
       {screen !== "worldMap" && !compendiumOpen && <HUD />}
       {screen === "results" && !compendiumOpen && <ResultsScreen />}
       {compendiumOpen && <Compendium />}
+      {screen === "playing" && !compendiumOpen && <NewEnemyAlert />}
     </>
   );
 };

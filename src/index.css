@@ -1214,3 +1214,160 @@ canvas { display: block; touch-action: none; }
   60%  { transform: scale(1.25) rotate(8deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
+
+/* New-enemy alert */
+.new-enemy-overlay {
+  background: rgba(8, 12, 18, 0.78);
+  z-index: 50;
+  animation: newEnemyFadeIn 0.22s ease-out;
+}
+
+.new-enemy-card {
+  background: rgba(18, 22, 30, 0.97);
+  border: 1px solid rgba(255, 170, 110, 0.35);
+  border-radius: 14px;
+  padding: 22px 26px 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 170, 110, 0.08);
+  animation: newEnemyPop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.new-enemy-tag {
+  align-self: center;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: #ffb266;
+  font-weight: 700;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 178, 102, 0.45);
+  border-radius: 4px;
+  background: rgba(255, 178, 102, 0.08);
+  text-transform: uppercase;
+}
+
+.new-enemy-title {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+
+.new-enemy-subtitle {
+  text-align: center;
+  color: #a8b4c2;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-top: -2px;
+}
+
+.new-enemy-preview-wrap {
+  width: 260px;
+  height: 260px;
+  align-self: center;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 160, 200, 0.18);
+  background: #1b2a22;
+}
+
+.new-enemy-desc {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #cfd8e3;
+  text-align: center;
+}
+
+.new-enemy-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px;
+  background: rgba(6, 10, 14, 0.5);
+  border: 1px solid rgba(120, 160, 200, 0.14);
+  border-radius: 8px;
+}
+
+.new-enemy-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.new-enemy-stat-label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #7a8594;
+  text-transform: uppercase;
+}
+
+.new-enemy-stat-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #eef2f8;
+  font-variant-numeric: tabular-nums;
+}
+
+.new-enemy-weakness {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(61, 255, 138, 0.07);
+  border: 1px solid rgba(61, 255, 138, 0.28);
+}
+
+.new-enemy-weakness-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: #8ad9a5;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.new-enemy-weakness-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: #3dff8a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.new-enemy-weakness-chip.balanced {
+  color: #a8b4c2;
+  font-weight: 500;
+}
+
+.new-enemy-weakness-val {
+  color: #3dff8a;
+  font-variant-numeric: tabular-nums;
+}
+
+.new-enemy-continue {
+  margin-top: 4px;
+  width: 100%;
+  font-size: 14px;
+  padding: 12px 20px;
+}
+
+@keyframes newEnemyFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes newEnemyPop {
+  0%   { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}

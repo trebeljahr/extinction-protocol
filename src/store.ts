@@ -184,6 +184,8 @@ type GameStore = {
   hoveredLevelId: number | null;
   lastResult: LastResult | null;
   compendiumOpen: boolean;
+  newEnemyQueue: EnemyKind[];
+  autoPausedForNewEnemy: boolean;
 
   startLevel: (id: number) => void;
   retryCurrentLevel: () => void;
@@ -218,6 +220,8 @@ type GameStore = {
   inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
   clearInspectedEnemy: () => void;
 
+  dismissNewEnemy: () => void;
+
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
 
@@ -251,6 +255,8 @@ export const useGame = create<GameStore>((set, get) => ({
   hoveredLevelId: null,
   lastResult: null,
   compendiumOpen: false,
+  newEnemyQueue: [],
+  autoPausedForNewEnemy: false,
 
   startLevel: (id) => {
     const level = LEVELS.find(l => l.id === id);
@@ -266,6 +272,8 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedLevelId: id,
       hoveredLevelId: null,
       lastResult: null,
+      newEnemyQueue: [],
+      autoPausedForNewEnemy: false,
       screen: "playing",
     });
   },
@@ -282,6 +290,8 @@ export const useGame = create<GameStore>((set, get) => ({
       screen: "worldMap",
       hoveredLevelId: null,
       lastResult: null,
+      newEnemyQueue: [],
+      autoPausedForNewEnemy: false,
     });
   },
 
@@ -304,14 +314,26 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: (realTimeSec: number) => {
     const s = get();
     s.engine.step(s.world, realTimeSec);
-    // Track encountered enemy kinds
+    // Track encountered enemy kinds — and announce any first sighting.
     if (s.world.enemies.length > 0) {
       const kinds = new Set<EnemyKind>();
       for (const e of s.world.enemies) kinds.add(e.kind);
-      const nextProgress = markEncountered(s.progress, Array.from(kinds));
+      const kindList = Array.from(kinds);
+      const newlySeen = kindList.filter(k => !s.progress.encountered[k]);
+      const nextProgress = markEncountered(s.progress, kindList);
       if (nextProgress) {
         saveProgress(nextProgress);
-        set({ progress: nextProgress });
+        const alreadyQueued = new Set(s.newEnemyQueue);
+        const toQueue = newlySeen.filter(k => !alreadyQueued.has(k));
+        const nextQueue = toQueue.length > 0 ? [...s.newEnemyQueue, ...toQueue] : s.newEnemyQueue;
+        // Auto-pause on first sighting so the popup isn't buried under action.
+        // Track that WE caused the pause, so dismiss won't unpause a manual pause.
+        let autoPaused = s.autoPausedForNewEnemy;
+        if (toQueue.length > 0 && s.world.status === "running") {
+          s.world.status = "paused";
+          autoPaused = true;
+        }
+        set({ progress: nextProgress, newEnemyQueue: nextQueue, autoPausedForNewEnemy: autoPaused });
       }
     }
     if (s.world.events.length > 0) {
@@ -398,6 +420,20 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
+    });
+  },
+
+  dismissNewEnemy: () => {
+    const s = get();
+    const remaining = s.newEnemyQueue.slice(1);
+    // Resume only when the queue empties AND we were the ones who paused.
+    const shouldResume =
+      remaining.length === 0 && s.autoPausedForNewEnemy && s.world.status === "paused";
+    if (shouldResume) s.world.status = "running";
+    set({
+      newEnemyQueue: remaining,
+      autoPausedForNewEnemy: remaining.length === 0 ? false : s.autoPausedForNewEnemy,
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
     });
   },
 
@@ -490,9 +526,19 @@ export const useGame = create<GameStore>((set, get) => ({
     }
 
     if (s.selectedKind === null) {
-      if (w.selectedTowerId !== null) {
+      const hasAnySelection =
+        w.selectedTowerId !== null ||
+        s.selectedTreeId !== null ||
+        s.selectedRockId !== null ||
+        s.inspectedEnemy.id !== null;
+      if (hasAnySelection) {
         w.selectedTowerId = null;
-        set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+        set({
+          selectedTreeId: null,
+          selectedRockId: null,
+          inspectedEnemy: emptyInspect,
+          ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+        });
       }
       return;
     }

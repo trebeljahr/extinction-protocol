@@ -16,7 +16,7 @@ type Props = {
   clip?: string;
 };
 
-type Item = { obj: THREE.Object3D; mixer: THREE.AnimationMixer };
+type Item = { obj: THREE.Object3D; proxy: THREE.Mesh; mixer: THREE.AnimationMixer };
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find(c => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
@@ -46,12 +46,27 @@ export const ModelEnemyMesh = ({
     [animations, clip],
   );
 
+  // Invisible, oversized tap target. Lets users hit the enemy even when
+  // their finger lands next to the silhouette — critical on touch.
+  const proxyRadius = useMemo(() => Math.max(targetSize * 0.8, 1.0), [targetSize]);
+  const proxyGeom = useMemo(() => new THREE.SphereGeometry(proxyRadius, 10, 8), [proxyRadius]);
+  const proxyMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+
+  useEffect(() => () => {
+    proxyGeom.dispose();
+    proxyMat.dispose();
+  }, [proxyGeom, proxyMat]);
+
   useEffect(() => () => {
     const parent = groupRef.current;
     if (!parent) return;
     for (const [, item] of itemsRef.current) {
       item.mixer.stopAllAction();
       parent.remove(item.obj);
+      parent.remove(item.proxy);
     }
     itemsRef.current.clear();
   }, []);
@@ -84,7 +99,14 @@ export const ModelEnemyMesh = ({
         const mixer = new THREE.AnimationMixer(obj);
         if (activeClip) mixer.clipAction(activeClip).play();
         parent.add(obj);
-        item = { obj, mixer };
+
+        const proxy = new THREE.Mesh(proxyGeom, proxyMat);
+        proxy.userData.enemyId = e.id;
+        proxy.userData.enemyMaxHp = e.maxHp;
+        proxy.renderOrder = -1;
+        parent.add(proxy);
+
+        item = { obj, proxy, mixer };
         itemsRef.current.set(e.id, item);
       }
 
@@ -97,6 +119,11 @@ export const ModelEnemyMesh = ({
         e.pos.x - centerXZ.x,
         yOffset - scaledMinY + bobY,
         -e.pos.y - centerXZ.z,
+      );
+      item.proxy.position.set(
+        e.pos.x,
+        yOffset - scaledMinY + bobY + proxyRadius * 0.55,
+        -e.pos.y,
       );
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
@@ -126,17 +153,21 @@ export const ModelEnemyMesh = ({
       if (!live.has(id)) {
         item.mixer.stopAllAction();
         parent.remove(item.obj);
+        parent.remove(item.proxy);
         itemsRef.current.delete(id);
       }
     }
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    const state = useGame.getState();
+    // Placing a tower? Let the placement plane handle the click.
+    if (state.selectedKind !== null) return;
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
     e.stopPropagation();
-    useGame.getState().inspectEnemy(
+    state.inspectEnemy(
       obj.userData.enemyId as number,
       kind,
       obj.userData.enemyMaxHp as number,
