@@ -5,13 +5,17 @@ import { LEVELS } from "../levels";
 import {
   BIOME_LAYERS,
   BIOME_TREE_URLS,
-  BIOME_COSMETICS,
   TARGET_SIZE_BY_ROLE,
   classifyPropUrl,
   type Biome,
 } from "../biomes";
 
-// Deterministic PRNG so props stay put between renders
+// World-map decoration. Keep it SPARSE so each level cluster reads as a
+// recognizable little vignette rather than a noisy pile. Detailed
+// cosmetics (skulls, crystals, mushrooms, barrels…) live only inside
+// playable levels — see BiomeCosmetics. Here we stick to buildings +
+// trees + a few rocks.
+
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
@@ -32,14 +36,14 @@ type PropInstance = {
 
 type PropRoleBucket = {
   urls: string[];
-  count: number;        // base count per level node
+  count: number;
   minScale: number;
   maxScale: number;
-  clearance: number;    // effective world-space radius for overlap check
+  clearance: number;
 };
 
-// Hero buildings only — skulls, crystals, mushrooms, etc. live in
-// BIOME_COSMETICS so they render small.
+// Hero building per biome. Snow keeps Cabin primarily so the winter
+// biome reads immediately. Wasteland uses Ruins for the same reason.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/House.glb",
@@ -48,22 +52,28 @@ const BIOME_LANDMARKS: Record<Biome, string[]> = {
   desert: [
     "/models/landmarks/desert/Tent.glb",
   ],
-  // No snow-themed buildings in the asset library — keep empty so we
-  // don't drop bare-wood cabins into a snowfield.
-  snow: [],
+  snow: [
+    "/models/landmarks/snow/Cabin.glb",
+    "/models/landmarks/snow/Tent.glb",
+  ],
   wasteland: [
     "/models/landmarks/wasteland/Ruins.glb",
   ],
 };
 
-// Per-level-node cluster layout
-const CLUSTER_R = 6.2;   // outer radius
-const NODE_CLEAR = 2.0;  // inner hole so the clickable star stays visible
-const MIN_GAP = 1.1;     // baseline minimum world-space gap between any two prop centers
-const MAX_RETRIES = 12;  // rejection sampling attempts per slot
+// Pick rocks only out of each biome's layer list — no bushes/grass on
+// the world map, they just add noise at this zoom level.
+const rockUrls = (biome: Biome): string[] =>
+  BIOME_LAYERS[biome]
+    .flatMap(l => l.urls)
+    .filter(u => /rock/i.test(u));
 
-// Level node world positions — keep anything away from them so node stars
-// aren't obscured even if nodes are closer than one cluster radius apart.
+// Per-level cluster geometry.
+const CLUSTER_R = 5.5;   // outer radius
+const NODE_CLEAR = 2.4;  // inner hole so the clickable node is legible
+const MIN_GAP = 1.2;
+const MAX_RETRIES = 14;
+
 const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map(l => ({
   x: l.nodePos.x,
   z: -l.nodePos.y,
@@ -71,7 +81,6 @@ const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map(l => ({
 
 const buildPropPlan = () => {
   const perUrl: Record<string, PropInstance[]> = {};
-  // Running list of every placed prop for cross-cluster collision.
   const placed: { x: number; z: number; r: number }[] = [];
 
   const tryPlace = (
@@ -87,27 +96,19 @@ const buildPropPlan = () => {
       const scale = bucket.minScale + rand() * (bucket.maxScale - bucket.minScale);
       const radius = bucket.clearance * scale;
 
-      // Guard: not too close to any level node.
       let bad = false;
       for (const n of NODE_POSITIONS) {
         const dx = x - n.x;
         const dz = z - n.z;
-        if (dx * dx + dz * dz < NODE_CLEAR * NODE_CLEAR) {
-          bad = true;
-          break;
-        }
+        if (dx * dx + dz * dz < NODE_CLEAR * NODE_CLEAR) { bad = true; break; }
       }
       if (bad) continue;
 
-      // Guard: not overlapping an existing prop.
       for (const p of placed) {
         const dx = x - p.x;
         const dz = z - p.z;
-        const minDist = radius + p.r + MIN_GAP * 0.2;
-        if (dx * dx + dz * dz < minDist * minDist) {
-          bad = true;
-          break;
-        }
+        const minDist = radius + p.r + MIN_GAP * 0.25;
+        if (dx * dx + dz * dz < minDist * minDist) { bad = true; break; }
       }
       if (bad) continue;
 
@@ -128,43 +129,32 @@ const buildPropPlan = () => {
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
 
-    // Bucket clearance is normalized *after* per-URL visual size — a rock and
-    // a cosmetic both get ~half their footprint as clearance, so spacing
-    // looks natural regardless of role.
-    const smallBucket: PropRoleBucket = {
-      urls: BIOME_LAYERS[biome].flatMap(l => l.urls),
-      count: 10 + Math.floor(rand() * 4),
-      minScale: 0.85,
-      maxScale: 1.25,
-      clearance: 0.5,
-    };
-    // Trees: tallest natural prop, wider personal space.
-    const treeBucket: PropRoleBucket = {
-      urls: BIOME_TREE_URLS[biome],
-      count: 4 + Math.floor(rand() * 3),
-      minScale: 0.85,
-      maxScale: 1.25,
-      clearance: 1.0,
-    };
-    // Buildings: hero props — fewer, biggest bubble.
+    // Scale ranges are kept tight (0.95–1.1) so props within a role look
+    // like siblings rather than random sizes — the *role* provides the
+    // variation between classes.
     const landmarkBucket: PropRoleBucket = {
       urls: BIOME_LANDMARKS[biome] ?? [],
-      count: 1 + Math.floor(rand() * 2),
-      minScale: 0.85,
-      maxScale: 1.15,
-      clearance: 1.7,
+      count: 1,
+      minScale: 0.95,
+      maxScale: 1.1,
+      clearance: 1.9,
     };
-    // Cosmetics: skulls/crystals/mushrooms — tiny dressing.
-    const cosmeticBucket: PropRoleBucket = {
-      urls: BIOME_COSMETICS[biome],
-      count: 5 + Math.floor(rand() * 4),
-      minScale: 0.8,
-      maxScale: 1.3,
-      clearance: 0.35,
+    const treeBucket: PropRoleBucket = {
+      urls: BIOME_TREE_URLS[biome],
+      count: 2,
+      minScale: 0.95,
+      maxScale: 1.1,
+      clearance: 1.2,
+    };
+    const rockBucket: PropRoleBucket = {
+      urls: rockUrls(biome),
+      count: 2,
+      minScale: 0.95,
+      maxScale: 1.1,
+      clearance: 0.6,
     };
 
-    // Place in order: biggest first so small fill around them.
-    for (const bucket of [landmarkBucket, treeBucket, smallBucket, cosmeticBucket]) {
+    for (const bucket of [landmarkBucket, treeBucket, rockBucket]) {
       if (bucket.urls.length === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand);
@@ -238,13 +228,12 @@ export const BiomeProps = () => {
   );
 };
 
-// Preload every URL the world map might use.
+// Preload URLs actually used by the world map.
 const allUrls = new Set<string>();
 for (const lvl of LEVELS) {
   const biome: Biome = (lvl.biome ?? "forest") as Biome;
-  for (const l of BIOME_LAYERS[biome]) for (const u of l.urls) allUrls.add(u);
+  for (const u of rockUrls(biome)) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
   for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);
-  for (const u of BIOME_COSMETICS[biome]) allUrls.add(u);
 }
 for (const u of allUrls) useGLTF.preload(u);

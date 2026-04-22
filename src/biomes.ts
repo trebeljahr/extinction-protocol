@@ -255,13 +255,16 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
 // of the authored mesh scale, so packs with inconsistent exports still line up.
 export type PropRole = "building" | "tree" | "bush" | "rock" | "grass" | "cosmetic";
 
+// Target visual max-dim (in world units) per role. Gaps are wide so the
+// hierarchy reads from any camera distance: buildings dominate, trees are
+// clearly the tallest natural prop, rocks + cosmetics are quiet dressing.
 export const TARGET_SIZE_BY_ROLE: Record<PropRole, number> = {
-  building: 3.2,
-  tree:     2.6,
-  bush:     1.2,
-  rock:     1.1,
-  grass:    0.55,
-  cosmetic: 0.7,
+  building: 3.8,
+  tree:     3.0,
+  bush:     0.9,
+  rock:     0.75,
+  grass:    0.4,
+  cosmetic: 0.55,
 };
 
 export const classifyPropUrl = (url: string): PropRole => {
