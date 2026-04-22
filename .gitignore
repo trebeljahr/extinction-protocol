@@ -3,6 +3,10 @@ dist
 dist-ssr
 *.local
 
+# Lockfiles from the wrong package manager (project uses pnpm)
+package-lock.json
+yarn.lock
+
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
