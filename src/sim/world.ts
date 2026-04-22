@@ -86,7 +86,7 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
   stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
-  swarm:    { kinetic: 0.6, electric: 1.4, cold: 0.8, explosive: 1.7 },
+  swarm:    { kinetic: 0.6, electric: 1.4, cold: 1.3, explosive: 1.7 },
   armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
   titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
@@ -174,7 +174,7 @@ export type TowerBaseStats = {
 export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   pulse:  { range: 6.5, damage: 10, fireRate: 2.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   chain:  { range: 5.5, damage: 7,  fireRate: 1.2, splashRadius: 0,    chainCount: 3, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
-  cryo:   { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.45, slowDuration: 1.2 },
+  cryo:   { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.4,  slowDuration: 1.5 },
   mortar: { range: 9.0, damage: 26, fireRate: 0.5, splashRadius: 1.8,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
 };
 

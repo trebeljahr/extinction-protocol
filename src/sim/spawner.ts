@@ -176,6 +176,7 @@ export const checkRunEnd = (world: World) => {
   if (world.status !== "running") return;
   if (world.lives <= 0) {
     world.status = "lost";
+    world.shake.magnitude = 0;
     emit(world, { type: "game-over", won: false });
     return;
   }
@@ -186,6 +187,7 @@ export const checkRunEnd = (world: World) => {
     world.enemies.length === 0
   ) {
     world.status = "won";
+    world.shake.magnitude = 0;
     emit(world, { type: "game-over", won: true });
   }
 };
