@@ -525,6 +525,23 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
 
+    // Spot-targeting: a selected mortar in "spot" mode consumes empty-ground
+    // clicks to (re)set its aim point instead of deselecting.
+    if (s.selectedKind === null && w.selectedTowerId !== null) {
+      const sel = w.towers.find(t => t.id === w.selectedTowerId);
+      if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") {
+        const dx = pos.x - sel.pos.x;
+        const dy = pos.y - sel.pos.y;
+        if (dx * dx + dy * dy <= sel.range * sel.range) {
+          sel.targetSpot = { x: pos.x, y: pos.y };
+          sel.targetId = null;
+          const newVersion = s.towerVersion + 1;
+          set({ towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
+        }
+        return;
+      }
+    }
+
     if (s.selectedKind === null) {
       const hasAnySelection =
         w.selectedTowerId !== null ||

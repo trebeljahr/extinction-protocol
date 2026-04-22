@@ -9,6 +9,7 @@ import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { HealthBars } from "./HealthBars";
 import { SelectionRing } from "./SelectionRing";
+import { SpotTargetMarker } from "./SpotTargetMarker";
 import { TowerVfx } from "./TowerVfx";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
@@ -72,6 +73,7 @@ export const PlayScene = () => {
       <TowerVfx />
       <HealthBars />
       <SelectionRing />
+      <SpotTargetMarker />
       <ProjectileMesh />
       <Effects />
     </>

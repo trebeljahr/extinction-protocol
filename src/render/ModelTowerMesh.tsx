@@ -77,6 +77,10 @@ export const ModelTowerMesh = ({
       let yaw = 0;
       if (idleSpin) {
         yaw = world.time * 1.2;
+      } else if (t.targetingMode === "spot" && t.targetSpot) {
+        const dx = t.targetSpot.x - t.pos.x;
+        const dy = t.targetSpot.y - t.pos.y;
+        yaw = Math.atan2(dx, -dy);
       } else if (t.targetId !== null) {
         const target = world.enemies.find(e => e.id === t.targetId && e.alive);
         if (target) {

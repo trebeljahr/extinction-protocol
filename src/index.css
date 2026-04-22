@@ -406,6 +406,18 @@ canvas { display: block; touch-action: none; }
   box-shadow: 0 0 0 1px #9fd8ff, 0 0 10px rgba(159, 216, 255, 0.2);
 }
 
+.targeting-hint {
+  margin: -8px 0 12px;
+  padding: 8px 10px;
+  border: 1px dashed rgba(255, 178, 102, 0.45);
+  border-radius: 6px;
+  background: rgba(255, 178, 102, 0.06);
+  color: #ffd0a0;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
 .branches { display: flex; flex-direction: column; gap: 12px; }
 .branch {
   border: 1px solid rgba(120, 160, 200, 0.12);

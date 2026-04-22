@@ -31,7 +31,7 @@ export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 
 export type TowerUpgrades = { a: number; b: number };
 
-export type TargetingMode = "tower" | "start" | "end" | "strongest";
+export type TargetingMode = "tower" | "start" | "end" | "strongest" | "spot";
 
 export type Tower = {
   id: EntityId;
@@ -43,6 +43,8 @@ export type Tower = {
   cooldown: number;
   targetId: EntityId | null;
   targetingMode: TargetingMode;
+  // Fixed aim point for "spot" targeting — only consulted in that mode.
+  targetSpot: Vec2 | null;
   upgrades: TowerUpgrades;
   totalSpent: number;
   splashRadius: number;

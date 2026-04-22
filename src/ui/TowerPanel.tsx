@@ -96,8 +96,20 @@ export const TowerPanel = () => {
                 {label}
               </button>
             ))}
+            {tower.kind === "mortar" && (
+              <button
+                className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
+                onClick={() => useGame.getState().setTargetingMode("spot")}
+                title="Fire only at a fixed map spot — click the map to place"
+              >
+                Spot
+              </button>
+            )}
           </div>
         </div>
+      )}
+      {tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot && (
+        <div className="targeting-hint">Click a spot on the map within range to set the aim point.</div>
       )}
 
       <div className="branches">

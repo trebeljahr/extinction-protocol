@@ -1,4 +1,4 @@
-import type { World, Tower, Enemy } from "./types";
+import type { World, Tower, Enemy, Vec2 } from "./types";
 import { distSq } from "./vec2";
 import { createProjectile, createBeam, createCryoWave, emit, applySlow, applyDamage, spawnParticles } from "./world";
 
@@ -81,6 +81,21 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
   createProjectile(world, "splash", "explosive", t.pos, target.pos, t.damage, t.splashRadius, 14);
 };
 
+const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
+  createProjectile(world, "splash", "explosive", t.pos, { x: pos.x, y: pos.y }, t.damage, t.splashRadius, 14);
+};
+
+// Only fire at the spot if at least one live enemy is within splash radius;
+// otherwise we're just wasting the cooldown.
+const enemyInSplash = (world: World, spot: Vec2, splashRadius: number): boolean => {
+  const r2 = splashRadius * splashRadius;
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    if (distSq(e.pos, spot) <= r2) return true;
+  }
+  return false;
+};
+
 export const updateTowers = (world: World, dt: number) => {
   for (const t of world.towers) {
     t.cooldown = Math.max(0, t.cooldown - dt);
@@ -89,6 +104,22 @@ export const updateTowers = (world: World, dt: number) => {
       if (t.cooldown === 0) {
         const didHit = fireCryo(world, t);
         if (didHit) {
+          t.cooldown = 1 / t.fireRate;
+          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+        }
+      }
+      continue;
+    }
+
+    // Spot-targeting: mortars only. Aim at the fixed spot and only fire when
+    // something is actually in its splash — saves ammo while still letting
+    // the player pre-sight a chokepoint.
+    if (t.kind === "mortar" && t.targetingMode === "spot") {
+      t.targetId = null;
+      if (t.targetSpot && t.cooldown === 0) {
+        const inRange = distSq(t.targetSpot, t.pos) <= t.range * t.range;
+        if (inRange && enemyInSplash(world, t.targetSpot, t.splashRadius)) {
+          fireMortarAtSpot(world, t, t.targetSpot);
           t.cooldown = 1 / t.fireRate;
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
