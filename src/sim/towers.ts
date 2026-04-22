@@ -69,7 +69,7 @@ const fireCryo = (world: World, t: Tower): boolean => {
     hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
     e.flashUntil = world.time + 0.06;
-    applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6);
+    if (t.damage > 0) applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6);
   }
   return hit;
 };

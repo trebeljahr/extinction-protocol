@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, TargetingMode, EnemyKind } from "./sim/types";
+import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
-import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
+import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
@@ -40,8 +40,10 @@ type UiSnapshot = {
   nextWaveIn: number;
   canCallEarly: boolean;
   callEarlyBonus: number;
+  callEarlyTimer: number;
   selectedTowerId: number | null;
   towerVersion: number;
+  treeVersion: number;
   inspectedEnemyId: number | null;
   inspectedEnemyKind: EnemyKind | null;
   inspectedEnemyHp: number | null;
@@ -52,6 +54,7 @@ type UiSnapshot = {
 const snapshot = (
   w: World,
   towerVersion: number,
+  treeVersion: number,
   inspect: { id: number | null; kind: EnemyKind | null; maxHp: number | null },
 ): UiSnapshot => {
   let hp: number | null = null;
@@ -70,8 +73,10 @@ const snapshot = (
     nextWaveIn: Math.ceil(w.nextWaveIn),
     canCallEarly: canCallEarly(w),
     callEarlyBonus: earlyCallGoldReward(w),
+    callEarlyTimer: Math.ceil(earlyCallTimerSec(w)),
     selectedTowerId: w.selectedTowerId,
     towerVersion,
+    treeVersion,
     inspectedEnemyId: inspect.id,
     inspectedEnemyKind: inspect.kind,
     inspectedEnemyHp: hp,
@@ -90,8 +95,10 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.nextWaveIn === b.nextWaveIn &&
   a.canCallEarly === b.canCallEarly &&
   a.callEarlyBonus === b.callEarlyBonus &&
+  a.callEarlyTimer === b.callEarlyTimer &&
   a.selectedTowerId === b.selectedTowerId &&
   a.towerVersion === b.towerVersion &&
+  a.treeVersion === b.treeVersion &&
   a.inspectedEnemyId === b.inspectedEnemyId &&
   a.inspectedEnemyKind === b.inspectedEnemyKind &&
   a.inspectedEnemyHp === b.inspectedEnemyHp &&
@@ -129,6 +136,10 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   for (const t of world.towers) {
     if (distSq(t.pos, pos) < footprintSq) return false;
   }
+  const treeBlockSq = (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
+  for (const tr of world.trees) {
+    if (distSq(tr.pos, pos) < treeBlockSq) return false;
+  }
   return true;
 };
 
@@ -140,6 +151,9 @@ const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
   return null;
 };
 
+const treeById = (world: World, id: number): Tree | null =>
+  world.trees.find(t => t.id === id) ?? null;
+
 type InspectState = { id: number | null; kind: EnemyKind | null; maxHp: number | null };
 
 type GameStore = {
@@ -148,6 +162,7 @@ type GameStore = {
   ui: UiSnapshot;
   selectedKind: TowerKind | null;
   towerVersion: number;
+  treeVersion: number;
   inspectedEnemy: InspectState;
   eventListeners: ((e: GameEvent) => void)[];
 
@@ -177,6 +192,7 @@ type GameStore = {
   sellSelected: () => void;
   setTargetingMode: (mode: TargetingMode) => void;
   callWaveEarly: () => void;
+  removeTree: (id: number) => void;
 
   inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
   clearInspectedEnemy: () => void;
@@ -190,8 +206,9 @@ const buildWorldForLevel = (level: LevelConfig) => {
   const world = createWorld(level);
   return {
     world,
-    ui: snapshot(world, 0, emptyInspect),
+    ui: snapshot(world, 0, 0, emptyInspect),
     towerVersion: 0,
+    treeVersion: 0,
     inspectedEnemy: emptyInspect,
   };
 };
@@ -249,10 +266,11 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   togglePause: () => {
-    const { world } = get();
+    const s = get();
+    const { world } = s;
     if (world.status === "running") world.status = "paused";
     else if (world.status === "paused") world.status = "running";
-    set({ ui: snapshot(world, get().towerVersion, get().inspectedEnemy) });
+    set({ ui: snapshot(world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   tick: (realTimeSec: number) => {
@@ -288,15 +306,16 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       s.world.events.length = 0;
     }
-    const next = snapshot(s.world, s.towerVersion, s.inspectedEnemy);
+    const next = snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy);
     if (!uiEqual(s.ui, next)) set({ ui: next });
   },
 
   setSelectedKind: (kind) => {
-    const { world, towerVersion } = get();
+    const s = get();
+    const { world, towerVersion, treeVersion } = s;
     if (kind !== null) world.selectedTowerId = null;
-    const nextInspect = kind !== null ? emptyInspect : get().inspectedEnemy;
-    set({ selectedKind: kind, inspectedEnemy: nextInspect, ui: snapshot(world, towerVersion, nextInspect) });
+    const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
+    set({ selectedKind: kind, inspectedEnemy: nextInspect, ui: snapshot(world, towerVersion, treeVersion, nextInspect) });
   },
 
   canPlace: (pos) => canPlaceAt(get().world, pos),
@@ -304,31 +323,31 @@ export const useGame = create<GameStore>((set, get) => ({
   towerAtPos: (pos) => towerAt(get().world, pos),
 
   clearSelection: () => {
-    const { world, towerVersion } = get();
+    const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     set({
       selectedKind: null,
       inspectedEnemy: emptyInspect,
-      ui: snapshot(world, towerVersion, emptyInspect),
+      ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },
 
   inspectEnemy: (id, kind, maxHp) => {
-    const { world, towerVersion } = get();
+    const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     const inspect: InspectState = { id, kind, maxHp };
     set({
       selectedKind: null,
       inspectedEnemy: inspect,
-      ui: snapshot(world, towerVersion, inspect),
+      ui: snapshot(world, towerVersion, treeVersion, inspect),
     });
   },
 
   clearInspectedEnemy: () => {
-    const { world, towerVersion } = get();
+    const { world, towerVersion, treeVersion } = get();
     set({
       inspectedEnemy: emptyInspect,
-      ui: snapshot(world, towerVersion, emptyInspect),
+      ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },
 
@@ -340,14 +359,14 @@ export const useGame = create<GameStore>((set, get) => ({
     const hit = towerAt(w, pos);
     if (hit) {
       w.selectedTowerId = hit.id;
-      set({ selectedKind: null, inspectedEnemy: emptyInspect, ui: snapshot(w, s.towerVersion, emptyInspect) });
+      set({ selectedKind: null, inspectedEnemy: emptyInspect, ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect) });
       return;
     }
 
     if (s.selectedKind === null) {
       if (w.selectedTowerId !== null) {
         w.selectedTowerId = null;
-        set({ ui: snapshot(w, s.towerVersion, s.inspectedEnemy) });
+        set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
       }
       return;
     }
@@ -359,17 +378,18 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = createTower(w, s.selectedKind, snapped);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
-    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.inspectedEnemy) });
+    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   selectTower: (id) => {
-    const { world, towerVersion } = get();
+    const s = get();
+    const { world, towerVersion, treeVersion } = s;
     world.selectedTowerId = id;
-    const nextInspect = id !== null ? emptyInspect : get().inspectedEnemy;
+    const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
     set({
-      selectedKind: id !== null ? null : get().selectedKind,
+      selectedKind: id !== null ? null : s.selectedKind,
       inspectedEnemy: nextInspect,
-      ui: snapshot(world, towerVersion, nextInspect),
+      ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
 
@@ -380,7 +400,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
       const newVersion = s.towerVersion + 1;
-      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
+      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy) });
     }
   },
 
@@ -391,7 +411,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!t) return;
     sellTower(s.world, t);
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   setTargetingMode: (mode) => {
@@ -402,13 +422,26 @@ export const useGame = create<GameStore>((set, get) => ({
     t.targetingMode = mode;
     t.targetId = null;
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   callWaveEarly: () => {
     const s = get();
     if (!simCallWaveEarly(s.world)) return;
-    set({ ui: snapshot(s.world, s.towerVersion, s.inspectedEnemy) });
+    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  removeTree: (id) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+    const tree = treeById(w, id);
+    if (!tree) return;
+    if (w.gold < TREE_REMOVE_COST) return;
+    w.gold -= TREE_REMOVE_COST;
+    w.trees = w.trees.filter(t => t.id !== id);
+    const newTreeVersion = s.treeVersion + 1;
+    set({ treeVersion: newTreeVersion, ui: snapshot(w, s.towerVersion, newTreeVersion, s.inspectedEnemy) });
   },
 
   onEvent: (fn) => {

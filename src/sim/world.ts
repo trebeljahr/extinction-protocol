@@ -5,6 +5,7 @@ import type {
   EnemyKind,
   Tower,
   TowerKind,
+  Tree,
   Projectile,
   ProjectileKind,
   Beam,
@@ -14,39 +15,120 @@ import type {
 } from "./types";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
+import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
 
 export const STARTING_LIVES = 20;
 
-export const createWorld = (level: LevelConfig): World => ({
-  time: 0,
-  tickCount: 0,
-  levelId: level.id,
-  biome: level.biome ?? "forest",
-  paths: level.paths,
-  plannedWaves: level.hpScale
-    ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
-    : level.waves,
-  enemies: [],
-  towers: [],
-  projectiles: [],
-  beams: [],
-  explosions: [],
-  particles: [],
-  spawnQueue: [],
-  wave: 0,
-  totalWaves: level.waves.length,
-  waveActive: false,
-  nextWaveIn: 2,
-  waveTotalEnemies: 0,
-  gold: level.startGold,
-  lives: STARTING_LIVES,
-  startLives: STARTING_LIVES,
-  status: "running",
-  nextEntityId: 1,
-  events: [],
-  shake: { magnitude: 0, decay: 0 },
-  selectedTowerId: null,
-});
+export const TREE_COUNT = 28;
+export const TREE_VARIANTS = 4;
+export const TREE_CLEARANCE_MARGIN = 2.0;
+export const TREE_MIN_SCALE = 0.55;
+export const TREE_MAX_SCALE = 0.95;
+export const TREE_MIN_SPACING = 2.2;
+export const TREE_FOOTPRINT = 0.85;
+export const TREE_REMOVE_COST = 8;
+
+const mulberry32 = (seed: number) => {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const apx = px - ax;
+  const apy = py - ay;
+  const len = abx * abx + aby * aby;
+  const t = len > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len)) : 0;
+  const cx = ax + t * abx;
+  const cy = ay + t * aby;
+  const dx = px - cx;
+  const dy = py - cy;
+  return dx * dx + dy * dy;
+};
+
+const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tree[]; nextId: number } => {
+  const rng = mulberry32(seed);
+  const trees: Tree[] = [];
+  const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
+  const pathR2 = clearance * clearance;
+  const spacingSq = TREE_MIN_SPACING * TREE_MIN_SPACING;
+  let nextId = firstId;
+  let tries = 0;
+  while (trees.length < TREE_COUNT && tries < TREE_COUNT * 40) {
+    tries++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.95;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const t of trees) {
+      const dx = t.pos.x - x;
+      const dy = t.pos.y - y;
+      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    trees.push({
+      id: nextId++,
+      pos: { x, y },
+      variant: Math.floor(rng() * TREE_VARIANTS),
+      scale: TREE_MIN_SCALE + rng() * (TREE_MAX_SCALE - TREE_MIN_SCALE),
+      rot: rng() * Math.PI * 2,
+    });
+  }
+  return { trees, nextId };
+};
+
+export const createWorld = (level: LevelConfig): World => {
+  const { trees, nextId } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  return {
+    time: 0,
+    tickCount: 0,
+    levelId: level.id,
+    biome: level.biome ?? "forest",
+    paths: level.paths,
+    plannedWaves: level.hpScale
+      ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
+      : level.waves,
+    enemies: [],
+    towers: [],
+    trees,
+    projectiles: [],
+    beams: [],
+    explosions: [],
+    particles: [],
+    spawnQueue: [],
+    wave: 0,
+    totalWaves: level.waves.length,
+    waveActive: false,
+    nextWaveIn: 2,
+    waveTotalEnemies: 0,
+    midwaveTimer: 0,
+    midwaveTimerMax: 0,
+    gold: level.startGold,
+    lives: STARTING_LIVES,
+    startLives: STARTING_LIVES,
+    status: "running",
+    nextEntityId: nextId,
+    events: [],
+    shake: { magnitude: 0, decay: 0 },
+    selectedTowerId: null,
+  };
+};
 
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
@@ -85,11 +167,23 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
   stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
-  swarm:    { kinetic: 0.6, electric: 1.4, cold: 0.8, explosive: 1.7 },
+  swarm:    { kinetic: 0.6, electric: 1.4, cold: 1.3, explosive: 1.7 },
   armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
   titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
 };
+
+export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
+  raptor:   0,
+  allosaur: 0,
+  stego:    0.35,
+  swarm:    0,
+  armored:  0.75,
+  para:     0,
+  titan:    0.5,
+};
+
+export const MIN_SLOW_FACTOR = 0.25;
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
   raptor:   "Raptor",
@@ -161,7 +255,7 @@ export type TowerBaseStats = {
 export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   pulse:  { range: 6.5, damage: 10, fireRate: 2.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   chain:  { range: 5.5, damage: 7,  fireRate: 1.2, splashRadius: 0,    chainCount: 3, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
-  cryo:   { range: 4.5, damage: 2,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.45, slowDuration: 1.2 },
+  cryo:   { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.4,  slowDuration: 1.5 },
   mortar: { range: 9.0, damage: 26, fireRate: 0.5, splashRadius: 1.8,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
 };
 
@@ -301,11 +395,15 @@ export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
   samplePath(world.paths[enemy.pathIndex], enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
+  const resist = ENEMY_SLOW_RESIST[enemy.kind];
+  const resisted = factor + (1 - factor) * resist;
+  const eff = Math.max(MIN_SLOW_FACTOR, resisted);
+  if (eff >= 1) return;
   const until = world.time + duration;
   if (until > enemy.slowUntil) {
     enemy.slowUntil = until;
-    enemy.slowFactor = Math.min(enemy.slowFactor, factor);
-  } else if (factor < enemy.slowFactor) {
-    enemy.slowFactor = factor;
+    enemy.slowFactor = Math.min(enemy.slowFactor, eff);
+  } else if (eff < enemy.slowFactor) {
+    enemy.slowFactor = eff;
   }
 };

@@ -104,20 +104,6 @@ const forestLayers = (): BiomeLayer[] => [
     maxScale: 1.2,
     castShadow: true,
   },
-  {
-    seed: 7777,
-    urls: [
-      "/models/nature/Tree1.glb",
-      "/models/nature/Tree2.glb",
-      "/models/nature/Tree3.glb",
-      "/models/nature/Tree4.glb",
-    ],
-    count: 55,
-    clearance: PATH_WIDTH / 2 + 1.6,
-    minScale: 0.9,
-    maxScale: 1.5,
-    castShadow: true,
-  },
 ];
 
 const desertLayers = (): BiomeLayer[] => [
@@ -145,21 +131,6 @@ const desertLayers = (): BiomeLayer[] => [
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.3,
-    castShadow: true,
-  },
-  {
-    seed: 7777,
-    urls: [
-      "/models/biomes/desert/Tree1.glb",
-      "/models/biomes/desert/Tree2.glb",
-      "/models/biomes/desert/Tree3.glb",
-      "/models/biomes/desert/Tree4.glb",
-      "/models/biomes/desert/Tree5.glb",
-    ],
-    count: 35,
-    clearance: PATH_WIDTH / 2 + 1.4,
-    minScale: 0.9,
-    maxScale: 1.6,
     castShadow: true,
   },
 ];
@@ -190,21 +161,6 @@ const snowLayers = (): BiomeLayer[] => [
     maxScale: 1.2,
     castShadow: true,
   },
-  {
-    seed: 7777,
-    urls: [
-      "/models/biomes/snow/Tree1.glb",
-      "/models/biomes/snow/Tree2.glb",
-      "/models/biomes/snow/Tree3.glb",
-      "/models/biomes/snow/Tree4.glb",
-      "/models/biomes/snow/Tree5.glb",
-    ],
-    count: 50,
-    clearance: PATH_WIDTH / 2 + 1.5,
-    minScale: 0.9,
-    maxScale: 1.5,
-    castShadow: true,
-  },
 ];
 
 const wastelandLayers = (): BiomeLayer[] => [
@@ -223,20 +179,6 @@ const wastelandLayers = (): BiomeLayer[] => [
     maxScale: 1.4,
     castShadow: true,
   },
-  {
-    seed: 7777,
-    urls: [
-      "/models/biomes/wasteland/Tree1.glb",
-      "/models/biomes/wasteland/Tree2.glb",
-      "/models/biomes/wasteland/Tree3.glb",
-      "/models/biomes/wasteland/Tree4.glb",
-    ],
-    count: 30,
-    clearance: PATH_WIDTH / 2 + 1.3,
-    minScale: 0.85,
-    maxScale: 1.45,
-    castShadow: true,
-  },
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
@@ -246,4 +188,35 @@ export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
   wasteland: wastelandLayers(),
 };
 
-export const ALL_BIOME_URLS = Object.values(BIOME_LAYERS).flatMap(ls => ls.flatMap(l => l.urls));
+// Clearable trees per biome (exactly 4 variants for compatibility with Tree.variant 0..3).
+export const BIOME_TREE_URLS: Record<Biome, string[]> = {
+  forest: [
+    "/models/nature/Tree1.glb",
+    "/models/nature/Tree2.glb",
+    "/models/nature/Tree3.glb",
+    "/models/nature/Tree4.glb",
+  ],
+  desert: [
+    "/models/biomes/desert/Tree1.glb",
+    "/models/biomes/desert/Tree2.glb",
+    "/models/biomes/desert/Tree3.glb",
+    "/models/biomes/desert/Tree4.glb",
+  ],
+  snow: [
+    "/models/biomes/snow/Tree1.glb",
+    "/models/biomes/snow/Tree2.glb",
+    "/models/biomes/snow/Tree3.glb",
+    "/models/biomes/snow/Tree4.glb",
+  ],
+  wasteland: [
+    "/models/biomes/wasteland/Tree1.glb",
+    "/models/biomes/wasteland/Tree2.glb",
+    "/models/biomes/wasteland/Tree3.glb",
+    "/models/biomes/wasteland/Tree4.glb",
+  ],
+};
+
+export const ALL_BIOME_URLS = [
+  ...Object.values(BIOME_LAYERS).flatMap(ls => ls.flatMap(l => l.urls)),
+  ...Object.values(BIOME_TREE_URLS).flat(),
+];

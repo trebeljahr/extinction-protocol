@@ -68,7 +68,7 @@ export const HUD = () => {
             <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [Space]</div>
             <div className="stat-value">
               +{ui.callEarlyBonus}g
-              {!ui.waveActive && <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>}
+              <span className="call-wave-sub"> · {ui.callEarlyTimer}s</span>
             </div>
           </button>
         ) : (
@@ -132,7 +132,7 @@ export const HUD = () => {
       <EnemyPanel />
 
       <div className="hud-bottom">
-        <span>Click empty tile to build · click a tower to inspect</span>
+        <span>Click empty tile to build · click a tower to inspect · click a tree to clear (8g)</span>
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>
