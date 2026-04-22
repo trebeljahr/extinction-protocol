@@ -105,11 +105,13 @@ export const TowerVfx = () => {
         if (charge <= 0.02) continue;
 
         const yaw = barrelYaw(t, world);
-        // Y-rotation by `yaw = atan2(dx, -dy)` maps local +Z to world
-        // (sin yaw, 0, cos yaw) — the normalized forward vector from
-        // tower to target. So (fx, fz) is forward in world XZ.
-        const fx = Math.sin(yaw);
-        const fz = Math.cos(yaw);
+        // The pulse tower glTF has a Z-up→Y-up X-rotation baked into
+        // every mesh node, which flips the gun's authored "forward"
+        // axis inside the root's local frame. Empirically the visible
+        // barrel ends up along *negative* (sin yaw, 0, cos yaw) after
+        // Y-rot by yaw, so the ring offsets need to follow suit.
+        const fx = -Math.sin(yaw);
+        const fz = -Math.cos(yaw);
 
         // Geometry of the rings along the gun. Tuned against the tower_pulse
         // model's barrel — low enough to sit on it, not float above.
