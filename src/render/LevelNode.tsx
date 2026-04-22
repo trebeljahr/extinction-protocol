@@ -81,10 +81,11 @@ export const LevelNode = ({ level }: Props) => {
     document.body.style.cursor = "default";
   };
 
-  // Stars sit ABOVE the number label (which is at y=1.3). Pulled up a bit
-  // further so the two don't visually fight at our tilted ortho angle.
+  // Stars sit high above the dome; the number / lock label sits *below*
+  // the ground ring so it doesn't cover the 3D node mesh at our tilted
+  // ortho angle. Positive z is "south" on the tilted camera = below.
   const starY = 3.15;
-  const labelY = completed ? 1.3 : 1.3;
+  const labelZ = 1.8;
 
   const x = level.nodePos.x;
   const z = -level.nodePos.y;
@@ -133,7 +134,7 @@ export const LevelNode = ({ level }: Props) => {
         />
       </mesh>
 
-      <Html center position={[0, labelY, 0]} zIndexRange={[0, 10]}>
+      <Html center position={[0, 0.05, labelZ]} zIndexRange={[0, 10]}>
         <div className={`map-label ${unlocked ? "" : "locked"}`}>
           {unlocked ? level.id : "\u{1F512}"}
         </div>
