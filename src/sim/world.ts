@@ -30,8 +30,8 @@ export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
   waveActive: false,
   nextWaveIn: 2,
   waveTotalEnemies: 0,
-  gold: 150,
-  lives: 20,
+  gold: 100,
+  lives: 15,
   status: "running",
   nextEntityId: 1,
   events: [],
@@ -42,11 +42,11 @@ export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
 const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
-  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2, bounty:  5, damage: 1 },
-  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty: 11, damage: 2 },
-  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 22, damage: 3 },
-  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  2, damage: 1 },
-  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1, bounty: 28, damage: 4 },
+  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2, bounty:  3, damage: 1 },
+  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty:  7, damage: 2 },
+  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 14, damage: 3 },
+  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  1, damage: 1 },
+  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1, bounty: 18, damage: 4 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {

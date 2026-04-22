@@ -31,16 +31,16 @@ export const getWavePlan = (wave: number): { archetype: WaveArchetype } =>
 
 const wavePlan = (wave: number): WavePlan => {
   switch (wave) {
-    case 1:  return { archetype: "intro",  spacingBase: 0.9,  entries: [{ kind: "raptor", count: 8 }] };
-    case 2:  return { archetype: "mixed",  spacingBase: 0.7,  entries: [{ kind: "raptor", count: 10 }, { kind: "swarm", count: 6 }] };
-    case 3:  return { archetype: "swarm",  spacingBase: 0.18, entries: [{ kind: "swarm", count: 40 }] };
-    case 4:  return { archetype: "mixed",  spacingBase: 0.55, entries: [{ kind: "raptor", count: 10 }, { kind: "allosaur", count: 3 }, { kind: "swarm", count: 10 }] };
-    case 5:  return { archetype: "heavy",  spacingBase: 1.1,  entries: [{ kind: "armored", count: 4 }, { kind: "allosaur", count: 3 }] };
-    case 6:  return { archetype: "swarm",  spacingBase: 0.14, entries: [{ kind: "swarm", count: 55 }, { kind: "raptor", count: 6 }] };
-    case 7:  return { archetype: "mixed",  spacingBase: 0.5,  entries: [{ kind: "raptor", count: 14 }, { kind: "allosaur", count: 5 }, { kind: "stego", count: 2 }] };
-    case 8:  return { archetype: "heavy",  spacingBase: 1.0,  entries: [{ kind: "armored", count: 7 }, { kind: "stego", count: 3 }, { kind: "allosaur", count: 4 }] };
-    case 9:  return { archetype: "chaos",  spacingBase: 0.35, entries: [{ kind: "swarm", count: 30 }, { kind: "raptor", count: 12 }, { kind: "allosaur", count: 4 }, { kind: "stego", count: 2 }] };
-    default: return { archetype: "chaos",  spacingBase: 0.45, entries: [{ kind: "armored", count: 6 }, { kind: "stego", count: 4 }, { kind: "allosaur", count: 6 }, { kind: "raptor", count: 15 }, { kind: "swarm", count: 20 }] };
+    case 1:  return { archetype: "intro",  spacingBase: 0.9,  entries: [{ kind: "raptor", count: 10 }] };
+    case 2:  return { archetype: "mixed",  spacingBase: 0.55, entries: [{ kind: "raptor", count: 14 }, { kind: "swarm", count: 10 }] };
+    case 3:  return { archetype: "swarm",  spacingBase: 0.12, entries: [{ kind: "swarm", count: 70 }] };
+    case 4:  return { archetype: "mixed",  spacingBase: 0.45, entries: [{ kind: "raptor", count: 16 }, { kind: "allosaur", count: 5 }, { kind: "swarm", count: 14 }] };
+    case 5:  return { archetype: "heavy",  spacingBase: 0.9,  entries: [{ kind: "armored", count: 7 }, { kind: "allosaur", count: 5 }, { kind: "stego", count: 2 }] };
+    case 6:  return { archetype: "swarm",  spacingBase: 0.09, entries: [{ kind: "swarm", count: 95 }, { kind: "raptor", count: 10 }] };
+    case 7:  return { archetype: "mixed",  spacingBase: 0.4,  entries: [{ kind: "raptor", count: 20 }, { kind: "allosaur", count: 8 }, { kind: "stego", count: 4 }] };
+    case 8:  return { archetype: "heavy",  spacingBase: 0.8,  entries: [{ kind: "armored", count: 12 }, { kind: "stego", count: 6 }, { kind: "allosaur", count: 6 }] };
+    case 9:  return { archetype: "chaos",  spacingBase: 0.28, entries: [{ kind: "swarm", count: 45 }, { kind: "raptor", count: 20 }, { kind: "allosaur", count: 7 }, { kind: "stego", count: 3 }, { kind: "armored", count: 2 }] };
+    default: return { archetype: "chaos",  spacingBase: 0.38, entries: [{ kind: "armored", count: 10 }, { kind: "stego", count: 6 }, { kind: "allosaur", count: 10 }, { kind: "raptor", count: 24 }, { kind: "swarm", count: 30 }] };
   }
 };
 
@@ -108,7 +108,7 @@ export const spawnerTick = (world: World, dt: number) => {
     return;
   }
 
-  const hpMul = 1 + (world.wave - 1) * 0.08;
+  const hpMul = 1 + (world.wave - 1) * 0.22;
   while (world.spawnQueue.length > 0 && world.spawnQueue[0].at <= world.time) {
     const req = world.spawnQueue.shift()!;
     spawnEnemy(world, req.kind, hpMul);
@@ -117,7 +117,7 @@ export const spawnerTick = (world: World, dt: number) => {
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
     world.waveActive = false;
     world.nextWaveIn = WAVE_GAP_SECONDS;
-    const bonus = 12 + world.wave * 2;
+    const bonus = 5 + world.wave;
     world.gold += bonus;
     emit(world, { type: "wave-clear", wave: world.wave });
   }
