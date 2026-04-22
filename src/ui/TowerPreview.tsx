@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useGLTF, Environment } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import type { TowerKind } from "../sim/types";
 
 const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number; rotY: number }> = {
@@ -68,10 +68,10 @@ export const TowerPreview = ({ kind }: { kind: TowerKind }) => {
         }}
         style={{ width: "100%", height: "100%", background: "transparent" }}
       >
-        <Environment preset="park" background={false} environmentIntensity={0.6} />
-        <ambientLight intensity={0.55} color="#eaf2ff" />
+        <ambientLight intensity={0.9} color="#eaf2ff" />
         <directionalLight position={[14, 26, 10]} intensity={2.2} color="#fff4dc" />
-        <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.85]} />
+        <directionalLight position={[-8, 12, -4]} intensity={0.8} color="#bcd8ff" />
+        <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.95]} />
         <Suspense fallback={null}>
           <StaticTower url={url} targetSize={targetSize} rotY={rotY} />
         </Suspense>

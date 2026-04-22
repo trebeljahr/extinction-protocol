@@ -26,6 +26,7 @@ export const HUD = () => {
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const paused = ui.status === "paused";
+  const compendiumOpen = useGame(s => s.compendiumOpen);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,11 +91,15 @@ export const HUD = () => {
           </div>
         )}
         <button
-          className="btn btn-ghost hud-map-btn"
+          className="hud-menu-btn"
           onClick={togglePause}
           title="Menu (Esc)"
         >
-          Menu
+          <span className="hud-menu-icon" aria-hidden>
+            <span /><span /><span />
+          </span>
+          <span className="hud-menu-label">Menu</span>
+          <span className="hud-menu-key">Esc</span>
         </button>
       </div>
 
@@ -152,7 +157,7 @@ export const HUD = () => {
         <span>Esc: menu</span>
       </div>
 
-      {paused && <PauseMenu onResume={togglePause} />}
+      {paused && !compendiumOpen && <PauseMenu onResume={togglePause} />}
     </div>
   );
 };
