@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { useGame } from "../store";
 import {
-  BIOME_COSMETICS,
+  BIOME_BASES,
   TARGET_SIZE_BY_ROLE,
   classifyPropUrl,
   type Biome,
@@ -11,27 +11,34 @@ import {
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 
-// Render-only decorative cosmetics scattered across the playable level.
-// Deterministic per-level via PRNG seeded on levelId. These don't live in
-// world state — they're pure flavor and never block placement or get
-// clicked.
+// A "base" is a deliberate cluster of sci-fi props tucked off to the side
+// of the map — hero structure (hangar/rocket/structure) ringed by a few
+// supports (generators, dishes, barrels). Not every level gets one: the
+// seed decides per-levelId so bases feel like a discovery, not wallpaper.
 
-const COUNT_PER_LEVEL = 26;
-const PATH_CLEARANCE = PATH_WIDTH / 2 + 0.5;
-const PROP_MIN_SPACING = 1.3;
+const BASE_CLEAR_FROM_PATH = PATH_WIDTH / 2 + 2.5;
+const BASE_INSET_X = 5.5;
+const BASE_INSET_Y = 4;
+const CLUSTER_RADIUS = 2.8;
+const SUPPORT_COUNT = 4;
+const BASE_CHANCE = 0.55;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
     a |= 0;
-    a = (a + 0x6D2B79F5) | 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
 
-const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+const distPointToSegSq = (
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number,
+) => {
   const abx = bx - ax;
   const aby = by - ay;
   const apx = px - ax;
@@ -45,68 +52,72 @@ const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: nu
   return dx * dx + dy * dy;
 };
 
-type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
-
-const buildInstances = (
-  biome: Biome,
-  paths: Vec2[][],
-  levelId: number,
-  blockers: { pos: Vec2; radius: number }[],
-): Instance[] => {
-  const urls = BIOME_COSMETICS[biome];
-  if (urls.length === 0) return [];
-  const rng = mulberry32(levelId * 6271 + 13);
-  const out: Instance[] = [];
-  const pathR2 = PATH_CLEARANCE * PATH_CLEARANCE;
-  const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
-  let tries = 0;
-  while (out.length < COUNT_PER_LEVEL && tries < COUNT_PER_LEVEL * 30) {
-    tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.94;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.94;
-
-    let blocked = false;
+// Try the four map corners in a shuffled order; pick the first whose
+// whole cluster footprint stays clear of every path segment.
+const pickBaseCenter = (rng: () => number, paths: Vec2[][]): Vec2 | null => {
+  const corners: Vec2[] = [
+    { x: -MAP_WIDTH / 2 + BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
+    { x:  MAP_WIDTH / 2 - BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
+    { x: -MAP_WIDTH / 2 + BASE_INSET_X, y:  MAP_HEIGHT / 2 - BASE_INSET_Y },
+    { x:  MAP_WIDTH / 2 - BASE_INSET_X, y:  MAP_HEIGHT / 2 - BASE_INSET_Y },
+  ];
+  for (let i = corners.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [corners[i], corners[j]] = [corners[j], corners[i]];
+  }
+  const minDist = CLUSTER_RADIUS + BASE_CLEAR_FROM_PATH;
+  const minDist2 = minDist * minDist;
+  for (const c of corners) {
+    let ok = true;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
+        if (distPointToSegSq(c.x, c.y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < minDist2) {
+          ok = false;
           break;
         }
       }
-      if (blocked) break;
+      if (!ok) break;
     }
-    if (blocked) continue;
+    if (ok) return c;
+  }
+  return null;
+};
 
-    for (const b of blockers) {
-      const dx = b.pos.x - x;
-      const dy = b.pos.y - y;
-      if (dx * dx + dy * dy < b.radius * b.radius) { blocked = true; break; }
-    }
-    if (blocked) continue;
+type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 
-    for (const p of out) {
-      const dx = p.pos.x - x;
-      const dy = p.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
-    }
-    if (blocked) continue;
+const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] => {
+  const recipe = BIOME_BASES[biome];
+  if (!recipe) return [];
+  const rng = mulberry32(levelId * 7919 + 131);
+  if (rng() > BASE_CHANCE) return [];
 
-    out.push({
-      url: urls[Math.floor(rng() * urls.length)],
-      pos: { x, y },
-      scale: 0.85 + rng() * 0.45,
-      rotY: rng() * Math.PI * 2,
+  const center = pickBaseCenter(rng, paths);
+  if (!center) return [];
+
+  const hero = recipe.hero[Math.floor(rng() * recipe.hero.length)];
+  const baseRot = rng() * Math.PI * 2;
+  const items: Instance[] = [
+    { url: hero, pos: center, scale: 1.0, rotY: baseRot },
+  ];
+
+  for (let i = 0; i < SUPPORT_COUNT; i++) {
+    const u = recipe.support[Math.floor(rng() * recipe.support.length)];
+    const a = (i / SUPPORT_COUNT) * Math.PI * 2 + (rng() - 0.5) * 0.5;
+    const r = 1.6 + rng() * 0.9;
+    items.push({
+      url: u,
+      pos: { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r },
+      scale: 0.9 + rng() * 0.3,
+      rotY: baseRot + (rng() - 0.5) * 0.8,
     });
   }
-  return out;
+  return items;
 };
 
 type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
 type Source = { parts: Part[]; minY: number; baseScale: number };
 
-// Walk every Mesh in the scene so multi-primitive GLBs (Kenney space-kit
-// machines have 2+ primitives — chassis, cables, lights) render in full.
-// Same pattern as Rocks/Trees.
+// Same multi-primitive collection used in BiomeCosmetics/Rocks/Trees.
 const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
   scene.updateMatrixWorld(true);
   const parts: Part[] = [];
@@ -176,28 +187,21 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
   );
 };
 
-export const BiomeCosmetics = () => {
+export const BiomeBases = () => {
   const biome = useGame(s => s.world.biome);
   const paths = useGame(s => s.world.paths);
   const levelId = useGame(s => s.world.levelId);
-  const trees = useGame(s => s.world.trees);
-  const rocks = useGame(s => s.world.rocks);
 
   const groups = useMemo(() => {
-    // Block cosmetics from spawning on top of trees/rocks that already exist.
-    const blockers: { pos: Vec2; radius: number }[] = [
-      ...trees.map(t => ({ pos: t.pos, radius: 0.9 * t.scale })),
-      ...rocks.map(r => ({ pos: r.pos, radius: 0.7 * r.scale })),
-    ];
-    const instances = buildInstances(biome, paths, levelId, blockers);
+    const items = buildBase(biome, paths, levelId);
     const byUrl = new Map<string, Instance[]>();
-    for (const inst of instances) {
-      const list = byUrl.get(inst.url) ?? [];
-      list.push(inst);
-      byUrl.set(inst.url, list);
+    for (const it of items) {
+      const list = byUrl.get(it.url) ?? [];
+      list.push(it);
+      byUrl.set(it.url, list);
     }
     return Array.from(byUrl.entries());
-  }, [biome, paths, levelId, trees, rocks]);
+  }, [biome, paths, levelId]);
 
   return (
     <group>
@@ -208,7 +212,8 @@ export const BiomeCosmetics = () => {
   );
 };
 
-// Preload every cosmetic URL so switching biomes mid-session doesn't stall.
-for (const urls of Object.values(BIOME_COSMETICS)) {
-  for (const url of urls) useGLTF.preload(url);
+// Preload every base URL so switching biomes mid-session doesn't stall.
+for (const recipe of Object.values(BIOME_BASES)) {
+  if (!recipe) continue;
+  for (const u of [...recipe.hero, ...recipe.support]) useGLTF.preload(u);
 }

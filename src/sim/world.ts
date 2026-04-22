@@ -347,7 +347,7 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
 
 export const TOWER_COST: Record<TowerKind, number> = {
   pulse: 50,
-  chain: 90,
+  chain: 50,
   cryo: 75,
   mortar: 120,
 };

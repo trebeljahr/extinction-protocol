@@ -44,22 +44,25 @@ type PropRoleBucket = {
 
 // Hero building per biome. Each URL appears once per weight-slot: repeating
 // a URL makes it more likely when the random picker chooses one of the
-// `urls[]` entries, so Sawmill appears ~1-in-4 desert nodes (one ship wreck
-// across the full map in expectation) while Tent remains the common read.
-// Wasteland has no building — Ruins read as "half platforms" and didn't
-// fit, so that biome is just trees + rocks at the cluster level.
+// `urls[]` entries, so the rare sci-fi landmark appears ~1-in-4 desert nodes
+// (one crashed craft across the full map in expectation) while Tent remains
+// the common read. Wasteland has no building — Ruins read as "half platforms"
+// and didn't fit, so that biome is just trees + rocks at the cluster level.
+// Non-nature biomes prefer sci-fi tech (hangars, structures, rockets) over
+// wooden cabins/sawmills; tents stay — they read as modern camp gear, not wood.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/House.glb",
+    "/models/scifi/structure_detailed.glb",
   ],
   desert: [
     "/models/landmarks/desert/Tent.glb",
     "/models/landmarks/desert/Tent.glb",
     "/models/landmarks/desert/Tent.glb",
-    "/models/landmarks/forest/Sawmill.glb", // sparingly — reads as a weathered ship wreck
+    "/models/scifi/rocket_baseA.glb", // sparingly — reads as a crashed rocket
   ],
   snow: [
-    "/models/landmarks/snow/Cabin.glb",
+    "/models/scifi/hangar_smallA.glb",
     "/models/landmarks/snow/Tent.glb",
   ],
   wasteland: [],

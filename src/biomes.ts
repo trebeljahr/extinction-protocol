@@ -222,26 +222,79 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 };
 
 // Small cosmetic props rendered as decor in levels AND on the world map.
-// Only Quaternius-style organic assets belong here — the low-poly cubic
-// (Kenney TD) crystals, snow/ice blocks, etc. clash with the rest of the
-// art and are off the table. Snow is intentionally empty for now: nothing
-// cosmetic-sized in the current asset set reads cleanly against snow.
+// Only Quaternius-style organic assets and Kenney space-kit sci-fi props
+// belong here — the low-poly cubic (Kenney TD) crystals, snow/ice blocks,
+// etc. clash with the rest of the art and are off the table. Man-made
+// wooden props (Barrel, Chest) were swapped for sci-fi machine/satellite
+// variants so non-nature biomes read as post-human tech, not woodwork.
+// Snow is intentionally empty: nothing cosmetic-sized in the current set
+// reads cleanly against snow — snow gets its sci-fi flavor via bases.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/Mushroom.glb",
-    "/models/landmarks/forest/Barrel.glb",
+    "/models/scifi/machine_barrel.glb",
     "/models/landmarks/forest/BushFlowers.glb",
   ],
   desert: [
     "/models/landmarks/desert/Skull.glb",
-    "/models/landmarks/desert/Chest.glb",
+    "/models/scifi/machine_wireless.glb",
     "/models/landmarks/desert/DeadTree.glb",
+    "/models/scifi/satelliteDish.glb",
   ],
   snow: [],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",
     "/models/landmarks/wasteland/DeadTree.glb",
+    "/models/scifi/machine_generator.glb",
+    "/models/scifi/meteor_detailed.glb",
   ],
+};
+
+// "Bases" — deliberate clusters of sci-fi props tucked in a corner on
+// some levels. A hero structure (hangar/rocket) surrounded by a handful
+// of supports (generators, dishes, barrels). Not every level gets one.
+// See BiomeBases.tsx for placement logic.
+export type BaseRecipe = { hero: string[]; support: string[] };
+export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
+  forest: null,
+  desert: {
+    hero: [
+      "/models/scifi/hangar_smallA.glb",
+      "/models/scifi/rocket_baseA.glb",
+    ],
+    support: [
+      "/models/scifi/machine_generator.glb",
+      "/models/scifi/satelliteDish_detailed.glb",
+      "/models/scifi/rover.glb",
+      "/models/scifi/machine_barrelLarge.glb",
+      "/models/scifi/barrels.glb",
+    ],
+  },
+  snow: {
+    hero: [
+      "/models/scifi/hangar_smallB.glb",
+      "/models/scifi/structure_closed.glb",
+    ],
+    support: [
+      "/models/scifi/machine_generatorLarge.glb",
+      "/models/scifi/satelliteDish.glb",
+      "/models/scifi/machine_wirelessCable.glb",
+      "/models/scifi/barrels.glb",
+    ],
+  },
+  wasteland: {
+    hero: [
+      "/models/scifi/structure_detailed.glb",
+      "/models/scifi/rocket_baseA.glb",
+    ],
+    support: [
+      "/models/scifi/machine_generator.glb",
+      "/models/scifi/satelliteDish_large.glb",
+      "/models/scifi/meteor_detailed.glb",
+      "/models/scifi/turret_single.glb",
+      "/models/scifi/rover.glb",
+    ],
+  },
 };
 
 // Visual-role classification + target sizes so props on the world map (and
@@ -266,13 +319,18 @@ export const TARGET_SIZE_BY_ROLE: Record<PropRole, number> = {
 
 export const classifyPropUrl = (url: string): PropRole => {
   const f = url.toLowerCase();
+  // Large sci-fi structures sit in the building slot so they anchor
+  // bases the way houses/cabins anchor nature biomes.
+  if (/hangar_|rocket_|structure_|gate_|satellitedish_(?:large|detailed)/.test(f)) return "building";
   if (/house|cabin|sawmill|tent|ruins|tower_/.test(f)) return "building";
   if (/tree|deadtree/.test(f)) return "tree";
   if (/bushflowers/.test(f)) return "cosmetic";
   if (/bush/.test(f)) return "bush";
   if (/grass/.test(f)) return "grass";
-  if (/rock/.test(f)) return "rock";
-  // skull, torch, barrel, mushroom, crystal, chest — all small cosmetic items.
+  // Meteors read as rocks — similar role in a scene.
+  if (/rock|meteor/.test(f)) return "rock";
+  // skull, torch, barrel, mushroom, crystal, chest, machine_*, rover,
+  // turret_single, barrels, satellitedish (small) — small cosmetic items.
   return "cosmetic";
 };
 
@@ -280,4 +338,5 @@ export const ALL_BIOME_URLS = [
   ...Object.values(BIOME_LAYERS).flatMap(ls => ls.flatMap(l => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
   ...Object.values(BIOME_COSMETICS).flat(),
+  ...Object.values(BIOME_BASES).flatMap(r => r ? [...r.hero, ...r.support] : []),
 ];
