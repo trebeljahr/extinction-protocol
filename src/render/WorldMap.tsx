@@ -1,7 +1,9 @@
-import { OrthographicCamera } from "@react-three/drei";
+import { OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { LEVELS } from "../levels";
 import { LevelNode } from "./LevelNode";
 import { MapRoute } from "./MapRoute";
+import { BiomeGround } from "./BiomeGround";
+import { BiomeProps } from "./BiomeProps";
 
 const MAP_W = 80;
 const MAP_H = 48;
@@ -9,7 +11,7 @@ const MAP_H = 48;
 export const WorldMapScene = () => (
   <>
     <color attach="background" args={["#08101a"]} />
-    <fog attach="fog" args={["#08101a", 50, 90]} />
+    <fog attach="fog" args={["#0a1824", 60, 120]} />
 
     <OrthographicCamera
       makeDefault
@@ -18,6 +20,23 @@ export const WorldMapScene = () => (
       zoom={18}
       near={0.1}
       far={200}
+    />
+
+    <OrbitControls
+      makeDefault
+      enablePan
+      enableRotate={false}
+      enableZoom
+      mouseButtons={{
+        LEFT: 2, // left-drag pans (PAN = 2)
+        MIDDLE: 1,
+        RIGHT: 2,
+      }}
+      panSpeed={1.6}
+      zoomSpeed={0.8}
+      minZoom={10}
+      maxZoom={60}
+      screenSpacePanning
     />
 
     <ambientLight intensity={0.45} />
@@ -34,15 +53,8 @@ export const WorldMapScene = () => (
     />
     <hemisphereLight args={["#88aaff", "#1a1a20", 0.3]} />
 
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[MAP_W, MAP_H]} />
-      <meshStandardMaterial color="#10202c" roughness={0.95} metalness={0} />
-    </mesh>
-
-    <gridHelper
-      args={[MAP_W, MAP_W / 4, "#1a2d3a", "#0d1822"]}
-      position={[0, 0.01, 0]}
-    />
+    <BiomeGround width={MAP_W} height={MAP_H} />
+    <BiomeProps />
 
     <MapRoute />
 
