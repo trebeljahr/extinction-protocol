@@ -1,12 +1,13 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, Slot, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TREE_REMOVE_COST, SLOT_SNAP_RADIUS } from "./sim/world";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, TargetingMode, EnemyKind } from "./sim/types";
+import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
 import { distSq } from "./sim/vec2";
+import { segmentLength } from "./sim/path";
 import {
   loadProgress,
   saveProgress,
@@ -104,19 +105,42 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyMaxHp === b.inspectedEnemyMaxHp &&
   a.inspectedEnemyAlive === b.inspectedEnemyAlive;
 
-const nearestEmptySlot = (world: World, pos: Vec2): Slot | null => {
-  const r2 = SLOT_SNAP_RADIUS * SLOT_SNAP_RADIUS;
-  let best: Slot | null = null;
-  let bestDist = Infinity;
-  for (const s of world.slots) {
-    if (s.towerId !== null) continue;
-    const d = distSq(s.pos, pos);
-    if (d <= r2 && d < bestDist) {
-      bestDist = d;
-      best = s;
+const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+  const lenSq = abx * abx + aby * aby;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
+  const cx = a.x + t * abx;
+  const cy = a.y + t * aby;
+  const dx = p.x - cx;
+  const dy = p.y - cy;
+  return dx * dx + dy * dy;
+};
+
+const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
+  const r2 = clearance * clearance;
+  for (const path of world.paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (segmentLength(path, i) === 0) continue;
+      if (distToSegmentSq(pos, path[i], path[i + 1]) < r2) return true;
     }
   }
-  return best;
+  return false;
+};
+
+const canPlaceAt = (world: World, pos: Vec2): boolean => {
+  if (isOnPath(world, pos, 1.2)) return false;
+  const footprintSq = (TOWER_FOOTPRINT + 0.1) * (TOWER_FOOTPRINT + 0.1);
+  for (const t of world.towers) {
+    if (distSq(t.pos, pos) < footprintSq) return false;
+  }
+  const treeBlockSq = (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
+  for (const tr of world.trees) {
+    if (distSq(tr.pos, pos) < treeBlockSq) return false;
+  }
+  return true;
 };
 
 const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
@@ -159,7 +183,7 @@ type GameStore = {
 
   setSelectedKind: (kind: TowerKind | null) => void;
   tryPlaceOrSelect: (pos: Vec2) => void;
-  slotForPlacement: (pos: Vec2) => Slot | null;
+  canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
 
@@ -294,7 +318,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ selectedKind: kind, inspectedEnemy: nextInspect, ui: snapshot(world, towerVersion, treeVersion, nextInspect) });
   },
 
-  slotForPlacement: (pos) => nearestEmptySlot(get().world, pos),
+  canPlace: (pos) => canPlaceAt(get().world, pos),
 
   towerAtPos: (pos) => towerAt(get().world, pos),
 
@@ -346,13 +370,12 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       return;
     }
-    const slot = nearestEmptySlot(w, pos);
-    if (!slot) return;
+    const snapped = { x: Math.round(pos.x), y: Math.round(pos.y) };
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
+    if (!canPlaceAt(w, snapped)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, slot.pos);
-    slot.towerId = t.id;
+    const t = createTower(w, s.selectedKind, snapped);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
     set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
