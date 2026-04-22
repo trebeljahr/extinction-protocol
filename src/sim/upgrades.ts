@@ -116,5 +116,7 @@ export const sellTower = (world: World, tower: Tower) => {
   const refund = sellRefund(tower);
   world.gold += refund;
   world.towers = world.towers.filter(t => t.id !== tower.id);
+  const slot = world.slots.find(s => s.towerId === tower.id);
+  if (slot) slot.towerId = null;
   if (world.selectedTowerId === tower.id) world.selectedTowerId = null;
 };

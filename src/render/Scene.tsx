@@ -6,6 +6,7 @@ import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { HealthBars } from "./HealthBars";
 import { SelectionRing } from "./SelectionRing";
+import { SlotMarkers } from "./SlotMarkers";
 import { CryoAuras } from "./CryoAuras";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
@@ -49,6 +50,7 @@ export const PlayScene = () => {
       <Trees />
       <Placement />
       <PathLine />
+      <SlotMarkers />
 
       <ModelEnemyMesh kind="raptor"   url="/models/Velociraptor.glb"    targetSize={1.6} />
       <ModelEnemyMesh kind="swarm"    url="/models/Velociraptor.glb"    targetSize={0.8} />
