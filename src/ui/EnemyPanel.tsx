@@ -2,6 +2,7 @@ import { useGame } from "../store";
 import {
   ENEMY_LABEL,
   ENEMY_RESIST,
+  ENEMY_SLOW_RESIST,
   DAMAGE_TYPE_LABEL,
   DAMAGE_TYPE_COLOR,
 } from "../sim/world";
@@ -13,8 +14,8 @@ const ENEMY_DESC: Record<string, string> = {
   raptor:   "Fast, lightly armored. Weak to shock.",
   swarm:    "Tiny, fast, fragile. Comes in huge numbers — built for AoE.",
   allosaur: "Balanced bruiser. No exploitable weakness.",
-  stego:    "Armored back plates. Shrugs off kinetic; cracks under explosives.",
-  armored:  "Juggernaut. Hardened against blast and shock — only kinetic reliably hurts.",
+  stego:    "Armored back plates. Shrugs off kinetic; cracks under explosives. Partially resists chill.",
+  armored:  "Juggernaut. Hardened against blast and shock. Heavy momentum shrugs off chill — only kinetic reliably hurts.",
 };
 
 export const EnemyPanel = () => {
@@ -27,6 +28,7 @@ export const EnemyPanel = () => {
 
   const hpPct = hp !== null && maxHp ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const resist = ENEMY_RESIST[kind];
+  const slowResist = ENEMY_SLOW_RESIST[kind];
 
   return (
     <div className="enemy-panel">
@@ -81,6 +83,20 @@ export const EnemyPanel = () => {
           );
         })}
       </div>
+
+      {slowResist > 0 && (
+        <div className="resist-row">
+          <div
+            className="resist-chip good"
+            title={`Chill resistance: ${Math.round(slowResist * 100)}%`}
+          >
+            <span className="resist-name" style={{ color: DAMAGE_TYPE_COLOR.cold }}>
+              Chill resist
+            </span>
+            <span className="resist-val">{Math.round(slowResist * 100)}%</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

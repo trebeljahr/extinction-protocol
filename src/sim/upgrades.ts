@@ -66,9 +66,9 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     b: {
       label: "Resonator",
       tiers: [
-        { name: "Shard",         desc: "+60% damage",  cost: 55,  apply: t => { t.damage *= 1.6; } },
-        { name: "Freeze Burn",   desc: "+120% damage + range", cost: 115, apply: t => { t.damage *= 1.37; t.range += 1; } },
-        { name: "Absolute Zero", desc: "+200% damage + range", cost: 220, apply: t => { t.damage *= 1.64; t.range += 1; } },
+        { name: "Shard",         desc: "+1 range",                   cost: 55,  apply: t => { t.range += 1; } },
+        { name: "Freeze Burn",   desc: "+1 range, +0.4s chill",      cost: 110, apply: t => { t.range += 1; t.slowDuration += 0.4; } },
+        { name: "Absolute Zero", desc: "Unlocks 18 cold damage AoE", cost: 220, apply: t => { t.damage = 18; } },
       ],
     },
   },
