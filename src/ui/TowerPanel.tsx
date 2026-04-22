@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useGame } from "../store";
 import {
   TOWER_LABEL,
@@ -117,14 +118,48 @@ export const TowerPanel = () => {
         <BranchView tower={tower} branchId="b" gold={gold} />
       </div>
 
-      <div className="panel-footer">
+      <SellFooter tower={tower} />
+    </div>
+  );
+};
+
+const SellFooter = ({ tower }: { tower: Tower }) => {
+  const [confirming, setConfirming] = useState(false);
+  // Reset the confirm state whenever the selected tower changes so
+  // switching towers never leaves a stale "Confirm Sell" from a
+  // different tower.
+  useEffect(() => { setConfirming(false); }, [tower.id]);
+  const refund = sellRefund(tower);
+
+  if (confirming) {
+    return (
+      <div className="panel-footer panel-footer-confirm">
         <button
-          className="btn-sell"
-          onClick={() => useGame.getState().sellSelected()}
+          className="btn-sell-cancel"
+          onClick={() => setConfirming(false)}
         >
-          Sell · {sellRefund(tower)}g
+          Cancel
+        </button>
+        <button
+          className="btn-sell btn-sell-confirm"
+          onClick={() => {
+            setConfirming(false);
+            useGame.getState().sellSelected();
+          }}
+        >
+          Confirm Sell · {refund}g
         </button>
       </div>
+    );
+  }
+  return (
+    <div className="panel-footer">
+      <button
+        className="btn-sell"
+        onClick={() => setConfirming(true)}
+      >
+        Sell · {refund}g
+      </button>
     </div>
   );
 };
@@ -156,36 +191,44 @@ const BranchView = ({
           </div>
         ))}
       </div>
-      {next && deltas.length > 0 && (
-        <div className="tier-preview">
-          {deltas.map(d => {
-            const better =
-              // For slowFactor lower is better, everything else higher.
-              d.key === "slowFactor" ? d.to < d.from : d.to > d.from;
-            return (
-              <div key={d.key} className="tier-preview-row">
-                <span className="tier-preview-label">{STAT_LABEL[d.key]}</span>
-                <span className="tier-preview-from">{formatStat(d.key, d.from)}</span>
-                <span className="tier-preview-arrow">→</span>
-                <span className={`tier-preview-to ${better ? "better" : "worse"}`}>
-                  {formatStat(d.key, d.to)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {next ? (
-        <button
-          className="btn-upgrade"
-          disabled={gold < next.cost}
-          onClick={() => upgrade(branchId)}
-        >
-          Upgrade · {next.cost}g
-        </button>
-      ) : (
-        <div className="branch-max">maxed</div>
-      )}
+      {/*
+        Reserve a fixed vertical slot so the Sell button in panel-footer
+        doesn't jump up when a branch maxes out mid-click — rapid clicking
+        the upgrade button right at the last tier used to land the next
+        click on Sell.
+      */}
+      <div className="branch-upgrade-slot">
+        {next && deltas.length > 0 && (
+          <div className="tier-preview">
+            {deltas.map(d => {
+              const better =
+                // For slowFactor lower is better, everything else higher.
+                d.key === "slowFactor" ? d.to < d.from : d.to > d.from;
+              return (
+                <div key={d.key} className="tier-preview-row">
+                  <span className="tier-preview-label">{STAT_LABEL[d.key]}</span>
+                  <span className="tier-preview-from">{formatStat(d.key, d.from)}</span>
+                  <span className="tier-preview-arrow">→</span>
+                  <span className={`tier-preview-to ${better ? "better" : "worse"}`}>
+                    {formatStat(d.key, d.to)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {next ? (
+          <button
+            className="btn-upgrade"
+            disabled={gold < next.cost}
+            onClick={() => upgrade(branchId)}
+          >
+            Upgrade · {next.cost}g
+          </button>
+        ) : (
+          <div className="branch-max">Maxed Out</div>
+        )}
+      </div>
     </div>
   );
 };

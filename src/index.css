@@ -494,13 +494,35 @@ canvas { display: block; touch-action: none; }
 .btn-upgrade:disabled { background: #4a4030; color: #8a7a50; cursor: default; }
 .btn-upgrade:hover:not(:disabled) { background: #ffe08a; }
 
+/* Fixed slot for [tier-preview + upgrade button] OR [maxed banner]. Keeps
+   the panel height stable so Sell can't jump up into a rapid-click. */
+.branch-upgrade-slot {
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .branch-max {
   text-align: center;
-  padding: 6px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  padding: 14px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   color: #9fd8ff;
   text-transform: uppercase;
+  background: rgba(159, 216, 255, 0.08);
+  border: 1px dashed rgba(159, 216, 255, 0.35);
+  border-radius: 6px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Eat pointer events so a rapid-click near the upgrade button position
+     after maxing lands here, not on the Sell button underneath. */
+  pointer-events: auto;
+  cursor: default;
 }
 
 .panel-footer { margin-top: 12px; }
@@ -518,6 +540,31 @@ canvas { display: block; touch-action: none; }
   text-transform: uppercase;
 }
 .btn-sell:hover { background: rgba(255, 122, 154, 0.12); }
+
+.panel-footer-confirm {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 8px;
+}
+.btn-sell-cancel {
+  padding: 8px;
+  background: transparent;
+  color: #a8b4c2;
+  border: 1px solid rgba(120, 160, 200, 0.35);
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.btn-sell-cancel:hover { background: rgba(120, 160, 200, 0.12); color: #e6ecf2; }
+
+.btn-sell-confirm {
+  background: rgba(255, 122, 154, 0.18);
+  color: #ffc2d0;
+}
+.btn-sell-confirm:hover { background: rgba(255, 122, 154, 0.3); color: #fff; }
 
 /* Bottom bar */
 .hud-bottom {
