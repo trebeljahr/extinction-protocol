@@ -8,6 +8,7 @@ import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
 import { distSq } from "./sim/vec2";
 import { segmentLength } from "./sim/path";
+import { PATH_WIDTH } from "./level";
 import {
   loadProgress,
   saveProgress,
@@ -132,7 +133,7 @@ const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
 };
 
 const canPlaceAt = (world: World, pos: Vec2): boolean => {
-  if (isOnPath(world, pos, 1.2)) return false;
+  if (isOnPath(world, pos, PATH_WIDTH / 2 + 0.4)) return false;
   const footprintSq = (TOWER_FOOTPRINT + 0.1) * (TOWER_FOOTPRINT + 0.1);
   for (const t of world.towers) {
     if (distSq(t.pos, pos) < footprintSq) return false;

@@ -11,6 +11,9 @@ export type Enemy = {
   pathIndex: number;
   segment: number;
   segmentT: number;
+  // Perpendicular offset from the path centerline, in world units. Picked
+  // once at spawn so the lane reads as a flock rather than a single file.
+  lateralOffset: number;
   hp: number;
   maxHp: number;
   speed: number;

@@ -268,7 +268,7 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   allosaur: { url: "/models/Trex.glb",            targetSize: 2.2 },
   stego:    { url: "/models/Stegosaurus.glb",     targetSize: 1.9 },
   armored:  { url: "/models/Triceratops.glb",     targetSize: 2.0 },
-  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 3.0, clip: "Walk" },
+  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 5.5, clip: "Walk" },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
@@ -301,11 +301,28 @@ export const applyDamage = (
   }
 };
 
+// Titans are too wide to bounce around the lane — pinning them near the
+// centerline keeps the stomp feeling authoritative. Everyone else gets
+// the full lateral range.
+const LATERAL_OFFSET_BY_KIND: Record<EnemyKind, number> = {
+  raptor:   PATH_WIDTH * 0.35,
+  swarm:    PATH_WIDTH * 0.4,
+  para:     PATH_WIDTH * 0.3,
+  allosaur: PATH_WIDTH * 0.25,
+  stego:    PATH_WIDTH * 0.2,
+  armored:  PATH_WIDTH * 0.2,
+  titan:    PATH_WIDTH * 0.08,
+};
+
 export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex = 0): Enemy => {
   const base = ENEMY_STATS[kind];
   const path = world.paths[pathIndex] ?? world.paths[0];
   const start = path[0];
   const hp = Math.ceil(base.hp * hpMul);
+  // Bias away from zero so enemies actually spread — pure uniform often
+  // clusters near 0 visually when there are only a handful on screen.
+  const range = LATERAL_OFFSET_BY_KIND[kind];
+  const lateralOffset = (Math.random() * 2 - 1) * range;
   const enemy: Enemy = {
     id: world.nextEntityId++,
     kind: base.kind,
@@ -313,6 +330,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex =
     pathIndex,
     segment: 0,
     segmentT: 0,
+    lateralOffset,
     hp,
     maxHp: hp,
     speed: base.speed,
