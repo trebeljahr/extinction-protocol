@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
@@ -12,9 +14,12 @@
   "dependencies": {
     "@react-three/drei": "^9.114.0",
     "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.19.1",
+    "postprocessing": "~6.37.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.167.0",
+    "three-stdlib": "^2.36.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -25,5 +30,10 @@
     "@vitejs/plugin-react": "^4.3.2",
     "typescript": "^5.6.2",
     "vite": "^5.4.8"
+  },
+  "pnpm": {
+    "overrides": {
+      "postprocessing": "~6.37.0"
+    }
   }
 }

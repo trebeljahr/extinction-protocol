@@ -28,7 +28,7 @@ export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 
 export type TowerUpgrades = { a: number; b: number };
 
-export type TargetingMode = "tower" | "start" | "end";
+export type TargetingMode = "tower" | "start" | "end" | "strongest";
 
 export type Tower = {
   id: EntityId;
@@ -57,10 +57,13 @@ export type Tree = {
   rot: number;
 };
 
-export type Slot = {
+export type Rock = {
   id: EntityId;
   pos: Vec2;
-  towerId: EntityId | null;
+  layerIndex: number;
+  variant: number;
+  scale: number;
+  rot: number;
 };
 
 export type ProjectileKind = "direct" | "splash";
@@ -89,6 +92,14 @@ export type Explosion = {
   id: EntityId;
   pos: Vec2;
   radius: number;
+  expiresAt: number;
+  maxLife: number;
+};
+
+export type CryoWave = {
+  id: EntityId;
+  pos: Vec2;
+  maxRadius: number;
   expiresAt: number;
   maxLife: number;
 };
@@ -151,10 +162,11 @@ export type World = {
   enemies: Enemy[];
   towers: Tower[];
   trees: Tree[];
-  slots: Slot[];
+  rocks: Rock[];
   projectiles: Projectile[];
   beams: Beam[];
   explosions: Explosion[];
+  cryoWaves: CryoWave[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
   wave: number;

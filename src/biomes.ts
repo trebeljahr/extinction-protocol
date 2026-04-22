@@ -10,6 +10,7 @@ export type BiomeLayer = {
   minScale: number;
   maxScale: number;
   castShadow: boolean;
+  blocks?: boolean;
 };
 
 export type BiomeStyle = {
@@ -103,6 +104,7 @@ const forestLayers = (): BiomeLayer[] => [
     minScale: 0.55,
     maxScale: 1.2,
     castShadow: true,
+    blocks: true,
   },
 ];
 
@@ -132,6 +134,7 @@ const desertLayers = (): BiomeLayer[] => [
     minScale: 0.55,
     maxScale: 1.3,
     castShadow: true,
+    blocks: true,
   },
 ];
 
@@ -157,9 +160,10 @@ const snowLayers = (): BiomeLayer[] => [
     ],
     count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
-    minScale: 0.55,
-    maxScale: 1.2,
+    minScale: 0.75,
+    maxScale: 1.35,
     castShadow: true,
+    blocks: true,
   },
 ];
 
@@ -178,6 +182,7 @@ const wastelandLayers = (): BiomeLayer[] => [
     minScale: 0.55,
     maxScale: 1.4,
     castShadow: true,
+    blocks: true,
   },
 ];
 

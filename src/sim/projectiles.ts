@@ -11,6 +11,7 @@ const applyHit = (world: World, p: Projectile) => {
     createExplosion(world, p.pos, p.splashRadius, 0.35);
     addShake(world, 0.25);
     spawnParticles(world, p.pos, 14, "#ffb266", [3, 7], 0.45);
+    spawnParticles(world, p.pos, 8, "#fff2c8", [4, 9], 0.22);
     const rSq = p.splashRadius * p.splashRadius;
     for (const e of world.enemies) {
       if (!e.alive) continue;

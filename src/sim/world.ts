@@ -6,17 +6,19 @@ import type {
   Tower,
   TowerKind,
   Tree,
-  Slot,
+  Rock,
   Projectile,
   ProjectileKind,
   Beam,
   Explosion,
+  CryoWave,
   GameEvent,
   DamageType,
 } from "./types";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
+import { BIOME_LAYERS, type Biome } from "../biomes";
 
 export const STARTING_LIVES = 20;
 
@@ -27,13 +29,11 @@ export const TREE_MIN_SCALE = 0.55;
 export const TREE_MAX_SCALE = 0.95;
 export const TREE_MIN_SPACING = 2.2;
 export const TREE_FOOTPRINT = 0.85;
-export const TREE_REMOVE_COST = 8;
+export const TREE_REMOVE_COST = 10;
 
-export const SLOT_COUNT_DEFAULT = 12;
-export const SLOT_CLEARANCE_MARGIN = 0.9;
-export const SLOT_MIN_SPACING = 2.6;
-export const SLOT_TREE_CLEARANCE = 1.3;
-export const SLOT_SNAP_RADIUS = 1.4;
+// Rock footprint radius (before per-instance scale multiplier).
+export const ROCK_FOOTPRINT = 0.65;
+export const ROCK_MIN_SPACING = 1.5;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
@@ -100,62 +100,80 @@ const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tr
   return { trees, nextId };
 };
 
-const buildSlots = (
+const buildRocks = (
+  biome: Biome,
   paths: Vec2[][],
   trees: Tree[],
-  seed: number,
   firstId: number,
-  count: number,
-): { slots: Slot[]; nextId: number } => {
-  const rng = mulberry32(seed);
-  const slots: Slot[] = [];
-  const pathClear = PATH_WIDTH / 2 + SLOT_CLEARANCE_MARGIN;
-  const pathR2 = pathClear * pathClear;
-  const spacingSq = SLOT_MIN_SPACING * SLOT_MIN_SPACING;
-  const treeR2 = SLOT_TREE_CLEARANCE * SLOT_TREE_CLEARANCE;
+): { rocks: Rock[]; nextId: number } => {
+  const rocks: Rock[] = [];
+  const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
+  const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
   let nextId = firstId;
-  let tries = 0;
-  while (slots.length < count && tries < count * 60) {
-    tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.9;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.9;
-    let blocked = false;
-    for (const path of paths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
-          break;
+
+  const layers = BIOME_LAYERS[biome];
+  for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+    const spec = layers[layerIndex];
+    if (!spec.blocks) continue;
+    const rng = mulberry32(spec.seed);
+    const pathR2 = spec.clearance * spec.clearance;
+    let tries = 0;
+    let placed = 0;
+    while (placed < spec.count && tries < spec.count * 40) {
+      tries++;
+      const x = (rng() - 0.5) * MAP_WIDTH;
+      const y = (rng() - 0.5) * MAP_HEIGHT;
+      const rawVariant = Math.floor(rng() * spec.urls.length);
+      const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
+      const rot = rng() * Math.PI * 2;
+
+      let blocked = false;
+      for (const path of paths) {
+        for (let i = 0; i < path.length - 1; i++) {
+          if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+            blocked = true;
+            break;
+          }
         }
+        if (blocked) break;
       }
-      if (blocked) break;
+      if (blocked) continue;
+      for (const tr of trees) {
+        const dx = tr.pos.x - x;
+        const dy = tr.pos.y - y;
+        if (dx * dx + dy * dy < treeSpacingSq) { blocked = true; break; }
+      }
+      if (blocked) continue;
+      for (const r of rocks) {
+        const dx = r.pos.x - x;
+        const dy = r.pos.y - y;
+        if (dx * dx + dy * dy < rockSpacingSq) { blocked = true; break; }
+      }
+      if (blocked) continue;
+
+      rocks.push({
+        id: nextId++,
+        pos: { x, y },
+        layerIndex,
+        variant: rawVariant,
+        scale,
+        rot,
+      });
+      placed++;
     }
-    if (blocked) continue;
-    for (const s of slots) {
-      const dx = s.pos.x - x;
-      const dy = s.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
-    }
-    if (blocked) continue;
-    for (const tr of trees) {
-      const dx = tr.pos.x - x;
-      const dy = tr.pos.y - y;
-      if (dx * dx + dy * dy < treeR2) { blocked = true; break; }
-    }
-    if (blocked) continue;
-    slots.push({ id: nextId++, pos: { x, y }, towerId: null });
   }
-  return { slots, nextId };
+  return { rocks, nextId };
 };
 
 export const createWorld = (level: LevelConfig): World => {
+  const biome = level.biome ?? "forest";
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
-  const slotCount = level.slotCount ?? SLOT_COUNT_DEFAULT;
-  const { slots, nextId } = buildSlots(level.paths, trees, level.id * 3301 + 17, afterTrees, slotCount);
+  const { rocks, nextId } = buildRocks(biome, level.paths, trees, afterTrees);
   return {
     time: 0,
     tickCount: 0,
     levelId: level.id,
-    biome: level.biome ?? "forest",
+    biome,
     paths: level.paths,
     plannedWaves: level.hpScale
       ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
@@ -163,10 +181,11 @@ export const createWorld = (level: LevelConfig): World => {
     enemies: [],
     towers: [],
     trees,
-    slots,
+    rocks,
     projectiles: [],
     beams: [],
     explosions: [],
+    cryoWaves: [],
     particles: [],
     spawnQueue: [],
     wave: 0,
@@ -192,11 +211,11 @@ type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" |
 export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2,  bounty:  3, damage: 1 },
   allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4,  bounty:  7, damage: 2 },
-  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9,  bounty: 14, damage: 3 },
+  stego:    { kind: "stego",    hp: 180, maxHp: 180, speed: 0.9,  bounty: 16, damage: 3 },
   swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0,  bounty:  1, damage: 1 },
-  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1,  bounty: 18, damage: 4 },
+  armored:  { kind: "armored",  hp: 300, maxHp: 300, speed: 1.1,  bounty: 22, damage: 4 },
   para:     { kind: "para",     hp: 45,  maxHp: 45,  speed: 1.8,  bounty:  5, damage: 2 },
-  titan:    { kind: "titan",    hp: 420, maxHp: 420, speed: 0.65, bounty: 36, damage: 8 },
+  titan:    { kind: "titan",    hp: 600, maxHp: 600, speed: 0.65, bounty: 48, damage: 8 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
@@ -223,7 +242,7 @@ export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
 export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
-  stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
+  stego:    { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6 },
   swarm:    { kinetic: 0.6, electric: 1.4, cold: 1.3, explosive: 1.7 },
   armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
@@ -408,6 +427,23 @@ export const createBeam = (
   };
   world.beams.push(b);
   return b;
+};
+
+export const createCryoWave = (
+  world: World,
+  pos: Vec2,
+  maxRadius: number,
+  lifeSec = 0.55,
+): CryoWave => {
+  const w: CryoWave = {
+    id: world.nextEntityId++,
+    pos: { x: pos.x, y: pos.y },
+    maxRadius,
+    expiresAt: world.time + lifeSec,
+    maxLife: lifeSec,
+  };
+  world.cryoWaves.push(w);
+  return w;
 };
 
 export const createExplosion = (

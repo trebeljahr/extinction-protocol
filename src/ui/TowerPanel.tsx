@@ -7,7 +7,14 @@ import {
   ENEMY_RESIST,
   ENEMY_LABEL,
 } from "../sim/world";
-import { UPGRADES, nextUpgrade, sellRefund } from "../sim/upgrades";
+import {
+  UPGRADES,
+  nextUpgrade,
+  sellRefund,
+  previewUpgrade,
+  formatStat,
+  STAT_LABEL,
+} from "../sim/upgrades";
 import type { Tower, EnemyKind, TargetingMode } from "../sim/types";
 import { DamageIcon } from "./DamageIcon";
 
@@ -17,6 +24,7 @@ const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] =
   { mode: "tower", label: "Near", title: "Closest to tower" },
   { mode: "start", label: "Start", title: "Closest to path start" },
   { mode: "end", label: "End", title: "Closest to path end" },
+  { mode: "strongest", label: "Strong", title: "Highest max HP in range" },
 ];
 
 export const TowerPanel = () => {
@@ -123,6 +131,8 @@ const BranchView = ({
   const next = nextUpgrade(tower, branchId);
   const upgrade = useGame(s => s.upgradeSelected);
 
+  const deltas = next ? previewUpgrade(tower, next) : [];
+
   return (
     <div className="branch">
       <div className="branch-label">{branch.label}</div>
@@ -134,6 +144,25 @@ const BranchView = ({
           </div>
         ))}
       </div>
+      {next && deltas.length > 0 && (
+        <div className="tier-preview">
+          {deltas.map(d => {
+            const better =
+              // For slowFactor lower is better, everything else higher.
+              d.key === "slowFactor" ? d.to < d.from : d.to > d.from;
+            return (
+              <div key={d.key} className="tier-preview-row">
+                <span className="tier-preview-label">{STAT_LABEL[d.key]}</span>
+                <span className="tier-preview-from">{formatStat(d.key, d.from)}</span>
+                <span className="tier-preview-arrow">→</span>
+                <span className={`tier-preview-to ${better ? "better" : "worse"}`}>
+                  {formatStat(d.key, d.to)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {next ? (
         <button
           className="btn-upgrade"

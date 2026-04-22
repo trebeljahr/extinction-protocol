@@ -124,7 +124,10 @@ export const Ground = () => {
   const paths = useGame(s => s.world.paths);
   const biome = useGame(s => s.world.biome);
   const style = BIOME_STYLE[biome];
-  const specs = BIOME_LAYERS[biome];
+  const specs = useMemo(
+    () => BIOME_LAYERS[biome].filter(s => !s.blocks),
+    [biome],
+  );
 
   const layers = useMemo(
     () => specs.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),

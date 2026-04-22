@@ -1,12 +1,13 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, Slot, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TREE_REMOVE_COST, SLOT_SNAP_RADIUS } from "./sim/world";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, TargetingMode, EnemyKind } from "./sim/types";
+import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
 import { distSq } from "./sim/vec2";
+import { segmentLength } from "./sim/path";
 import {
   loadProgress,
   saveProgress,
@@ -105,19 +106,47 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyMaxHp === b.inspectedEnemyMaxHp &&
   a.inspectedEnemyAlive === b.inspectedEnemyAlive;
 
-const nearestEmptySlot = (world: World, pos: Vec2): Slot | null => {
-  const r2 = SLOT_SNAP_RADIUS * SLOT_SNAP_RADIUS;
-  let best: Slot | null = null;
-  let bestDist = Infinity;
-  for (const s of world.slots) {
-    if (s.towerId !== null) continue;
-    const d = distSq(s.pos, pos);
-    if (d <= r2 && d < bestDist) {
-      bestDist = d;
-      best = s;
+const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+  const lenSq = abx * abx + aby * aby;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
+  const cx = a.x + t * abx;
+  const cy = a.y + t * aby;
+  const dx = p.x - cx;
+  const dy = p.y - cy;
+  return dx * dx + dy * dy;
+};
+
+const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
+  const r2 = clearance * clearance;
+  for (const path of world.paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (segmentLength(path, i) === 0) continue;
+      if (distToSegmentSq(pos, path[i], path[i + 1]) < r2) return true;
     }
   }
-  return best;
+  return false;
+};
+
+const canPlaceAt = (world: World, pos: Vec2): boolean => {
+  if (isOnPath(world, pos, 1.2)) return false;
+  const footprintSq = (TOWER_FOOTPRINT + 0.1) * (TOWER_FOOTPRINT + 0.1);
+  for (const t of world.towers) {
+    if (distSq(t.pos, pos) < footprintSq) return false;
+  }
+  const treeBlockSq = (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
+  for (const tr of world.trees) {
+    if (distSq(tr.pos, pos) < treeBlockSq) return false;
+  }
+  for (const r of world.rocks) {
+    const rockRadius = ROCK_FOOTPRINT * r.scale;
+    const blockR = rockRadius + TOWER_FOOTPRINT * 0.5;
+    if (distSq(r.pos, pos) < blockR * blockR) return false;
+  }
+  return true;
 };
 
 const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
@@ -138,6 +167,7 @@ type GameStore = {
   engine: Engine;
   ui: UiSnapshot;
   selectedKind: TowerKind | null;
+  selectedTreeId: number | null;
   towerVersion: number;
   treeVersion: number;
   inspectedEnemy: InspectState;
@@ -162,7 +192,7 @@ type GameStore = {
 
   setSelectedKind: (kind: TowerKind | null) => void;
   tryPlaceOrSelect: (pos: Vec2) => void;
-  slotForPlacement: (pos: Vec2) => Slot | null;
+  canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
 
@@ -171,7 +201,10 @@ type GameStore = {
   sellSelected: () => void;
   setTargetingMode: (mode: TargetingMode) => void;
   callWaveEarly: () => void;
-  removeTree: (id: number) => void;
+
+  selectTree: (id: number) => void;
+  clearSelectedTree: () => void;
+  confirmRemoveTree: () => void;
 
   inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
   clearInspectedEnemy: () => void;
@@ -199,6 +232,7 @@ export const useGame = create<GameStore>((set, get) => ({
   ...buildWorldForLevel(getLevel(1)),
   engine: new Engine(),
   selectedKind: null,
+  selectedTreeId: null,
   eventListeners: [],
 
   screen: "worldMap",
@@ -217,6 +251,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       ...buildWorldForLevel(level),
       selectedKind: null,
+      selectedTreeId: null,
       selectedLevelId: id,
       hoveredLevelId: null,
       lastResult: null,
@@ -307,10 +342,16 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = s;
     if (kind !== null) world.selectedTowerId = null;
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
-    set({ selectedKind: kind, inspectedEnemy: nextInspect, ui: snapshot(world, towerVersion, treeVersion, nextInspect) });
+    const nextTree = kind !== null ? null : s.selectedTreeId;
+    set({
+      selectedKind: kind,
+      selectedTreeId: nextTree,
+      inspectedEnemy: nextInspect,
+      ui: snapshot(world, towerVersion, treeVersion, nextInspect),
+    });
   },
 
-  slotForPlacement: (pos) => nearestEmptySlot(get().world, pos),
+  canPlace: (pos) => canPlaceAt(get().world, pos),
 
   towerAtPos: (pos) => towerAt(get().world, pos),
 
@@ -319,6 +360,7 @@ export const useGame = create<GameStore>((set, get) => ({
     world.selectedTowerId = null;
     set({
       selectedKind: null,
+      selectedTreeId: null,
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
@@ -330,6 +372,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const inspect: InspectState = { id, kind, maxHp };
     set({
       selectedKind: null,
+      selectedTreeId: null,
       inspectedEnemy: inspect,
       ui: snapshot(world, towerVersion, treeVersion, inspect),
     });
@@ -343,6 +386,40 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  selectTree: (id) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+    if (!treeById(w, id)) return;
+    w.selectedTowerId = null;
+    set({
+      selectedKind: null,
+      selectedTreeId: id,
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+    });
+  },
+
+  clearSelectedTree: () => set({ selectedTreeId: null }),
+
+  confirmRemoveTree: () => {
+    const s = get();
+    const w = s.world;
+    const id = s.selectedTreeId;
+    if (id === null || w.status !== "running") return;
+    const tree = treeById(w, id);
+    if (!tree) { set({ selectedTreeId: null }); return; }
+    if (w.gold < TREE_REMOVE_COST) return;
+    w.gold -= TREE_REMOVE_COST;
+    w.trees = w.trees.filter(t => t.id !== id);
+    const newTreeVersion = s.treeVersion + 1;
+    set({
+      treeVersion: newTreeVersion,
+      selectedTreeId: null,
+      ui: snapshot(w, s.towerVersion, newTreeVersion, s.inspectedEnemy),
+    });
+  },
+
   tryPlaceOrSelect: (pos) => {
     const s = get();
     const w = s.world;
@@ -351,7 +428,12 @@ export const useGame = create<GameStore>((set, get) => ({
     const hit = towerAt(w, pos);
     if (hit) {
       w.selectedTowerId = hit.id;
-      set({ selectedKind: null, inspectedEnemy: emptyInspect, ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect) });
+      set({
+        selectedKind: null,
+        selectedTreeId: null,
+        inspectedEnemy: emptyInspect,
+        ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+      });
       return;
     }
 
@@ -362,13 +444,11 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       return;
     }
-    const slot = nearestEmptySlot(w, pos);
-    if (!slot) return;
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
+    if (!canPlaceAt(w, pos)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, slot.pos);
-    slot.towerId = t.id;
+    const t = createTower(w, s.selectedKind, pos);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
     set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
@@ -379,8 +459,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = s;
     world.selectedTowerId = id;
     const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
+    const nextTree = id !== null ? null : s.selectedTreeId;
     set({
       selectedKind: id !== null ? null : s.selectedKind,
+      selectedTreeId: nextTree,
       inspectedEnemy: nextInspect,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
@@ -422,19 +504,6 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     if (!simCallWaveEarly(s.world)) return;
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
-  },
-
-  removeTree: (id) => {
-    const s = get();
-    const w = s.world;
-    if (w.status !== "running") return;
-    const tree = treeById(w, id);
-    if (!tree) return;
-    if (w.gold < TREE_REMOVE_COST) return;
-    w.gold -= TREE_REMOVE_COST;
-    w.trees = w.trees.filter(t => t.id !== id);
-    const newTreeVersion = s.treeVersion + 1;
-    set({ treeVersion: newTreeVersion, ui: snapshot(w, s.towerVersion, newTreeVersion, s.inspectedEnemy) });
   },
 
   onEvent: (fn) => {

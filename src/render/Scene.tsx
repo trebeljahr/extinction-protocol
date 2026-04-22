@@ -1,13 +1,14 @@
 import { Environment } from "@react-three/drei";
 import { Ground } from "./Ground";
+import { Rocks } from "./Rocks";
 import { Trees } from "./Trees";
 import { PathLine } from "./PathLine";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { HealthBars } from "./HealthBars";
 import { SelectionRing } from "./SelectionRing";
-import { SlotMarkers } from "./SlotMarkers";
 import { CryoAuras } from "./CryoAuras";
+import { TowerVfx } from "./TowerVfx";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
 import { Placement } from "./Placement";
@@ -47,10 +48,10 @@ export const PlayScene = () => {
 
       <SimTicker />
       <Ground />
+      <Rocks />
       <Trees />
       <Placement />
       <PathLine />
-      <SlotMarkers />
 
       <ModelEnemyMesh kind="raptor"   url="/models/Velociraptor.glb"    targetSize={1.6} />
       <ModelEnemyMesh kind="swarm"    url="/models/Velociraptor.glb"    targetSize={0.8} />
@@ -66,6 +67,7 @@ export const PlayScene = () => {
       <ModelTowerMesh kind="cryo"   url="/models/turret_emp.glb"     targetSize={1.4} idleSpin />
 
       <CryoAuras />
+      <TowerVfx />
       <HealthBars />
       <SelectionRing />
       <ProjectileMesh />

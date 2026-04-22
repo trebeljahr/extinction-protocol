@@ -5,63 +5,97 @@ import { useGame } from "../store";
 
 const MAX_PARTICLES = 512;
 const MAX_EXPLOSIONS = 32;
+const MAX_CRYO_WAVES = 16;
 const MAX_BEAMS = 32;
 const MAX_BEAM_POINTS = 16;
+const BEAM_SUBDIVISIONS = 6; // interior noise points per source segment
+const MAX_BEAM_VERTS = (MAX_BEAM_POINTS - 1) * BEAM_SUBDIVISIONS + 1;
+const BEAM_NOISE = 0.28;
+
+type BeamPass = { line: THREE.Line; mat: THREE.LineBasicMaterial };
+
+const makeBeamPair = (): { core: BeamPass; halo: BeamPass } => {
+  const mkLine = (baseColor: string, opacity: number) => {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(MAX_BEAM_VERTS * 3), 3),
+    );
+    geom.setDrawRange(0, 0);
+    const mat = new THREE.LineBasicMaterial({
+      color: baseColor,
+      transparent: true,
+      opacity,
+      toneMapped: false,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const line = new THREE.Line(geom, mat);
+    line.visible = false;
+    return { line, mat };
+  };
+  return {
+    core: mkLine("#ffffff", 1),
+    halo: mkLine("#9fd8ff", 0.45),
+  };
+};
 
 export const Effects = () => {
   const particleRef = useRef<THREE.InstancedMesh>(null);
+  const particleMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const explosionRef = useRef<THREE.InstancedMesh>(null);
+  const explosionMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const flashRef = useRef<THREE.InstancedMesh>(null);
+  const flashMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const cryoWaveRef = useRef<THREE.InstancedMesh>(null);
   const beamsGroupRef = useRef<THREE.Group>(null);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
+  const white = useMemo(() => new THREE.Color("#ffffff"), []);
 
-  const beamLines = useMemo(() => {
-    const arr: THREE.Line[] = [];
-    for (let i = 0; i < MAX_BEAMS; i++) {
-      const geom = new THREE.BufferGeometry();
-      geom.setAttribute(
-        "position",
-        new THREE.BufferAttribute(new Float32Array(MAX_BEAM_POINTS * 3), 3),
-      );
-      geom.setDrawRange(0, 0);
-      const mat = new THREE.LineBasicMaterial({
-        color: "#ffffff",
-        transparent: true,
-        toneMapped: false,
-      });
-      const line = new THREE.Line(geom, mat);
-      line.visible = false;
-      arr.push(line);
-    }
+  const beamPairs = useMemo(() => {
+    const arr: ReturnType<typeof makeBeamPair>[] = [];
+    for (let i = 0; i < MAX_BEAMS; i++) arr.push(makeBeamPair());
     return arr;
   }, []);
 
   useEffect(() => {
     const group = beamsGroupRef.current;
     if (!group) return;
-    for (const l of beamLines) group.add(l);
+    for (const b of beamPairs) {
+      group.add(b.halo.line);
+      group.add(b.core.line);
+    }
     return () => {
-      for (const l of beamLines) group.remove(l);
+      for (const b of beamPairs) {
+        group.remove(b.halo.line);
+        group.remove(b.core.line);
+      }
     };
-  }, [beamLines]);
+  }, [beamPairs]);
 
   useFrame(() => {
     const { world } = useGame.getState();
+    const now = world.time;
 
+    // --- Particles ---
     const pMesh = particleRef.current;
     if (pMesh) {
       let i = 0;
       for (const p of world.particles) {
         if (i >= MAX_PARTICLES) break;
-        const life = Math.max(0, (p.expiresAt - world.time) / p.maxLife);
-        dummy.position.set(p.pos.x, 0.5, -p.pos.y);
+        const life = Math.max(0, (p.expiresAt - now) / p.maxLife);
+        dummy.position.set(p.pos.x, 0.55, -p.pos.y);
         dummy.rotation.set(0, 0, 0);
-        dummy.scale.setScalar(0.05 + life * 0.15);
+        // grow fast, fade slow
+        dummy.scale.setScalar(0.08 + (1 - life) * 0.22 + life * 0.15);
         dummy.updateMatrix();
         pMesh.setMatrixAt(i, dummy.matrix);
         color.set(p.color);
-        color.multiplyScalar(0.3 + life * 0.7);
+        // brighten early in life for hot-core feel
+        const boost = 0.6 + life * 1.6;
+        color.multiplyScalar(boost);
         pMesh.setColorAt(i, color);
         i++;
       }
@@ -70,47 +104,143 @@ export const Effects = () => {
       if (pMesh.instanceColor) pMesh.instanceColor.needsUpdate = true;
     }
 
+    // --- Explosions: white shockwave + warm flash ---
     const eMesh = explosionRef.current;
-    if (eMesh) {
+    const fMesh = flashRef.current;
+    if (eMesh && fMesh) {
       let i = 0;
       for (const e of world.explosions) {
         if (i >= MAX_EXPLOSIONS) break;
-        const life = Math.max(0, (e.expiresAt - world.time) / e.maxLife);
+        const life = Math.max(0, (e.expiresAt - now) / e.maxLife);
         const growth = 1 - life;
-        dummy.position.set(e.pos.x, 0.3, -e.pos.y);
+        // Outer shockwave — expanding white ring/sphere
+        dummy.position.set(e.pos.x, 0.35, -e.pos.y);
         dummy.rotation.set(0, 0, 0);
-        dummy.scale.setScalar(e.radius * (0.4 + growth * 0.7));
+        dummy.scale.setScalar(e.radius * (0.35 + growth * 1.0));
         dummy.updateMatrix();
         eMesh.setMatrixAt(i, dummy.matrix);
-        color.set("#ffb266");
-        color.multiplyScalar(life);
+        color.copy(white).multiplyScalar(0.6 + life * 0.8);
         eMesh.setColorAt(i, color);
+
+        // Inner flash — warm hot core that shrinks slightly
+        dummy.position.set(e.pos.x, 0.35, -e.pos.y);
+        dummy.scale.setScalar(e.radius * (0.55 + life * 0.35));
+        dummy.updateMatrix();
+        fMesh.setMatrixAt(i, dummy.matrix);
+        color.setRGB(1.0, 0.85, 0.55).multiplyScalar(0.5 + life * 1.4);
+        fMesh.setColorAt(i, color);
         i++;
       }
       eMesh.count = i;
+      fMesh.count = i;
       eMesh.instanceMatrix.needsUpdate = true;
+      fMesh.instanceMatrix.needsUpdate = true;
       if (eMesh.instanceColor) eMesh.instanceColor.needsUpdate = true;
+      if (fMesh.instanceColor) fMesh.instanceColor.needsUpdate = true;
     }
 
-    for (let k = 0; k < beamLines.length; k++) beamLines[k].visible = false;
+    // --- Beams: jagged lightning, core + halo ---
+    for (let k = 0; k < beamPairs.length; k++) {
+      beamPairs[k].core.line.visible = false;
+      beamPairs[k].halo.line.visible = false;
+    }
+
+    const wMesh = cryoWaveRef.current;
+    if (wMesh) {
+      let i = 0;
+      for (const w of world.cryoWaves) {
+        if (i >= MAX_CRYO_WAVES) break;
+        const life = Math.max(0, (w.expiresAt - now) / w.maxLife);
+        const progress = 1 - life;
+        const radius = w.maxRadius * (0.2 + progress * 0.95);
+        dummy.position.set(w.pos.x, 0.06, -w.pos.y);
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
+        dummy.scale.set(radius, radius, 1);
+        dummy.updateMatrix();
+        wMesh.setMatrixAt(i, dummy.matrix);
+        color.set("#bfeefa");
+        color.multiplyScalar(0.55 + life * 0.45);
+        wMesh.setColorAt(i, color);
+        i++;
+      }
+      wMesh.count = i;
+      wMesh.instanceMatrix.needsUpdate = true;
+      if (wMesh.instanceColor) wMesh.instanceColor.needsUpdate = true;
+    }
+
     let idx = 0;
     for (const b of world.beams) {
       if (idx >= MAX_BEAMS) break;
       if (b.points.length < 2 || b.points.length > MAX_BEAM_POINTS) { idx++; continue; }
-      const line = beamLines[idx];
-      const positions = line.geometry.attributes.position.array as Float32Array;
-      for (let p = 0; p < b.points.length; p++) {
-        positions[p * 3 + 0] = b.points[p].x;
-        positions[p * 3 + 1] = 0.8;
-        positions[p * 3 + 2] = -b.points[p].y;
+
+      const pair = beamPairs[idx];
+      const coreArr = pair.core.line.geometry.attributes.position.array as Float32Array;
+      const haloArr = pair.halo.line.geometry.attributes.position.array as Float32Array;
+
+      // For each source segment, emit a jittered polyline with BEAM_SUBDIVISIONS points.
+      // Core uses tight noise; halo uses larger noise and a slight height offset for glow.
+      let coreVi = 0;
+      let haloVi = 0;
+      const writePoint = (arr: Float32Array, vi: number, x: number, y: number, z: number) => {
+        arr[vi * 3 + 0] = x;
+        arr[vi * 3 + 1] = y;
+        arr[vi * 3 + 2] = z;
+      };
+
+      // Seed for deterministic per-beam jitter (keeps arc shape stable within its 0.1s life).
+      let seedA = (b.id * 9301 + 49297) >>> 0;
+      const rng = () => {
+        seedA = (seedA * 1664525 + 1013904223) >>> 0;
+        return (seedA / 0xffffffff) * 2 - 1;
+      };
+
+      const firstP = b.points[0];
+      writePoint(coreArr, coreVi++, firstP.x, 0.85, -firstP.y);
+      writePoint(haloArr, haloVi++, firstP.x, 0.9, -firstP.y);
+
+      for (let s = 0; s < b.points.length - 1; s++) {
+        const a = b.points[s];
+        const bpt = b.points[s + 1];
+        const dx = bpt.x - a.x;
+        const dy = bpt.y - a.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        // perpendicular in XZ plane (world coords: x, -y)
+        const perpX = -dy / len;
+        const perpZ = -dx / len;
+        for (let sub = 1; sub <= BEAM_SUBDIVISIONS; sub++) {
+          const t = sub / BEAM_SUBDIVISIONS;
+          const baseX = a.x + dx * t;
+          const baseY = a.y + dy * t;
+          // taper noise near the endpoints
+          const taper = Math.sin(t * Math.PI);
+          const nCore = rng() * BEAM_NOISE * taper;
+          const nHalo = rng() * BEAM_NOISE * 1.9 * taper;
+          writePoint(coreArr, coreVi++,
+            baseX + perpX * nCore,
+            0.85 + rng() * 0.05 * taper,
+            -baseY + perpZ * nCore,
+          );
+          writePoint(haloArr, haloVi++,
+            baseX + perpX * nHalo,
+            0.95 + rng() * 0.12 * taper,
+            -baseY + perpZ * nHalo,
+          );
+        }
       }
-      line.geometry.setDrawRange(0, b.points.length);
-      line.geometry.attributes.position.needsUpdate = true;
-      const mat = line.material as THREE.LineBasicMaterial;
-      mat.color.set(b.color);
-      const life = Math.max(0, b.expiresAt - world.time);
-      mat.opacity = Math.min(1, life * 10);
-      line.visible = true;
+
+      pair.core.line.geometry.setDrawRange(0, coreVi);
+      pair.core.line.geometry.attributes.position.needsUpdate = true;
+      pair.halo.line.geometry.setDrawRange(0, haloVi);
+      pair.halo.line.geometry.attributes.position.needsUpdate = true;
+
+      const life = Math.max(0, b.expiresAt - now);
+      const lifeNorm = Math.min(1, life * 10);
+      pair.core.mat.color.set("#ffffff");
+      pair.core.mat.opacity = lifeNorm;
+      pair.halo.mat.color.set(b.color);
+      pair.halo.mat.opacity = 0.55 * lifeNorm;
+      pair.core.line.visible = true;
+      pair.halo.line.visible = true;
       idx++;
     }
   });
@@ -118,13 +248,44 @@ export const Effects = () => {
   return (
     <group>
       <instancedMesh ref={particleRef} args={[undefined, undefined, MAX_PARTICLES]}>
-        <sphereGeometry args={[1, 6, 6]} />
-        <meshBasicMaterial toneMapped={false} transparent />
+        <sphereGeometry args={[1, 8, 8]} />
+        <meshBasicMaterial
+          ref={particleMatRef}
+          toneMapped={false}
+          transparent
+          opacity={0.9}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
       </instancedMesh>
 
       <instancedMesh ref={explosionRef} args={[undefined, undefined, MAX_EXPLOSIONS]}>
+        <sphereGeometry args={[1, 20, 20]} />
+        <meshBasicMaterial
+          ref={explosionMatRef}
+          toneMapped={false}
+          transparent
+          opacity={0.75}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={flashRef} args={[undefined, undefined, MAX_EXPLOSIONS]}>
         <sphereGeometry args={[1, 16, 16]} />
-        <meshBasicMaterial toneMapped={false} transparent opacity={0.65} />
+        <meshBasicMaterial
+          ref={flashMatRef}
+          toneMapped={false}
+          transparent
+          opacity={0.85}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={cryoWaveRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
+        <ringGeometry args={[0.82, 1.0, 48]} />
+        <meshBasicMaterial toneMapped={false} transparent opacity={0.75} side={THREE.DoubleSide} depthWrite={false} />
       </instancedMesh>
 
       <group ref={beamsGroupRef} />
