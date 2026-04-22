@@ -22,7 +22,7 @@ export const useAudioBridge = () => {
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       switch (e.type) {
         case "shoot":       audio.playShoot(e.towerKind); break;
-        case "impact":      audio.play("impact", 0.25, 60, 0.35); break;
+        case "impact":      audio.play("impact", 0.25, 60, 1.0); break;
         case "death":       audio.play("death", 0.3, 60); break;
         case "wave-start":  audio.play("wave-start", 0.5, 500); break;
         case "wave-clear":  audio.play("wave-clear", 0.6, 500); break;

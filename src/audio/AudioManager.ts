@@ -119,7 +119,8 @@ export class AudioManager {
     src.start(0);
     if (maxDurationSec !== undefined) {
       const ctxNow = this.ctx.currentTime;
-      const fadeStart = ctxNow + Math.max(0, maxDurationSec - 0.05);
+      const fadeLen = Math.min(0.35, maxDurationSec * 0.6);
+      const fadeStart = ctxNow + Math.max(0, maxDurationSec - fadeLen);
       const stopAt = ctxNow + maxDurationSec;
       gain.gain.setValueAtTime(gain.gain.value, fadeStart);
       gain.gain.linearRampToValueAtTime(0, stopAt);
@@ -129,10 +130,10 @@ export class AudioManager {
 
   playShoot(kind: TowerKind) {
     const map: Record<TowerKind, [string, number, number, number]> = {
-      pulse:  ["shoot-pulse",  0.35, 60,  0.22],
-      chain:  ["shoot-chain",  0.35, 90,  0.35],
-      cryo:   ["shoot-cryo",   0.45, 150, 0.45],
-      mortar: ["shoot-mortar", 0.55, 200, 0.55],
+      pulse:  ["shoot-pulse",  0.35, 60,  0.7],
+      chain:  ["shoot-chain",  0.35, 90,  0.9],
+      cryo:   ["shoot-cryo",   0.45, 150, 1.1],
+      mortar: ["shoot-mortar", 0.55, 200, 1.4],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, vol, cd, maxDur);
