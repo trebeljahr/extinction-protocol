@@ -6,7 +6,6 @@ import { useGame } from "../store";
 import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import type { Tree } from "../sim/types";
 import { BIOME_TREE_URLS } from "../biomes";
-import { applySnowPass } from "./snowPass";
 
 type VariantSource = { geom: THREE.BufferGeometry; material: THREE.Material; minY: number };
 
@@ -44,16 +43,7 @@ export const Trees = () => {
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
   const selectedTreeId = useGame(s => s.selectedTreeId);
-  const rawSources = useVariantSources(BIOME_TREE_URLS[biome]);
-  const sources = useMemo(
-    () =>
-      biome === "snow"
-        ? rawSources.map(s =>
-            s ? { ...s, material: applySnowPass(s.material) } : s,
-          )
-        : rawSources,
-    [rawSources, biome],
-  );
+  const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   const byVariant = useMemo(() => {
