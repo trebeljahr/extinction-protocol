@@ -88,13 +88,70 @@ canvas { display: block; touch-action: none; }
   50%      { box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22); }
 }
 
-.wave-hint { min-width: 140px; }
-.wave-hint-sub {
-  font-size: 10px;
-  color: #8a9a82;
-  margin-top: 2px;
-  font-style: italic;
-  letter-spacing: 0.02em;
+.enemy-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 64px;
+  width: 330px;
+  background: rgba(18, 14, 14, 0.92);
+  border: 1px solid rgba(200, 120, 120, 0.22);
+  border-radius: 10px;
+  padding: 14px;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.enemy-swatch {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.enemy-swatch.kind-raptor   { background: linear-gradient(135deg, #5a2020 40%, #c44848); }
+.enemy-swatch.kind-swarm    { background: linear-gradient(135deg, #4a2418 40%, #e08060); }
+.enemy-swatch.kind-allosaur { background: linear-gradient(135deg, #4a2d10 40%, #b86b2a); }
+.enemy-swatch.kind-stego    { background: linear-gradient(135deg, #2a4a1c 40%, #5a8c3a); }
+.enemy-swatch.kind-armored  { background: linear-gradient(135deg, #1e2834 40%, #4a5c6e); }
+
+.enemy-status {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.enemy-status.alive { color: #9fffb0; border-color: #3dff8a; background: rgba(61, 255, 138, 0.08); }
+.enemy-status.dead  { color: #ff8a9a; border-color: #ff5a7a; background: rgba(255, 90, 122, 0.08); }
+
+.enemy-hp { margin-bottom: 12px; }
+.enemy-hp-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 160, 200, 0.12);
+}
+.enemy-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3dff8a, #ffd66a 70%, #ff5a7a);
+  transition: width 0.1s linear;
+}
+.enemy-hp-text {
+  font-size: 11px;
+  color: #a8b4c2;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.enemy-hp-text.dim { opacity: 0.65; font-style: italic; }
+
+.resist-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #a8b4c2;
+  text-transform: uppercase;
+  margin-bottom: 6px;
 }
 
 /* Tower picker (bottom-left column) */

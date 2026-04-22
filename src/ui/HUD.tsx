@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import { useGame } from "../store";
 import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
-import { getWavePlan, WAVE_ARCHETYPE_LABEL, WAVE_ARCHETYPE_HINT } from "../sim/spawner";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
+import { EnemyPanel } from "./EnemyPanel";
 import { audio } from "../audio/AudioManager";
 import { getLevel } from "../levels";
 
@@ -21,7 +21,6 @@ export const HUD = () => {
   const goToWorldMap = useGame(s => s.goToWorldMap);
   const callWaveEarly = useGame(s => s.callWaveEarly);
   const selectedLevelId = useGame(s => s.selectedLevelId);
-  const world = useGame(s => s.world);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
 
@@ -31,7 +30,11 @@ export const HUD = () => {
       if (e.code === "KeyR") { retry(); return; }
       if (e.code === "Escape") {
         const s = useGame.getState();
-        if (s.selectedKind !== null || s.world.selectedTowerId !== null) {
+        if (
+          s.selectedKind !== null ||
+          s.world.selectedTowerId !== null ||
+          s.inspectedEnemy.kind !== null
+        ) {
           s.clearSelection();
         } else {
           goToWorldMap();
@@ -47,11 +50,6 @@ export const HUD = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePause, retry, setSelectedKind, selectedKind, goToWorldMap, callWaveEarly]);
-
-  const hintWave = ui.waveActive ? ui.wave : Math.min(ui.wave + 1, ui.totalWaves);
-  const hintPlan = hintWave > 0 ? getWavePlan(world, hintWave) : null;
-  const archetypeLabel = hintPlan ? WAVE_ARCHETYPE_LABEL[hintPlan.archetype] : "";
-  const archetypeHint = hintPlan ? WAVE_ARCHETYPE_HINT[hintPlan.archetype] : "";
 
   return (
     <div className="hud">
@@ -73,13 +71,6 @@ export const HUD = () => {
             value={ui.waveActive ? "ACTIVE" : `${ui.nextWaveIn}s`}
             accent="#b4ffc9"
           />
-        )}
-        {hintPlan && (
-          <div className="stat wave-hint">
-            <div className="stat-label" style={{ color: "#d8c090" }}>{ui.waveActive ? "THIS" : "NEXT"}</div>
-            <div className="stat-value" style={{ fontSize: 14 }}>{archetypeLabel}</div>
-            {archetypeHint && <div className="wave-hint-sub">{archetypeHint}</div>}
-          </div>
         )}
         {levelName && (
           <div className="level-badge">
@@ -121,6 +112,7 @@ export const HUD = () => {
       </div>
 
       <TowerPanel />
+      <EnemyPanel />
 
       <div className="hud-bottom">
         <span>Click empty tile to build · click a tower to inspect</span>

@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { useGame } from "../store";
 import type { EnemyKind } from "../sim/types";
 
@@ -66,6 +66,12 @@ export const ModelEnemyMesh = ({
       if (!item) {
         item = scene.clone(true);
         item.scale.setScalar(normalizedScale);
+        item.userData.enemyId = e.id;
+        item.userData.enemyMaxHp = e.maxHp;
+        item.traverse(obj => {
+          obj.userData.enemyId = e.id;
+          obj.userData.enemyMaxHp = e.maxHp;
+        });
         parent.add(item);
         itemsRef.current.set(e.id, item);
       }
@@ -109,7 +115,19 @@ export const ModelEnemyMesh = ({
     }
   });
 
-  return <group ref={groupRef} />;
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    let obj: THREE.Object3D | null = e.object;
+    while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
+    if (!obj) return;
+    e.stopPropagation();
+    useGame.getState().inspectEnemy(
+      obj.userData.enemyId as number,
+      kind,
+      obj.userData.enemyMaxHp as number,
+    );
+  };
+
+  return <group ref={groupRef} onClick={handleClick} />;
 };
 
 useGLTF.preload("/models/raptor.glb");

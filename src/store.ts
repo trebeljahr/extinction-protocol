@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode } from "./sim/types";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode, EnemyKind } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
@@ -42,21 +42,43 @@ type UiSnapshot = {
   callEarlyBonus: number;
   selectedTowerId: number | null;
   towerVersion: number;
+  inspectedEnemyId: number | null;
+  inspectedEnemyKind: EnemyKind | null;
+  inspectedEnemyHp: number | null;
+  inspectedEnemyMaxHp: number | null;
+  inspectedEnemyAlive: boolean;
 };
 
-const snapshot = (w: World, towerVersion: number): UiSnapshot => ({
-  gold: w.gold,
-  lives: w.lives,
-  wave: w.wave,
-  totalWaves: w.totalWaves,
-  status: w.status,
-  waveActive: w.waveActive,
-  nextWaveIn: Math.ceil(w.nextWaveIn),
-  canCallEarly: canCallEarly(w),
-  callEarlyBonus: earlyCallGoldReward(w),
-  selectedTowerId: w.selectedTowerId,
-  towerVersion,
-});
+const snapshot = (
+  w: World,
+  towerVersion: number,
+  inspect: { id: number | null; kind: EnemyKind | null; maxHp: number | null },
+): UiSnapshot => {
+  let hp: number | null = null;
+  let alive = false;
+  if (inspect.id !== null) {
+    const e = w.enemies.find(x => x.id === inspect.id && x.alive);
+    if (e) { hp = e.hp; alive = true; }
+  }
+  return {
+    gold: w.gold,
+    lives: w.lives,
+    wave: w.wave,
+    totalWaves: w.totalWaves,
+    status: w.status,
+    waveActive: w.waveActive,
+    nextWaveIn: Math.ceil(w.nextWaveIn),
+    canCallEarly: canCallEarly(w),
+    callEarlyBonus: earlyCallGoldReward(w),
+    selectedTowerId: w.selectedTowerId,
+    towerVersion,
+    inspectedEnemyId: inspect.id,
+    inspectedEnemyKind: inspect.kind,
+    inspectedEnemyHp: hp,
+    inspectedEnemyMaxHp: inspect.maxHp,
+    inspectedEnemyAlive: alive,
+  };
+};
 
 const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.gold === b.gold &&
@@ -69,7 +91,12 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.canCallEarly === b.canCallEarly &&
   a.callEarlyBonus === b.callEarlyBonus &&
   a.selectedTowerId === b.selectedTowerId &&
-  a.towerVersion === b.towerVersion;
+  a.towerVersion === b.towerVersion &&
+  a.inspectedEnemyId === b.inspectedEnemyId &&
+  a.inspectedEnemyKind === b.inspectedEnemyKind &&
+  a.inspectedEnemyHp === b.inspectedEnemyHp &&
+  a.inspectedEnemyMaxHp === b.inspectedEnemyMaxHp &&
+  a.inspectedEnemyAlive === b.inspectedEnemyAlive;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
@@ -111,12 +138,15 @@ const towerAt = (world: World, pos: Vec2, radius = 0.7): Tower | null => {
   return null;
 };
 
+type InspectState = { id: number | null; kind: EnemyKind | null; maxHp: number | null };
+
 type GameStore = {
   world: World;
   engine: Engine;
   ui: UiSnapshot;
   selectedKind: TowerKind | null;
   towerVersion: number;
+  inspectedEnemy: InspectState;
   eventListeners: ((e: GameEvent) => void)[];
 
   screen: Screen;
@@ -146,12 +176,22 @@ type GameStore = {
   setTargetingMode: (mode: TargetingMode) => void;
   callWaveEarly: () => void;
 
+  inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
+  clearInspectedEnemy: () => void;
+
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
 
+const emptyInspect: InspectState = { id: null, kind: null, maxHp: null };
+
 const buildWorldForLevel = (level: LevelConfig) => {
   const world = createWorld(level);
-  return { world, ui: snapshot(world, 0), towerVersion: 0 };
+  return {
+    world,
+    ui: snapshot(world, 0, emptyInspect),
+    towerVersion: 0,
+    inspectedEnemy: emptyInspect,
+  };
 };
 
 export const isUnlocked = (levelId: number, progress: ProgressData) =>
@@ -210,7 +250,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world } = get();
     if (world.status === "running") world.status = "paused";
     else if (world.status === "paused") world.status = "running";
-    set({ ui: snapshot(world, get().towerVersion) });
+    set({ ui: snapshot(world, get().towerVersion, get().inspectedEnemy) });
   },
 
   tick: (realTimeSec: number) => {
@@ -246,14 +286,15 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       s.world.events.length = 0;
     }
-    const next = snapshot(s.world, s.towerVersion);
+    const next = snapshot(s.world, s.towerVersion, s.inspectedEnemy);
     if (!uiEqual(s.ui, next)) set({ ui: next });
   },
 
   setSelectedKind: (kind) => {
     const { world, towerVersion } = get();
     if (kind !== null) world.selectedTowerId = null;
-    set({ selectedKind: kind, ui: snapshot(world, towerVersion) });
+    const nextInspect = kind !== null ? emptyInspect : get().inspectedEnemy;
+    set({ selectedKind: kind, inspectedEnemy: nextInspect, ui: snapshot(world, towerVersion, nextInspect) });
   },
 
   canPlace: (pos) => canPlaceAt(get().world, pos),
@@ -263,7 +304,30 @@ export const useGame = create<GameStore>((set, get) => ({
   clearSelection: () => {
     const { world, towerVersion } = get();
     world.selectedTowerId = null;
-    set({ selectedKind: null, ui: snapshot(world, towerVersion) });
+    set({
+      selectedKind: null,
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(world, towerVersion, emptyInspect),
+    });
+  },
+
+  inspectEnemy: (id, kind, maxHp) => {
+    const { world, towerVersion } = get();
+    world.selectedTowerId = null;
+    const inspect: InspectState = { id, kind, maxHp };
+    set({
+      selectedKind: null,
+      inspectedEnemy: inspect,
+      ui: snapshot(world, towerVersion, inspect),
+    });
+  },
+
+  clearInspectedEnemy: () => {
+    const { world, towerVersion } = get();
+    set({
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(world, towerVersion, emptyInspect),
+    });
   },
 
   tryPlaceOrSelect: (pos) => {
@@ -274,7 +338,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const hit = towerAt(w, pos);
     if (hit) {
       w.selectedTowerId = hit.id;
-      set({ selectedKind: null, ui: snapshot(w, s.towerVersion) });
+      set({ selectedKind: null, inspectedEnemy: emptyInspect, ui: snapshot(w, s.towerVersion, emptyInspect) });
       return;
     }
 
@@ -286,13 +350,18 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = createTower(w, s.selectedKind, pos);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
-    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion) });
+    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.inspectedEnemy) });
   },
 
   selectTower: (id) => {
     const { world, towerVersion } = get();
     world.selectedTowerId = id;
-    set({ selectedKind: id !== null ? null : get().selectedKind, ui: snapshot(world, towerVersion) });
+    const nextInspect = id !== null ? emptyInspect : get().inspectedEnemy;
+    set({
+      selectedKind: id !== null ? null : get().selectedKind,
+      inspectedEnemy: nextInspect,
+      ui: snapshot(world, towerVersion, nextInspect),
+    });
   },
 
   upgradeSelected: (branch) => {
@@ -302,7 +371,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
       const newVersion = s.towerVersion + 1;
-      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
     }
   },
 
@@ -313,7 +382,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!t) return;
     sellTower(s.world, t);
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
   },
 
   setTargetingMode: (mode) => {
@@ -324,13 +393,13 @@ export const useGame = create<GameStore>((set, get) => ({
     t.targetingMode = mode;
     t.targetId = null;
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.inspectedEnemy) });
   },
 
   callWaveEarly: () => {
     const s = get();
     if (!simCallWaveEarly(s.world)) return;
-    set({ ui: snapshot(s.world, s.towerVersion) });
+    set({ ui: snapshot(s.world, s.towerVersion, s.inspectedEnemy) });
   },
 
   onEvent: (fn) => {
