@@ -5,21 +5,19 @@ import { ThreeEvent } from "@react-three/fiber";
 import { useGame } from "../store";
 import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import type { Tree } from "../sim/types";
-
-const TREE_URLS = [
-  "/models/nature/Tree1.glb",
-  "/models/nature/Tree2.glb",
-  "/models/nature/Tree3.glb",
-  "/models/nature/Tree4.glb",
-];
+import { BIOME_TREE_URLS } from "../biomes";
 
 type VariantSource = { geom: THREE.BufferGeometry; material: THREE.Material; minY: number };
 
-const useVariantSources = (): (VariantSource | null)[] => {
-  const trees = TREE_URLS.map(url => useGLTF(url));
+const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
+  const a = useGLTF(urls[0]);
+  const b = useGLTF(urls[1]);
+  const c = useGLTF(urls[2]);
+  const d = useGLTF(urls[3]);
+  const scenes = [a.scene, b.scene, c.scene, d.scene];
   return useMemo(
     () =>
-      trees.map(({ scene }) => {
+      scenes.map(scene => {
         let mesh: THREE.Mesh | null = null;
         scene.traverse(o => {
           if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
@@ -33,7 +31,7 @@ const useVariantSources = (): (VariantSource | null)[] => {
         const minY = geom.boundingBox?.min.y ?? 0;
         return { geom, material: m.material as THREE.Material, minY };
       }),
-    [trees.map(t => t.scene).join("|")],
+    scenes,
   );
 };
 
@@ -41,9 +39,10 @@ export const Trees = () => {
   const treeVersion = useGame(s => s.ui.treeVersion);
   void treeVersion;
   const trees = useGame.getState().world.trees;
+  const biome = useGame(s => s.world.biome);
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
-  const sources = useVariantSources();
+  const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   const byVariant = useMemo(() => {
@@ -162,4 +161,6 @@ const VariantGroup = ({
   );
 };
 
-for (const url of TREE_URLS) useGLTF.preload(url);
+for (const urls of Object.values(BIOME_TREE_URLS)) {
+  for (const url of urls) useGLTF.preload(url);
+}
