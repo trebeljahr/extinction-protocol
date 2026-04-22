@@ -428,12 +428,11 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       return;
     }
-    const snapped = { x: Math.round(pos.x), y: Math.round(pos.y) };
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
-    if (!canPlaceAt(w, snapped)) return;
+    if (!canPlaceAt(w, pos)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, snapped);
+    const t = createTower(w, s.selectedKind, pos);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
     set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
