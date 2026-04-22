@@ -6,6 +6,7 @@ import type {
   Tower,
   TowerKind,
   Tree,
+  Rock,
   Projectile,
   ProjectileKind,
   Beam,
@@ -16,6 +17,7 @@ import type {
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
+import { BIOME_LAYERS, type Biome } from "../biomes";
 
 export const STARTING_LIVES = 20;
 
@@ -27,6 +29,10 @@ export const TREE_MAX_SCALE = 0.95;
 export const TREE_MIN_SPACING = 2.2;
 export const TREE_FOOTPRINT = 0.85;
 export const TREE_REMOVE_COST = 8;
+
+// Rock footprint radius (before per-instance scale multiplier).
+export const ROCK_FOOTPRINT = 0.65;
+export const ROCK_MIN_SPACING = 1.5;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
@@ -93,13 +99,80 @@ const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tr
   return { trees, nextId };
 };
 
+const buildRocks = (
+  biome: Biome,
+  paths: Vec2[][],
+  trees: Tree[],
+  firstId: number,
+): { rocks: Rock[]; nextId: number } => {
+  const rocks: Rock[] = [];
+  const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
+  const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
+  let nextId = firstId;
+
+  const layers = BIOME_LAYERS[biome];
+  for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+    const spec = layers[layerIndex];
+    if (!spec.blocks) continue;
+    const rng = mulberry32(spec.seed);
+    const pathR2 = spec.clearance * spec.clearance;
+    let tries = 0;
+    let placed = 0;
+    while (placed < spec.count && tries < spec.count * 40) {
+      tries++;
+      const x = (rng() - 0.5) * MAP_WIDTH;
+      const y = (rng() - 0.5) * MAP_HEIGHT;
+      const rawVariant = Math.floor(rng() * spec.urls.length);
+      const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
+      const rot = rng() * Math.PI * 2;
+
+      let blocked = false;
+      for (const path of paths) {
+        for (let i = 0; i < path.length - 1; i++) {
+          if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) break;
+      }
+      if (blocked) continue;
+      for (const tr of trees) {
+        const dx = tr.pos.x - x;
+        const dy = tr.pos.y - y;
+        if (dx * dx + dy * dy < treeSpacingSq) { blocked = true; break; }
+      }
+      if (blocked) continue;
+      for (const r of rocks) {
+        const dx = r.pos.x - x;
+        const dy = r.pos.y - y;
+        if (dx * dx + dy * dy < rockSpacingSq) { blocked = true; break; }
+      }
+      if (blocked) continue;
+
+      rocks.push({
+        id: nextId++,
+        pos: { x, y },
+        layerIndex,
+        variant: rawVariant,
+        scale,
+        rot,
+      });
+      placed++;
+    }
+  }
+  return { rocks, nextId };
+};
+
 export const createWorld = (level: LevelConfig): World => {
-  const { trees, nextId } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  const biome = level.biome ?? "forest";
+  const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  const { rocks, nextId } = buildRocks(biome, level.paths, trees, afterTrees);
   return {
     time: 0,
     tickCount: 0,
     levelId: level.id,
-    biome: level.biome ?? "forest",
+    biome,
     paths: level.paths,
     plannedWaves: level.hpScale
       ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
@@ -107,6 +180,7 @@ export const createWorld = (level: LevelConfig): World => {
     enemies: [],
     towers: [],
     trees,
+    rocks,
     projectiles: [],
     beams: [],
     explosions: [],

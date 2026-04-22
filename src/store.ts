@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST } from "./sim/world";
+import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
@@ -139,6 +139,11 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   const treeBlockSq = (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
   for (const tr of world.trees) {
     if (distSq(tr.pos, pos) < treeBlockSq) return false;
+  }
+  for (const r of world.rocks) {
+    const rockRadius = ROCK_FOOTPRINT * r.scale;
+    const blockR = rockRadius + TOWER_FOOTPRINT * 0.5;
+    if (distSq(r.pos, pos) < blockR * blockR) return false;
   }
   return true;
 };
