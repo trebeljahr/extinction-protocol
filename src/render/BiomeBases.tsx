@@ -19,9 +19,15 @@ import type { Vec2 } from "../sim/types";
 const BASE_CLEAR_FROM_PATH = PATH_WIDTH / 2 + 2.5;
 const BASE_INSET_X = 5.5;
 const BASE_INSET_Y = 4;
-const CLUSTER_RADIUS = 2.8;
+const CLUSTER_RADIUS = 3.4;
 const SUPPORT_COUNT = 4;
 const BASE_CHANCE = 0.55;
+// Multipliers on top of TARGET_SIZE_BY_ROLE so in-level bases read at an
+// appropriate scale to the level — hangars at the world-map target size
+// looked undersized next to trees/rocks in the play scene.
+const HERO_SCALE = 1.8;
+const SUPPORT_SCALE_MIN = 1.2;
+const SUPPORT_SCALE_MAX = 1.55;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
@@ -97,17 +103,17 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
   const hero = recipe.hero[Math.floor(rng() * recipe.hero.length)];
   const baseRot = rng() * Math.PI * 2;
   const items: Instance[] = [
-    { url: hero, pos: center, scale: 1.0, rotY: baseRot },
+    { url: hero, pos: center, scale: HERO_SCALE, rotY: baseRot },
   ];
 
   for (let i = 0; i < SUPPORT_COUNT; i++) {
     const u = recipe.support[Math.floor(rng() * recipe.support.length)];
     const a = (i / SUPPORT_COUNT) * Math.PI * 2 + (rng() - 0.5) * 0.5;
-    const r = 1.6 + rng() * 0.9;
+    const r = 2.0 + rng() * 1.1;
     items.push({
       url: u,
       pos: { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r },
-      scale: 0.9 + rng() * 0.3,
+      scale: SUPPORT_SCALE_MIN + rng() * (SUPPORT_SCALE_MAX - SUPPORT_SCALE_MIN),
       rotY: baseRot + (rng() - 0.5) * 0.8,
     });
   }

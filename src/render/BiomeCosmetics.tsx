@@ -17,7 +17,9 @@ import type { Vec2 } from "../sim/types";
 // clicked.
 
 const COUNT_PER_LEVEL = 26;
-const PATH_CLEARANCE = PATH_WIDTH / 2 + 0.5;
+// PATH_WIDTH widened to 2.8, so anything at half-width + 0.5 was clipping
+// the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
+const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.3;
 
 const mulberry32 = (seed: number) => {

@@ -153,12 +153,11 @@ const snowLayers = (): BiomeLayer[] => [
   },
   {
     seed: 4242,
-    // Rock3 pulled — it renders as a broken/hollow shard that reads worse
-    // than the other two and (because of the pnpm strict mesh paths) isn't
-    // cleanly selectable as an in-level rock.
+    // Rock2 + Rock3 pulled — both render as hollow/shelf half-domes you can
+    // see into, which reads as a broken mesh (open interior). Rock1 is the
+    // solid variant that stays.
     urls: [
       "/models/biomes/snow/Rock1.glb",
-      "/models/biomes/snow/Rock2.glb",
     ],
     count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
@@ -200,7 +199,9 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   forest: [
     "/models/nature/Tree1.glb",
     "/models/nature/Tree2.glb",
-    "/models/nature/Tree3.glb",
+    // Tree3 was the 'shiny cluster of polyhedra' variant that reads as
+    // broken — swapped for another Tree1 so the slot still has 4 entries.
+    "/models/nature/Tree1.glb",
     "/models/nature/Tree4.glb",
   ],
   desert: [
