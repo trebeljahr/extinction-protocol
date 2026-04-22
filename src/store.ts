@@ -87,7 +87,7 @@ type GameStore = {
   world: World;
   engine: Engine;
   ui: UiSnapshot;
-  selectedKind: TowerKind;
+  selectedKind: TowerKind | null;
   towerVersion: number;
   eventListeners: ((e: GameEvent) => void)[];
 
@@ -95,9 +95,11 @@ type GameStore = {
   togglePause: () => void;
   tick: (realTimeSec: number) => void;
 
-  setSelectedKind: (kind: TowerKind) => void;
+  setSelectedKind: (kind: TowerKind | null) => void;
   tryPlaceOrSelect: (pos: Vec2) => void;
   canPlace: (pos: Vec2) => boolean;
+  towerAtPos: (pos: Vec2) => Tower | null;
+  clearSelection: () => void;
 
   selectTower: (id: number | null) => void;
   upgradeSelected: (branch: "a" | "b") => void;
@@ -115,13 +117,13 @@ const initial = () => {
 export const useGame = create<GameStore>((set, get) => ({
   ...initial(),
   engine: new Engine(),
-  selectedKind: "pulse",
+  selectedKind: null,
   eventListeners: [],
 
   reset: () => {
     const { engine } = get();
     engine.reset();
-    set({ ...initial(), selectedKind: "pulse" });
+    set({ ...initial(), selectedKind: null });
   },
 
   togglePause: () => {
@@ -144,9 +146,21 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!uiEqual(s.ui, next)) set({ ui: next });
   },
 
-  setSelectedKind: (kind) => set({ selectedKind: kind }),
+  setSelectedKind: (kind) => {
+    const { world, towerVersion } = get();
+    if (kind !== null) world.selectedTowerId = null;
+    set({ selectedKind: kind, ui: snapshot(world, towerVersion) });
+  },
 
   canPlace: (pos) => canPlaceAt(get().world, pos),
+
+  towerAtPos: (pos) => towerAt(get().world, pos),
+
+  clearSelection: () => {
+    const { world, towerVersion } = get();
+    world.selectedTowerId = null;
+    set({ selectedKind: null, ui: snapshot(world, towerVersion) });
+  },
 
   tryPlaceOrSelect: (pos) => {
     const s = get();
@@ -156,10 +170,11 @@ export const useGame = create<GameStore>((set, get) => ({
     const hit = towerAt(w, pos);
     if (hit) {
       w.selectedTowerId = hit.id;
-      set({ ui: snapshot(w, s.towerVersion) });
+      set({ selectedKind: null, ui: snapshot(w, s.towerVersion) });
       return;
     }
 
+    if (s.selectedKind === null) return;
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
     if (!canPlaceAt(w, pos)) return;
@@ -167,13 +182,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = createTower(w, s.selectedKind, pos);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(w, newVersion) });
+    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion) });
   },
 
   selectTower: (id) => {
     const { world, towerVersion } = get();
     world.selectedTowerId = id;
-    set({ ui: snapshot(world, towerVersion) });
+    set({ selectedKind: id !== null ? null : get().selectedKind, ui: snapshot(world, towerVersion) });
   },
 
   upgradeSelected: (branch) => {

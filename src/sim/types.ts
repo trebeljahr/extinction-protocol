@@ -2,7 +2,7 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm";
+export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored";
 
 export type Enemy = {
   id: EntityId;

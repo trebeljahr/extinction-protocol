@@ -88,6 +88,15 @@ canvas { display: block; touch-action: none; }
   50%      { box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22); }
 }
 
+.wave-hint { min-width: 140px; }
+.wave-hint-sub {
+  font-size: 10px;
+  color: #8a9a82;
+  margin-top: 2px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
 /* Tower picker (bottom-left column) */
 .tower-picker {
   position: absolute;

@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useGame } from "../store";
 import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
+import { getWavePlan, WAVE_ARCHETYPE_LABEL, WAVE_ARCHETYPE_HINT, earlyCallBonus } from "../sim/spawner";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { audio } from "../audio/AudioManager";
-import { earlyCallBonus } from "../sim/spawner";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
 const HOTKEYS: Record<TowerKind, string> = { pulse: "1", chain: "2", cryo: "3", mortar: "4" };
@@ -25,15 +25,20 @@ export const HUD = () => {
       if (e.code === "KeyR") { reset(); return; }
       if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
       if (e.code === "KeyN") { callWaveEarly(); return; }
+      if (e.code === "Escape") { useGame.getState().clearSelection(); return; }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
-      if (kind) setSelectedKind(kind);
+      if (kind) setSelectedKind(selectedKind === kind ? null : kind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, reset, setSelectedKind, callWaveEarly]);
+  }, [togglePause, reset, setSelectedKind, selectedKind, callWaveEarly]);
 
   const canCallEarly = !ui.waveActive && ui.wave < ui.totalWaves && ui.status === "running";
+  const hintWave = ui.waveActive ? ui.wave : Math.min(ui.wave + 1, ui.totalWaves);
+  const hintPlan = hintWave > 0 ? getWavePlan(hintWave) : null;
+  const archetypeLabel = hintPlan ? WAVE_ARCHETYPE_LABEL[hintPlan.archetype] : "";
+  const archetypeHint = hintPlan ? WAVE_ARCHETYPE_HINT[hintPlan.archetype] : "";
 
   return (
     <div className="hud">
@@ -56,6 +61,13 @@ export const HUD = () => {
             accent="#b4ffc9"
           />
         )}
+        {hintPlan && (
+          <div className="stat wave-hint">
+            <div className="stat-label" style={{ color: "#d8c090" }}>{ui.waveActive ? "THIS" : "NEXT"}</div>
+            <div className="stat-value" style={{ fontSize: 14 }}>{archetypeLabel}</div>
+            {archetypeHint && <div className="wave-hint-sub">{archetypeHint}</div>}
+          </div>
+        )}
       </div>
 
       <div className="tower-picker">
@@ -68,7 +80,7 @@ export const HUD = () => {
             <button
               key={kind}
               className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
-              onClick={() => setSelectedKind(kind)}
+              onClick={() => setSelectedKind(selectedKind === kind ? null : kind)}
             >
               <div className={`tower-swatch kind-${kind}`} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
@@ -88,6 +100,8 @@ export const HUD = () => {
         <span>Click empty tile to build · click a tower to inspect</span>
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
+        <span className="sep">·</span>
+        <span>Esc: deselect</span>
         <span className="sep">·</span>
         <span>Space: pause</span>
         <span className="sep">·</span>

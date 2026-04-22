@@ -45,6 +45,7 @@ const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty: 11, damage: 2 },
   stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 22, damage: 3 },
   swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  2, damage: 1 },
+  armored:  { kind: "armored",  hp: 220, maxHp: 220, speed: 1.1, bounty: 28, damage: 4 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
@@ -73,6 +74,7 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
   stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
   swarm:    { kinetic: 0.6, electric: 1.4, cold: 0.8, explosive: 1.7 },
+  armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
@@ -80,6 +82,7 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
   allosaur: "Allosaur",
   stego:    "Stegoknight",
   swarm:    "Swarm",
+  armored:  "Juggernaut",
 };
 
 export const applyDamage = (

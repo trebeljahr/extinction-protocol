@@ -24,14 +24,21 @@ export const Placement = () => {
     useGame.getState().tryPlaceOrSelect({ x: snap(e.point.x), y: snap(-e.point.z) });
   };
 
-  const canPlaceHere =
-    hover !== null &&
-    status === "running" &&
-    gold >= TOWER_COST[selectedKind] &&
-    useGame.getState().canPlace(hover);
+  const hoveredTower = hover !== null ? useGame.getState().towerAtPos(hover) : null;
 
-  const color = canPlaceHere ? "#3dff8a" : "#ff5a7a";
-  const range = TOWER_STATS[selectedKind].range;
+  const showPlacement =
+    hover !== null &&
+    hoveredTower === null &&
+    status === "running" &&
+    selectedKind !== null;
+
+  const canPlaceHere =
+    showPlacement &&
+    gold >= TOWER_COST[selectedKind!] &&
+    useGame.getState().canPlace(hover!);
+
+  const placementColor = canPlaceHere ? "#3dff8a" : "#ff5a7a";
+  const range = selectedKind ? TOWER_STATS[selectedKind].range : 0;
 
   const geom = useMemo(() => new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT), []);
 
@@ -46,16 +53,30 @@ export const Placement = () => {
         onClick={onClick}
         visible={false}
       />
-      {hover && status === "running" && (
-        <group position={[hover.x, 0, -hover.y]}>
+
+      {hover && status === "running" && hoveredTower && (
+        <group position={[hoveredTower.pos.x, 0, -hoveredTower.pos.y]}>
+          <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.7, 0.9, 32]} />
+            <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[hoveredTower.range - 0.04, hoveredTower.range, 64]} />
+            <meshBasicMaterial color="#ffd66a" transparent opacity={0.22} side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      )}
+
+      {showPlacement && (
+        <group position={[hover!.x, 0, -hover!.y]}>
           <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.55, 0.7, 24]} />
-            <meshBasicMaterial color={color} transparent opacity={0.9} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={placementColor} transparent opacity={0.9} side={THREE.DoubleSide} />
           </mesh>
           {canPlaceHere && (
             <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[range - 0.04, range, 64]} />
-              <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+              <meshBasicMaterial color={placementColor} transparent opacity={0.25} side={THREE.DoubleSide} />
             </mesh>
           )}
         </group>

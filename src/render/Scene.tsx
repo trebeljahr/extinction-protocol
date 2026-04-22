@@ -13,15 +13,15 @@ import { MAP_HEIGHT } from "../level";
 
 export const Scene = () => (
   <Canvas shadows dpr={[1, 2]}>
-    <color attach="background" args={["#0b1016"]} />
-    <fog attach="fog" args={["#0b1016", 30, 60]} />
+    <color attach="background" args={["#1b2a22"]} />
+    <fog attach="fog" args={["#1b2a22", 32, 68]} />
 
     <CameraRig />
 
-    <ambientLight intensity={0.35} />
+    <ambientLight intensity={0.45} />
     <directionalLight
       position={[10, 20, 10]}
-      intensity={1.1}
+      intensity={1.0}
       castShadow
       shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
@@ -30,7 +30,7 @@ export const Scene = () => (
       shadow-camera-top={MAP_HEIGHT}
       shadow-camera-bottom={-MAP_HEIGHT}
     />
-    <hemisphereLight args={["#88aaff", "#1a1a20", 0.25]} />
+    <hemisphereLight args={["#b8dc9c", "#2a1f15", 0.45]} />
 
     <SimTicker />
     <Ground />

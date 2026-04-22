@@ -1,26 +1,55 @@
 import type { World, EnemyKind } from "./types";
 import { spawnEnemy, emit } from "./world";
 
-const rosterForWave = (wave: number): { kind: EnemyKind; hpMul: number }[] => {
-  const out: { kind: EnemyKind; hpMul: number }[] = [];
-  const hpMul = 1 + (wave - 1) * 0.08;
+type WaveEntry = { kind: EnemyKind; count: number };
+export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
 
-  const raptors = 4 + wave * 2;
-  for (let i = 0; i < raptors; i++) out.push({ kind: "raptor", hpMul });
+type WavePlan = {
+  archetype: WaveArchetype;
+  entries: WaveEntry[];
+  spacingBase: number;
+};
 
-  if (wave >= 2) {
-    const swarms = 2 + wave * 3;
-    for (let i = 0; i < swarms; i++) out.push({ kind: "swarm", hpMul });
-  }
-  if (wave >= 3) {
-    const allos = Math.floor(wave / 2);
-    for (let i = 0; i < allos; i++) out.push({ kind: "allosaur", hpMul });
-  }
-  if (wave >= 6) {
-    const stegos = Math.floor((wave - 4) / 2);
-    for (let i = 0; i < stegos; i++) out.push({ kind: "stego", hpMul });
-  }
+export const WAVE_ARCHETYPE_LABEL: Record<WaveArchetype, string> = {
+  intro:  "Intro",
+  mixed:  "Mixed",
+  swarm:  "Swarm rush",
+  heavy:  "Armored push",
+  chaos:  "Chaos",
+};
 
+export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
+  intro:  "",
+  mixed:  "balanced composition",
+  swarm:  "favors AoE towers",
+  heavy:  "favors single-target",
+  chaos:  "bring everything",
+};
+
+export const getWavePlan = (wave: number): { archetype: WaveArchetype } =>
+  ({ archetype: wavePlan(wave).archetype });
+
+const wavePlan = (wave: number): WavePlan => {
+  switch (wave) {
+    case 1:  return { archetype: "intro",  spacingBase: 0.9,  entries: [{ kind: "raptor", count: 8 }] };
+    case 2:  return { archetype: "mixed",  spacingBase: 0.7,  entries: [{ kind: "raptor", count: 10 }, { kind: "swarm", count: 6 }] };
+    case 3:  return { archetype: "swarm",  spacingBase: 0.18, entries: [{ kind: "swarm", count: 40 }] };
+    case 4:  return { archetype: "mixed",  spacingBase: 0.55, entries: [{ kind: "raptor", count: 10 }, { kind: "allosaur", count: 3 }, { kind: "swarm", count: 10 }] };
+    case 5:  return { archetype: "heavy",  spacingBase: 1.1,  entries: [{ kind: "armored", count: 4 }, { kind: "allosaur", count: 3 }] };
+    case 6:  return { archetype: "swarm",  spacingBase: 0.14, entries: [{ kind: "swarm", count: 55 }, { kind: "raptor", count: 6 }] };
+    case 7:  return { archetype: "mixed",  spacingBase: 0.5,  entries: [{ kind: "raptor", count: 14 }, { kind: "allosaur", count: 5 }, { kind: "stego", count: 2 }] };
+    case 8:  return { archetype: "heavy",  spacingBase: 1.0,  entries: [{ kind: "armored", count: 7 }, { kind: "stego", count: 3 }, { kind: "allosaur", count: 4 }] };
+    case 9:  return { archetype: "chaos",  spacingBase: 0.35, entries: [{ kind: "swarm", count: 30 }, { kind: "raptor", count: 12 }, { kind: "allosaur", count: 4 }, { kind: "stego", count: 2 }] };
+    default: return { archetype: "chaos",  spacingBase: 0.45, entries: [{ kind: "armored", count: 6 }, { kind: "stego", count: 4 }, { kind: "allosaur", count: 6 }, { kind: "raptor", count: 15 }, { kind: "swarm", count: 20 }] };
+  }
+};
+
+const buildRoster = (plan: WavePlan): EnemyKind[] => {
+  const out: EnemyKind[] = [];
+  for (const entry of plan.entries) {
+    for (let i = 0; i < entry.count; i++) out.push(entry.kind);
+  }
+  if (plan.archetype === "swarm") return out;
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
@@ -31,11 +60,12 @@ const rosterForWave = (wave: number): { kind: EnemyKind; hpMul: number }[] => {
 const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
-  const roster = rosterForWave(world.wave);
-  const spacing = Math.max(0.35, 0.75 - world.wave * 0.035);
+  const plan = wavePlan(world.wave);
+  const roster = buildRoster(plan);
+  const spacing = plan.spacingBase;
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
-    world.spawnQueue.push({ kind: roster[i].kind, at: t });
+    world.spawnQueue.push({ kind: roster[i], at: t });
   }
   emit(world, { type: "wave-start", wave: world.wave });
 };

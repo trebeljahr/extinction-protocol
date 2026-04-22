@@ -11,6 +11,7 @@ const KIND_COLOR: Record<EnemyKind, string> = {
   allosaur: "#b86b2a",
   stego: "#5a8c3a",
   swarm: "#e08060",
+  armored: "#4a5c6e",
 };
 
 const KIND_SCALE: Record<EnemyKind, number> = {
@@ -18,9 +19,10 @@ const KIND_SCALE: Record<EnemyKind, number> = {
   allosaur: 0.85,
   stego: 1.1,
   swarm: 0.35,
+  armored: 1.0,
 };
 
-const PRIMITIVE_KINDS: EnemyKind[] = ["raptor", "stego"];
+const PRIMITIVE_KINDS: EnemyKind[] = ["raptor", "stego", "armored"];
 
 const geomFor = (kind: EnemyKind): THREE.BufferGeometry => {
   switch (kind) {
@@ -28,6 +30,7 @@ const geomFor = (kind: EnemyKind): THREE.BufferGeometry => {
     case "allosaur": return new THREE.BoxGeometry(0.8, 0.7, 1.1);
     case "stego":    return new THREE.DodecahedronGeometry(0.7);
     case "swarm":    return new THREE.OctahedronGeometry(0.35);
+    case "armored":  return new THREE.BoxGeometry(0.9, 0.9, 1.2);
   }
 };
 
