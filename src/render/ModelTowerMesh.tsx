@@ -103,7 +103,7 @@ export const ModelTowerMesh = ({
   return <group ref={groupRef} />;
 };
 
-useGLTF.preload("/models/tower_pulse.glb");
-useGLTF.preload("/models/tower_chain.glb");
-useGLTF.preload("/models/turret_missile.glb");
-useGLTF.preload("/models/turret_emp.glb");
+useGLTF.preload("/models/turrets/Rail Gun Turret.glb");
+useGLTF.preload("/models/turrets/Lighting Turret.glb");
+useGLTF.preload("/models/turrets/Missile Turret.glb");
+useGLTF.preload("/models/turrets/Emp Turret.glb");

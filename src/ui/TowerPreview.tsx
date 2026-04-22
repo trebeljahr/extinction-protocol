@@ -5,10 +5,10 @@ import { useGLTF } from "@react-three/drei";
 import type { TowerKind } from "../sim/types";
 
 const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number; rotY: number }> = {
-  pulse:  { url: "/models/tower_pulse.glb",    targetSize: 1.5, rotY: 0 },
-  chain:  { url: "/models/tower_chain.glb",    targetSize: 1.5, rotY: 0 },
-  mortar: { url: "/models/turret_missile.glb", targetSize: 1.5, rotY: 0 },
-  cryo:   { url: "/models/turret_emp.glb",     targetSize: 1.5, rotY: 0 },
+  pulse:  { url: "/models/turrets/Rail Gun Turret.glb",  targetSize: 1.5, rotY: 0 },
+  chain:  { url: "/models/turrets/Lighting Turret.glb",  targetSize: 1.5, rotY: 0 },
+  mortar: { url: "/models/turrets/Missile Turret.glb",   targetSize: 1.5, rotY: 0 },
+  cryo:   { url: "/models/turrets/Emp Turret.glb",       targetSize: 1.5, rotY: 0 },
 };
 
 const StaticTower = ({ url, targetSize, rotY }: { url: string; targetSize: number; rotY: number }) => {

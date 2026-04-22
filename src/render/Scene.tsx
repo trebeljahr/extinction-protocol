@@ -65,10 +65,10 @@ export const PlayScene = () => {
       <ModelEnemyMesh kind="armored"  url="/models/Triceratops.glb"     targetSize={2.0} />
       <ModelEnemyMesh kind="titan"    url="/models/Apatosaurus.glb"     targetSize={11.0} clip="Walk" />
 
-      <ModelTowerMesh kind="pulse"  url="/models/tower_pulse.glb"    targetSize={1.6} />
-      <ModelTowerMesh kind="chain"  url="/models/tower_chain.glb"    targetSize={1.6} />
-      <ModelTowerMesh kind="mortar" url="/models/turret_missile.glb" targetSize={1.4} />
-      <ModelTowerMesh kind="cryo"   url="/models/turret_emp.glb"     targetSize={1.4} idleSpin />
+      <ModelTowerMesh kind="pulse"  url="/models/turrets/Rail Gun Turret.glb"  targetSize={1.8} />
+      <ModelTowerMesh kind="chain"  url="/models/turrets/Lighting Turret.glb"  targetSize={1.8} />
+      <ModelTowerMesh kind="mortar" url="/models/turrets/Missile Turret.glb"   targetSize={1.8} />
+      <ModelTowerMesh kind="cryo"   url="/models/turrets/Emp Turret.glb"       targetSize={1.8} idleSpin />
 
       <TowerVfx />
       <HealthBars />
