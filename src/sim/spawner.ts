@@ -57,11 +57,15 @@ const buildRoster = (plan: WavePlan): EnemyKind[] => {
   return out;
 };
 
+const WAVE_GAP_SECONDS = 2;
+const EARLY_CALL_THRESHOLD = 1 / 3;
+
 const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
   const plan = wavePlan(world.wave);
   const roster = buildRoster(plan);
+  world.waveTotalEnemies = roster.length;
   const spacing = plan.spacingBase;
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
@@ -70,13 +74,26 @@ const startWave = (world: World) => {
   emit(world, { type: "wave-start", wave: world.wave });
 };
 
-export const earlyCallBonus = (nextWaveIn: number) => Math.ceil(nextWaveIn * 2);
+export const earlyCallBonus = (secondsSaved: number) => Math.ceil(secondsSaved * 2);
+
+const earlyCallSecondsSaved = (world: World): number =>
+  world.waveActive ? WAVE_GAP_SECONDS : world.nextWaveIn;
+
+export const canCallEarly = (world: World): boolean => {
+  if (world.status !== "running") return false;
+  if (world.wave >= world.totalWaves) return false;
+  if (!world.waveActive) return true;
+  if (world.waveTotalEnemies <= 0) return false;
+  const remaining = world.spawnQueue.length + world.enemies.length;
+  return remaining <= world.waveTotalEnemies * EARLY_CALL_THRESHOLD;
+};
+
+export const earlyCallGoldReward = (world: World): number =>
+  canCallEarly(world) ? earlyCallBonus(earlyCallSecondsSaved(world)) : 0;
 
 export const callWaveEarly = (world: World): boolean => {
-  if (world.status !== "running") return false;
-  if (world.waveActive) return false;
-  if (world.wave >= world.totalWaves) return false;
-  world.gold += earlyCallBonus(world.nextWaveIn);
+  if (!canCallEarly(world)) return false;
+  world.gold += earlyCallBonus(earlyCallSecondsSaved(world));
   world.nextWaveIn = 0;
   startWave(world);
   return true;
@@ -99,7 +116,7 @@ export const spawnerTick = (world: World, dt: number) => {
 
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
     world.waveActive = false;
-    world.nextWaveIn = 6;
+    world.nextWaveIn = WAVE_GAP_SECONDS;
     const bonus = 12 + world.wave * 2;
     world.gold += bonus;
     emit(world, { type: "wave-clear", wave: world.wave });

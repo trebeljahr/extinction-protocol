@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
-import { callWaveEarly as simCallWaveEarly } from "./sim/spawner";
+import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { PATH } from "./level";
 import { distSq } from "./sim/vec2";
@@ -16,6 +16,8 @@ type UiSnapshot = {
   status: RunStatus;
   waveActive: boolean;
   nextWaveIn: number;
+  canCallEarly: boolean;
+  callEarlyBonus: number;
   selectedTowerId: number | null;
   towerVersion: number;
 };
@@ -28,6 +30,8 @@ const snapshot = (w: World, towerVersion: number): UiSnapshot => ({
   status: w.status,
   waveActive: w.waveActive,
   nextWaveIn: Math.ceil(w.nextWaveIn),
+  canCallEarly: canCallEarly(w),
+  callEarlyBonus: earlyCallGoldReward(w),
   selectedTowerId: w.selectedTowerId,
   towerVersion,
 });
@@ -40,6 +44,8 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.status === b.status &&
   a.waveActive === b.waveActive &&
   a.nextWaveIn === b.nextWaveIn &&
+  a.canCallEarly === b.canCallEarly &&
+  a.callEarlyBonus === b.callEarlyBonus &&
   a.selectedTowerId === b.selectedTowerId &&
   a.towerVersion === b.towerVersion;
 

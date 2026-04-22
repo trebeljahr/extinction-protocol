@@ -121,6 +121,7 @@ export type World = {
   totalWaves: number;
   waveActive: boolean;
   nextWaveIn: number;
+  waveTotalEnemies: number;
   gold: number;
   lives: number;
   status: RunStatus;

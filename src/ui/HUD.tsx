@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useGame } from "../store";
 import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
-import { getWavePlan, WAVE_ARCHETYPE_LABEL, WAVE_ARCHETYPE_HINT, earlyCallBonus } from "../sim/spawner";
+import { getWavePlan, WAVE_ARCHETYPE_LABEL, WAVE_ARCHETYPE_HINT } from "../sim/spawner";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { audio } from "../audio/AudioManager";
@@ -34,7 +34,6 @@ export const HUD = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePause, reset, setSelectedKind, selectedKind, callWaveEarly]);
 
-  const canCallEarly = !ui.waveActive && ui.wave < ui.totalWaves && ui.status === "running";
   const hintWave = ui.waveActive ? ui.wave : Math.min(ui.wave + 1, ui.totalWaves);
   const hintPlan = hintWave > 0 ? getWavePlan(hintWave) : null;
   const archetypeLabel = hintPlan ? WAVE_ARCHETYPE_LABEL[hintPlan.archetype] : "";
@@ -46,12 +45,12 @@ export const HUD = () => {
         <Stat label="GOLD" value={ui.gold} accent="#ffd66a" />
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
-        {canCallEarly ? (
+        {ui.canCallEarly ? (
           <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (N)">
             <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [N]</div>
             <div className="stat-value">
-              +{earlyCallBonus(ui.nextWaveIn)}g
-              <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>
+              +{ui.callEarlyBonus}g
+              {!ui.waveActive && <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>}
             </div>
           </button>
         ) : (
