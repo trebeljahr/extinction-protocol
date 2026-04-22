@@ -69,7 +69,7 @@ export const PlayScene = () => {
       <ModelTowerMesh kind="chain"   url="/models/turrets/Lighting Turret.glb"     targetSize={1.8} />
       <ModelTowerMesh kind="mortar"  url="/models/turrets/Missile Turret.glb"      targetSize={1.8} />
       <ModelTowerMesh kind="cryo"    url="/models/turrets/Emp Turret.glb"          targetSize={1.8} idleSpin />
-      <ModelTowerMesh kind="gatling" url="/models/turrets/Gatelng Gun Turret.glb"  targetSize={1.8} />
+      <ModelTowerMesh kind="gatling" url="/models/turrets/Rail Gun Turret.glb"    targetSize={1.8} />
       <ModelTowerMesh kind="cannon"  url="/models/turrets/Gun Cannon Turret.glb"   targetSize={1.9} />
       <ModelTowerMesh kind="plasma"  url="/models/turrets/Plasma Turret.glb"       targetSize={1.8} />
       <ModelTowerMesh kind="flame"   url="/models/turrets/Flamethrower Turret.glb" targetSize={1.7} />
