@@ -79,6 +79,7 @@ export class AudioManager {
       ["game-over",    `${base}audio/game-over.mp3`],
       ["upgrade",      `${base}audio/upgrade.mp3`],
       ["star",         `${base}audio/star.mp3`],
+      ["level-select", `${base}audio/level-select.mp3`],
       ["music",        `${base}audio/music-ambient.mp3`],
     ];
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));

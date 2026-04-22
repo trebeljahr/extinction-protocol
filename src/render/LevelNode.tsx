@@ -1,8 +1,9 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { useGame } from "../store";
+import { audio } from "../audio/AudioManager";
 import type { LevelConfig } from "../levels";
 import { getStars, isLevelUnlocked } from "../progress";
 
@@ -31,6 +32,7 @@ export const LevelNode = ({ level }: Props) => {
   const progress = useGame(s => s.progress);
   const startLevel = useGame(s => s.startLevel);
   const setHoveredLevel = useGame(s => s.setHoveredLevel);
+  const [hovered, setHovered] = useState(false);
 
   const unlocked = isLevelUnlocked(level.id, progress);
   const stars = getStars(progress, level.id);
@@ -43,34 +45,46 @@ export const LevelNode = ({ level }: Props) => {
     return { baseColor: "#3dd1ff", emissive: "#1a6a88", emissiveIntensity: 0.8 };
   }, [unlocked, completed]);
 
+  // Hover bumps the dome a touch. Unplayed still pulses — the hover pop
+  // layers on top of the pulse.
   useFrame((state) => {
     const g = groupRef.current;
     if (!g) return;
+    const hoverBoost = hovered && unlocked ? 1.12 : 1.0;
     if (unplayed) {
       const t = state.clock.elapsedTime;
-      const s = 1 + Math.sin(t * 3.2) * 0.08;
-      g.scale.setScalar(s);
+      const pulse = 1 + Math.sin(t * 3.2) * 0.08;
+      g.scale.setScalar(pulse * hoverBoost);
     } else {
-      g.scale.setScalar(1);
+      g.scale.setScalar(hoverBoost);
     }
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (!unlocked) return;
+    audio.ensureResumed();
+    audio.play("level-select", 0.7, 80);
     startLevel(level.id);
   };
 
   const handleOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    setHovered(true);
     setHoveredLevel(level.id);
     document.body.style.cursor = unlocked ? "pointer" : "not-allowed";
   };
 
   const handleOut = () => {
+    setHovered(false);
     setHoveredLevel(null);
     document.body.style.cursor = "default";
   };
+
+  // Stars sit ABOVE the number label (which is at y=1.3). Pulled up a bit
+  // further so the two don't visually fight at our tilted ortho angle.
+  const starY = 3.15;
+  const labelY = completed ? 1.3 : 1.3;
 
   const x = level.nodePos.x;
   const z = -level.nodePos.y;
@@ -89,7 +103,7 @@ export const LevelNode = ({ level }: Props) => {
           <meshStandardMaterial
             color={baseColor}
             emissive={emissive}
-            emissiveIntensity={emissiveIntensity}
+            emissiveIntensity={emissiveIntensity + (hovered && unlocked ? 0.5 : 0)}
             roughness={0.45}
             metalness={0.25}
           />
@@ -99,7 +113,7 @@ export const LevelNode = ({ level }: Props) => {
           <meshStandardMaterial
             color={baseColor}
             emissive={emissive}
-            emissiveIntensity={emissiveIntensity * 1.2}
+            emissiveIntensity={(emissiveIntensity + (hovered && unlocked ? 0.5 : 0)) * 1.2}
             roughness={0.4}
             metalness={0.3}
           />
@@ -114,19 +128,19 @@ export const LevelNode = ({ level }: Props) => {
         <meshBasicMaterial
           color={unlocked ? (completed ? "#ffd66a" : "#3dd1ff") : "#2a3240"}
           transparent
-          opacity={unlocked ? 0.6 : 0.3}
+          opacity={unlocked ? (hovered ? 0.95 : 0.6) : 0.3}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      <Html center position={[0, 1.3, 0]} zIndexRange={[0, 10]}>
+      <Html center position={[0, labelY, 0]} zIndexRange={[0, 10]}>
         <div className={`map-label ${unlocked ? "" : "locked"}`}>
           {unlocked ? level.id : "\u{1F512}"}
         </div>
       </Html>
 
       {completed && (
-        <group position={[0, 2.3, 0]}>
+        <group position={[0, starY, 0]}>
           {Array.from({ length: 3 }).map((_, i) => {
             const filled = i < stars;
             const offset = (i - 1) * 1.1;
