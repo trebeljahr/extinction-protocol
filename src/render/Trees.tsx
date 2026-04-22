@@ -42,6 +42,7 @@ export const Trees = () => {
   const biome = useGame(s => s.world.biome);
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
+  const selectedTreeId = useGame(s => s.selectedTreeId);
   const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
@@ -58,6 +59,7 @@ export const Trees = () => {
   const canAfford = gold >= TREE_REMOVE_COST;
   const running = status === "running";
   const hovered = hoveredId !== null ? trees.find(t => t.id === hoveredId) ?? null : null;
+  const selected = selectedTreeId !== null ? trees.find(t => t.id === selectedTreeId) ?? null : null;
 
   useEffect(() => {
     if (hovered && running) {
@@ -83,7 +85,7 @@ export const Trees = () => {
         );
       })}
 
-      {hovered && (
+      {hovered && hovered.id !== selectedTreeId && (
         <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.55, 0.78, 32]} />
@@ -91,6 +93,19 @@ export const Trees = () => {
               color={canAfford ? "#ff8a5a" : "#6a6a6a"}
               transparent
               opacity={0.9}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
+      )}
+      {selected && (
+        <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.62, 0.9, 40]} />
+            <meshBasicMaterial
+              color="#ffd66a"
+              transparent
+              opacity={0.95}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -134,7 +149,7 @@ const VariantGroup = ({
     const tree = bucket[e.instanceId];
     if (!tree) return;
     e.stopPropagation();
-    useGame.getState().removeTree(tree.id);
+    useGame.getState().selectTree(tree.id);
   };
 
   const onMove = (e: ThreeEvent<PointerEvent>) => {

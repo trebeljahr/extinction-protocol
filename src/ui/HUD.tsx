@@ -6,6 +6,7 @@ import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { TowerPreview } from "./TowerPreview";
 import { EnemyPanel } from "./EnemyPanel";
+import { TreePanel } from "./TreePanel";
 import { PauseMenu } from "./PauseMenu";
 import { getLevel } from "../levels";
 
@@ -32,6 +33,16 @@ export const HUD = () => {
       if (e.code === "Escape") {
         e.preventDefault();
         const s = useGame.getState();
+        if (
+          s.selectedKind !== null ||
+          s.world.selectedTowerId !== null ||
+          s.inspectedEnemy.kind !== null ||
+          s.selectedTreeId !== null
+        ) {
+          s.clearSelection();
+          (document.activeElement as HTMLElement | null)?.blur();
+          return;
+        }
         if (s.world.status === "running" || s.world.status === "paused") togglePause();
         (document.activeElement as HTMLElement | null)?.blur();
         return;
@@ -123,9 +134,10 @@ export const HUD = () => {
 
       <TowerPanel />
       <EnemyPanel />
+      <TreePanel />
 
       <div className="hud-bottom">
-        <span>Click empty tile to build · click a tower to inspect · click a tree to clear (8g)</span>
+        <span>Click empty tile to build · click a tower to inspect · click a tree to clear (10g)</span>
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>

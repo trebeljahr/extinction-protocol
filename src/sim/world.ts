@@ -28,7 +28,7 @@ export const TREE_MIN_SCALE = 0.55;
 export const TREE_MAX_SCALE = 0.95;
 export const TREE_MIN_SPACING = 2.2;
 export const TREE_FOOTPRINT = 0.85;
-export const TREE_REMOVE_COST = 8;
+export const TREE_REMOVE_COST = 10;
 
 // Rock footprint radius (before per-instance scale multiplier).
 export const ROCK_FOOTPRINT = 0.65;
