@@ -42,18 +42,20 @@ type PropRoleBucket = {
   clearance: number;
 };
 
-// Hero building per biome. Snow keeps Cabin primarily so the winter
-// biome reads immediately. Wasteland uses Ruins for the same reason.
+// Hero building per biome. Wasteland uses Ruins so the biome reads
+// immediately. Non-nature biomes now reach for sci-fi tech landmarks
+// (hangars, structures) instead of wooden cabins/sawmills; tents stay
+// since they read as modern camp gear rather than wood.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/House.glb",
-    "/models/landmarks/forest/Sawmill.glb",
+    "/models/scifi/structure_detailed.glb",
   ],
   desert: [
     "/models/landmarks/desert/Tent.glb",
   ],
   snow: [
-    "/models/landmarks/snow/Cabin.glb",
+    "/models/scifi/hangar_smallA.glb",
     "/models/landmarks/snow/Tent.glb",
   ],
   wasteland: [
