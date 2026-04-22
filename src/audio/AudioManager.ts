@@ -175,6 +175,20 @@ export class AudioManager {
   }
 
   isMuted() { return this.muted; }
+
+  setSfxVolume(v: number) {
+    this.sfxVolume = Math.max(0, Math.min(1, v));
+    if (this.sfxGain) this.sfxGain.gain.value = this.sfxVolume;
+  }
+
+  getSfxVolume() { return this.sfxVolume; }
+
+  setMusicVolume(v: number) {
+    this.musicVolume = Math.max(0, Math.min(1, v));
+    if (this.musicGain) this.musicGain.gain.value = this.musicVolume;
+  }
+
+  getMusicVolume() { return this.musicVolume; }
 }
 
 export const audio = new AudioManager();
