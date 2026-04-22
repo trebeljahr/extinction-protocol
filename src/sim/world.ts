@@ -90,6 +90,16 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
 };
 
+export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
+  raptor:   0,
+  allosaur: 0,
+  stego:    0.35,
+  swarm:    0,
+  armored:  0.75,
+};
+
+export const MIN_SLOW_FACTOR = 0.25;
+
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
   raptor:   "Raptor",
   allosaur: "T-Rex",
@@ -158,7 +168,7 @@ export type TowerBaseStats = {
 export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   pulse:  { range: 6.5, damage: 10, fireRate: 2.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
   chain:  { range: 5.5, damage: 7,  fireRate: 1.2, splashRadius: 0,    chainCount: 3, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
-  cryo:   { range: 4.5, damage: 2,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.45, slowDuration: 1.2 },
+  cryo:   { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.45, slowDuration: 1.2 },
   mortar: { range: 9.0, damage: 26, fireRate: 0.5, splashRadius: 1.8,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
 };
 
@@ -298,11 +308,15 @@ export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
   samplePath(world.path, enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
+  const resist = ENEMY_SLOW_RESIST[enemy.kind];
+  const resisted = factor + (1 - factor) * resist;
+  const eff = Math.max(MIN_SLOW_FACTOR, resisted);
+  if (eff >= 1) return;
   const until = world.time + duration;
   if (until > enemy.slowUntil) {
     enemy.slowUntil = until;
-    enemy.slowFactor = Math.min(enemy.slowFactor, factor);
-  } else if (factor < enemy.slowFactor) {
-    enemy.slowFactor = factor;
+    enemy.slowFactor = Math.min(enemy.slowFactor, eff);
+  } else if (eff < enemy.slowFactor) {
+    enemy.slowFactor = eff;
   }
 };
