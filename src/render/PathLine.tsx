@@ -33,13 +33,13 @@ export const PathLine = () => {
       {segments.map((s, i) => (
         <mesh key={i} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
           <planeGeometry args={[s.length, PATH_WIDTH]} />
-          <meshStandardMaterial color="#3a2e22" roughness={1} />
+          <meshStandardMaterial color="#c9a876" roughness={1} />
         </mesh>
       ))}
       {joints.map((p, i) => (
         <mesh key={`j${i}`} position={p} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[PATH_WIDTH / 2, 16]} />
-          <meshStandardMaterial color="#3a2e22" roughness={1} />
+          <meshStandardMaterial color="#c9a876" roughness={1} />
         </mesh>
       ))}
       <mesh
