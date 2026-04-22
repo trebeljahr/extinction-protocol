@@ -118,7 +118,7 @@ export const spawnerTick = (world: World, dt: number) => {
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
     world.waveActive = false;
     world.nextWaveIn = WAVE_GAP_SECONDS;
-    const bonus = 12 + world.wave * 2;
+    const bonus = 5 + world.wave;
     world.gold += bonus;
     emit(world, { type: "wave-clear", wave: world.wave });
   }
