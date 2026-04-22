@@ -11,7 +11,7 @@ export const updateEnemies = (world: World, dt: number) => {
     }
 
     const effectiveSpeed = e.speed * e.slowFactor;
-    const adv = advanceAlongPath(world.path, e.segment, e.segmentT, effectiveSpeed * dt);
+    const adv = advanceAlongPath(world.paths[e.pathIndex], e.segment, e.segmentT, effectiveSpeed * dt);
     e.segment = adv.segment;
     e.segmentT = adv.segmentT;
     e.pos = adv.pos;

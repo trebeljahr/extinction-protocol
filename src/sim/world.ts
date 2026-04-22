@@ -21,7 +21,7 @@ export const createWorld = (level: LevelConfig): World => ({
   time: 0,
   tickCount: 0,
   levelId: level.id,
-  path: level.path,
+  paths: level.paths,
   plannedWaves: level.hpScale
     ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
     : level.waves,
@@ -114,14 +114,16 @@ export const applyDamage = (
   }
 };
 
-export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1): Enemy => {
+export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex = 0): Enemy => {
   const base = ENEMY_STATS[kind];
-  const start = world.path[0];
+  const path = world.paths[pathIndex] ?? world.paths[0];
+  const start = path[0];
   const hp = Math.ceil(base.hp * hpMul);
   const enemy: Enemy = {
     id: world.nextEntityId++,
     kind: base.kind,
     pos: { x: start.x, y: start.y },
+    pathIndex,
     segment: 0,
     segmentT: 0,
     hp,
@@ -289,7 +291,7 @@ export const addShake = (world: World, magnitude: number, decay = 6) => {
 };
 
 export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
-  samplePath(world.path, enemy.segment, enemy.segmentT);
+  samplePath(world.paths[enemy.pathIndex], enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
   const until = world.time + duration;

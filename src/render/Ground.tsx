@@ -29,17 +29,19 @@ const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: nu
   return dx * dx + dy * dy;
 };
 
-const nearPath = (path: Vec2[], x: number, y: number, clearance: number) => {
+const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
   const r2 = clearance * clearance;
-  for (let i = 0; i < path.length - 1; i++) {
-    if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+  for (const path of paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+    }
   }
   return false;
 };
 
 type Scatter = { x: number; y: number; scale: number; rot: number; tint: number };
 
-const buildScatter = (path: Vec2[], seed: number, count: number, clearance: number): Scatter[] => {
+const buildScatter = (paths: Vec2[][], seed: number, count: number, clearance: number): Scatter[] => {
   const rng = mulberry32(seed);
   const out: Scatter[] = [];
   let tries = 0;
@@ -47,7 +49,7 @@ const buildScatter = (path: Vec2[], seed: number, count: number, clearance: numb
     tries++;
     const x = (rng() - 0.5) * MAP_WIDTH;
     const y = (rng() - 0.5) * MAP_HEIGHT;
-    if (nearPath(path, x, y, clearance)) continue;
+    if (nearAnyPath(paths, x, y, clearance)) continue;
     out.push({
       x,
       y,
@@ -60,10 +62,10 @@ const buildScatter = (path: Vec2[], seed: number, count: number, clearance: numb
 };
 
 export const Ground = () => {
-  const path = useGame(s => s.world.path);
-  const tufts = useMemo(() => buildScatter(path, 1337, 240, PATH_WIDTH + 0.6), [path]);
-  const rocks = useMemo(() => buildScatter(path, 4242, 48, PATH_WIDTH + 1.0), [path]);
-  const mosses = useMemo(() => buildScatter(path, 9001, 90, PATH_WIDTH + 0.4), [path]);
+  const paths = useGame(s => s.world.paths);
+  const tufts = useMemo(() => buildScatter(paths, 1337, 240, PATH_WIDTH + 0.6), [paths]);
+  const rocks = useMemo(() => buildScatter(paths, 4242, 48, PATH_WIDTH + 1.0), [paths]);
+  const mosses = useMemo(() => buildScatter(paths, 9001, 90, PATH_WIDTH + 0.4), [paths]);
 
   const tuftGeom = useMemo(() => new THREE.ConeGeometry(0.12, 0.28, 5), []);
   const rockGeom = useMemo(() => new THREE.DodecahedronGeometry(0.35, 0), []);
