@@ -127,14 +127,10 @@ export const updateTowers = (world: World, dt: number) => {
       continue;
     }
 
-    let target: Enemy | null = null;
-    if (t.targetId !== null) {
-      const current = world.enemies.find(e => e.id === t.targetId && e.alive);
-      if (current && distSq(current.pos, t.pos) <= t.range * t.range) {
-        target = current;
-      }
-    }
-    if (!target) target = findTargetInRange(world, t);
+    // Re-evaluate target every tick so the mode always reflects current
+    // battlefield state — a slow enemy being passed by a faster one in "end"
+    // mode should get dropped immediately, not at the old target's death.
+    const target = findTargetInRange(world, t);
     t.targetId = target?.id ?? null;
 
     if (target && t.cooldown === 0) {
