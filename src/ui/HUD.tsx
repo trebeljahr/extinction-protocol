@@ -5,7 +5,7 @@ import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_T
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { EnemyPanel } from "./EnemyPanel";
-import { audio } from "../audio/AudioManager";
+import { PauseMenu } from "./PauseMenu";
 import { getLevel } from "../levels";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
@@ -18,39 +18,31 @@ export const HUD = () => {
   const setSelectedKind = useGame(s => s.setSelectedKind);
   const retry = useGame(s => s.retryCurrentLevel);
   const togglePause = useGame(s => s.togglePause);
-  const goToWorldMap = useGame(s => s.goToWorldMap);
   const callWaveEarly = useGame(s => s.callWaveEarly);
   const selectedLevelId = useGame(s => s.selectedLevelId);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
+  const paused = ui.status === "paused";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") { e.preventDefault(); callWaveEarly(); return; }
       if (e.code === "KeyP") { togglePause(); return; }
-      if (e.code === "KeyR") { retry(); return; }
       if (e.code === "Escape") {
+        e.preventDefault();
         const s = useGame.getState();
-        if (
-          s.selectedKind !== null ||
-          s.world.selectedTowerId !== null ||
-          s.inspectedEnemy.kind !== null
-        ) {
-          s.clearSelection();
-          (document.activeElement as HTMLElement | null)?.blur();
-        } else {
-          goToWorldMap();
-        }
+        if (s.world.status === "running" || s.world.status === "paused") togglePause();
+        (document.activeElement as HTMLElement | null)?.blur();
         return;
       }
-      if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
+      if (e.code === "KeyR") { retry(); return; }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, retry, setSelectedKind, selectedKind, goToWorldMap, callWaveEarly]);
+  }, [togglePause, retry, setSelectedKind, selectedKind, callWaveEarly]);
 
   return (
     <div className="hud">
@@ -86,10 +78,10 @@ export const HUD = () => {
         )}
         <button
           className="btn btn-ghost hud-map-btn"
-          onClick={goToWorldMap}
-          title="World Map (Esc)"
+          onClick={togglePause}
+          title="Menu (Esc)"
         >
-          World Map
+          Menu
         </button>
       </div>
 
@@ -142,19 +134,10 @@ export const HUD = () => {
         <span className="sep">·</span>
         <span>R: restart</span>
         <span className="sep">·</span>
-        <span>Esc: deselect / map</span>
-        <span className="sep">·</span>
-        <span>M: mute</span>
+        <span>Esc: menu</span>
       </div>
 
-      {ui.status === "paused" && (
-        <div className="overlay">
-          <div className="overlay-card">
-            <h1>Paused</h1>
-            <button onClick={togglePause} className="btn">Resume (P)</button>
-          </div>
-        </div>
-      )}
+      {paused && <PauseMenu onResume={togglePause} />}
     </div>
   );
 };
