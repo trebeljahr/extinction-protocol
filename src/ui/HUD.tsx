@@ -36,6 +36,7 @@ export const HUD = () => {
           s.inspectedEnemy.kind !== null
         ) {
           s.clearSelection();
+          (document.activeElement as HTMLElement | null)?.blur();
         } else {
           goToWorldMap();
         }
@@ -102,8 +103,19 @@ export const HUD = () => {
             <button
               key={kind}
               className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
-              onClick={() => setSelectedKind(selectedKind === kind ? null : kind)}
+              onClick={(e) => {
+                setSelectedKind(selectedKind === kind ? null : kind);
+                e.currentTarget.blur();
+              }}
             >
+              {active && (
+                <span
+                  className="card-cancel"
+                  role="button"
+                  aria-label="cancel selection"
+                  onClick={(e) => { e.stopPropagation(); setSelectedKind(null); }}
+                >×</span>
+              )}
               <div className={`tower-swatch kind-${kind}`} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
               <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
