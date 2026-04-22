@@ -11,10 +11,33 @@ export const updateEnemies = (world: World, dt: number) => {
     }
 
     const effectiveSpeed = e.speed * e.slowFactor;
-    const adv = advanceAlongPath(world.paths[e.pathIndex], e.segment, e.segmentT, effectiveSpeed * dt);
+    const path = world.paths[e.pathIndex];
+    const adv = advanceAlongPath(path, e.segment, e.segmentT, effectiveSpeed * dt);
     e.segment = adv.segment;
     e.segmentT = adv.segmentT;
-    e.pos = adv.pos;
+
+    // Nudge off the centerline so enemies spread across the lane. The
+    // normal is the segment direction rotated 90° — computed per-tick
+    // so the offset tracks the path through corners.
+    if (e.lateralOffset !== 0 && !adv.finished) {
+      const a = path[adv.segment];
+      const b = path[adv.segment + 1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 1e-6) {
+        const nx = -dy / len;
+        const ny = dx / len;
+        e.pos = {
+          x: adv.pos.x + nx * e.lateralOffset,
+          y: adv.pos.y + ny * e.lateralOffset,
+        };
+      } else {
+        e.pos = adv.pos;
+      }
+    } else {
+      e.pos = adv.pos;
+    }
 
     if (adv.finished) {
       world.lives -= e.damage;
