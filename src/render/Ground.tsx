@@ -98,19 +98,6 @@ const LAYERS: LayerSpec[] = [
     minScale: 0.55,
     maxScale: 1.2,
   },
-  {
-    seed: 7777,
-    urls: [
-      "/models/nature/Tree1.glb",
-      "/models/nature/Tree2.glb",
-      "/models/nature/Tree3.glb",
-      "/models/nature/Tree4.glb",
-    ],
-    count: 55,
-    clearance: PATH_WIDTH / 2 + 1.6,
-    minScale: 0.9,
-    maxScale: 1.5,
-  },
 ];
 
 const NatureInstances = ({

@@ -5,6 +5,7 @@ import type {
   EnemyKind,
   Tower,
   TowerKind,
+  Tree,
   Projectile,
   ProjectileKind,
   Beam,
@@ -14,40 +15,119 @@ import type {
 } from "./types";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
+import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
 
 export const STARTING_LIVES = 20;
 
-export const createWorld = (level: LevelConfig): World => ({
-  time: 0,
-  tickCount: 0,
-  levelId: level.id,
-  paths: level.paths,
-  plannedWaves: level.hpScale
-    ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
-    : level.waves,
-  enemies: [],
-  towers: [],
-  projectiles: [],
-  beams: [],
-  explosions: [],
-  particles: [],
-  spawnQueue: [],
-  wave: 0,
-  totalWaves: level.waves.length,
-  waveActive: false,
-  nextWaveIn: 2,
-  waveTotalEnemies: 0,
-  midwaveTimer: 0,
-  midwaveTimerMax: 0,
-  gold: level.startGold,
-  lives: STARTING_LIVES,
-  startLives: STARTING_LIVES,
-  status: "running",
-  nextEntityId: 1,
-  events: [],
-  shake: { magnitude: 0, decay: 0 },
-  selectedTowerId: null,
-});
+export const TREE_COUNT = 28;
+export const TREE_VARIANTS = 4;
+export const TREE_CLEARANCE_MARGIN = 2.0;
+export const TREE_MIN_SCALE = 0.55;
+export const TREE_MAX_SCALE = 0.95;
+export const TREE_MIN_SPACING = 2.2;
+export const TREE_FOOTPRINT = 0.85;
+export const TREE_REMOVE_COST = 8;
+
+const mulberry32 = (seed: number) => {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const apx = px - ax;
+  const apy = py - ay;
+  const len = abx * abx + aby * aby;
+  const t = len > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len)) : 0;
+  const cx = ax + t * abx;
+  const cy = ay + t * aby;
+  const dx = px - cx;
+  const dy = py - cy;
+  return dx * dx + dy * dy;
+};
+
+const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tree[]; nextId: number } => {
+  const rng = mulberry32(seed);
+  const trees: Tree[] = [];
+  const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
+  const pathR2 = clearance * clearance;
+  const spacingSq = TREE_MIN_SPACING * TREE_MIN_SPACING;
+  let nextId = firstId;
+  let tries = 0;
+  while (trees.length < TREE_COUNT && tries < TREE_COUNT * 40) {
+    tries++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.95;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const t of trees) {
+      const dx = t.pos.x - x;
+      const dy = t.pos.y - y;
+      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    trees.push({
+      id: nextId++,
+      pos: { x, y },
+      variant: Math.floor(rng() * TREE_VARIANTS),
+      scale: TREE_MIN_SCALE + rng() * (TREE_MAX_SCALE - TREE_MIN_SCALE),
+      rot: rng() * Math.PI * 2,
+    });
+  }
+  return { trees, nextId };
+};
+
+export const createWorld = (level: LevelConfig): World => {
+  const { trees, nextId } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  return {
+    time: 0,
+    tickCount: 0,
+    levelId: level.id,
+    paths: level.paths,
+    plannedWaves: level.hpScale
+      ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
+      : level.waves,
+    enemies: [],
+    towers: [],
+    trees,
+    projectiles: [],
+    beams: [],
+    explosions: [],
+    particles: [],
+    spawnQueue: [],
+    wave: 0,
+    totalWaves: level.waves.length,
+    waveActive: false,
+    nextWaveIn: 2,
+    waveTotalEnemies: 0,
+    midwaveTimer: 0,
+    midwaveTimerMax: 0,
+    gold: level.startGold,
+    lives: STARTING_LIVES,
+    startLives: STARTING_LIVES,
+    status: "running",
+    nextEntityId: nextId,
+    events: [],
+    shake: { magnitude: 0, decay: 0 },
+    selectedTowerId: null,
+  };
+};
 
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 

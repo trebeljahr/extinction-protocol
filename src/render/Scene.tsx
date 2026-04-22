@@ -1,4 +1,5 @@
 import { Ground } from "./Ground";
+import { Trees } from "./Trees";
 import { PathLine } from "./PathLine";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
@@ -35,6 +36,7 @@ export const PlayScene = () => (
 
     <SimTicker />
     <Ground />
+    <Trees />
     <Placement />
     <PathLine />
 
