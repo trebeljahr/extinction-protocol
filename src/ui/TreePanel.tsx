@@ -1,23 +1,14 @@
-import { useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useMemo } from "react";
+import { Canvas } from "@react-three/fiber";
 import { Center, useGLTF } from "@react-three/drei";
-import * as THREE from "three";
 import { useGame } from "../store";
 import { TREE_REMOVE_COST } from "../sim/world";
-import { BIOME_TREE_URLS } from "../biomes";
+import { BIOME_TREE_URLS, BIOME_STYLE } from "../biomes";
 
-const ModelSpinner = ({ url }: { url: string }) => {
+const StaticModel = ({ url }: { url: string }) => {
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => scene.clone(true), [scene]);
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.y += dt * 0.6;
-  });
-  return (
-    <group ref={ref}>
-      <primitive object={cloned} />
-    </group>
-  );
+  return <primitive object={cloned} />;
 };
 
 const obstacleLabel = (url: string): string => {
@@ -43,6 +34,7 @@ export const TreePanel = () => {
   const url = BIOME_TREE_URLS[biome][tree.variant];
   const label = obstacleLabel(url);
   const canAfford = gold >= TREE_REMOVE_COST;
+  const style = BIOME_STYLE[biome];
 
   return (
     <div className="tree-panel">
@@ -60,17 +52,20 @@ export const TreePanel = () => {
         >×</button>
       </div>
 
-      <div className="tree-preview">
+      <div className="tree-preview" style={{ background: style.groundColor }}>
         <Canvas
-          camera={{ position: [2.6, 2.4, 2.8], fov: 32 }}
+          camera={{ position: [3.2, 1.6, 0], fov: 26 }}
           dpr={[1, 2]}
+          frameloop="demand"
           gl={{ antialias: true, alpha: true }}
+          onCreated={({ camera }) => camera.lookAt(0, 0.7, 0)}
         >
-          <ambientLight intensity={0.75} />
-          <hemisphereLight args={["#ffeecc", "#3a3020", 0.6]} />
-          <directionalLight position={[4, 6, 3]} intensity={0.9} />
+          <color attach="background" args={[style.groundColor]} />
+          <ambientLight intensity={0.7} color={style.hemiTop} />
+          <directionalLight position={[4, 6, 3]} intensity={1.4} color="#fff4dc" />
+          <hemisphereLight args={[style.hemiTop, style.hemiBottom, 0.7]} />
           <Center>
-            <ModelSpinner url={url} />
+            <StaticModel url={url} />
           </Center>
         </Canvas>
       </div>
