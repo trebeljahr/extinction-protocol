@@ -35,9 +35,9 @@ export const App = () => {
         </Canvas>
       )}
 
-      {screen === "worldMap" && <WorldMapUI />}
-      {screen !== "worldMap" && <HUD />}
-      {screen === "results" && <ResultsScreen />}
+      {screen === "worldMap" && !compendiumOpen && <WorldMapUI />}
+      {screen !== "worldMap" && !compendiumOpen && <HUD />}
+      {screen === "results" && !compendiumOpen && <ResultsScreen />}
       {compendiumOpen && <Compendium />}
     </>
   );

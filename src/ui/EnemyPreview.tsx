@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { EnemyKind } from "../sim/types";
 import { ENEMY_MODEL } from "../sim/world";
@@ -17,7 +17,6 @@ const findClip = (clips: THREE.AnimationClip[], needle: string) =>
 const Creature = ({ kind }: { kind: EnemyKind }) => {
   const cfg = ENEMY_MODEL[kind];
   const gltf = useGLTF(cfg.url);
-  const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
   const obj = useMemo(() => {
@@ -54,20 +53,14 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
 
   useFrame((_, delta) => {
     mixerRef.current?.update(delta);
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.3;
-    }
   });
 
-  return (
-    <group ref={groupRef}>
-      <primitive object={obj} />
-    </group>
-  );
+  return <primitive object={obj} />;
 };
 
 export const EnemyPreview = ({ kind, size = 360 }: Props) => {
   const span = (ENEMY_MODEL[kind].targetSize + 0.4);
+  const target: [number, number, number] = [0, span * 0.35, 0];
   return (
     <div className="enemy-preview" style={{ width: size, height: size }}>
       <Canvas
@@ -80,32 +73,50 @@ export const EnemyPreview = ({ kind, size = 360 }: Props) => {
           near: 0.1,
           far: 50,
         }}
-        onCreated={({ camera }) => camera.lookAt(0, span * 0.35, 0)}
       >
-        <color attach="background" args={["#0c1420"]} />
-        <ambientLight intensity={0.8} color="#eef4ff" />
+        <color attach="background" args={["#1b2a22"]} />
+
+        {/* Matches PlayScene lighting so creatures don't look flat or dark. */}
+        <Environment preset="park" background={false} environmentIntensity={0.6} />
+        <ambientLight intensity={0.55} color="#eaf2ff" />
         <directionalLight
-          position={[3, 5, 4]}
-          intensity={2.0}
+          position={[span * 1.6, span * 2.6, span * 1.2]}
+          intensity={2.2}
           color="#fff4dc"
           castShadow
-          shadow-mapSize-width={512}
-          shadow-mapSize-height={512}
-          shadow-camera-left={-3}
-          shadow-camera-right={3}
-          shadow-camera-top={3}
-          shadow-camera-bottom={-3}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-camera-left={-span * 1.5}
+          shadow-camera-right={span * 1.5}
+          shadow-camera-top={span * 1.5}
+          shadow-camera-bottom={-span * 1.5}
+          shadow-bias={-0.0005}
         />
-        <hemisphereLight args={["#bed8ff", "#2a1f15", 0.6]} />
+        <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.85]} />
 
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[span * 0.9, 40]} />
-          <meshStandardMaterial color="#182436" roughness={0.9} />
+          <meshStandardMaterial color="#2b3e28" roughness={0.98} metalness={0} />
         </mesh>
 
         <Suspense fallback={null}>
           <Creature kind={kind} />
         </Suspense>
+
+        <OrbitControls
+          makeDefault
+          target={target}
+          enablePan={false}
+          enableZoom
+          minDistance={span * 1.2}
+          maxDistance={span * 4.5}
+          minPolarAngle={Math.PI * 0.15}
+          maxPolarAngle={Math.PI * 0.55}
+          autoRotate
+          autoRotateSpeed={0.9}
+          enableDamping
+          dampingFactor={0.08}
+        />
       </Canvas>
     </div>
   );
