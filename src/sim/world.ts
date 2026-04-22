@@ -269,7 +269,7 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   allosaur: { url: "/models/Trex.glb",            targetSize: 2.2 },
   stego:    { url: "/models/Stegosaurus.glb",     targetSize: 1.9 },
   armored:  { url: "/models/Triceratops.glb",     targetSize: 2.0 },
-  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 5.5, clip: "Walk" },
+  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 11.0, clip: "Walk" },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {

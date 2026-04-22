@@ -30,9 +30,18 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
     cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
     cloned.traverse(o => {
       const m = o as THREE.Mesh;
-      if (m.isMesh) {
-        m.castShadow = true;
-        m.receiveShadow = true;
+      if (!m.isMesh) return;
+      m.castShadow = true;
+      m.receiveShadow = true;
+      // Clone materials so the preview Canvas compiles its own shaders.
+      // Without this, some models (notably Trex) come back rendered
+      // flat-white because the material was first compiled against the
+      // main PlayScene renderer and shared state gets stale when we
+      // use the same material in this separate Canvas.
+      if (Array.isArray(m.material)) {
+        m.material = m.material.map(mm => mm.clone());
+      } else if (m.material) {
+        m.material = (m.material as THREE.Material).clone();
       }
     });
     return cloned;
@@ -86,16 +95,24 @@ export const EnemyPreview = ({ kind, size = 360 }: Props) => {
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
-          shadow-camera-left={-span * 1.5}
-          shadow-camera-right={span * 1.5}
-          shadow-camera-top={span * 1.5}
-          shadow-camera-bottom={-span * 1.5}
+          shadow-camera-left={-span * 2.5}
+          shadow-camera-right={span * 2.5}
+          shadow-camera-top={span * 2.5}
+          shadow-camera-bottom={-span * 2.5}
           shadow-bias={-0.0005}
         />
         <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.85]} />
 
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <circleGeometry args={[span * 0.9, 40]} />
+        {/*
+          Ground disc is sized to comfortably catch shadows for any creature
+          — span*2.5 so a sweeping tail/limb doesn't push its shadow off the
+          edge. Sat at y=-0.02 so it's always just *below* the creature's
+          bbox-computed foot level: some animations dip the visible mesh a
+          hair below the bind pose and without this the creature looked
+          like it was floating above the plane.
+        */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+          <circleGeometry args={[span * 2.5, 56]} />
           <meshStandardMaterial color="#2b3e28" roughness={0.98} metalness={0} />
         </mesh>
 
