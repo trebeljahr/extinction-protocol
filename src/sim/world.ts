@@ -244,7 +244,7 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
   stego:    { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6 },
-  swarm:    { kinetic: 0.6, electric: 1.4, cold: 1.3, explosive: 1.7 },
+  swarm:    { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7 },
   armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
   titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
