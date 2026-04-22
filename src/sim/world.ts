@@ -216,7 +216,7 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0,  bounty:  1, damage: 1 },
   armored:  { kind: "armored",  hp: 300, maxHp: 300, speed: 1.1,  bounty: 22, damage: 1 },
   para:     { kind: "para",     hp: 45,  maxHp: 45,  speed: 1.8,  bounty:  5, damage: 2 },
-  titan:    { kind: "titan",    hp: 600, maxHp: 600, speed: 0.65, bounty: 48, damage: 8 },
+  titan:    { kind: "titan",    hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
