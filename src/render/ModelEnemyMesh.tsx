@@ -115,7 +115,6 @@ export const ModelEnemyMesh = ({
         const apply = (mm: THREE.MeshStandardMaterial) => {
           if (!mm.emissive) return;
           if (flashing) mm.emissive.setRGB(1, 1, 1);
-          else if (slowed) mm.emissive.setRGB(0.2, 0.4, 0.7);
           else mm.emissive.setRGB(0, 0, 0);
         };
         if (Array.isArray(mat)) mat.forEach(apply);

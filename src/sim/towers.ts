@@ -1,6 +1,6 @@
 import type { World, Tower, Enemy } from "./types";
 import { distSq } from "./vec2";
-import { createProjectile, createBeam, emit, applySlow, applyDamage } from "./world";
+import { createProjectile, createBeam, createCryoWave, emit, applySlow, applyDamage, spawnParticles } from "./world";
 
 const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
@@ -70,8 +70,10 @@ const fireCryo = (world: World, t: Tower): boolean => {
     hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
     e.flashUntil = world.time + 0.06;
+    spawnParticles(world, e.pos, 3, "#cdf4ff", [1.2, 2.4], 0.55);
     if (t.damage > 0) applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6);
   }
+  if (hit) createCryoWave(world, t.pos, t.range);
   return hit;
 };
 

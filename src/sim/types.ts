@@ -96,6 +96,14 @@ export type Explosion = {
   maxLife: number;
 };
 
+export type CryoWave = {
+  id: EntityId;
+  pos: Vec2;
+  maxRadius: number;
+  expiresAt: number;
+  maxLife: number;
+};
+
 export type Particle = {
   id: EntityId;
   pos: Vec2;
@@ -158,6 +166,7 @@ export type World = {
   projectiles: Projectile[];
   beams: Beam[];
   explosions: Explosion[];
+  cryoWaves: CryoWave[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
   wave: number;

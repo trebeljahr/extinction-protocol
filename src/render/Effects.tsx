@@ -5,6 +5,7 @@ import { useGame } from "../store";
 
 const MAX_PARTICLES = 512;
 const MAX_EXPLOSIONS = 32;
+const MAX_CRYO_WAVES = 16;
 const MAX_BEAMS = 32;
 const MAX_BEAM_POINTS = 16;
 const BEAM_SUBDIVISIONS = 6; // interior noise points per source segment
@@ -46,6 +47,7 @@ export const Effects = () => {
   const explosionMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const flashRef = useRef<THREE.InstancedMesh>(null);
   const flashMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const cryoWaveRef = useRef<THREE.InstancedMesh>(null);
   const beamsGroupRef = useRef<THREE.Group>(null);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -141,6 +143,29 @@ export const Effects = () => {
     for (let k = 0; k < beamPairs.length; k++) {
       beamPairs[k].core.line.visible = false;
       beamPairs[k].halo.line.visible = false;
+    }
+
+    const wMesh = cryoWaveRef.current;
+    if (wMesh) {
+      let i = 0;
+      for (const w of world.cryoWaves) {
+        if (i >= MAX_CRYO_WAVES) break;
+        const life = Math.max(0, (w.expiresAt - now) / w.maxLife);
+        const progress = 1 - life;
+        const radius = w.maxRadius * (0.2 + progress * 0.95);
+        dummy.position.set(w.pos.x, 0.06, -w.pos.y);
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
+        dummy.scale.set(radius, radius, 1);
+        dummy.updateMatrix();
+        wMesh.setMatrixAt(i, dummy.matrix);
+        color.set("#bfeefa");
+        color.multiplyScalar(0.55 + life * 0.45);
+        wMesh.setColorAt(i, color);
+        i++;
+      }
+      wMesh.count = i;
+      wMesh.instanceMatrix.needsUpdate = true;
+      if (wMesh.instanceColor) wMesh.instanceColor.needsUpdate = true;
     }
 
     let idx = 0;
@@ -256,6 +281,11 @@ export const Effects = () => {
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
+      </instancedMesh>
+
+      <instancedMesh ref={cryoWaveRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
+        <ringGeometry args={[0.82, 1.0, 48]} />
+        <meshBasicMaterial toneMapped={false} transparent opacity={0.75} side={THREE.DoubleSide} depthWrite={false} />
       </instancedMesh>
 
       <group ref={beamsGroupRef} />

@@ -11,6 +11,7 @@ import type {
   ProjectileKind,
   Beam,
   Explosion,
+  CryoWave,
   GameEvent,
   DamageType,
 } from "./types";
@@ -184,6 +185,7 @@ export const createWorld = (level: LevelConfig): World => {
     projectiles: [],
     beams: [],
     explosions: [],
+    cryoWaves: [],
     particles: [],
     spawnQueue: [],
     wave: 0,
@@ -415,6 +417,23 @@ export const createBeam = (
   };
   world.beams.push(b);
   return b;
+};
+
+export const createCryoWave = (
+  world: World,
+  pos: Vec2,
+  maxRadius: number,
+  lifeSec = 0.55,
+): CryoWave => {
+  const w: CryoWave = {
+    id: world.nextEntityId++,
+    pos: { x: pos.x, y: pos.y },
+    maxRadius,
+    expiresAt: world.time + lifeSec,
+    maxLife: lifeSec,
+  };
+  world.cryoWaves.push(w);
+  return w;
 };
 
 export const createExplosion = (

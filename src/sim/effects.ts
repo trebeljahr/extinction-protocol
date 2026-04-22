@@ -9,6 +9,10 @@ export const updateExplosions = (world: World) => {
   world.explosions = world.explosions.filter(e => e.expiresAt > world.time);
 };
 
+export const updateCryoWaves = (world: World) => {
+  world.cryoWaves = world.cryoWaves.filter(w => w.expiresAt > world.time);
+};
+
 export const updateParticles = (world: World, dt: number) => {
   for (const p of world.particles) {
     p.pos = add(p.pos, scale(p.vel, dt));
