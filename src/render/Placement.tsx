@@ -5,26 +5,28 @@ import { useGame } from "../store";
 import { MAP_WIDTH, MAP_HEIGHT } from "../level";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
 
-const snap = (n: number, step = 1) => Math.round(n / step) * step;
+type Hover = { raw: { x: number; y: number }; snap: { x: number; y: number } };
+const snapPt = (x: number, y: number) => ({ x: Math.round(x), y: Math.round(y) });
 
 export const Placement = () => {
-  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<Hover | null>(null);
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
   const selectedKind = useGame(s => s.selectedKind);
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
-    setHover({ x: snap(e.point.x), y: snap(-e.point.z) });
+    const raw = { x: e.point.x, y: -e.point.z };
+    setHover({ raw, snap: snapPt(raw.x, raw.y) });
   };
 
   const onPointerOut = () => setHover(null);
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    useGame.getState().tryPlaceOrSelect({ x: snap(e.point.x), y: snap(-e.point.z) });
+    useGame.getState().tryPlaceOrSelect({ x: e.point.x, y: -e.point.z });
   };
 
-  const hoveredTower = hover !== null ? useGame.getState().towerAtPos(hover) : null;
+  const hoveredTower = hover !== null ? useGame.getState().towerAtPos(hover.raw) : null;
 
   const showPlacement =
     hover !== null &&
@@ -35,7 +37,7 @@ export const Placement = () => {
   const canPlaceHere =
     showPlacement &&
     gold >= TOWER_COST[selectedKind!] &&
-    useGame.getState().canPlace(hover!);
+    useGame.getState().canPlace(hover!.snap);
 
   const placementColor = canPlaceHere ? "#3dff8a" : "#ff5a7a";
   const range = selectedKind ? TOWER_STATS[selectedKind].range : 0;
@@ -68,7 +70,7 @@ export const Placement = () => {
       )}
 
       {showPlacement && (
-        <group position={[hover!.x, 0, -hover!.y]}>
+        <group position={[hover!.snap.x, 0, -hover!.snap.y]}>
           <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.55, 0.7, 24]} />
             <meshBasicMaterial color={placementColor} transparent opacity={0.9} side={THREE.DoubleSide} />

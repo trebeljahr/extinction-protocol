@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode, EnemyKind } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
-import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
+import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
@@ -40,6 +40,7 @@ type UiSnapshot = {
   nextWaveIn: number;
   canCallEarly: boolean;
   callEarlyBonus: number;
+  callEarlyTimer: number;
   selectedTowerId: number | null;
   towerVersion: number;
   inspectedEnemyId: number | null;
@@ -70,6 +71,7 @@ const snapshot = (
     nextWaveIn: Math.ceil(w.nextWaveIn),
     canCallEarly: canCallEarly(w),
     callEarlyBonus: earlyCallGoldReward(w),
+    callEarlyTimer: Math.ceil(earlyCallTimerSec(w)),
     selectedTowerId: w.selectedTowerId,
     towerVersion,
     inspectedEnemyId: inspect.id,
@@ -90,6 +92,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.nextWaveIn === b.nextWaveIn &&
   a.canCallEarly === b.canCallEarly &&
   a.callEarlyBonus === b.callEarlyBonus &&
+  a.callEarlyTimer === b.callEarlyTimer &&
   a.selectedTowerId === b.selectedTowerId &&
   a.towerVersion === b.towerVersion &&
   a.inspectedEnemyId === b.inspectedEnemyId &&
@@ -114,9 +117,11 @@ const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
 
 const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
   const r2 = clearance * clearance;
-  for (let i = 0; i < world.path.length - 1; i++) {
-    if (segmentLength(world.path, i) === 0) continue;
-    if (distToSegmentSq(pos, world.path[i], world.path[i + 1]) < r2) return true;
+  for (const path of world.paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (segmentLength(path, i) === 0) continue;
+      if (distToSegmentSq(pos, path[i], path[i + 1]) < r2) return true;
+    }
   }
   return false;
 };
@@ -130,7 +135,7 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   return true;
 };
 
-const towerAt = (world: World, pos: Vec2, radius = 0.7): Tower | null => {
+const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
   const r2 = radius * radius;
   for (const t of world.towers) {
     if (distSq(t.pos, pos) <= r2) return t;
@@ -342,12 +347,19 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
 
-    if (s.selectedKind === null) return;
+    if (s.selectedKind === null) {
+      if (w.selectedTowerId !== null) {
+        w.selectedTowerId = null;
+        set({ ui: snapshot(w, s.towerVersion, s.inspectedEnemy) });
+      }
+      return;
+    }
+    const snapped = { x: Math.round(pos.x), y: Math.round(pos.y) };
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
-    if (!canPlaceAt(w, pos)) return;
+    if (!canPlaceAt(w, snapped)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, pos);
+    const t = createTower(w, s.selectedKind, snapped);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
     set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.inspectedEnemy) });

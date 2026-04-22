@@ -1,12 +1,22 @@
 import { useMemo } from "react";
 import * as THREE from "three";
+import type { Vec2 } from "../sim/types";
 import { PATH_WIDTH } from "../level";
 import { segmentLength } from "../sim/path";
 import { useGame } from "../store";
 
 export const PathLine = () => {
-  const path = useGame(s => s.world.path);
+  const paths = useGame(s => s.world.paths);
+  return (
+    <group>
+      {paths.map((path, i) => (
+        <SinglePath key={i} path={path} />
+      ))}
+    </group>
+  );
+};
 
+const SinglePath = ({ path }: { path: Vec2[] }) => {
   const segments = useMemo(() => {
     const out: { pos: [number, number, number]; rotY: number; length: number }[] = [];
     for (let i = 0; i < path.length - 1; i++) {
@@ -33,13 +43,13 @@ export const PathLine = () => {
       {segments.map((s, i) => (
         <mesh key={i} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
           <planeGeometry args={[s.length, PATH_WIDTH]} />
-          <meshStandardMaterial color="#3a2e22" roughness={1} />
+          <meshStandardMaterial color="#c9a876" roughness={1} />
         </mesh>
       ))}
       {joints.map((p, i) => (
         <mesh key={`j${i}`} position={p} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[PATH_WIDTH / 2, 16]} />
-          <meshStandardMaterial color="#3a2e22" roughness={1} />
+          <meshStandardMaterial color="#c9a876" roughness={1} />
         </mesh>
       ))}
       <mesh

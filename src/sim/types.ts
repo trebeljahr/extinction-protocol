@@ -2,12 +2,13 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored";
+export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored" | "para" | "titan";
 
 export type Enemy = {
   id: EntityId;
   kind: EnemyKind;
   pos: Vec2;
+  pathIndex: number;
   segment: number;
   segmentT: number;
   hp: number;
@@ -91,11 +92,13 @@ export type SpawnRequest = {
   kind: EnemyKind;
   at: number;
   hpMul: number;
+  pathIndex: number;
 };
 
 export type EnemySpec = {
   kind: EnemyKind;
   count: number;
+  pathIndex?: number;
 };
 
 export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
@@ -128,7 +131,7 @@ export type World = {
   time: number;
   tickCount: number;
   levelId: number;
-  path: Vec2[];
+  paths: Vec2[][];
   plannedWaves: WaveSpec[];
   enemies: Enemy[];
   towers: Tower[];
@@ -142,6 +145,8 @@ export type World = {
   waveActive: boolean;
   nextWaveIn: number;
   waveTotalEnemies: number;
+  midwaveTimer: number;
+  midwaveTimerMax: number;
   gold: number;
   lives: number;
   startLives: number;

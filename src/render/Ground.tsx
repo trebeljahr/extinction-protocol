@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
+import { useGLTF } from "@react-three/drei";
 import type { Vec2 } from "../sim/types";
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
 import { useGame } from "../store";
@@ -29,133 +30,170 @@ const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: nu
   return dx * dx + dy * dy;
 };
 
-const nearPath = (path: Vec2[], x: number, y: number, clearance: number) => {
+const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
   const r2 = clearance * clearance;
-  for (let i = 0; i < path.length - 1; i++) {
-    if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+  for (const path of paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+    }
   }
   return false;
 };
 
-type Scatter = { x: number; y: number; scale: number; rot: number; tint: number };
+type Placement = { x: number; y: number; scale: number; rot: number };
 
-const buildScatter = (path: Vec2[], seed: number, count: number, clearance: number): Scatter[] => {
-  const rng = mulberry32(seed);
-  const out: Scatter[] = [];
+type LayerSpec = {
+  seed: number;
+  urls: string[];
+  count: number;
+  clearance: number;
+  minScale: number;
+  maxScale: number;
+};
+
+const buildLayer = (paths: Vec2[][], spec: LayerSpec): Placement[][] => {
+  const rng = mulberry32(spec.seed);
+  const buckets: Placement[][] = spec.urls.map(() => []);
   let tries = 0;
-  while (out.length < count && tries < count * 20) {
+  let placed = 0;
+  while (placed < spec.count && tries < spec.count * 30) {
     tries++;
     const x = (rng() - 0.5) * MAP_WIDTH;
     const y = (rng() - 0.5) * MAP_HEIGHT;
-    if (nearPath(path, x, y, clearance)) continue;
-    out.push({
+    if (nearAnyPath(paths, x, y, spec.clearance)) continue;
+    const variant = Math.floor(rng() * spec.urls.length);
+    buckets[variant].push({
       x,
       y,
-      scale: 0.6 + rng() * 0.8,
+      scale: spec.minScale + rng() * (spec.maxScale - spec.minScale),
       rot: rng() * Math.PI * 2,
-      tint: rng(),
     });
+    placed++;
   }
-  return out;
+  return buckets;
+};
+
+const LAYERS: LayerSpec[] = [
+  {
+    seed: 1337,
+    urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
+    count: 220,
+    clearance: PATH_WIDTH / 2 + 0.3,
+    minScale: 0.6,
+    maxScale: 1.1,
+  },
+  {
+    seed: 9001,
+    urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
+    count: 70,
+    clearance: PATH_WIDTH / 2 + 0.8,
+    minScale: 0.75,
+    maxScale: 1.35,
+  },
+  {
+    seed: 4242,
+    urls: ["/models/nature/Rock1.glb", "/models/nature/Rock2.glb", "/models/nature/Rock3.glb"],
+    count: 50,
+    clearance: PATH_WIDTH / 2 + 0.9,
+    minScale: 0.55,
+    maxScale: 1.2,
+  },
+  {
+    seed: 7777,
+    urls: [
+      "/models/nature/Tree1.glb",
+      "/models/nature/Tree2.glb",
+      "/models/nature/Tree3.glb",
+      "/models/nature/Tree4.glb",
+    ],
+    count: 55,
+    clearance: PATH_WIDTH / 2 + 1.6,
+    minScale: 0.9,
+    maxScale: 1.5,
+  },
+];
+
+const NatureInstances = ({
+  url,
+  placements,
+  castShadow,
+}: {
+  url: string;
+  placements: Placement[];
+  castShadow: boolean;
+}) => {
+  const { scene } = useGLTF(url);
+  const instRef = useRef<THREE.InstancedMesh>(null);
+
+  const source = useMemo(() => {
+    let mesh: THREE.Mesh | null = null;
+    scene.traverse(o => {
+      if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
+    });
+    if (!mesh) return null;
+    const m = mesh as THREE.Mesh;
+    m.updateMatrixWorld(true);
+    const geom = m.geometry.clone();
+    geom.applyMatrix4(m.matrixWorld);
+    geom.computeBoundingBox();
+    const minY = geom.boundingBox?.min.y ?? 0;
+    return { geom, material: m.material as THREE.Material, minY };
+  }, [scene]);
+
+  useEffect(() => {
+    const im = instRef.current;
+    if (!im || !source) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < placements.length; i++) {
+      const p = placements[i];
+      dummy.position.set(p.x, -source.minY * p.scale, -p.y);
+      dummy.rotation.set(0, p.rot, 0);
+      dummy.scale.setScalar(p.scale);
+      dummy.updateMatrix();
+      im.setMatrixAt(i, dummy.matrix);
+    }
+    im.count = placements.length;
+    im.instanceMatrix.needsUpdate = true;
+  }, [placements, source]);
+
+  if (!source || placements.length === 0) return null;
+
+  return (
+    <instancedMesh
+      ref={instRef}
+      args={[source.geom, source.material, placements.length]}
+      castShadow={castShadow}
+      receiveShadow
+    />
+  );
 };
 
 export const Ground = () => {
-  const path = useGame(s => s.world.path);
-  const tufts = useMemo(() => buildScatter(path, 1337, 240, PATH_WIDTH + 0.6), [path]);
-  const rocks = useMemo(() => buildScatter(path, 4242, 48, PATH_WIDTH + 1.0), [path]);
-  const mosses = useMemo(() => buildScatter(path, 9001, 90, PATH_WIDTH + 0.4), [path]);
-
-  const tuftGeom = useMemo(() => new THREE.ConeGeometry(0.12, 0.28, 5), []);
-  const rockGeom = useMemo(() => new THREE.DodecahedronGeometry(0.35, 0), []);
-  const mossGeom = useMemo(() => new THREE.CircleGeometry(0.5, 10), []);
-
-  const tuftMesh = useMemo(() => {
-    const mesh = new THREE.InstancedMesh(
-      tuftGeom,
-      new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 }),
-      tufts.length,
-    );
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    for (let i = 0; i < tufts.length; i++) {
-      const t = tufts[i];
-      dummy.position.set(t.x, 0.14 * t.scale, -t.y);
-      dummy.rotation.set(0, t.rot, 0);
-      dummy.scale.setScalar(t.scale);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      const h = 0.24 + t.tint * 0.08;
-      color.setHSL(h, 0.45 + t.tint * 0.2, 0.32 + t.tint * 0.18);
-      mesh.setColorAt(i, color);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    return mesh;
-  }, [tufts, tuftGeom]);
-
-  const rockMesh = useMemo(() => {
-    const mesh = new THREE.InstancedMesh(
-      rockGeom,
-      new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.02 }),
-      rocks.length,
-    );
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    for (let i = 0; i < rocks.length; i++) {
-      const r = rocks[i];
-      dummy.position.set(r.x, 0.1 * r.scale, -r.y);
-      dummy.rotation.set(r.tint * 0.7, r.rot, r.tint * 0.4);
-      dummy.scale.setScalar(r.scale * 0.75);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      const g = 0.36 + r.tint * 0.15;
-      color.setRGB(g, g - 0.02, g - 0.06);
-      mesh.setColorAt(i, color);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    return mesh;
-  }, [rocks, rockGeom]);
-
-  const mossMesh = useMemo(() => {
-    const mesh = new THREE.InstancedMesh(
-      mossGeom,
-      new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, transparent: true, opacity: 0.55 }),
-      mosses.length,
-    );
-    mesh.receiveShadow = true;
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    for (let i = 0; i < mosses.length; i++) {
-      const m = mosses[i];
-      dummy.position.set(m.x, 0.012, -m.y);
-      dummy.rotation.set(-Math.PI / 2, 0, m.rot);
-      dummy.scale.setScalar(m.scale * 1.5);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      const h = 0.22 + m.tint * 0.08;
-      color.setHSL(h, 0.35, 0.22 + m.tint * 0.1);
-      mesh.setColorAt(i, color);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    return mesh;
-  }, [mosses, mossGeom]);
+  const paths = useGame(s => s.world.paths);
+  const layers = useMemo(
+    () => LAYERS.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),
+    [paths],
+  );
 
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[MAP_WIDTH, MAP_HEIGHT]} />
-        <meshStandardMaterial color="#2b3e28" roughness={0.98} metalness={0} />
+        <meshStandardMaterial color="#475c38" roughness={0.98} metalness={0} />
       </mesh>
 
-      <primitive object={mossMesh} />
-      <primitive object={tuftMesh} />
-      <primitive object={rockMesh} />
+      {layers.flatMap(({ spec, buckets }, li) =>
+        buckets.map((placements, vi) => (
+          <NatureInstances
+            key={`${li}-${vi}`}
+            url={spec.urls[vi]}
+            placements={placements}
+            castShadow={li >= 2}
+          />
+        )),
+      )}
     </group>
   );
 };
+
+for (const url of LAYERS.flatMap(l => l.urls)) useGLTF.preload(url);

@@ -44,10 +44,13 @@ export const getWavePlan = (world: World, wave: number): { archetype: WaveArchet
   return { archetype: spec.archetype ?? inferArchetype(spec) };
 };
 
-const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
-  const out: EnemyKind[] = [];
+type RosterEntry = { kind: EnemyKind; pathIndex: number };
+
+const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
+  const out: RosterEntry[] = [];
   for (const s of spec.spawns) {
-    for (let i = 0; i < s.count; i++) out.push(s.kind);
+    const pathIndex = s.pathIndex ?? 0;
+    for (let i = 0; i < s.count; i++) out.push({ kind: s.kind, pathIndex });
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
   if (archetype === "swarm") return out;
@@ -60,10 +63,23 @@ const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
 
 const WAVE_GAP_SECONDS = 2;
 const EARLY_CALL_THRESHOLD = 1 / 2;
+const MIDWAVE_PER_ENEMY_SEC = 0.4;
+const MIDWAVE_BUFFER_SEC = 1.0;
+
+const remainingEnemies = (world: World) =>
+  world.spawnQueue.length + world.enemies.length;
+
+const midwaveThresholdCrossed = (world: World): boolean => {
+  if (!world.waveActive) return false;
+  if (world.waveTotalEnemies <= 0) return false;
+  return remainingEnemies(world) <= world.waveTotalEnemies * EARLY_CALL_THRESHOLD;
+};
 
 const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
+  world.midwaveTimer = 0;
+  world.midwaveTimerMax = 0;
   const spec = world.plannedWaves[world.wave - 1];
   const roster = rosterFromSpec(spec);
   world.waveTotalEnemies = roster.length;
@@ -71,25 +87,41 @@ const startWave = (world: World) => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - world.wave * 0.03);
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
-    world.spawnQueue.push({ kind: roster[i], at: t, hpMul });
+    world.spawnQueue.push({ kind: roster[i].kind, at: t, hpMul, pathIndex: roster[i].pathIndex });
   }
   emit(world, { type: "wave-start", wave: world.wave });
 };
 
-export const earlyCallBonus = (world: World): number =>
+const earlyCallBase = (world: World): number =>
   world.wave === 0 ? 0 : 15 + world.wave;
+
+export const earlyCallBonus = (world: World): number => {
+  const base = earlyCallBase(world);
+  if (base <= 0) return 0;
+  if (!world.waveActive) {
+    if (WAVE_GAP_SECONDS <= 0) return 0;
+    const frac = Math.max(0, Math.min(1, world.nextWaveIn / WAVE_GAP_SECONDS));
+    return Math.ceil(base * frac);
+  }
+  if (world.midwaveTimerMax <= 0) return 0;
+  const frac = Math.max(0, Math.min(1, world.midwaveTimer / world.midwaveTimerMax));
+  return Math.ceil(base * frac);
+};
 
 export const canCallEarly = (world: World): boolean => {
   if (world.status !== "running") return false;
   if (world.wave >= world.totalWaves) return false;
   if (!world.waveActive) return true;
-  if (world.waveTotalEnemies <= 0) return false;
-  const remaining = world.spawnQueue.length + world.enemies.length;
-  return remaining <= world.waveTotalEnemies * EARLY_CALL_THRESHOLD;
+  return midwaveThresholdCrossed(world) && world.midwaveTimerMax > 0;
 };
 
 export const earlyCallGoldReward = (world: World): number =>
   canCallEarly(world) ? earlyCallBonus(world) : 0;
+
+export const earlyCallTimerSec = (world: World): number => {
+  if (!world.waveActive) return world.nextWaveIn;
+  return world.midwaveTimer;
+};
 
 export const callWaveEarly = (world: World): boolean => {
   if (!canCallEarly(world)) return false;
@@ -111,12 +143,29 @@ export const spawnerTick = (world: World, dt: number) => {
 
   while (world.spawnQueue.length > 0 && world.spawnQueue[0].at <= world.time) {
     const req = world.spawnQueue.shift()!;
-    spawnEnemy(world, req.kind, req.hpMul);
+    spawnEnemy(world, req.kind, req.hpMul, req.pathIndex);
+  }
+
+  if (midwaveThresholdCrossed(world)) {
+    if (world.midwaveTimerMax === 0) {
+      const initial = remainingEnemies(world) * MIDWAVE_PER_ENEMY_SEC + MIDWAVE_BUFFER_SEC;
+      world.midwaveTimerMax = initial;
+      world.midwaveTimer = initial;
+    } else {
+      world.midwaveTimer = Math.max(0, world.midwaveTimer - dt);
+    }
+    if (world.midwaveTimer <= 0 && world.wave < world.totalWaves) {
+      world.nextWaveIn = 0;
+      startWave(world);
+      return;
+    }
   }
 
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
     world.waveActive = false;
     world.nextWaveIn = WAVE_GAP_SECONDS;
+    world.midwaveTimer = 0;
+    world.midwaveTimerMax = 0;
     const bonus = 5 + world.wave;
     world.gold += bonus;
     emit(world, { type: "wave-clear", wave: world.wave });
