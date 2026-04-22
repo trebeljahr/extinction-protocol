@@ -22,7 +22,9 @@ export const createWorld = (level: LevelConfig): World => ({
   tickCount: 0,
   levelId: level.id,
   path: level.path,
-  plannedWaves: level.waves,
+  plannedWaves: level.hpScale
+    ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
+    : level.waves,
   enemies: [],
   towers: [],
   projectiles: [],
