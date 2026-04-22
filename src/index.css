@@ -243,8 +243,11 @@ canvas { display: block; touch-action: none; }
 
 .tower-preview-wrap {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 .tower-preview-wrap > .tower-swatch {
   width: 100%;
@@ -324,6 +327,7 @@ canvas { display: block; touch-action: none; }
 .card-cancel:hover { background: rgba(255, 122, 154, 0.2); color: #ff9db3; }
 
 .tower-swatch {
+  position: relative;
   width: 56px;
   height: 56px;
   border-radius: 6px;
@@ -331,7 +335,17 @@ canvas { display: block; touch-action: none; }
   overflow: hidden;
 }
 
-.tower-swatch > canvas { display: block; width: 100% !important; height: 100% !important; }
+/* r3f nests the canvas inside wrapper divs, so match at any depth. Force
+   absolute positioning so the inner canvas collapses to the swatch box
+   instead of pushing the parent tall. */
+.tower-swatch > div,
+.tower-swatch > div > div {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+.tower-swatch canvas { display: block; width: 100% !important; height: 100% !important; }
 
 .tower-swatch.kind-pulse  { background: linear-gradient(135deg, #3a5068 40%, #9fd8ff); }
 .tower-swatch.kind-chain  { background: linear-gradient(135deg, #4a3868 40%, #c48cff); }
