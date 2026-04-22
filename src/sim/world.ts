@@ -6,6 +6,7 @@ import type {
   Tower,
   TowerKind,
   Tree,
+  Slot,
   Projectile,
   ProjectileKind,
   Beam,
@@ -27,6 +28,12 @@ export const TREE_MAX_SCALE = 0.95;
 export const TREE_MIN_SPACING = 2.2;
 export const TREE_FOOTPRINT = 0.85;
 export const TREE_REMOVE_COST = 8;
+
+export const SLOT_COUNT_DEFAULT = 12;
+export const SLOT_CLEARANCE_MARGIN = 0.9;
+export const SLOT_MIN_SPACING = 2.6;
+export const SLOT_TREE_CLEARANCE = 1.3;
+export const SLOT_SNAP_RADIUS = 1.4;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
@@ -93,8 +100,57 @@ const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tr
   return { trees, nextId };
 };
 
+const buildSlots = (
+  paths: Vec2[][],
+  trees: Tree[],
+  seed: number,
+  firstId: number,
+  count: number,
+): { slots: Slot[]; nextId: number } => {
+  const rng = mulberry32(seed);
+  const slots: Slot[] = [];
+  const pathClear = PATH_WIDTH / 2 + SLOT_CLEARANCE_MARGIN;
+  const pathR2 = pathClear * pathClear;
+  const spacingSq = SLOT_MIN_SPACING * SLOT_MIN_SPACING;
+  const treeR2 = SLOT_TREE_CLEARANCE * SLOT_TREE_CLEARANCE;
+  let nextId = firstId;
+  let tries = 0;
+  while (slots.length < count && tries < count * 60) {
+    tries++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.9;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.9;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const s of slots) {
+      const dx = s.pos.x - x;
+      const dy = s.pos.y - y;
+      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    for (const tr of trees) {
+      const dx = tr.pos.x - x;
+      const dy = tr.pos.y - y;
+      if (dx * dx + dy * dy < treeR2) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    slots.push({ id: nextId++, pos: { x, y }, towerId: null });
+  }
+  return { slots, nextId };
+};
+
 export const createWorld = (level: LevelConfig): World => {
-  const { trees, nextId } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
+  const slotCount = level.slotCount ?? SLOT_COUNT_DEFAULT;
+  const { slots, nextId } = buildSlots(level.paths, trees, level.id * 3301 + 17, afterTrees, slotCount);
   return {
     time: 0,
     tickCount: 0,
@@ -107,6 +163,7 @@ export const createWorld = (level: LevelConfig): World => {
     enemies: [],
     towers: [],
     trees,
+    slots,
     projectiles: [],
     beams: [],
     explosions: [],

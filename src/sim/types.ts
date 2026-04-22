@@ -57,6 +57,12 @@ export type Tree = {
   rot: number;
 };
 
+export type Slot = {
+  id: EntityId;
+  pos: Vec2;
+  towerId: EntityId | null;
+};
+
 export type ProjectileKind = "direct" | "splash";
 
 export type Projectile = {
@@ -145,6 +151,7 @@ export type World = {
   enemies: Enemy[];
   towers: Tower[];
   trees: Tree[];
+  slots: Slot[];
   projectiles: Projectile[];
   beams: Beam[];
   explosions: Explosion[];

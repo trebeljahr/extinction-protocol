@@ -10,6 +10,7 @@ export type LevelConfig = {
   nodePos: { x: number; y: number };
   hpScale?: number;
   biome?: Biome;
+  slotCount?: number;
 };
 
 const p = (...coords: number[]): Vec2[] => {
