@@ -8,6 +8,8 @@ import { HUD } from "./ui/HUD";
 import { WorldMapUI } from "./ui/WorldMapUI";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { Compendium } from "./ui/Compendium";
+import { AchievementsPanel } from "./ui/AchievementsPanel";
+import { AchievementToast } from "./ui/AchievementToast";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 
 const SceneRoot = () => {
@@ -18,10 +20,12 @@ const SceneRoot = () => {
 export const App = () => {
   const screen = useGame(s => s.screen);
   const compendiumOpen = useGame(s => s.compendiumOpen);
+  const achievementsOpen = useGame(s => s.achievementsOpen);
+  const modalOpen = compendiumOpen || achievementsOpen;
 
   return (
     <>
-      {!compendiumOpen && (
+      {!modalOpen && (
         <Canvas shadows dpr={[1, 2]}>
           <SceneRoot />
           <EffectComposer multisampling={0}>
@@ -36,11 +40,13 @@ export const App = () => {
         </Canvas>
       )}
 
-      {screen === "worldMap" && !compendiumOpen && <WorldMapUI />}
-      {screen !== "worldMap" && !compendiumOpen && <HUD />}
-      {screen === "results" && !compendiumOpen && <ResultsScreen />}
+      {screen === "worldMap" && !modalOpen && <WorldMapUI />}
+      {screen !== "worldMap" && !modalOpen && <HUD />}
+      {screen === "results" && !modalOpen && <ResultsScreen />}
       {compendiumOpen && <Compendium />}
-      {screen === "playing" && !compendiumOpen && <NewEnemyAlert />}
+      {achievementsOpen && <AchievementsPanel />}
+      {screen === "playing" && !modalOpen && <NewEnemyAlert />}
+      <AchievementToast />
     </>
   );
 };

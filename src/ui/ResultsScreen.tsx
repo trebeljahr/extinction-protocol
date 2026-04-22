@@ -3,6 +3,7 @@ import { useGame } from "../store";
 import { StarDisplay, STAR_STAGGER_MS } from "./StarDisplay";
 import { LEVELS } from "../levels";
 import { isLevelUnlocked } from "../progress";
+import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
 
 export const ResultsScreen = () => {
@@ -62,6 +63,16 @@ export const ResultsScreen = () => {
           )}
           {nextNowUnlocked && (
             <div className="results-unlock">Unlocked: {nextLevel!.name}</div>
+          )}
+          {result.unlockedAchievements.length > 0 && (
+            <div className="results-achievements">
+              <div className="results-achievements-label">Achievements unlocked</div>
+              {result.unlockedAchievements.map(id => (
+                <div key={id} className="results-achievement-row">
+                  {ACHIEVEMENT_BY_ID[id].name}
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

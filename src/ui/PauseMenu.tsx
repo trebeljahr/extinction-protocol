@@ -28,6 +28,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const goToWorldMap = useGame(s => s.goToWorldMap);
   const retry = useGame(s => s.retryCurrentLevel);
   const setCompendiumOpen = useGame(s => s.setCompendiumOpen);
+  const setAchievementsOpen = useGame(s => s.setAchievementsOpen);
 
   const [sfx, setSfx] = useState(audio.getSfxVolume());
   const [music, setMusic] = useState(audio.getMusicVolume());
@@ -147,6 +148,7 @@ export const PauseMenu = ({ onResume }: Props) => {
           <button className="btn" onClick={onResume}>Resume (Esc)</button>
           <button className="btn btn-secondary" onClick={retry}>Restart (R)</button>
           <button className="btn btn-secondary" onClick={() => setCompendiumOpen(true)}>Compendium</button>
+          <button className="btn btn-secondary" onClick={() => setAchievementsOpen(true)}>Achievements</button>
           <button className="btn btn-secondary" onClick={() => setConfirming(true)}>World Map</button>
         </div>
       </div>

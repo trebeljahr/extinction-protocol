@@ -2,16 +2,31 @@ import type { EnemyKind } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
 
+export type ProgressStats = {
+  killsTotal: number;
+  winsTotal: number;
+};
+
 export type ProgressData = {
   version: 1;
   starsByLevel: Record<number, Stars>;
   encountered: Partial<Record<EnemyKind, boolean>>;
+  stats: ProgressStats;
+  unlocked: Record<string, number>;
 };
 
 const STORAGE_KEY = "extinction-protocol:progress:v1";
 const STARTING_LIVES = 20;
 
-const empty = (): ProgressData => ({ version: 1, starsByLevel: {}, encountered: {} });
+const emptyStats = (): ProgressStats => ({ killsTotal: 0, winsTotal: 0 });
+
+const empty = (): ProgressData => ({
+  version: 1,
+  starsByLevel: {},
+  encountered: {},
+  stats: emptyStats(),
+  unlocked: {},
+});
 
 export const loadProgress = (): ProgressData => {
   if (typeof window === "undefined" || !window.localStorage) return empty();
@@ -20,10 +35,21 @@ export const loadProgress = (): ProgressData => {
     if (!raw) return empty();
     const parsed = JSON.parse(raw) as Partial<ProgressData>;
     if (parsed?.version !== 1 || typeof parsed.starsByLevel !== "object") return empty();
+    const rawStats = parsed.stats as Partial<ProgressStats> | undefined;
+    const stats: ProgressStats = {
+      killsTotal: typeof rawStats?.killsTotal === "number" ? rawStats.killsTotal : 0,
+      winsTotal: typeof rawStats?.winsTotal === "number" ? rawStats.winsTotal : 0,
+    };
+    const unlocked =
+      parsed.unlocked && typeof parsed.unlocked === "object"
+        ? (parsed.unlocked as Record<string, number>)
+        : {};
     return {
       version: 1,
       starsByLevel: parsed.starsByLevel as Record<number, Stars>,
       encountered: (parsed.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
+      stats,
+      unlocked,
     };
   } catch {
     return empty();

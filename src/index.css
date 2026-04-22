@@ -1001,6 +1001,9 @@ canvas { display: block; touch-action: none; }
   gap: 10px;
   align-items: stretch;
   pointer-events: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(50vw - 200px);
 }
 .worldmap-compendium-btn { pointer-events: auto; align-self: center; }
 
@@ -1429,4 +1432,194 @@ canvas { display: block; touch-action: none; }
 @keyframes newEnemyPop {
   0%   { transform: scale(0.9); opacity: 0; }
   100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Achievement toast (corner stack) */
+.achievement-toast-stack {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.achievement-toast {
+  pointer-events: auto;
+  min-width: 280px;
+  max-width: 340px;
+  padding: 12px 16px;
+  text-align: left;
+  background: rgba(14, 20, 28, 0.95);
+  border: 1px solid rgba(255, 214, 106, 0.55);
+  border-radius: 10px;
+  color: #e6ecf2;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 1px rgba(255, 214, 106, 0.15), 0 4px 24px rgba(0, 0, 0, 0.4);
+  animation: achievementToastIn 0.35s ease-out both;
+}
+
+.achievement-toast:hover {
+  border-color: #ffd66a;
+  box-shadow: 0 0 0 1px rgba(255, 214, 106, 0.4), 0 6px 28px rgba(255, 214, 106, 0.18);
+}
+
+.achievement-toast-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #ffd66a;
+  margin-bottom: 4px;
+}
+
+.achievement-toast-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
+}
+
+.achievement-toast-desc {
+  font-size: 12px;
+  color: #a8b4c2;
+  line-height: 1.35;
+}
+
+@keyframes achievementToastIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Achievements panel */
+.achievements-overlay {
+  padding: 24px;
+  z-index: 20;
+  position: fixed;
+}
+
+.achievements-card {
+  background: rgba(14, 20, 28, 0.97);
+  border: 1px solid rgba(120, 160, 200, 0.2);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 980px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.achievements-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px 14px;
+  border-bottom: 1px solid rgba(120, 160, 200, 0.14);
+}
+
+.achievements-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.achievements-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: #9fb4c8;
+  text-transform: uppercase;
+}
+
+.achievements-grid {
+  padding: 18px 24px 24px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.achievement-tile {
+  background: rgba(8, 12, 18, 0.55);
+  border: 1px solid rgba(120, 160, 200, 0.16);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 128px;
+}
+
+.achievement-tile.unlocked {
+  border-color: rgba(255, 214, 106, 0.45);
+  background: rgba(26, 22, 12, 0.6);
+}
+
+.achievement-tile.locked {
+  opacity: 0.6;
+}
+
+.achievement-tile-status {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9fb4c8;
+}
+.achievement-tile.unlocked .achievement-tile-status { color: #ffd66a; }
+
+.achievement-tile-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e6ecf2;
+}
+
+.achievement-tile-desc {
+  font-size: 12px;
+  color: #cfd8e0;
+  line-height: 1.4;
+}
+
+.achievement-tile-hint {
+  margin-top: auto;
+  font-size: 11px;
+  color: #7f8c99;
+  font-style: italic;
+}
+
+.achievement-tile-date {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #8a9bad;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Results screen — achievements unlocked this run */
+.results-achievements {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 214, 106, 0.08);
+  border: 1px solid rgba(255, 214, 106, 0.35);
+  text-align: left;
+}
+
+.results-achievements-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #ffd66a;
+  margin-bottom: 6px;
+}
+
+.results-achievement-row {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6ecf2;
+  padding: 2px 0;
 }

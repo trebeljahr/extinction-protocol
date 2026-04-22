@@ -19,8 +19,12 @@ import {
   markEncountered,
 } from "./progress";
 import type { ProgressData, Stars } from "./progress";
+import { checkAchievements } from "./achievements";
+import type { AchievementId } from "./achievements";
 
 export type Screen = "worldMap" | "playing" | "results";
+
+export type AchievementToast = { id: AchievementId; key: number };
 
 export type LastResult = {
   levelId: number;
@@ -30,6 +34,7 @@ export type LastResult = {
   stars: Stars;
   bestStars: Stars;
   improved: boolean;
+  unlockedAchievements: AchievementId[];
 };
 
 type UiSnapshot = {
@@ -184,6 +189,8 @@ type GameStore = {
   hoveredLevelId: number | null;
   lastResult: LastResult | null;
   compendiumOpen: boolean;
+  achievementsOpen: boolean;
+  achievementToasts: AchievementToast[];
   newEnemyQueue: EnemyKind[];
   autoPausedForNewEnemy: boolean;
 
@@ -192,6 +199,8 @@ type GameStore = {
   goToWorldMap: () => void;
   setHoveredLevel: (id: number | null) => void;
   setCompendiumOpen: (open: boolean) => void;
+  setAchievementsOpen: (open: boolean) => void;
+  dismissAchievementToast: (key: number) => void;
 
   reset: () => void;
   togglePause: () => void;
@@ -227,6 +236,8 @@ type GameStore = {
 
 const emptyInspect: InspectState = { id: null, kind: null, maxHp: null };
 
+let nextToastKey = 1;
+
 const buildWorldForLevel = (level: LevelConfig) => {
   const world = createWorld(level);
   return {
@@ -255,6 +266,8 @@ export const useGame = create<GameStore>((set, get) => ({
   hoveredLevelId: null,
   lastResult: null,
   compendiumOpen: false,
+  achievementsOpen: false,
+  achievementToasts: [],
   newEnemyQueue: [],
   autoPausedForNewEnemy: false,
 
@@ -299,6 +312,11 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setCompendiumOpen: (open) => set({ compendiumOpen: open }),
 
+  setAchievementsOpen: (open) => set({ achievementsOpen: open }),
+
+  dismissAchievementToast: (key) =>
+    set(state => ({ achievementToasts: state.achievementToasts.filter(t => t.key !== key) })),
+
   reset: () => {
     get().retryCurrentLevel();
   },
@@ -314,60 +332,96 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: (realTimeSec: number) => {
     const s = get();
     s.engine.step(s.world, realTimeSec);
+
+    let progress = s.progress;
+    let newEnemyQueue = s.newEnemyQueue;
+    let autoPaused = s.autoPausedForNewEnemy;
+    let lastResult = s.lastResult;
+    let screen = s.screen;
+    const newToasts: AchievementToast[] = [];
+    const unlockedThisRun: AchievementId[] = [];
+
+    const runChecks = (ev: GameEvent | null) => {
+      const res = checkAchievements(progress, s.world, ev);
+      if (res.unlocked.length === 0) return;
+      progress = res.progress;
+      for (const id of res.unlocked) {
+        newToasts.push({ id, key: nextToastKey++ });
+        unlockedThisRun.push(id);
+      }
+    };
+
     // Track encountered enemy kinds — and announce any first sighting.
     if (s.world.enemies.length > 0) {
       const kinds = new Set<EnemyKind>();
       for (const e of s.world.enemies) kinds.add(e.kind);
       const kindList = Array.from(kinds);
-      const newlySeen = kindList.filter(k => !s.progress.encountered[k]);
-      const nextProgress = markEncountered(s.progress, kindList);
+      const newlySeen = kindList.filter(k => !progress.encountered[k]);
+      const nextProgress = markEncountered(progress, kindList);
       if (nextProgress) {
-        saveProgress(nextProgress);
-        const alreadyQueued = new Set(s.newEnemyQueue);
+        progress = nextProgress;
+        const alreadyQueued = new Set(newEnemyQueue);
         const toQueue = newlySeen.filter(k => !alreadyQueued.has(k));
-        const nextQueue = toQueue.length > 0 ? [...s.newEnemyQueue, ...toQueue] : s.newEnemyQueue;
+        if (toQueue.length > 0) newEnemyQueue = [...newEnemyQueue, ...toQueue];
         // Auto-pause on first sighting so the popup isn't buried under action.
         // Track that WE caused the pause, so dismiss won't unpause a manual pause.
-        let autoPaused = s.autoPausedForNewEnemy;
         if (toQueue.length > 0 && s.world.status === "running") {
           s.world.status = "paused";
           autoPaused = true;
         }
-        set({ progress: nextProgress, newEnemyQueue: nextQueue, autoPausedForNewEnemy: autoPaused });
+        runChecks(null);
       }
     }
+
     if (s.world.events.length > 0) {
       for (const ev of s.world.events) {
+        if (ev.type === "death") {
+          progress = { ...progress, stats: { ...progress.stats, killsTotal: progress.stats.killsTotal + 1 } };
+        }
         if (ev.type === "game-over") {
           const w = s.world;
           const stars: Stars = ev.won ? starsForLives(w.lives) : 0;
-          const prev = getStars(s.progress, w.levelId);
-          const nextProgress = ev.won
-            ? recordLevelResult(s.progress, w.levelId, stars)
-            : s.progress;
-          if (ev.won && stars > prev) saveProgress(nextProgress);
+          const prev = getStars(progress, w.levelId);
+          if (ev.won && stars > prev) progress = recordLevelResult(progress, w.levelId, stars);
+          if (ev.won) {
+            progress = { ...progress, stats: { ...progress.stats, winsTotal: progress.stats.winsTotal + 1 } };
+          }
           const level = LEVELS.find(l => l.id === w.levelId);
           const bestStars: Stars = Math.max(prev, ev.won ? stars : 0) as Stars;
-          set({
-            progress: nextProgress,
-            lastResult: {
-              levelId: w.levelId,
-              levelName: level?.name ?? `Level ${w.levelId}`,
-              won: ev.won,
-              livesRemaining: w.lives,
-              stars,
-              bestStars,
-              improved: ev.won && stars > prev,
-            },
-            screen: "results",
-          });
+          lastResult = {
+            levelId: w.levelId,
+            levelName: level?.name ?? `Level ${w.levelId}`,
+            won: ev.won,
+            livesRemaining: w.lives,
+            stars,
+            bestStars,
+            improved: ev.won && stars > prev,
+            unlockedAchievements: [],
+          };
+          screen = "results";
         }
+        runChecks(ev);
         for (const fn of s.eventListeners) fn(ev);
       }
       s.world.events.length = 0;
     }
+
+    if (lastResult && unlockedThisRun.length > 0) {
+      lastResult = { ...lastResult, unlockedAchievements: unlockedThisRun };
+    }
+
+    if (progress !== s.progress) saveProgress(progress);
+
+    const updates: Partial<GameStore> = {};
+    if (progress !== s.progress) updates.progress = progress;
+    if (newEnemyQueue !== s.newEnemyQueue) updates.newEnemyQueue = newEnemyQueue;
+    if (autoPaused !== s.autoPausedForNewEnemy) updates.autoPausedForNewEnemy = autoPaused;
+    if (lastResult !== s.lastResult) updates.lastResult = lastResult;
+    if (screen !== s.screen) updates.screen = screen;
+    if (newToasts.length > 0) updates.achievementToasts = [...s.achievementToasts, ...newToasts];
     const next = snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy);
-    if (!uiEqual(s.ui, next)) set({ ui: next });
+    if (!uiEqual(s.ui, next)) updates.ui = next;
+    if (Object.keys(updates).length > 0) set(updates);
   },
 
   setSelectedKind: (kind) => {

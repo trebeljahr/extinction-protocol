@@ -7,6 +7,7 @@ export const WorldMapUI = () => {
   const progress = useGame(s => s.progress);
   const hoveredLevelId = useGame(s => s.hoveredLevelId);
   const setCompendiumOpen = useGame(s => s.setCompendiumOpen);
+  const setAchievementsOpen = useGame(s => s.setAchievementsOpen);
 
   const hovered = LEVELS.find(l => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;
@@ -41,6 +42,12 @@ export const WorldMapUI = () => {
           onClick={() => setCompendiumOpen(true)}
         >
           Compendium
+        </button>
+        <button
+          className="btn btn-ghost worldmap-compendium-btn"
+          onClick={() => setAchievementsOpen(true)}
+        >
+          Achievements
         </button>
       </div>
 
