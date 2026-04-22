@@ -1,7 +1,16 @@
 import { useGame } from "../store";
-import { TOWER_LABEL } from "../sim/world";
+import {
+  TOWER_LABEL,
+  TOWER_DAMAGE_TYPE,
+  DAMAGE_TYPE_LABEL,
+  DAMAGE_TYPE_COLOR,
+  ENEMY_RESIST,
+  ENEMY_LABEL,
+} from "../sim/world";
 import { UPGRADES, nextUpgrade, sellRefund } from "../sim/upgrades";
-import type { Tower } from "../sim/types";
+import type { Tower, EnemyKind } from "../sim/types";
+
+const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "allosaur", "stego"];
 
 export const TowerPanel = () => {
   const selectedId = useGame(s => s.ui.selectedTowerId);
@@ -13,12 +22,22 @@ export const TowerPanel = () => {
   const tower = useGame.getState().world.towers.find(t => t.id === selectedId);
   if (!tower) return null;
 
+  const damageType = TOWER_DAMAGE_TYPE[tower.kind];
+
   return (
     <div className="tower-panel">
       <div className="panel-header">
         <div className={`tower-swatch kind-${tower.kind}`} />
         <div className="panel-title">
-          <div className="panel-name">{TOWER_LABEL[tower.kind]}</div>
+          <div className="panel-name">
+            {TOWER_LABEL[tower.kind]}
+            <span
+              className="dmg-tag"
+              style={{ color: DAMAGE_TYPE_COLOR[damageType], borderColor: DAMAGE_TYPE_COLOR[damageType] }}
+            >
+              {DAMAGE_TYPE_LABEL[damageType]}
+            </span>
+          </div>
           <div className="panel-stats">
             DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG {tower.range.toFixed(1)}
             {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
@@ -31,6 +50,20 @@ export const TowerPanel = () => {
           onClick={() => useGame.getState().selectTower(null)}
           aria-label="close"
         >×</button>
+      </div>
+
+      <div className="resist-row">
+        {ENEMY_ORDER.map(k => {
+          const mul = ENEMY_RESIST[k][damageType];
+          const pct = Math.round((mul - 1) * 100);
+          const cls = pct > 0 ? "good" : pct < 0 ? "bad" : "neutral";
+          return (
+            <div key={k} className={`resist-chip ${cls}`} title={`vs ${ENEMY_LABEL[k]}: ${mul.toFixed(2)}×`}>
+              <span className="resist-name">{ENEMY_LABEL[k]}</span>
+              <span className="resist-val">{pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}</span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="branches">

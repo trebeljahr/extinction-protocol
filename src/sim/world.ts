@@ -10,6 +10,7 @@ import type {
   Beam,
   Explosion,
   GameEvent,
+  DamageType,
 } from "./types";
 import { samplePath } from "./path";
 
@@ -28,7 +29,7 @@ export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
   totalWaves,
   waveActive: false,
   nextWaveIn: 3,
-  gold: 220,
+  gold: 150,
   lives: 20,
   status: "running",
   nextEntityId: 1,
@@ -40,10 +41,65 @@ export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
 const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
-  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2, bounty:  8, damage: 1 },
-  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty: 18, damage: 2 },
-  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 35, damage: 3 },
-  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  3, damage: 1 },
+  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2, bounty:  5, damage: 1 },
+  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4, bounty: 11, damage: 2 },
+  stego:    { kind: "stego",    hp: 140, maxHp: 140, speed: 0.9, bounty: 22, damage: 3 },
+  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0, bounty:  2, damage: 1 },
+};
+
+export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
+  pulse:  "kinetic",
+  chain:  "electric",
+  cryo:   "cold",
+  mortar: "explosive",
+};
+
+export const DAMAGE_TYPE_LABEL: Record<DamageType, string> = {
+  kinetic:   "Kinetic",
+  electric:  "Electric",
+  cold:      "Cold",
+  explosive: "Explosive",
+};
+
+export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
+  kinetic:   "#c9cbd1",
+  electric:  "#c48cff",
+  cold:      "#aaf0ff",
+  explosive: "#ffb266",
+};
+
+export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
+  raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
+  allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
+  stego:    { kinetic: 0.4, electric: 0.7, cold: 1.0, explosive: 1.6 },
+  swarm:    { kinetic: 0.6, electric: 1.4, cold: 0.8, explosive: 1.7 },
+};
+
+export const ENEMY_LABEL: Record<EnemyKind, string> = {
+  raptor:   "Raptor",
+  allosaur: "Allosaur",
+  stego:    "Stegoknight",
+  swarm:    "Swarm",
+};
+
+export const applyDamage = (
+  world: World,
+  enemy: Enemy,
+  amount: number,
+  type: DamageType,
+  deathColor = "#c44848",
+  deathParticles = 8,
+) => {
+  if (!enemy.alive) return;
+  const mul = ENEMY_RESIST[enemy.kind][type];
+  enemy.hp -= amount * mul;
+  enemy.flashUntil = world.time + 0.08;
+  if (enemy.hp <= 0) {
+    enemy.alive = false;
+    world.gold += enemy.bounty;
+    spawnParticles(world, enemy.pos, deathParticles, deathColor);
+    emit(world, { type: "death", pos: enemy.pos });
+  }
 };
 
 export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1): Enemy => {
@@ -130,6 +186,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
 export const createProjectile = (
   world: World,
   kind: ProjectileKind,
+  damageType: DamageType,
   pos: Vec2,
   target: { id: number; pos: Vec2 } | Vec2,
   damage: number,
@@ -141,6 +198,7 @@ export const createProjectile = (
   const p: Projectile = {
     id: world.nextEntityId++,
     kind,
+    damageType,
     pos: { x: pos.x, y: pos.y },
     targetId,
     targetPos,

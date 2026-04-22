@@ -6,6 +6,9 @@ type Sample = {
   failed: boolean;
 };
 
+const VOICE_CAP_PER_KEY = 3;
+const TOTAL_VOICE_CAP = 18;
+
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -14,6 +17,7 @@ export class AudioManager {
   private samples = new Map<string, Sample>();
   private music: AudioBufferSourceNode | null = null;
   private lastPlayedAt = new Map<string, number>();
+  private activeVoices = new Map<string, Set<AudioBufferSourceNode>>();
   private sfxVolume = 0.6;
   private musicVolume = 0.25;
   private muted = false;
@@ -79,13 +83,28 @@ export class AudioManager {
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));
   }
 
-  play(key: string, volumeScale = 1, cooldownMs = 50) {
+  private totalVoices(): number {
+    let n = 0;
+    for (const set of this.activeVoices.values()) n += set.size;
+    return n;
+  }
+
+  play(key: string, volumeScale = 1, cooldownMs = 50, maxDurationSec?: number) {
     if (!this.ctx || !this.sfxGain || this.muted) return;
     const sample = this.samples.get(key);
     if (!sample || !sample.loaded || !sample.buffer) return;
     const now = performance.now();
     const last = this.lastPlayedAt.get(key) ?? 0;
     if (now - last < cooldownMs) return;
+
+    let keyVoices = this.activeVoices.get(key);
+    if (!keyVoices) {
+      keyVoices = new Set();
+      this.activeVoices.set(key, keyVoices);
+    }
+    if (keyVoices.size >= VOICE_CAP_PER_KEY) return;
+    if (this.totalVoices() >= TOTAL_VOICE_CAP) return;
+
     this.lastPlayedAt.set(key, now);
 
     const src = this.ctx.createBufferSource();
@@ -93,18 +112,30 @@ export class AudioManager {
     const gain = this.ctx.createGain();
     gain.gain.value = Math.min(1.2, volumeScale);
     src.connect(gain).connect(this.sfxGain);
+    keyVoices.add(src);
+    src.onended = () => {
+      keyVoices!.delete(src);
+    };
     src.start(0);
+    if (maxDurationSec !== undefined) {
+      const ctxNow = this.ctx.currentTime;
+      const fadeStart = ctxNow + Math.max(0, maxDurationSec - 0.05);
+      const stopAt = ctxNow + maxDurationSec;
+      gain.gain.setValueAtTime(gain.gain.value, fadeStart);
+      gain.gain.linearRampToValueAtTime(0, stopAt);
+      try { src.stop(stopAt); } catch { /* ok */ }
+    }
   }
 
   playShoot(kind: TowerKind) {
-    const map: Record<TowerKind, [string, number, number]> = {
-      pulse:  ["shoot-pulse", 0.35, 60],
-      chain:  ["shoot-chain", 0.35, 90],
-      cryo:   ["shoot-cryo", 0.45, 150],
-      mortar: ["shoot-mortar", 0.55, 200],
+    const map: Record<TowerKind, [string, number, number, number]> = {
+      pulse:  ["shoot-pulse",  0.35, 60,  0.22],
+      chain:  ["shoot-chain",  0.35, 90,  0.35],
+      cryo:   ["shoot-cryo",   0.45, 150, 0.45],
+      mortar: ["shoot-mortar", 0.55, 200, 0.55],
     };
-    const [key, vol, cd] = map[kind];
-    this.play(key, vol, cd);
+    const [key, vol, cd, maxDur] = map[kind];
+    this.play(key, vol, cd, maxDur);
   }
 
   startMusic() {
@@ -124,6 +155,16 @@ export class AudioManager {
     if (this.music) {
       try { this.music.stop(); } catch { /* ok */ }
       this.music = null;
+    }
+  }
+
+  stopAllSfx(except?: string) {
+    for (const [key, set] of this.activeVoices.entries()) {
+      if (key === except) continue;
+      for (const src of set) {
+        try { src.stop(); } catch { /* ok */ }
+      }
+      set.clear();
     }
   }
 

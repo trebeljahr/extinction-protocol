@@ -23,6 +23,8 @@ export type Enemy = {
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar";
 
+export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
+
 export type TowerUpgrades = { a: number; b: number };
 
 export type Tower = {
@@ -48,6 +50,7 @@ export type ProjectileKind = "direct" | "splash";
 export type Projectile = {
   id: EntityId;
   kind: ProjectileKind;
+  damageType: DamageType;
   pos: Vec2;
   targetId: EntityId | null;
   targetPos: Vec2;

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useGame } from "../store";
 import type { TowerKind } from "../sim/types";
-import { TOWER_COST, TOWER_LABEL } from "../sim/world";
+import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { TowerPanel } from "./TowerPanel";
 import { audio } from "../audio/AudioManager";
@@ -48,6 +48,7 @@ export const HUD = () => {
           const cost = TOWER_COST[kind];
           const affordable = ui.gold >= cost;
           const active = selectedKind === kind;
+          const dmgType = TOWER_DAMAGE_TYPE[kind];
           return (
             <button
               key={kind}
@@ -56,6 +57,9 @@ export const HUD = () => {
             >
               <div className={`tower-swatch kind-${kind}`} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
+              <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
+                {DAMAGE_TYPE_LABEL[dmgType]}
+              </div>
               <div className="tower-cost">{cost}g</div>
               <div className="tower-hot">[{HOTKEYS[kind]}]</div>
             </button>
