@@ -85,7 +85,7 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
       label: "Breach",
       tiers: [
         { name: "HE Rounds",     desc: "+55% damage",                cost: 65,  apply: t => { t.damage *= 1.55; } },
-        { name: "Bunker Buster", desc: "+50% damage, +1.5 range",    cost: 130, apply: t => { t.damage *= 1.5; t.range += 1.5; } },
+        { name: "Bunker Buster", desc: "+70% damage",                 cost: 130, apply: t => { t.damage *= 1.7; } },
         { name: "Singularity",   desc: "+130% damage",               cost: 230, apply: t => { t.damage *= 2.3; } },
       ],
     },
