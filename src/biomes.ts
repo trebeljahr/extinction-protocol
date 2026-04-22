@@ -246,9 +246,10 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/desert/DeadTree.glb",
     "/models/scifi/satelliteDish.glb",
   ],
-  snow: [
-    "/models/landmarks/snow/Crystal1.glb",
-  ],
+  // Crystal1 reads as a rock to players but doesn't block placement — pulled
+  // so the biome doesn't advertise invalid tiles. Leaving snow cosmetics
+  // empty rather than back-filling with an unrelated prop.
+  snow: [],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",
     "/models/landmarks/wasteland/DeadTree.glb",
