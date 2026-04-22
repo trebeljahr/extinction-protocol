@@ -1,14 +1,7 @@
-import type { World, EnemyKind } from "./types";
+import type { World, EnemyKind, WaveSpec, WaveArchetype } from "./types";
 import { spawnEnemy, emit } from "./world";
 
-type WaveEntry = { kind: EnemyKind; count: number };
-export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
-
-type WavePlan = {
-  archetype: WaveArchetype;
-  entries: WaveEntry[];
-  spacingBase: number;
-};
+export type { WaveArchetype };
 
 export const WAVE_ARCHETYPE_LABEL: Record<WaveArchetype, string> = {
   intro:  "Intro",
@@ -26,30 +19,38 @@ export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
   chaos:  "bring everything",
 };
 
-export const getWavePlan = (wave: number): { archetype: WaveArchetype } =>
-  ({ archetype: wavePlan(wave).archetype });
-
-const wavePlan = (wave: number): WavePlan => {
-  switch (wave) {
-    case 1:  return { archetype: "intro",  spacingBase: 0.9,  entries: [{ kind: "raptor", count: 10 }] };
-    case 2:  return { archetype: "mixed",  spacingBase: 0.55, entries: [{ kind: "raptor", count: 14 }, { kind: "swarm", count: 10 }] };
-    case 3:  return { archetype: "swarm",  spacingBase: 0.12, entries: [{ kind: "swarm", count: 70 }] };
-    case 4:  return { archetype: "mixed",  spacingBase: 0.45, entries: [{ kind: "raptor", count: 16 }, { kind: "allosaur", count: 5 }, { kind: "swarm", count: 14 }] };
-    case 5:  return { archetype: "heavy",  spacingBase: 0.9,  entries: [{ kind: "armored", count: 7 }, { kind: "allosaur", count: 5 }, { kind: "stego", count: 2 }] };
-    case 6:  return { archetype: "swarm",  spacingBase: 0.09, entries: [{ kind: "swarm", count: 95 }, { kind: "raptor", count: 10 }] };
-    case 7:  return { archetype: "mixed",  spacingBase: 0.4,  entries: [{ kind: "raptor", count: 20 }, { kind: "allosaur", count: 8 }, { kind: "stego", count: 4 }] };
-    case 8:  return { archetype: "heavy",  spacingBase: 0.8,  entries: [{ kind: "armored", count: 12 }, { kind: "stego", count: 6 }, { kind: "allosaur", count: 6 }] };
-    case 9:  return { archetype: "chaos",  spacingBase: 0.28, entries: [{ kind: "swarm", count: 45 }, { kind: "raptor", count: 20 }, { kind: "allosaur", count: 7 }, { kind: "stego", count: 3 }, { kind: "armored", count: 2 }] };
-    default: return { archetype: "chaos",  spacingBase: 0.38, entries: [{ kind: "armored", count: 10 }, { kind: "stego", count: 6 }, { kind: "allosaur", count: 10 }, { kind: "raptor", count: 24 }, { kind: "swarm", count: 30 }] };
+const inferArchetype = (spec: WaveSpec): WaveArchetype => {
+  const counts: Partial<Record<EnemyKind, number>> = {};
+  let total = 0;
+  for (const s of spec.spawns) {
+    counts[s.kind] = (counts[s.kind] ?? 0) + s.count;
+    total += s.count;
   }
+  const distinct = Object.keys(counts).length;
+  const hasArmored = (counts.armored ?? 0) > 0;
+  const hasStego = (counts.stego ?? 0) > 0;
+  const swarmShare = (counts.swarm ?? 0) / Math.max(1, total);
+
+  if (distinct >= 4 || (hasArmored && hasStego)) return "chaos";
+  if (hasArmored) return "heavy";
+  if (swarmShare >= 0.6 && total >= 15) return "swarm";
+  if (distinct >= 2) return "mixed";
+  return "intro";
 };
 
-const buildRoster = (plan: WavePlan): EnemyKind[] => {
+export const getWavePlan = (world: World, wave: number): { archetype: WaveArchetype } | null => {
+  if (wave < 1 || wave > world.plannedWaves.length) return null;
+  const spec = world.plannedWaves[wave - 1];
+  return { archetype: spec.archetype ?? inferArchetype(spec) };
+};
+
+const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
   const out: EnemyKind[] = [];
-  for (const entry of plan.entries) {
-    for (let i = 0; i < entry.count; i++) out.push(entry.kind);
+  for (const s of spec.spawns) {
+    for (let i = 0; i < s.count; i++) out.push(s.kind);
   }
-  if (plan.archetype === "swarm") return out;
+  const archetype = spec.archetype ?? inferArchetype(spec);
+  if (archetype === "swarm") return out;
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
@@ -63,13 +64,14 @@ const EARLY_CALL_THRESHOLD = 1 / 3;
 const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
-  const plan = wavePlan(world.wave);
-  const roster = buildRoster(plan);
+  const spec = world.plannedWaves[world.wave - 1];
+  const roster = rosterFromSpec(spec);
   world.waveTotalEnemies = roster.length;
-  const spacing = plan.spacingBase;
+  const hpMul = spec.hpMul ?? 1;
+  const spacing = spec.spacing ?? Math.max(0.35, 0.75 - world.wave * 0.03);
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
-    world.spawnQueue.push({ kind: roster[i], at: t });
+    world.spawnQueue.push({ kind: roster[i], at: t, hpMul });
   }
   emit(world, { type: "wave-start", wave: world.wave });
 };
@@ -108,10 +110,9 @@ export const spawnerTick = (world: World, dt: number) => {
     return;
   }
 
-  const hpMul = 1 + (world.wave - 1) * 0.22;
   while (world.spawnQueue.length > 0 && world.spawnQueue[0].at <= world.time) {
     const req = world.spawnQueue.shift()!;
-    spawnEnemy(world, req.kind, hpMul);
+    spawnEnemy(world, req.kind, req.hpMul);
   }
 
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {

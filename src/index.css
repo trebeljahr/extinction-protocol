@@ -372,6 +372,265 @@ canvas { display: block; touch-action: none; }
   font-size: 14px;
   cursor: pointer;
   letter-spacing: 0.04em;
+  pointer-events: auto;
 }
 
 .btn:hover { background: #5ce0ff; }
+
+.btn-secondary {
+  background: transparent;
+  color: #9fd8ff;
+  border: 1px solid rgba(159, 216, 255, 0.4);
+}
+.btn-secondary:hover { background: rgba(159, 216, 255, 0.12); color: #cfe8ff; }
+
+.btn-ghost {
+  background: rgba(14, 20, 28, 0.72);
+  color: #cfe8ff;
+  border: 1px solid rgba(120, 160, 200, 0.26);
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.btn-ghost:hover { border-color: #9fd8ff; color: #fff; }
+
+/* World map screen */
+.worldmap-header {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+.worldmap-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #cfe8ff;
+  text-transform: uppercase;
+}
+.worldmap-subtitle {
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: #9fb4c8;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.worldmap-meta {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.meta-chip {
+  background: rgba(10, 16, 24, 0.72);
+  border: 1px solid rgba(120, 160, 200, 0.18);
+  border-radius: 6px;
+  padding: 8px 14px;
+  min-width: 110px;
+  backdrop-filter: blur(6px);
+}
+.meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ffd66a;
+}
+.meta-value {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.meta-dim { color: #6a7a8c; font-size: 14px; font-weight: 500; }
+
+.worldmap-tooltip {
+  position: absolute;
+  left: 24px;
+  bottom: 80px;
+  min-width: 280px;
+  background: rgba(14, 20, 28, 0.92);
+  border: 1px solid rgba(120, 160, 200, 0.28);
+  border-radius: 10px;
+  padding: 14px 16px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.tip-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(120, 160, 200, 0.14);
+}
+.tip-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd66a;
+  letter-spacing: 0.08em;
+}
+.tip-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e6ecf2;
+  flex: 1;
+}
+
+.tip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #a8b4c2;
+  margin: 6px 0;
+}
+.tip-row > span:last-child {
+  color: #e6ecf2;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tip-cta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(120, 160, 200, 0.14);
+  font-size: 11px;
+  color: #3dd1ff;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Level node labels rendered via <Html> */
+.map-label {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(10, 16, 24, 0.7);
+  border: 1px solid rgba(255, 214, 106, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-align: center;
+  min-width: 22px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.map-label.locked {
+  border-color: rgba(120, 160, 200, 0.25);
+  color: #8a98aa;
+}
+
+.stars-row {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Level badge on HUD */
+.level-badge {
+  background: rgba(10, 16, 24, 0.72);
+  border: 1px solid rgba(120, 160, 200, 0.18);
+  border-radius: 6px;
+  padding: 8px 14px;
+  backdrop-filter: blur(6px);
+}
+.level-badge-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9fd8ff;
+}
+.level-badge-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.hud-map-btn {
+  margin-left: auto;
+  align-self: center;
+}
+.hud-top { align-items: center; }
+
+/* Results screen */
+.results-card {
+  min-width: 420px;
+  padding: 32px 40px;
+}
+
+.results-level {
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #9fb4c8;
+  margin-top: -8px;
+  margin-bottom: 20px;
+}
+
+.results-stars {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 18px;
+}
+
+.results-stats {
+  background: rgba(8, 12, 18, 0.45);
+  border: 1px solid rgba(120, 160, 200, 0.14);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.results-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin: 6px 0;
+}
+.results-label {
+  color: #a8b4c2;
+  letter-spacing: 0.04em;
+}
+.results-value {
+  color: #e6ecf2;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+}
+.results-new-best {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: #ffd66a;
+  font-weight: 700;
+}
+.results-unlock {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 12px;
+  color: #3dd1ff;
+  letter-spacing: 0.06em;
+}
+
+.results-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+@keyframes starPop {
+  0%   { transform: scale(0.2) rotate(-40deg); opacity: 0; }
+  60%  { transform: scale(1.25) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}

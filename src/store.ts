@@ -4,9 +4,31 @@ import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/wor
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
 import { Engine } from "./sim/loop";
-import { PATH } from "./level";
+import { getLevel, LEVELS } from "./levels";
+import type { LevelConfig } from "./levels";
 import { distSq } from "./sim/vec2";
 import { segmentLength } from "./sim/path";
+import {
+  loadProgress,
+  saveProgress,
+  starsForLives,
+  recordLevelResult,
+  getStars,
+  isLevelUnlocked,
+} from "./progress";
+import type { ProgressData, Stars } from "./progress";
+
+export type Screen = "worldMap" | "playing" | "results";
+
+export type LastResult = {
+  levelId: number;
+  levelName: string;
+  won: boolean;
+  livesRemaining: number;
+  stars: Stars;
+  bestStars: Stars;
+  improved: boolean;
+};
 
 type UiSnapshot = {
   gold: number;
@@ -97,6 +119,17 @@ type GameStore = {
   towerVersion: number;
   eventListeners: ((e: GameEvent) => void)[];
 
+  screen: Screen;
+  selectedLevelId: number | null;
+  progress: ProgressData;
+  hoveredLevelId: number | null;
+  lastResult: LastResult | null;
+
+  startLevel: (id: number) => void;
+  retryCurrentLevel: () => void;
+  goToWorldMap: () => void;
+  setHoveredLevel: (id: number | null) => void;
+
   reset: () => void;
   togglePause: () => void;
   tick: (realTimeSec: number) => void;
@@ -116,21 +149,61 @@ type GameStore = {
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
 
-const initial = () => {
-  const world = createWorld(PATH);
+const buildWorldForLevel = (level: LevelConfig) => {
+  const world = createWorld(level);
   return { world, ui: snapshot(world, 0), towerVersion: 0 };
 };
 
+export const isUnlocked = (levelId: number, progress: ProgressData) =>
+  isLevelUnlocked(levelId, progress);
+
 export const useGame = create<GameStore>((set, get) => ({
-  ...initial(),
+  ...buildWorldForLevel(getLevel(1)),
   engine: new Engine(),
   selectedKind: null,
   eventListeners: [],
 
-  reset: () => {
+  screen: "worldMap",
+  selectedLevelId: null,
+  progress: loadProgress(),
+  hoveredLevelId: null,
+  lastResult: null,
+
+  startLevel: (id) => {
+    const level = LEVELS.find(l => l.id === id);
+    if (!level) return;
+    if (!isLevelUnlocked(id, get().progress)) return;
     const { engine } = get();
     engine.reset();
-    set({ ...initial(), selectedKind: null });
+    set({
+      ...buildWorldForLevel(level),
+      selectedKind: null,
+      selectedLevelId: id,
+      hoveredLevelId: null,
+      lastResult: null,
+      screen: "playing",
+    });
+  },
+
+  retryCurrentLevel: () => {
+    const id = get().selectedLevelId ?? 1;
+    get().startLevel(id);
+  },
+
+  goToWorldMap: () => {
+    const { engine } = get();
+    engine.reset();
+    set({
+      screen: "worldMap",
+      hoveredLevelId: null,
+      lastResult: null,
+    });
+  },
+
+  setHoveredLevel: (id) => set({ hoveredLevelId: id }),
+
+  reset: () => {
+    get().retryCurrentLevel();
   },
 
   togglePause: () => {
@@ -145,6 +218,30 @@ export const useGame = create<GameStore>((set, get) => ({
     s.engine.step(s.world, realTimeSec);
     if (s.world.events.length > 0) {
       for (const ev of s.world.events) {
+        if (ev.type === "game-over") {
+          const w = s.world;
+          const stars: Stars = ev.won ? starsForLives(w.lives) : 0;
+          const prev = getStars(s.progress, w.levelId);
+          const nextProgress = ev.won
+            ? recordLevelResult(s.progress, w.levelId, stars)
+            : s.progress;
+          if (ev.won && stars > prev) saveProgress(nextProgress);
+          const level = LEVELS.find(l => l.id === w.levelId);
+          const bestStars: Stars = Math.max(prev, ev.won ? stars : 0) as Stars;
+          set({
+            progress: nextProgress,
+            lastResult: {
+              levelId: w.levelId,
+              levelName: level?.name ?? `Level ${w.levelId}`,
+              won: ev.won,
+              livesRemaining: w.lives,
+              stars,
+              bestStars,
+              improved: ev.won && stars > prev,
+            },
+            screen: "results",
+          });
+        }
         for (const fn of s.eventListeners) fn(ev);
       }
       s.world.events.length = 0;

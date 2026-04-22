@@ -90,6 +90,21 @@ export type Particle = {
 export type SpawnRequest = {
   kind: EnemyKind;
   at: number;
+  hpMul: number;
+};
+
+export type EnemySpec = {
+  kind: EnemyKind;
+  count: number;
+};
+
+export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
+
+export type WaveSpec = {
+  spawns: EnemySpec[];
+  spacing?: number;
+  hpMul?: number;
+  archetype?: WaveArchetype;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";
@@ -112,7 +127,9 @@ export type Shake = {
 export type World = {
   time: number;
   tickCount: number;
+  levelId: number;
   path: Vec2[];
+  plannedWaves: WaveSpec[];
   enemies: Enemy[];
   towers: Tower[];
   projectiles: Projectile[];
@@ -127,6 +144,7 @@ export type World = {
   waveTotalEnemies: number;
   gold: number;
   lives: number;
+  startLives: number;
   status: RunStatus;
   nextEntityId: number;
   events: GameEvent[];

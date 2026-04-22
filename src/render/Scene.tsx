@@ -1,4 +1,3 @@
-import { Canvas } from "@react-three/fiber";
 import { Ground } from "./Ground";
 import { PathLine } from "./PathLine";
 import { EnemyMesh } from "./EnemyMesh";
@@ -11,8 +10,8 @@ import { Effects } from "./Effects";
 import { CameraRig } from "./CameraRig";
 import { MAP_HEIGHT } from "../level";
 
-export const Scene = () => (
-  <Canvas shadows dpr={[1, 2]}>
+export const PlayScene = () => (
+  <>
     <color attach="background" args={["#1b2a22"]} />
     <fog attach="fog" args={["#1b2a22", 32, 68]} />
 
@@ -42,5 +41,5 @@ export const Scene = () => (
     <TowerMesh />
     <ProjectileMesh />
     <Effects />
-  </Canvas>
+  </>
 );
