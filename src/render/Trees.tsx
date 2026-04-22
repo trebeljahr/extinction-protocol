@@ -10,6 +10,9 @@ import { BIOME_TREE_URLS } from "../biomes";
 type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
 type VariantSource = { parts: Part[]; minY: number };
 
+// Fat disc so the slender trunk isn't the actual click target.
+const TREE_HIT_RADIUS = 0.9;
+
 // Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
 // primitives) come in from GLTFLoader as multiple Meshes under the scene.
 // We collect every one of them so each instance renders all pieces, not
@@ -84,16 +87,14 @@ export const Trees = () => {
       {byVariant.map((bucket, vi) => {
         const src = sources[vi];
         if (!src || bucket.length === 0) return null;
-        return (
-          <VariantGroup
-            key={vi}
-            bucket={bucket}
-            source={src}
-            hoveredId={hoveredId}
-            setHoveredId={setHoveredId}
-          />
-        );
+        return <VariantGroup key={vi} bucket={bucket} source={src} />;
       })}
+
+      <TreeHitTargets
+        trees={trees}
+        hoveredId={hoveredId}
+        setHoveredId={setHoveredId}
+      />
 
       {hovered && hovered.id !== selectedTreeId && (
         <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
@@ -128,15 +129,10 @@ export const Trees = () => {
 const VariantGroup = ({
   bucket,
   source,
-  hoveredId,
-  setHoveredId,
 }: {
   bucket: Tree[];
   source: VariantSource;
-  hoveredId: number | null;
-  setHoveredId: (id: number | null) => void;
 }) => {
-  // One InstancedMesh per primitive part, all driven by the same transforms.
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -156,25 +152,6 @@ const VariantGroup = ({
     }
   }, [bucket, source]);
 
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (e.instanceId == null) return;
-    const tree = bucket[e.instanceId];
-    if (!tree) return;
-    e.stopPropagation();
-    useGame.getState().selectTree(tree.id);
-  };
-
-  const onMove = (e: ThreeEvent<PointerEvent>) => {
-    if (e.instanceId == null) return;
-    const tree = bucket[e.instanceId];
-    if (!tree) return;
-    if (hoveredId !== tree.id) setHoveredId(tree.id);
-  };
-
-  const onOut = () => {
-    if (hoveredId !== null && bucket.some(t => t.id === hoveredId)) setHoveredId(null);
-  };
-
   return (
     <group>
       {source.parts.map((part, pi) => (
@@ -184,14 +161,78 @@ const VariantGroup = ({
           args={[part.geom, part.material, Math.max(1, bucket.length)]}
           castShadow
           receiveShadow
-          // Only attach pointer events to the first part — otherwise we
-          // fire double events and instanceId collides across parts.
-          onClick={pi === 0 ? onClick : undefined}
-          onPointerMove={pi === 0 ? onMove : undefined}
-          onPointerOut={pi === 0 ? onOut : undefined}
+          raycast={neverRaycast}
         />
       ))}
     </group>
+  );
+};
+
+// Pointer events go to the hit discs, not the model silhouette.
+const neverRaycast: THREE.Mesh["raycast"] = () => {};
+
+const TreeHitTargets = ({
+  trees,
+  hoveredId,
+  setHoveredId,
+}: {
+  trees: Tree[];
+  hoveredId: number | null;
+  setHoveredId: (id: number | null) => void;
+}) => {
+  const ref = useRef<THREE.InstancedMesh | null>(null);
+  const geom = useMemo(() => new THREE.CircleGeometry(TREE_HIT_RADIUS, 24), []);
+  const material = useMemo(
+    () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  useEffect(() => () => { geom.dispose(); material.dispose(); }, [geom, material]);
+
+  useEffect(() => {
+    const im = ref.current;
+    if (!im) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < trees.length; i++) {
+      const t = trees[i];
+      dummy.position.set(t.pos.x, 0.015, -t.pos.y);
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      im.setMatrixAt(i, dummy.matrix);
+    }
+    im.count = trees.length;
+    im.instanceMatrix.needsUpdate = true;
+  }, [trees]);
+
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (e.instanceId == null) return;
+    const tree = trees[e.instanceId];
+    if (!tree) return;
+    e.stopPropagation();
+    useGame.getState().selectTree(tree.id);
+  };
+
+  const onMove = (e: ThreeEvent<PointerEvent>) => {
+    if (e.instanceId == null) return;
+    const tree = trees[e.instanceId];
+    if (!tree) return;
+    if (hoveredId !== tree.id) setHoveredId(tree.id);
+  };
+
+  const onOut = () => {
+    if (hoveredId !== null && trees.some(t => t.id === hoveredId)) setHoveredId(null);
+  };
+
+  if (trees.length === 0) return null;
+
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[geom, material, trees.length]}
+      onClick={onClick}
+      onPointerMove={onMove}
+      onPointerOut={onOut}
+    />
   );
 };
 

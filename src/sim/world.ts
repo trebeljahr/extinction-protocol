@@ -34,6 +34,7 @@ export const TREE_REMOVE_COST = 10;
 // Rock footprint radius (before per-instance scale multiplier).
 export const ROCK_FOOTPRINT = 0.65;
 export const ROCK_MIN_SPACING = 1.5;
+export const ROCK_REMOVE_COST = 15;
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;

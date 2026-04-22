@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT } from "./sim/world";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, Rock, TargetingMode, EnemyKind } from "./sim/types";
+import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT, ROCK_REMOVE_COST } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
@@ -161,6 +161,9 @@ const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
 const treeById = (world: World, id: number): Tree | null =>
   world.trees.find(t => t.id === id) ?? null;
 
+const rockById = (world: World, id: number): Rock | null =>
+  world.rocks.find(r => r.id === id) ?? null;
+
 type InspectState = { id: number | null; kind: EnemyKind | null; maxHp: number | null };
 
 type GameStore = {
@@ -169,6 +172,7 @@ type GameStore = {
   ui: UiSnapshot;
   selectedKind: TowerKind | null;
   selectedTreeId: number | null;
+  selectedRockId: number | null;
   towerVersion: number;
   treeVersion: number;
   inspectedEnemy: InspectState;
@@ -207,6 +211,10 @@ type GameStore = {
   clearSelectedTree: () => void;
   confirmRemoveTree: () => void;
 
+  selectRock: (id: number) => void;
+  clearSelectedRock: () => void;
+  confirmRemoveRock: () => void;
+
   inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
   clearInspectedEnemy: () => void;
 
@@ -234,6 +242,7 @@ export const useGame = create<GameStore>((set, get) => ({
   engine: new Engine(),
   selectedKind: null,
   selectedTreeId: null,
+  selectedRockId: null,
   eventListeners: [],
 
   screen: "worldMap",
@@ -253,6 +262,7 @@ export const useGame = create<GameStore>((set, get) => ({
       ...buildWorldForLevel(level),
       selectedKind: null,
       selectedTreeId: null,
+      selectedRockId: null,
       selectedLevelId: id,
       hoveredLevelId: null,
       lastResult: null,
@@ -344,9 +354,11 @@ export const useGame = create<GameStore>((set, get) => ({
     if (kind !== null) world.selectedTowerId = null;
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = kind !== null ? null : s.selectedTreeId;
+    const nextRock = kind !== null ? null : s.selectedRockId;
     set({
       selectedKind: kind,
       selectedTreeId: nextTree,
+      selectedRockId: nextRock,
       inspectedEnemy: nextInspect,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
@@ -362,6 +374,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       selectedKind: null,
       selectedTreeId: null,
+      selectedRockId: null,
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
@@ -374,6 +387,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       selectedKind: null,
       selectedTreeId: null,
+      selectedRockId: null,
       inspectedEnemy: inspect,
       ui: snapshot(world, towerVersion, treeVersion, inspect),
     });
@@ -396,6 +410,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       selectedKind: null,
       selectedTreeId: id,
+      selectedRockId: null,
       inspectedEnemy: emptyInspect,
       ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
     });
@@ -421,6 +436,41 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  selectRock: (id) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+    if (!rockById(w, id)) return;
+    w.selectedTowerId = null;
+    set({
+      selectedKind: null,
+      selectedTreeId: null,
+      selectedRockId: id,
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+    });
+  },
+
+  clearSelectedRock: () => set({ selectedRockId: null }),
+
+  confirmRemoveRock: () => {
+    const s = get();
+    const w = s.world;
+    const id = s.selectedRockId;
+    if (id === null || w.status !== "running") return;
+    const rock = rockById(w, id);
+    if (!rock) { set({ selectedRockId: null }); return; }
+    if (w.gold < ROCK_REMOVE_COST) return;
+    w.gold -= ROCK_REMOVE_COST;
+    w.rocks = w.rocks.filter(r => r.id !== id);
+    const newTreeVersion = s.treeVersion + 1;
+    set({
+      treeVersion: newTreeVersion,
+      selectedRockId: null,
+      ui: snapshot(w, s.towerVersion, newTreeVersion, s.inspectedEnemy),
+    });
+  },
+
   tryPlaceOrSelect: (pos) => {
     const s = get();
     const w = s.world;
@@ -432,6 +482,7 @@ export const useGame = create<GameStore>((set, get) => ({
       set({
         selectedKind: null,
         selectedTreeId: null,
+        selectedRockId: null,
         inspectedEnemy: emptyInspect,
         ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
       });
@@ -461,9 +512,11 @@ export const useGame = create<GameStore>((set, get) => ({
     world.selectedTowerId = id;
     const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = id !== null ? null : s.selectedTreeId;
+    const nextRock = id !== null ? null : s.selectedRockId;
     set({
       selectedKind: id !== null ? null : s.selectedKind,
       selectedTreeId: nextTree,
+      selectedRockId: nextRock,
       inspectedEnemy: nextInspect,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
