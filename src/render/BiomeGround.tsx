@@ -67,8 +67,9 @@ export const BiomeGround = ({
         acc.g /= totalW;
         acc.b /= totalW;
       } else {
-        // Far from all nodes — fall back to a neutral dark
-        acc.setRGB(0.065, 0.11, 0.15);
+        // Far from all nodes — blend into the sky/fog so map edges don't
+        // pop against the scene background when panned or zoomed out.
+        acc.setRGB(0.72, 0.816, 0.894); // #b8d0e4 — matches WorldMap BG/FOG
       }
 
       colors[i * 3] = acc.r;
