@@ -76,20 +76,81 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     a: {
       label: "Payload",
       tiers: [
-        { name: "Wider Spread",  desc: "+40% splash radius",         cost: 65,  apply: t => { t.splashRadius *= 1.4; } },
-        { name: "Heavy Shell",   desc: "+35% splash radius",         cost: 130, apply: t => { t.splashRadius *= 1.35; } },
-        { name: "Thermobaric",   desc: "+40% splash, +40% damage",   cost: 230, apply: t => { t.splashRadius *= 1.4; t.damage *= 1.4; } },
+        { name: "Wider Spread",  desc: "+40% splash radius",         cost: 60,  apply: t => { t.splashRadius *= 1.4; } },
+        { name: "Heavy Shell",   desc: "+35% splash radius",         cost: 115, apply: t => { t.splashRadius *= 1.35; } },
+        { name: "Thermobaric",   desc: "+40% splash, +40% damage",   cost: 210, apply: t => { t.splashRadius *= 1.4; t.damage *= 1.4; } },
       ],
     },
     b: {
       label: "Breach",
       tiers: [
-        { name: "HE Rounds",     desc: "+55% damage",                cost: 65,  apply: t => { t.damage *= 1.55; } },
-        { name: "Bunker Buster", desc: "+70% damage",                 cost: 130, apply: t => { t.damage *= 1.7; } },
-        { name: "Singularity",   desc: "+130% damage",               cost: 230, apply: t => { t.damage *= 2.3; } },
+        { name: "HE Rounds",     desc: "+75% damage",                cost: 55,  apply: t => { t.damage *= 1.75; } },
+        { name: "Bunker Buster", desc: "+90% damage",                cost: 115, apply: t => { t.damage *= 1.9; } },
+        { name: "Singularity",   desc: "+150% damage, +10% fire rate", cost: 210, apply: t => { t.damage *= 2.5; t.fireRate *= 1.1; } },
       ],
     },
   },
+};
+
+// Diffs each stat from current tower to what the tower would look like
+// after applying the upgrade. Used by the UI for from→to readouts.
+const STAT_KEYS = [
+  "damage",
+  "fireRate",
+  "range",
+  "splashRadius",
+  "chainCount",
+  "chainFalloff",
+  "slowFactor",
+  "slowDuration",
+] as const;
+type StatKey = typeof STAT_KEYS[number];
+
+export type StatDelta = {
+  key: StatKey;
+  from: number;
+  to: number;
+};
+
+export const previewUpgrade = (tower: Tower, upgrade: Upgrade): StatDelta[] => {
+  const clone: Tower = { ...tower, upgrades: { ...tower.upgrades } };
+  upgrade.apply(clone);
+  const out: StatDelta[] = [];
+  for (const key of STAT_KEYS) {
+    const from = tower[key];
+    const to = clone[key];
+    if (Math.abs(from - to) > 1e-6) {
+      out.push({ key, from, to });
+    }
+  }
+  return out;
+};
+
+export const STAT_LABEL: Record<StatKey, string> = {
+  damage: "DMG",
+  fireRate: "RATE",
+  range: "RNG",
+  splashRadius: "SPL",
+  chainCount: "CHN",
+  chainFalloff: "FALL",
+  slowFactor: "SLOW",
+  slowDuration: "CHILL",
+};
+
+// How many decimals to show for a given stat
+const STAT_PRECISION: Record<StatKey, number> = {
+  damage: 1,
+  fireRate: 2,
+  range: 1,
+  splashRadius: 2,
+  chainCount: 0,
+  chainFalloff: 2,
+  slowFactor: 2,
+  slowDuration: 1,
+};
+
+export const formatStat = (key: StatKey, value: number): string => {
+  return value.toFixed(STAT_PRECISION[key]);
 };
 
 export const nextUpgrade = (tower: Tower, branch: BranchId): Upgrade | null => {
