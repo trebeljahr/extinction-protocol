@@ -26,8 +26,8 @@ const CryoAura = ({ x, y, range }: { x: number; y: number; range: number }) => {
     const pulse = 0.82 + Math.sin(time * 2.1) * 0.18;
     const ringMat = ringRef.current?.material as THREE.MeshBasicMaterial | undefined;
     const diskMat = diskRef.current?.material as THREE.MeshBasicMaterial | undefined;
-    if (ringMat) ringMat.opacity = 0.55 * pulse;
-    if (diskMat) diskMat.opacity = 0.16 * pulse;
+    if (ringMat) ringMat.opacity = 0.22 * pulse;
+    if (diskMat) diskMat.opacity = 0.06 * pulse;
   });
 
   return (
@@ -37,17 +37,17 @@ const CryoAura = ({ x, y, range }: { x: number; y: number; range: number }) => {
         <meshBasicMaterial
           color="#aaf0ff"
           transparent
-          opacity={0.16}
+          opacity={0.06}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
       </mesh>
       <mesh ref={ringRef}>
-        <ringGeometry args={[range - 0.14, range, 64]} />
+        <ringGeometry args={[range - 0.06, range, 64]} />
         <meshBasicMaterial
           color="#dffbff"
           transparent
-          opacity={0.55}
+          opacity={0.22}
           side={THREE.DoubleSide}
           depthWrite={false}
         />

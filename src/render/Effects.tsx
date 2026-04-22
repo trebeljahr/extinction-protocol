@@ -295,8 +295,8 @@ export const Effects = () => {
       </instancedMesh>
 
       <instancedMesh ref={cryoWaveRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
-        <ringGeometry args={[0.82, 1.0, 48]} />
-        <meshBasicMaterial toneMapped={false} transparent opacity={0.75} side={THREE.DoubleSide} depthWrite={false} />
+        <ringGeometry args={[0.92, 1.0, 48]} />
+        <meshBasicMaterial toneMapped={false} transparent opacity={0.35} side={THREE.DoubleSide} depthWrite={false} />
       </instancedMesh>
 
       <group ref={beamsGroupRef} />
