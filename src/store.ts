@@ -132,7 +132,7 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   return true;
 };
 
-const towerAt = (world: World, pos: Vec2, radius = 0.7): Tower | null => {
+const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
   const r2 = radius * radius;
   for (const t of world.towers) {
     if (distSq(t.pos, pos) <= r2) return t;
@@ -344,12 +344,19 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
 
-    if (s.selectedKind === null) return;
+    if (s.selectedKind === null) {
+      if (w.selectedTowerId !== null) {
+        w.selectedTowerId = null;
+        set({ ui: snapshot(w, s.towerVersion, s.inspectedEnemy) });
+      }
+      return;
+    }
+    const snapped = { x: Math.round(pos.x), y: Math.round(pos.y) };
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
-    if (!canPlaceAt(w, pos)) return;
+    if (!canPlaceAt(w, snapped)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, pos);
+    const t = createTower(w, s.selectedKind, snapped);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
     set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.inspectedEnemy) });

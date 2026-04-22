@@ -26,7 +26,8 @@ export const HUD = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space") { e.preventDefault(); togglePause(); return; }
+      if (e.code === "Space") { e.preventDefault(); callWaveEarly(); return; }
+      if (e.code === "KeyP") { togglePause(); return; }
       if (e.code === "KeyR") { retry(); return; }
       if (e.code === "Escape") {
         const s = useGame.getState();
@@ -36,13 +37,13 @@ export const HUD = () => {
           s.inspectedEnemy.kind !== null
         ) {
           s.clearSelection();
+          (document.activeElement as HTMLElement | null)?.blur();
         } else {
           goToWorldMap();
         }
         return;
       }
       if (e.code === "KeyM") { audio.setMuted(!audio.isMuted()); return; }
-      if (e.code === "KeyN") { callWaveEarly(); return; }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
@@ -57,9 +58,14 @@ export const HUD = () => {
         <Stat label="GOLD" value={ui.gold} accent="#ffd66a" />
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
-        {ui.canCallEarly ? (
-          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (N)">
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [N]</div>
+        {ui.wave === 0 ? (
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Start waves (Space)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>START WAVES [Space]</div>
+            <div className="stat-value">Ready</div>
+          </button>
+        ) : ui.canCallEarly ? (
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (Space)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [Space]</div>
             <div className="stat-value">
               +{ui.callEarlyBonus}g
               {!ui.waveActive && <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>}
@@ -97,8 +103,19 @@ export const HUD = () => {
             <button
               key={kind}
               className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
-              onClick={() => setSelectedKind(selectedKind === kind ? null : kind)}
+              onClick={(e) => {
+                setSelectedKind(selectedKind === kind ? null : kind);
+                e.currentTarget.blur();
+              }}
             >
+              {active && (
+                <span
+                  className="card-cancel"
+                  role="button"
+                  aria-label="cancel selection"
+                  onClick={(e) => { e.stopPropagation(); setSelectedKind(null); }}
+                >×</span>
+              )}
               <div className={`tower-swatch kind-${kind}`} />
               <div className="tower-name">{TOWER_LABEL[kind]}</div>
               <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
@@ -119,11 +136,11 @@ export const HUD = () => {
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>
-        <span>Space: pause</span>
+        <span>Space: call wave</span>
+        <span className="sep">·</span>
+        <span>P: pause</span>
         <span className="sep">·</span>
         <span>R: restart</span>
-        <span className="sep">·</span>
-        <span>N: call wave</span>
         <span className="sep">·</span>
         <span>Esc: deselect / map</span>
         <span className="sep">·</span>
@@ -134,7 +151,7 @@ export const HUD = () => {
         <div className="overlay">
           <div className="overlay-card">
             <h1>Paused</h1>
-            <button onClick={togglePause} className="btn">Resume (Space)</button>
+            <button onClick={togglePause} className="btn">Resume (P)</button>
           </div>
         </div>
       )}

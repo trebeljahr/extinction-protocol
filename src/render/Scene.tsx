@@ -37,11 +37,13 @@ export const PlayScene = () => (
     <Placement />
     <PathLine />
 
-    <ModelEnemyMesh kind="raptor"   url="/models/raptor.glb"       targetSize={1.4} />
-    <ModelEnemyMesh kind="allosaur" url="/models/allosaurus.glb"   targetSize={1.9} />
-    <ModelEnemyMesh kind="stego"    url="/models/stegoknight.glb"  targetSize={1.8} />
-    <ModelEnemyMesh kind="armored"  url="/models/spinosaurobot.glb" targetSize={2.2} />
-    <ModelEnemyMesh kind="swarm"    url="/models/flyer.glb"        targetSize={1.0} yOffset={1.2} bob />
+    <ModelEnemyMesh kind="raptor"   url="/models/Velociraptor.glb"    targetSize={1.6} />
+    <ModelEnemyMesh kind="swarm"    url="/models/Velociraptor.glb"    targetSize={0.8} />
+    <ModelEnemyMesh kind="para"     url="/models/Parasaurolophus.glb" targetSize={1.7} />
+    <ModelEnemyMesh kind="allosaur" url="/models/Trex.glb"            targetSize={2.2} />
+    <ModelEnemyMesh kind="stego"    url="/models/Stegosaurus.glb"     targetSize={1.9} />
+    <ModelEnemyMesh kind="armored"  url="/models/Triceratops.glb"     targetSize={2.0} />
+    <ModelEnemyMesh kind="titan"    url="/models/Apatosaurus.glb"     targetSize={3.0} clip="Walk" />
 
     <ModelTowerMesh kind="pulse"  url="/models/tower_pulse.glb"    targetSize={1.6} />
     <ModelTowerMesh kind="chain"  url="/models/tower_chain.glb"    targetSize={1.6} />
