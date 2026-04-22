@@ -3,19 +3,19 @@ import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useGame } from "../store";
-import type { EnemyKind } from "../sim/types";
+import type { TowerKind } from "../sim/types";
 
 type Props = {
-  kind: EnemyKind;
+  kind: TowerKind;
   url: string;
   targetSize: number;
   yOffset?: number;
   baseRotY?: number;
-  bob?: boolean;
+  idleSpin?: boolean;
 };
 
-export const ModelEnemyMesh = ({
-  kind, url, targetSize, yOffset = 0, baseRotY = 0, bob = false,
+export const ModelTowerMesh = ({
+  kind, url, targetSize, yOffset = 0, baseRotY = 0, idleSpin = false,
 }: Props) => {
   const { scene } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
@@ -55,50 +55,37 @@ export const ModelEnemyMesh = ({
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
-    const path = world.path;
 
     const live = new Set<number>();
-    for (const e of world.enemies) {
-      if (e.kind !== kind) continue;
-      if (!e.alive) continue;
-      live.add(e.id);
-      let item = itemsRef.current.get(e.id);
+    for (const t of world.towers) {
+      if (t.kind !== kind) continue;
+      live.add(t.id);
+      let item = itemsRef.current.get(t.id);
       if (!item) {
         item = scene.clone(true);
         item.scale.setScalar(normalizedScale);
         parent.add(item);
-        itemsRef.current.set(e.id, item);
+        itemsRef.current.set(t.id, item);
       }
 
-      const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
       item.position.set(
-        e.pos.x - centerXZ.x,
-        yOffset - scaledMinY + bobY,
-        -e.pos.y - centerXZ.z,
+        t.pos.x - centerXZ.x,
+        yOffset - scaledMinY,
+        -t.pos.y - centerXZ.z,
       );
 
-      const a = path[e.segment];
-      const b = path[e.segment + 1] ?? a;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const pathYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : 0;
-      item.rotation.set(0, baseRotY + pathYaw, 0);
-
-      const flashing = world.time < e.flashUntil;
-      const slowed = world.time < e.slowUntil;
-      item.traverse(obj => {
-        const m = obj as THREE.Mesh;
-        if (!m.isMesh) return;
-        const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
-        const apply = (mm: THREE.MeshStandardMaterial) => {
-          if (!mm.emissive) return;
-          if (flashing) mm.emissive.setRGB(1, 1, 1);
-          else if (slowed) mm.emissive.setRGB(0.2, 0.4, 0.7);
-          else mm.emissive.setRGB(0, 0, 0);
-        };
-        if (Array.isArray(mat)) mat.forEach(apply);
-        else apply(mat as THREE.MeshStandardMaterial);
-      });
+      let yaw = 0;
+      if (idleSpin) {
+        yaw = world.time * 1.2;
+      } else if (t.targetId !== null) {
+        const target = world.enemies.find(e => e.id === t.targetId && e.alive);
+        if (target) {
+          const dx = target.pos.x - t.pos.x;
+          const dy = target.pos.y - t.pos.y;
+          yaw = Math.atan2(dx, -dy);
+        }
+      }
+      item.rotation.set(0, baseRotY + yaw, 0);
     }
 
     for (const [id, item] of itemsRef.current) {
@@ -112,8 +99,7 @@ export const ModelEnemyMesh = ({
   return <group ref={groupRef} />;
 };
 
-useGLTF.preload("/models/raptor.glb");
-useGLTF.preload("/models/allosaurus.glb");
-useGLTF.preload("/models/stegoknight.glb");
-useGLTF.preload("/models/spinosaurobot.glb");
-useGLTF.preload("/models/flyer.glb");
+useGLTF.preload("/models/tower_pulse.glb");
+useGLTF.preload("/models/tower_chain.glb");
+useGLTF.preload("/models/turret_missile.glb");
+useGLTF.preload("/models/turret_emp.glb");
