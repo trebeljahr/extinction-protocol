@@ -2,17 +2,23 @@ import type { World, Tower, Enemy } from "./types";
 import { distSq } from "./vec2";
 import { createProjectile, createBeam, emit, applySlow, applyDamage } from "./world";
 
-const findFurthestInRange = (world: World, tower: Tower): Enemy | null => {
+const scoreEnemy = (tower: Tower, e: Enemy): number => {
+  if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
+  if (tower.targetingMode === "start") return -(e.segment + e.segmentT);
+  return e.segment + e.segmentT;
+};
+
+const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   const rangeSq = tower.range * tower.range;
   let best: Enemy | null = null;
-  let bestProgress = -Infinity;
+  let bestScore = -Infinity;
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (distSq(e.pos, tower.pos) > rangeSq) continue;
-    const progress = e.segment + e.segmentT;
-    if (progress > bestProgress) {
+    const score = scoreEnemy(tower, e);
+    if (score > bestScore) {
       best = e;
-      bestProgress = progress;
+      bestScore = score;
     }
   }
   return best;
@@ -94,7 +100,7 @@ export const updateTowers = (world: World, dt: number) => {
         target = current;
       }
     }
-    if (!target) target = findFurthestInRange(world, t);
+    if (!target) target = findTargetInRange(world, t);
     t.targetId = target?.id ?? null;
 
     if (target && t.cooldown === 0) {

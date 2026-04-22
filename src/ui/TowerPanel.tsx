@@ -8,9 +8,15 @@ import {
   ENEMY_LABEL,
 } from "../sim/world";
 import { UPGRADES, nextUpgrade, sellRefund } from "../sim/upgrades";
-import type { Tower, EnemyKind } from "../sim/types";
+import type { Tower, EnemyKind, TargetingMode } from "../sim/types";
 
 const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "allosaur", "stego"];
+
+const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] = [
+  { mode: "tower", label: "Near", title: "Closest to tower" },
+  { mode: "start", label: "Start", title: "Closest to path start" },
+  { mode: "end", label: "End", title: "Closest to path end" },
+];
 
 export const TowerPanel = () => {
   const selectedId = useGame(s => s.ui.selectedTowerId);
@@ -65,6 +71,24 @@ export const TowerPanel = () => {
           );
         })}
       </div>
+
+      {tower.kind !== "cryo" && (
+        <div className="targeting-row">
+          <div className="targeting-label">Target</div>
+          <div className="targeting-buttons">
+            {TARGETING_MODES.map(({ mode, label, title }) => (
+              <button
+                key={mode}
+                className={`targeting-btn ${tower.targetingMode === mode ? "active" : ""}`}
+                onClick={() => useGame.getState().setTargetingMode(mode)}
+                title={title}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="branches">
         <BranchView tower={tower} branchId="a" gold={gold} />
