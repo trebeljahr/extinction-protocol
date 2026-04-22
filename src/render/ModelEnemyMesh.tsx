@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { useGame } from "../store";
 import type { EnemyKind } from "../sim/types";
 
@@ -10,30 +10,29 @@ type Props = {
   url: string;
   targetSize: number;
   yOffset?: number;
-  baseRotX?: number;
   baseRotY?: number;
-  baseRotZ?: number;
+  bob?: boolean;
 };
 
 export const ModelEnemyMesh = ({
-  kind, url, targetSize, yOffset = 0.4, baseRotX = 0, baseRotY = 0, baseRotZ = 0,
+  kind, url, targetSize, yOffset = 0, baseRotY = 0, bob = false,
 }: Props) => {
   const { scene } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, THREE.Object3D>>(new Map());
 
-  const normalizedScale = useMemo(() => {
+  const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    return targetSize / maxDim;
-  }, [scene, targetSize]);
-
-  const centerOffset = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
     const center = box.getCenter(new THREE.Vector3());
-    return center;
-  }, [scene]);
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const s = targetSize / maxDim;
+    return {
+      normalizedScale: s,
+      centerXZ: { x: center.x * s, z: center.z * s },
+      scaledMinY: box.min.y * s,
+    };
+  }, [scene, targetSize]);
 
   useEffect(() => {
     scene.traverse(obj => {
@@ -56,26 +55,40 @@ export const ModelEnemyMesh = ({
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
+    const path = world.path;
 
     const live = new Set<number>();
     for (const e of world.enemies) {
       if (e.kind !== kind) continue;
+      if (!e.alive) continue;
       live.add(e.id);
       let item = itemsRef.current.get(e.id);
       if (!item) {
         item = scene.clone(true);
         item.scale.setScalar(normalizedScale);
+        item.userData.enemyId = e.id;
+        item.userData.enemyMaxHp = e.maxHp;
+        item.traverse(obj => {
+          obj.userData.enemyId = e.id;
+          obj.userData.enemyMaxHp = e.maxHp;
+        });
         parent.add(item);
         itemsRef.current.set(e.id, item);
       }
 
-      const cx = centerOffset.x * normalizedScale;
-      const cy = centerOffset.y * normalizedScale;
-      const cz = centerOffset.z * normalizedScale;
-      item.position.set(e.pos.x - cx, yOffset - cy, -e.pos.y - cz);
+      const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
+      item.position.set(
+        e.pos.x - centerXZ.x,
+        yOffset - scaledMinY + bobY,
+        -e.pos.y - centerXZ.z,
+      );
 
-      const spinSpeed = kind === "swarm" ? 4 : 0.6;
-      item.rotation.set(baseRotX, baseRotY + world.time * spinSpeed + e.id, baseRotZ);
+      const a = path[e.segment];
+      const b = path[e.segment + 1] ?? a;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const pathYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : 0;
+      item.rotation.set(0, baseRotY + pathYaw, 0);
 
       const flashing = world.time < e.flashUntil;
       const slowed = world.time < e.slowUntil;
@@ -102,8 +115,23 @@ export const ModelEnemyMesh = ({
     }
   });
 
-  return <group ref={groupRef} />;
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    let obj: THREE.Object3D | null = e.object;
+    while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
+    if (!obj) return;
+    e.stopPropagation();
+    useGame.getState().inspectEnemy(
+      obj.userData.enemyId as number,
+      kind,
+      obj.userData.enemyMaxHp as number,
+    );
+  };
+
+  return <group ref={groupRef} onClick={handleClick} />;
 };
 
-useGLTF.preload("/models/walker.glb");
+useGLTF.preload("/models/raptor.glb");
+useGLTF.preload("/models/allosaurus.glb");
+useGLTF.preload("/models/stegoknight.glb");
+useGLTF.preload("/models/spinosaurobot.glb");
 useGLTF.preload("/models/flyer.glb");

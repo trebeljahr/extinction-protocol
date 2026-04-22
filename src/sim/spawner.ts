@@ -59,7 +59,7 @@ const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
 };
 
 const WAVE_GAP_SECONDS = 2;
-const EARLY_CALL_THRESHOLD = 1 / 3;
+const EARLY_CALL_THRESHOLD = 1 / 2;
 
 const startWave = (world: World) => {
   world.wave += 1;
@@ -76,10 +76,7 @@ const startWave = (world: World) => {
   emit(world, { type: "wave-start", wave: world.wave });
 };
 
-export const earlyCallBonus = (secondsSaved: number) => Math.ceil(secondsSaved * 2);
-
-const earlyCallSecondsSaved = (world: World): number =>
-  world.waveActive ? WAVE_GAP_SECONDS : world.nextWaveIn;
+export const earlyCallBonus = (world: World): number => 15 + world.wave;
 
 export const canCallEarly = (world: World): boolean => {
   if (world.status !== "running") return false;
@@ -91,11 +88,11 @@ export const canCallEarly = (world: World): boolean => {
 };
 
 export const earlyCallGoldReward = (world: World): number =>
-  canCallEarly(world) ? earlyCallBonus(earlyCallSecondsSaved(world)) : 0;
+  canCallEarly(world) ? earlyCallBonus(world) : 0;
 
 export const callWaveEarly = (world: World): boolean => {
   if (!canCallEarly(world)) return false;
-  world.gold += earlyCallBonus(earlyCallSecondsSaved(world));
+  world.gold += earlyCallBonus(world);
   world.nextWaveIn = 0;
   startWave(world);
   return true;
