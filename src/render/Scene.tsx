@@ -2,6 +2,7 @@ import { Environment } from "@react-three/drei";
 import { Ground } from "./Ground";
 import { Rocks } from "./Rocks";
 import { Trees } from "./Trees";
+import { BiomeCosmetics } from "./BiomeCosmetics";
 import { PathLine } from "./PathLine";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
@@ -50,6 +51,7 @@ export const PlayScene = () => {
       <Ground />
       <Rocks />
       <Trees />
+      <BiomeCosmetics />
       <Placement />
       <PathLine />
 

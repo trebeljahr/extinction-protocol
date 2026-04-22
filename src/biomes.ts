@@ -221,7 +221,62 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   ],
 };
 
+// Small cosmetic props that are rendered as decor in levels AND on the world
+// map. These don't affect placement/gameplay — pure flavor.
+export const BIOME_COSMETICS: Record<Biome, string[]> = {
+  forest: [
+    "/models/landmarks/forest/Mushroom.glb",
+    "/models/landmarks/forest/Barrel.glb",
+    "/models/landmarks/forest/BushFlowers.glb",
+  ],
+  desert: [
+    "/models/landmarks/desert/Skull.glb",
+    "/models/landmarks/desert/Chest.glb",
+    "/models/landmarks/desert/DeadTree.glb",
+  ],
+  snow: [
+    "/models/landmarks/snow/Torch.glb",
+    "/models/landmarks/snow/Crystal1.glb",
+    "/models/landmarks/snow/Crystal2.glb",
+  ],
+  wasteland: [
+    "/models/landmarks/wasteland/Skull.glb",
+    "/models/landmarks/wasteland/Crystal1.glb",
+    "/models/landmarks/wasteland/Crystal2.glb",
+    "/models/landmarks/wasteland/DeadTree.glb",
+  ],
+};
+
+// Visual-role classification + target sizes so props on the world map (and
+// in levels) read with a sensible hierarchy:
+//   buildings > trees > bushes ≈ rocks > cosmetics ≈ grass
+// Each GLB gets normalized to `maxDim == TARGET_SIZE_BY_ROLE[role]` regardless
+// of the authored mesh scale, so packs with inconsistent exports still line up.
+export type PropRole = "building" | "tree" | "bush" | "rock" | "grass" | "cosmetic";
+
+export const TARGET_SIZE_BY_ROLE: Record<PropRole, number> = {
+  building: 3.2,
+  tree:     2.6,
+  bush:     1.2,
+  rock:     1.1,
+  grass:    0.55,
+  cosmetic: 0.7,
+};
+
+export const classifyPropUrl = (url: string): PropRole => {
+  const f = url.toLowerCase();
+  if (/house|cabin|sawmill|tent|ruins|tower_/.test(f)) return "building";
+  if (/tree|deadtree/.test(f)) return "tree";
+  if (/bushflowers/.test(f)) return "cosmetic";
+  if (/bush/.test(f)) return "bush";
+  if (/grass/.test(f)) return "grass";
+  if (/rock/.test(f)) return "rock";
+  // skull, torch, barrel, mushroom, crystal, chest — all small cosmetic items.
+  return "cosmetic";
+};
+
 export const ALL_BIOME_URLS = [
   ...Object.values(BIOME_LAYERS).flatMap(ls => ls.flatMap(l => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
+  ...Object.values(BIOME_COSMETICS).flat(),
 ];

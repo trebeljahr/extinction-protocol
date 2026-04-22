@@ -2,7 +2,14 @@ import { useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { LEVELS } from "../levels";
-import { BIOME_LAYERS, BIOME_TREE_URLS, type Biome } from "../biomes";
+import {
+  BIOME_LAYERS,
+  BIOME_TREE_URLS,
+  BIOME_COSMETICS,
+  TARGET_SIZE_BY_ROLE,
+  classifyPropUrl,
+  type Biome,
+} from "../biomes";
 
 // Deterministic PRNG so props stay put between renders
 const mulberry32 = (seed: number) => {
@@ -31,33 +38,22 @@ type PropRoleBucket = {
   clearance: number;    // effective world-space radius for overlap check
 };
 
-// Curated hero props that make each biome feel lived-in. Scaled a bit larger
-// than the small rock/bush layer and placed further from the node center.
+// Hero buildings only — skulls, crystals, mushrooms, etc. live in
+// BIOME_COSMETICS so they render small.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/House.glb",
     "/models/landmarks/forest/Sawmill.glb",
-    "/models/landmarks/forest/BushFlowers.glb",
-    "/models/landmarks/forest/Mushroom.glb",
-    "/models/landmarks/forest/Barrel.glb",
   ],
   desert: [
-    "/models/landmarks/desert/DeadTree.glb",
-    "/models/landmarks/desert/Chest.glb",
-    "/models/landmarks/desert/Skull.glb",
     "/models/landmarks/desert/Tent.glb",
   ],
   snow: [
     "/models/landmarks/snow/Cabin.glb",
     "/models/landmarks/snow/Tent.glb",
-    "/models/landmarks/snow/Torch.glb",
   ],
   wasteland: [
     "/models/landmarks/wasteland/Ruins.glb",
-    "/models/landmarks/wasteland/Skull.glb",
-    "/models/landmarks/wasteland/DeadTree.glb",
-    "/models/landmarks/wasteland/Crystal1.glb",
-    "/models/landmarks/wasteland/Crystal2.glb",
   ],
 };
 
@@ -133,34 +129,44 @@ const buildPropPlan = () => {
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
 
-    // Build role buckets for this biome.
-    // Layer props (small rocks/bushes): dense, compact.
+    // Bucket clearance is normalized *after* per-URL visual size — a rock and
+    // a cosmetic both get ~half their footprint as clearance, so spacing
+    // looks natural regardless of role.
     const smallBucket: PropRoleBucket = {
       urls: BIOME_LAYERS[biome].flatMap(l => l.urls),
       count: 10 + Math.floor(rand() * 4),
-      minScale: 0.38,
-      maxScale: 0.62,
-      clearance: 0.55,
+      minScale: 0.85,
+      maxScale: 1.25,
+      clearance: 0.5,
     };
-    // Trees: taller, slightly wider radius.
+    // Trees: tallest natural prop, wider personal space.
     const treeBucket: PropRoleBucket = {
       urls: BIOME_TREE_URLS[biome],
       count: 4 + Math.floor(rand() * 3),
-      minScale: 0.55,
-      maxScale: 0.9,
-      clearance: 0.85,
+      minScale: 0.85,
+      maxScale: 1.25,
+      clearance: 1.0,
     };
-    // Landmarks: hero props — fewer, bigger personal-space bubble.
+    // Buildings: hero props — fewer, biggest bubble.
     const landmarkBucket: PropRoleBucket = {
-      urls: BIOME_LANDMARKS[biome],
+      urls: BIOME_LANDMARKS[biome] ?? [],
       count: 1 + Math.floor(rand() * 2),
-      minScale: 0.45,
-      maxScale: 0.8,
-      clearance: 1.4,
+      minScale: 0.85,
+      maxScale: 1.15,
+      clearance: 1.7,
+    };
+    // Cosmetics: skulls/crystals/mushrooms — tiny dressing.
+    const cosmeticBucket: PropRoleBucket = {
+      urls: BIOME_COSMETICS[biome],
+      count: 5 + Math.floor(rand() * 4),
+      minScale: 0.8,
+      maxScale: 1.3,
+      clearance: 0.35,
     };
 
     // Place in order: biggest first so small fill around them.
-    for (const bucket of [landmarkBucket, treeBucket, smallBucket]) {
+    for (const bucket of [landmarkBucket, treeBucket, smallBucket, cosmeticBucket]) {
+      if (bucket.urls.length === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand);
         if (!inst) continue;
@@ -180,13 +186,14 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    const s = 1.4 / maxDim;
+    const target = TARGET_SIZE_BY_ROLE[classifyPropUrl(url)];
+    const s = target / maxDim;
     return {
       normalizedScale: s,
       centerOffset: new THREE.Vector3(center.x, center.y, center.z),
       minY: box.min.y,
     };
-  }, [scene]);
+  }, [scene, url]);
 
   useEffect(() => {
     scene.traverse(o => {
@@ -232,12 +239,13 @@ export const BiomeProps = () => {
   );
 };
 
-// Preload all URLs we might use — layers, trees, and biome-specific landmarks.
+// Preload every URL the world map might use.
 const allUrls = new Set<string>();
 for (const lvl of LEVELS) {
   const biome: Biome = (lvl.biome ?? "forest") as Biome;
   for (const l of BIOME_LAYERS[biome]) for (const u of l.urls) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
-  for (const u of BIOME_LANDMARKS[biome]) allUrls.add(u);
+  for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);
+  for (const u of BIOME_COSMETICS[biome]) allUrls.add(u);
 }
 for (const u of allUrls) useGLTF.preload(u);
