@@ -22,17 +22,17 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     a: {
       label: "Ballistics",
       tiers: [
-        { name: "Overbore",      desc: "+50% damage",  cost: 40,  apply: t => { t.damage *= 1.5; } },
-        { name: "Piercing",      desc: "+100% damage", cost: 85,  apply: t => { t.damage *= 1.33; } },
-        { name: "Annihilator",   desc: "+200% damage", cost: 180, apply: t => { t.damage *= 1.5; } },
+        { name: "Overbore",      desc: "+75% damage",                cost: 30,  apply: t => { t.damage *= 1.75; } },
+        { name: "Piercing",      desc: "+70% damage",                cost: 55,  apply: t => { t.damage *= 1.7; } },
+        { name: "Annihilator",   desc: "+140% damage",               cost: 95,  apply: t => { t.damage *= 2.4; } },
       ],
     },
     b: {
       label: "Autoloader",
       tiers: [
-        { name: "Spool",         desc: "+30% fire rate", cost: 40,  apply: t => { t.fireRate *= 1.3; } },
-        { name: "Overclock",     desc: "+35% fire rate", cost: 80,  apply: t => { t.fireRate *= 1.35; } },
-        { name: "Hyperfire",     desc: "+50% fire rate + range",  cost: 170, apply: t => { t.fireRate *= 1.5; t.range += 1; } },
+        { name: "Spool",         desc: "+40% fire rate",             cost: 30,  apply: t => { t.fireRate *= 1.4; } },
+        { name: "Overclock",     desc: "+50% fire rate",             cost: 55,  apply: t => { t.fireRate *= 1.5; } },
+        { name: "Hyperfire",     desc: "+80% fire rate, +1.5 range", cost: 95,  apply: t => { t.fireRate *= 1.8; t.range += 1.5; } },
       ],
     },
   },
@@ -40,17 +40,17 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     a: {
       label: "Arc Reach",
       tiers: [
-        { name: "Fork",          desc: "+1 chain target",  cost: 70,  apply: t => { t.chainCount += 1; } },
-        { name: "Cascade",       desc: "+2 chain targets", cost: 140, apply: t => { t.chainCount += 2; } },
-        { name: "Storm",         desc: "+3 chain + no falloff", cost: 260, apply: t => { t.chainCount += 3; t.chainFalloff = 1; } },
+        { name: "Fork",          desc: "+2 chain targets",           cost: 55,  apply: t => { t.chainCount += 2; } },
+        { name: "Cascade",       desc: "+2 chain + less falloff",    cost: 100, apply: t => { t.chainCount += 2; t.chainFalloff = Math.min(1, t.chainFalloff + 0.2); } },
+        { name: "Storm",         desc: "+3 chain, no falloff",       cost: 175, apply: t => { t.chainCount += 3; t.chainFalloff = 1; } },
       ],
     },
     b: {
       label: "Voltage",
       tiers: [
-        { name: "Step Up",       desc: "+40% damage",  cost: 65,  apply: t => { t.damage *= 1.4; } },
-        { name: "High Tension",  desc: "+70% damage",  cost: 130, apply: t => { t.damage *= 1.5; } },
-        { name: "Arc Furnace",   desc: "+100% damage", cost: 240, apply: t => { t.damage *= 1.8; } },
+        { name: "Step Up",       desc: "+55% damage",                cost: 45,  apply: t => { t.damage *= 1.55; } },
+        { name: "High Tension",  desc: "+70% damage",                cost: 95,  apply: t => { t.damage *= 1.7; } },
+        { name: "Arc Furnace",   desc: "+130% damage",               cost: 165, apply: t => { t.damage *= 2.3; } },
       ],
     },
   },
@@ -58,17 +58,17 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     a: {
       label: "Subzero",
       tiers: [
-        { name: "Deep Chill",    desc: "Slower enemies",  cost: 55, apply: t => { t.slowFactor = 0.35; } },
-        { name: "Rime",          desc: "Very slow",       cost: 110, apply: t => { t.slowFactor = 0.25; t.slowDuration = 1.6; } },
-        { name: "Cryo Lock",     desc: "Near-freeze",     cost: 210, apply: t => { t.slowFactor = 0.12; t.slowDuration = 2.2; } },
+        { name: "Deep Chill",    desc: "Slower enemies",             cost: 40,  apply: t => { t.slowFactor = 0.3; } },
+        { name: "Rime",          desc: "Near-halt + longer chill",   cost: 80,  apply: t => { t.slowFactor = 0.18; t.slowDuration = 1.9; } },
+        { name: "Cryo Lock",     desc: "Crawl + long chill",         cost: 150, apply: t => { t.slowFactor = 0.08; t.slowDuration = 2.6; } },
       ],
     },
     b: {
       label: "Resonator",
       tiers: [
-        { name: "Shard",         desc: "+1 range",                   cost: 55,  apply: t => { t.range += 1; } },
-        { name: "Freeze Burn",   desc: "+1 range, +0.4s chill",      cost: 110, apply: t => { t.range += 1; t.slowDuration += 0.4; } },
-        { name: "Absolute Zero", desc: "Unlocks 18 cold damage AoE", cost: 220, apply: t => { t.damage = 18; } },
+        { name: "Shard",         desc: "+1.2 range",                 cost: 40,  apply: t => { t.range += 1.2; } },
+        { name: "Freeze Burn",   desc: "+1.2 range, +0.6s chill",    cost: 80,  apply: t => { t.range += 1.2; t.slowDuration += 0.6; } },
+        { name: "Absolute Zero", desc: "24 cold damage AoE",         cost: 160, apply: t => { t.damage = 24; } },
       ],
     },
   },
@@ -76,17 +76,17 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
     a: {
       label: "Payload",
       tiers: [
-        { name: "Wider Spread",  desc: "+30% splash radius", cost: 95,  apply: t => { t.splashRadius *= 1.3; } },
-        { name: "Heavy Shell",   desc: "+60% splash radius", cost: 190, apply: t => { t.splashRadius *= 1.23; } },
-        { name: "Thermobaric",   desc: "+100% splash",       cost: 340, apply: t => { t.splashRadius *= 1.25; } },
+        { name: "Wider Spread",  desc: "+40% splash radius",         cost: 65,  apply: t => { t.splashRadius *= 1.4; } },
+        { name: "Heavy Shell",   desc: "+35% splash radius",         cost: 130, apply: t => { t.splashRadius *= 1.35; } },
+        { name: "Thermobaric",   desc: "+40% splash, +40% damage",   cost: 230, apply: t => { t.splashRadius *= 1.4; t.damage *= 1.4; } },
       ],
     },
     b: {
       label: "Breach",
       tiers: [
-        { name: "HE Rounds",     desc: "+40% damage",  cost: 95,  apply: t => { t.damage *= 1.4; } },
-        { name: "Bunker Buster", desc: "+80% damage + range",  cost: 180, apply: t => { t.damage *= 1.28; t.range += 1.5; } },
-        { name: "Singularity",   desc: "+150% damage", cost: 320, apply: t => { t.damage *= 1.95; } },
+        { name: "HE Rounds",     desc: "+55% damage",                cost: 65,  apply: t => { t.damage *= 1.55; } },
+        { name: "Bunker Buster", desc: "+50% damage, +1.5 range",    cost: 130, apply: t => { t.damage *= 1.5; t.range += 1.5; } },
+        { name: "Singularity",   desc: "+130% damage",               cost: 230, apply: t => { t.damage *= 2.3; } },
       ],
     },
   },
