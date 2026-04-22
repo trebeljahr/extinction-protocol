@@ -92,14 +92,13 @@ export const LevelNode = ({ level }: Props) => {
 
   return (
     <group position={[x, 0, z]}>
-      <group ref={groupRef}>
-        <mesh
-          position={[0, 0.5, 0]}
-          castShadow
-          onPointerDown={handleClick}
-          onPointerOver={handleOver}
-          onPointerOut={handleOut}
-        >
+      <group
+        ref={groupRef}
+        onPointerDown={handleClick}
+        onPointerOver={handleOver}
+        onPointerOut={handleOut}
+      >
+        <mesh position={[0, 0.5, 0]} castShadow>
           <cylinderGeometry args={[0.9, 1.1, 0.6, 24]} />
           <meshStandardMaterial
             color={baseColor}
@@ -109,7 +108,7 @@ export const LevelNode = ({ level }: Props) => {
             metalness={0.25}
           />
         </mesh>
-        <mesh position={[0, 0.85, 0]}>
+        <mesh position={[0, 0.85, 0]} castShadow>
           <sphereGeometry args={[0.5, 20, 20]} />
           <meshStandardMaterial
             color={baseColor}
