@@ -221,8 +221,11 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   ],
 };
 
-// Small cosmetic props that are rendered as decor in levels AND on the world
-// map. These don't affect placement/gameplay — pure flavor.
+// Small cosmetic props rendered as decor in levels AND on the world map.
+// Only Quaternius-style organic assets belong here — the low-poly cubic
+// (Kenney TD) crystals, snow/ice blocks, etc. clash with the rest of the
+// art and are off the table. Snow is intentionally empty for now: nothing
+// cosmetic-sized in the current asset set reads cleanly against snow.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/Mushroom.glb",
@@ -234,16 +237,9 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/desert/Chest.glb",
     "/models/landmarks/desert/DeadTree.glb",
   ],
-  snow: [
-    // Only models that actually have snow baked in belong here — anything
-    // without it looks like bare wood/grey against the snowfield.
-    "/models/biomes/snow/SnowBlock.glb",
-    "/models/biomes/snow/IceBlock.glb",
-  ],
+  snow: [],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",
-    "/models/landmarks/wasteland/Crystal1.glb",
-    "/models/landmarks/wasteland/Crystal2.glb",
     "/models/landmarks/wasteland/DeadTree.glb",
   ],
 };

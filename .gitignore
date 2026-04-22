@@ -7,6 +7,9 @@ dist-ssr
 package-lock.json
 yarn.lock
 
+# Claude Code session/worktree scratch (per-machine, not source)
+.claude/
+
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
