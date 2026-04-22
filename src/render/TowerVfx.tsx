@@ -102,8 +102,12 @@ export const TowerVfx = () => {
         if (charge <= 0.02) continue;
 
         const yaw = barrelYaw(t, world);
+        // A Y-rotation of `yaw` maps local +Z to world (sin yaw, 0, cos yaw),
+        // which with yaw = atan2(dx, -dy) is exactly the normalized forward
+        // vector from tower to target. Using -cos(yaw) here flipped Z and
+        // placed the rail on the wrong side of the tower.
         const fx = Math.sin(yaw);
-        const fz = -Math.cos(yaw);
+        const fz = Math.cos(yaw);
         // Align torus axis (local +Z) with the barrel direction in world.
         const ringYaw = Math.atan2(fx, fz);
 
