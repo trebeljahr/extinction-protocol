@@ -16,6 +16,7 @@ const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] =
   { mode: "tower", label: "Near", title: "Closest to tower" },
   { mode: "start", label: "Start", title: "Closest to path start" },
   { mode: "end", label: "End", title: "Closest to path end" },
+  { mode: "strongest", label: "Strong", title: "Highest max HP in range" },
 ];
 
 export const TowerPanel = () => {

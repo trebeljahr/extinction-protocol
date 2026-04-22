@@ -5,6 +5,7 @@ import { createProjectile, createBeam, emit, applySlow, applyDamage } from "./wo
 const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
   if (tower.targetingMode === "start") return -(e.segment + e.segmentT);
+  if (tower.targetingMode === "strongest") return e.maxHp;
   return e.segment + e.segmentT;
 };
 

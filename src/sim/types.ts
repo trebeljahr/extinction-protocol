@@ -28,7 +28,7 @@ export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 
 export type TowerUpgrades = { a: number; b: number };
 
-export type TargetingMode = "tower" | "start" | "end";
+export type TargetingMode = "tower" | "start" | "end" | "strongest";
 
 export type Tower = {
   id: EntityId;
