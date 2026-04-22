@@ -252,7 +252,7 @@ export const LEVELS: LevelConfig[] = [
   },
   {
     id: 11,
-    name: "Magma Gate",
+    name: "Scorched Gulch",
     biome: "desert",
     paths: [p(-20, -10, -12, -10, -12, 0, -4, 0, -4, 8, 6, 8, 6, -8, 14, -8, 14, 10, 20, 10)],
     startGold: 150,
