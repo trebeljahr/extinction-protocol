@@ -1,6 +1,6 @@
 import type { World, Projectile } from "./types";
 import { dist, sub, scale, normalize, add, distSq } from "./vec2";
-import { createExplosion, emit, addShake, spawnParticles } from "./world";
+import { createExplosion, emit, addShake, spawnParticles, applyDamage } from "./world";
 
 const HIT_RADIUS = 0.5;
 
@@ -15,28 +15,15 @@ const applyHit = (world: World, p: Projectile) => {
     for (const e of world.enemies) {
       if (!e.alive) continue;
       if (distSq(e.pos, p.pos) <= rSq) {
-        e.hp -= p.damage;
+        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10);
         e.flashUntil = world.time + 0.1;
-        if (e.hp <= 0) {
-          e.alive = false;
-          world.gold += e.bounty;
-          spawnParticles(world, e.pos, 10, "#c44848");
-          emit(world, { type: "death", pos: e.pos });
-        }
       }
     }
   } else {
     const target = p.targetId !== null ? world.enemies.find(e => e.id === p.targetId) : null;
     if (target && target.alive) {
-      target.hp -= p.damage;
-      target.flashUntil = world.time + 0.08;
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
-      if (target.hp <= 0) {
-        target.alive = false;
-        world.gold += target.bounty;
-        spawnParticles(world, target.pos, 8, "#c44848");
-        emit(world, { type: "death", pos: target.pos });
-      }
+      applyDamage(world, target, p.damage, p.damageType);
     }
   }
 };

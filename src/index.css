@@ -56,6 +56,47 @@ canvas { display: block; touch-action: none; }
   margin-top: 2px;
 }
 
+.call-wave-btn {
+  cursor: pointer;
+  color: #e6ecf2;
+  font-family: inherit;
+  text-align: left;
+  border-color: rgba(180, 255, 201, 0.45);
+  pointer-events: auto;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+  animation: call-wave-pulse 1.8s ease-in-out infinite;
+}
+
+.call-wave-btn:hover {
+  border-color: #b4ffc9;
+  box-shadow: 0 0 0 1px #b4ffc9, 0 0 18px rgba(180, 255, 201, 0.3);
+  transform: translateY(-1px);
+  animation: none;
+}
+
+.call-wave-btn:active { transform: translateY(0); }
+
+.call-wave-sub {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+@keyframes call-wave-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 255, 201, 0.0); }
+  50%      { box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22); }
+}
+
+.wave-hint { min-width: 140px; }
+.wave-hint-sub {
+  font-size: 10px;
+  color: #8a9a82;
+  margin-top: 2px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
 /* Tower picker (bottom-left column) */
 .tower-picker {
   position: absolute;
@@ -99,6 +140,7 @@ canvas { display: block; touch-action: none; }
 .tower-swatch.kind-mortar { background: linear-gradient(135deg, #5a4830 40%, #ffb266); }
 
 .tower-name { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.tower-dmg  { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
 .tower-cost { font-size: 12px; font-weight: 700; color: #ffd66a; }
 .tower-hot  { font-size: 10px; opacity: 0.55; }
 
@@ -118,8 +160,46 @@ canvas { display: block; touch-action: none; }
 
 .panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .panel-title { flex: 1; min-width: 0; }
-.panel-name { font-size: 15px; font-weight: 700; }
+.panel-name { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .panel-stats { font-size: 11px; color: #a8b4c2; margin-top: 3px; letter-spacing: 0.02em; }
+
+.dmg-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.resist-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.resist-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(120, 160, 200, 0.12);
+  line-height: 1.2;
+}
+
+.resist-chip.good { background: rgba(61, 255, 138, 0.1); border-color: rgba(61, 255, 138, 0.45); }
+.resist-chip.bad  { background: rgba(255, 90, 122, 0.1); border-color: rgba(255, 90, 122, 0.45); }
+
+.resist-name { font-size: 9px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.85; }
+.resist-val  { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.resist-chip.good .resist-val { color: #3dff8a; }
+.resist-chip.bad  .resist-val { color: #ff5a7a; }
+.resist-chip.neutral .resist-val { color: #a8b4c2; }
 
 .btn-close {
   background: transparent;
@@ -131,6 +211,48 @@ canvas { display: block; touch-action: none; }
   cursor: pointer;
 }
 .btn-close:hover { color: #fff; border-color: #9fd8ff; }
+
+.targeting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 160, 200, 0.12);
+  border-radius: 8px;
+  background: rgba(6, 10, 14, 0.4);
+}
+.targeting-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9fd8ff;
+  text-transform: uppercase;
+}
+.targeting-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  flex: 1;
+}
+.targeting-btn {
+  padding: 5px 4px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #a8b4c2;
+  border: 1px solid rgba(120, 160, 200, 0.18);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.targeting-btn:hover { border-color: rgba(180, 220, 255, 0.55); color: #fff; }
+.targeting-btn.active {
+  background: rgba(159, 216, 255, 0.18);
+  border-color: #9fd8ff;
+  color: #fff;
+  box-shadow: 0 0 0 1px #9fd8ff, 0 0 10px rgba(159, 216, 255, 0.2);
+}
 
 .branches { display: flex; flex-direction: column; gap: 12px; }
 .branch {

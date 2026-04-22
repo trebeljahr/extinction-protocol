@@ -2,7 +2,7 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm";
+export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored";
 
 export type Enemy = {
   id: EntityId;
@@ -23,7 +23,11 @@ export type Enemy = {
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar";
 
+export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
+
 export type TowerUpgrades = { a: number; b: number };
+
+export type TargetingMode = "tower" | "start" | "end";
 
 export type Tower = {
   id: EntityId;
@@ -34,6 +38,7 @@ export type Tower = {
   fireRate: number;
   cooldown: number;
   targetId: EntityId | null;
+  targetingMode: TargetingMode;
   upgrades: TowerUpgrades;
   totalSpent: number;
   splashRadius: number;
@@ -48,6 +53,7 @@ export type ProjectileKind = "direct" | "splash";
 export type Projectile = {
   id: EntityId;
   kind: ProjectileKind;
+  damageType: DamageType;
   pos: Vec2;
   targetId: EntityId | null;
   targetPos: Vec2;
@@ -92,10 +98,13 @@ export type EnemySpec = {
   count: number;
 };
 
+export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
+
 export type WaveSpec = {
   spawns: EnemySpec[];
   spacing?: number;
   hpMul?: number;
+  archetype?: WaveArchetype;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";
@@ -132,6 +141,7 @@ export type World = {
   totalWaves: number;
   waveActive: boolean;
   nextWaveIn: number;
+  waveTotalEnemies: number;
   gold: number;
   lives: number;
   startLives: number;

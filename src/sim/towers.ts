@@ -1,37 +1,40 @@
 import type { World, Tower, Enemy } from "./types";
 import { distSq } from "./vec2";
-import { createProjectile, createBeam, emit, applySlow, spawnParticles } from "./world";
+import { createProjectile, createBeam, emit, applySlow, applyDamage } from "./world";
 
-const findFurthestInRange = (world: World, tower: Tower): Enemy | null => {
+const scoreEnemy = (tower: Tower, e: Enemy): number => {
+  if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
+  if (tower.targetingMode === "start") return -(e.segment + e.segmentT);
+  return e.segment + e.segmentT;
+};
+
+const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   const rangeSq = tower.range * tower.range;
   let best: Enemy | null = null;
-  let bestProgress = -Infinity;
+  let bestScore = -Infinity;
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (distSq(e.pos, tower.pos) > rangeSq) continue;
-    const progress = e.segment + e.segmentT;
-    if (progress > bestProgress) {
+    const score = scoreEnemy(tower, e);
+    if (score > bestScore) {
       best = e;
-      bestProgress = progress;
+      bestScore = score;
     }
   }
   return best;
 };
 
 const firePulse = (world: World, t: Tower, target: Enemy) => {
-  createProjectile(world, "direct", t.pos, target, t.damage);
+  createProjectile(world, "direct", "kinetic", t.pos, target, t.damage);
 };
 
 const fireChain = (world: World, t: Tower, primary: Enemy) => {
   const hit: Enemy[] = [primary];
   let damage = t.damage;
-  primary.hp -= damage;
-  primary.flashUntil = world.time + 0.08;
 
   const chainRangeSq = 3.5 * 3.5;
   let current = primary;
   for (let i = 0; i < t.chainCount; i++) {
-    damage = Math.max(1, damage * t.chainFalloff);
     let next: Enemy | null = null;
     let bestDistSq = chainRangeSq;
     for (const e of world.enemies) {
@@ -44,44 +47,35 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
       }
     }
     if (!next) break;
-    next.hp -= damage;
-    next.flashUntil = world.time + 0.08;
     hit.push(next);
     current = next;
   }
 
-  for (const e of hit) {
-    if (e.hp <= 0 && e.alive) {
-      e.alive = false;
-      world.gold += e.bounty;
-      spawnParticles(world, e.pos, 8, "#c44848");
-      emit(world, { type: "death", pos: e.pos });
-    }
-  }
-
   const points = [t.pos, ...hit.map(e => e.pos)];
   createBeam(world, points, "#9fd8ff", 0.1);
+
+  for (const e of hit) {
+    applyDamage(world, e, damage, "electric");
+    damage = Math.max(1, damage * t.chainFalloff);
+  }
 };
 
-const fireCryo = (world: World, t: Tower) => {
+const fireCryo = (world: World, t: Tower): boolean => {
   const rangeSq = t.range * t.range;
+  let hit = false;
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (distSq(e.pos, t.pos) > rangeSq) continue;
-    e.hp -= t.damage;
-    e.flashUntil = world.time + 0.06;
+    hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
-    if (e.hp <= 0) {
-      e.alive = false;
-      world.gold += e.bounty;
-      spawnParticles(world, e.pos, 6, "#bfe9ff");
-      emit(world, { type: "death", pos: e.pos });
-    }
+    e.flashUntil = world.time + 0.06;
+    applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6);
   }
+  return hit;
 };
 
 const fireMortar = (world: World, t: Tower, target: Enemy) => {
-  createProjectile(world, "splash", t.pos, target.pos, t.damage, t.splashRadius, 14);
+  createProjectile(world, "splash", "explosive", t.pos, target.pos, t.damage, t.splashRadius, 14);
 };
 
 export const updateTowers = (world: World, dt: number) => {
@@ -90,9 +84,11 @@ export const updateTowers = (world: World, dt: number) => {
 
     if (t.kind === "cryo") {
       if (t.cooldown === 0) {
-        fireCryo(world, t);
-        t.cooldown = 1 / t.fireRate;
-        emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+        const didHit = fireCryo(world, t);
+        if (didHit) {
+          t.cooldown = 1 / t.fireRate;
+          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+        }
       }
       continue;
     }
@@ -104,7 +100,7 @@ export const updateTowers = (world: World, dt: number) => {
         target = current;
       }
     }
-    if (!target) target = findFurthestInRange(world, t);
+    if (!target) target = findTargetInRange(world, t);
     t.targetId = target?.id ?? null;
 
     if (target && t.cooldown === 0) {

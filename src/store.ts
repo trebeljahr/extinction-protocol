@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower } from "./sim/types";
+import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
+import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
@@ -37,6 +38,8 @@ type UiSnapshot = {
   status: RunStatus;
   waveActive: boolean;
   nextWaveIn: number;
+  canCallEarly: boolean;
+  callEarlyBonus: number;
   selectedTowerId: number | null;
   towerVersion: number;
 };
@@ -49,6 +52,8 @@ const snapshot = (w: World, towerVersion: number): UiSnapshot => ({
   status: w.status,
   waveActive: w.waveActive,
   nextWaveIn: Math.ceil(w.nextWaveIn),
+  canCallEarly: canCallEarly(w),
+  callEarlyBonus: earlyCallGoldReward(w),
   selectedTowerId: w.selectedTowerId,
   towerVersion,
 });
@@ -61,6 +66,8 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.status === b.status &&
   a.waveActive === b.waveActive &&
   a.nextWaveIn === b.nextWaveIn &&
+  a.canCallEarly === b.canCallEarly &&
+  a.callEarlyBonus === b.callEarlyBonus &&
   a.selectedTowerId === b.selectedTowerId &&
   a.towerVersion === b.towerVersion;
 
@@ -108,7 +115,7 @@ type GameStore = {
   world: World;
   engine: Engine;
   ui: UiSnapshot;
-  selectedKind: TowerKind;
+  selectedKind: TowerKind | null;
   towerVersion: number;
   eventListeners: ((e: GameEvent) => void)[];
 
@@ -127,13 +134,17 @@ type GameStore = {
   togglePause: () => void;
   tick: (realTimeSec: number) => void;
 
-  setSelectedKind: (kind: TowerKind) => void;
+  setSelectedKind: (kind: TowerKind | null) => void;
   tryPlaceOrSelect: (pos: Vec2) => void;
   canPlace: (pos: Vec2) => boolean;
+  towerAtPos: (pos: Vec2) => Tower | null;
+  clearSelection: () => void;
 
   selectTower: (id: number | null) => void;
   upgradeSelected: (branch: "a" | "b") => void;
   sellSelected: () => void;
+  setTargetingMode: (mode: TargetingMode) => void;
+  callWaveEarly: () => void;
 
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 };
@@ -149,7 +160,7 @@ export const isUnlocked = (levelId: number, progress: ProgressData) =>
 export const useGame = create<GameStore>((set, get) => ({
   ...buildWorldForLevel(getLevel(1)),
   engine: new Engine(),
-  selectedKind: "pulse",
+  selectedKind: null,
   eventListeners: [],
 
   screen: "worldMap",
@@ -166,7 +177,7 @@ export const useGame = create<GameStore>((set, get) => ({
     engine.reset();
     set({
       ...buildWorldForLevel(level),
-      selectedKind: "pulse",
+      selectedKind: null,
       selectedLevelId: id,
       hoveredLevelId: null,
       lastResult: null,
@@ -239,9 +250,21 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!uiEqual(s.ui, next)) set({ ui: next });
   },
 
-  setSelectedKind: (kind) => set({ selectedKind: kind }),
+  setSelectedKind: (kind) => {
+    const { world, towerVersion } = get();
+    if (kind !== null) world.selectedTowerId = null;
+    set({ selectedKind: kind, ui: snapshot(world, towerVersion) });
+  },
 
   canPlace: (pos) => canPlaceAt(get().world, pos),
+
+  towerAtPos: (pos) => towerAt(get().world, pos),
+
+  clearSelection: () => {
+    const { world, towerVersion } = get();
+    world.selectedTowerId = null;
+    set({ selectedKind: null, ui: snapshot(world, towerVersion) });
+  },
 
   tryPlaceOrSelect: (pos) => {
     const s = get();
@@ -251,10 +274,11 @@ export const useGame = create<GameStore>((set, get) => ({
     const hit = towerAt(w, pos);
     if (hit) {
       w.selectedTowerId = hit.id;
-      set({ ui: snapshot(w, s.towerVersion) });
+      set({ selectedKind: null, ui: snapshot(w, s.towerVersion) });
       return;
     }
 
+    if (s.selectedKind === null) return;
     const cost = TOWER_COST[s.selectedKind];
     if (w.gold < cost) return;
     if (!canPlaceAt(w, pos)) return;
@@ -262,13 +286,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = createTower(w, s.selectedKind, pos);
     w.selectedTowerId = t.id;
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(w, newVersion) });
+    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion) });
   },
 
   selectTower: (id) => {
     const { world, towerVersion } = get();
     world.selectedTowerId = id;
-    set({ ui: snapshot(world, towerVersion) });
+    set({ selectedKind: id !== null ? null : get().selectedKind, ui: snapshot(world, towerVersion) });
   },
 
   upgradeSelected: (branch) => {
@@ -290,6 +314,23 @@ export const useGame = create<GameStore>((set, get) => ({
     sellTower(s.world, t);
     const newVersion = s.towerVersion + 1;
     set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+  },
+
+  setTargetingMode: (mode) => {
+    const s = get();
+    if (s.world.selectedTowerId === null) return;
+    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    if (!t || t.targetingMode === mode) return;
+    t.targetingMode = mode;
+    t.targetId = null;
+    const newVersion = s.towerVersion + 1;
+    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion) });
+  },
+
+  callWaveEarly: () => {
+    const s = get();
+    if (!simCallWaveEarly(s.world)) return;
+    set({ ui: snapshot(s.world, s.towerVersion) });
   },
 
   onEvent: (fn) => {
