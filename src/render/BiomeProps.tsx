@@ -42,23 +42,27 @@ type PropRoleBucket = {
   clearance: number;
 };
 
-// Hero building per biome. Snow keeps Cabin primarily so the winter
-// biome reads immediately. Wasteland uses Ruins for the same reason.
+// Hero building per biome. Each URL appears once per weight-slot: repeating
+// a URL makes it more likely when the random picker chooses one of the
+// `urls[]` entries, so Sawmill appears ~1-in-4 desert nodes (one ship wreck
+// across the full map in expectation) while Tent remains the common read.
+// Wasteland has no building — Ruins read as "half platforms" and didn't
+// fit, so that biome is just trees + rocks at the cluster level.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/House.glb",
-    "/models/landmarks/forest/Sawmill.glb",
   ],
   desert: [
     "/models/landmarks/desert/Tent.glb",
+    "/models/landmarks/desert/Tent.glb",
+    "/models/landmarks/desert/Tent.glb",
+    "/models/landmarks/forest/Sawmill.glb", // sparingly — reads as a weathered ship wreck
   ],
   snow: [
     "/models/landmarks/snow/Cabin.glb",
     "/models/landmarks/snow/Tent.glb",
   ],
-  wasteland: [
-    "/models/landmarks/wasteland/Ruins.glb",
-  ],
+  wasteland: [],
 };
 
 // Pick rocks only out of each biome's layer list — no bushes/grass on

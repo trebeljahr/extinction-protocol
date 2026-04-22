@@ -299,6 +299,7 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 13,
     name: "Ironwood Thicket",
+    biome: "snow",
     paths: [p(-20, 10, -16, 10, -16, -10, -8, -10, -8, 10, 0, 10, 0, -10, 8, -10, 8, 10, 16, 10, 16, -10, 20, -10)],
     startGold: 150,
     nodePos: { x: -10, y: 6 },
