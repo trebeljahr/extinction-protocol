@@ -57,7 +57,12 @@ export const HUD = () => {
         <Stat label="GOLD" value={ui.gold} accent="#ffd66a" />
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
-        {ui.canCallEarly ? (
+        {ui.wave === 0 ? (
+          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Start waves (N)">
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>START WAVES [N]</div>
+            <div className="stat-value">Ready</div>
+          </button>
+        ) : ui.canCallEarly ? (
           <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (N)">
             <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [N]</div>
             <div className="stat-value">
