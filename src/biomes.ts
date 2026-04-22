@@ -235,9 +235,10 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/desert/DeadTree.glb",
   ],
   snow: [
-    "/models/landmarks/snow/Torch.glb",
-    "/models/landmarks/snow/Crystal1.glb",
-    "/models/landmarks/snow/Crystal2.glb",
+    // Only models that actually have snow baked in belong here — anything
+    // without it looks like bare wood/grey against the snowfield.
+    "/models/biomes/snow/SnowBlock.glb",
+    "/models/biomes/snow/IceBlock.glb",
   ],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",

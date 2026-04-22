@@ -48,10 +48,9 @@ const BIOME_LANDMARKS: Record<Biome, string[]> = {
   desert: [
     "/models/landmarks/desert/Tent.glb",
   ],
-  snow: [
-    "/models/landmarks/snow/Cabin.glb",
-    "/models/landmarks/snow/Tent.glb",
-  ],
+  // No snow-themed buildings in the asset library — keep empty so we
+  // don't drop bare-wood cabins into a snowfield.
+  snow: [],
   wasteland: [
     "/models/landmarks/wasteland/Ruins.glb",
   ],
