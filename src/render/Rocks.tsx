@@ -4,8 +4,9 @@ import { useGLTF } from "@react-three/drei";
 import type { Rock } from "../sim/types";
 import { useGame } from "../store";
 import { BIOME_LAYERS } from "../biomes";
+import { applySnowPass } from "./snowPass";
 
-const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
+const RockGroup = ({ url, rocks, snow }: { url: string; rocks: Rock[]; snow: boolean }) => {
   const { scene } = useGLTF(url);
   const instRef = useRef<THREE.InstancedMesh>(null);
 
@@ -21,8 +22,10 @@ const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
     geom.applyMatrix4(m.matrixWorld);
     geom.computeBoundingBox();
     const minY = geom.boundingBox?.min.y ?? 0;
-    return { geom, material: m.material as THREE.Material, minY };
-  }, [scene]);
+    const rawMat = m.material as THREE.Material;
+    const material = snow ? applySnowPass(rawMat) : rawMat;
+    return { geom, material, minY };
+  }, [scene, snow]);
 
   useEffect(() => {
     const im = instRef.current;
@@ -71,10 +74,11 @@ export const Rocks = () => {
     return Array.from(out.entries());
   }, [biome, rocks]);
 
+  const snow = biome === "snow";
   return (
     <group>
       {buckets.map(([url, group]) => (
-        <RockGroup key={url} url={url} rocks={group} />
+        <RockGroup key={url} url={url} rocks={group} snow={snow} />
       ))}
     </group>
   );
