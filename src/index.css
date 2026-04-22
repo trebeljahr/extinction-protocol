@@ -1639,6 +1639,19 @@ canvas { display: block; touch-action: none; }
   color: #9fb4c8;
 }
 .achievement-tile.unlocked .achievement-tile-status { color: #ffd66a; }
+.achievement-tile.locked.secrecy-hint .achievement-tile-status,
+.achievement-tile.locked.secrecy-hidden .achievement-tile-status {
+  color: #b48cff;
+}
+.achievement-tile.locked.secrecy-hint .achievement-tile-name,
+.achievement-tile.locked.secrecy-hidden .achievement-tile-name {
+  color: #6b7685;
+  font-style: italic;
+}
+.achievement-tile.locked.secrecy-hint .achievement-tile-desc,
+.achievement-tile.locked.secrecy-hidden .achievement-tile-desc {
+  color: #525c6b;
+}
 
 .achievement-tile-name {
   font-size: 15px;

@@ -17,13 +17,18 @@ export type AchievementId =
   | "full_spectrum"
   | "master_engineer"
   | "campaign"
-  | "perfect_run";
+  | "perfect_run"
+  | "tree_hugger"
+  | "diamond_in_the_rough";
+
+export type AchievementSecrecy = "visible" | "hint" | "hidden";
 
 export type AchievementDef = {
   id: AchievementId;
   name: string;
   desc: string;
   hint: string;
+  secrecy?: AchievementSecrecy;
 };
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -41,6 +46,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "master_engineer", name: "Master Engineer", desc: "Have one of every tower type fully upgraded at once.", hint: "Four towers, each tier 3 on both branches." },
   { id: "campaign",      name: "Campaign Complete", desc: "Win every mission.",                                  hint: "Clear the whole map." },
   { id: "perfect_run",   name: "Perfect Run",       desc: "Earn three stars on every mission.",                  hint: "Max rating everywhere." },
+  { id: "tree_hugger",   name: "Tree Hugger",       desc: "Click the same tree ten times.",                      hint: "Some trees are hiding more than shade.", secrecy: "hint" },
+  { id: "diamond_in_the_rough", name: "Diamond in the Rough", desc: "Click the same rock ten times.",            hint: "Persistence cracks more than stone.",   secrecy: "hint" },
 ];
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
@@ -101,6 +108,9 @@ const satisfies = (
       return LEVELS.every(l => getStars(p, l.id) >= 1);
     case "perfect_run":
       return LEVELS.every(l => getStars(p, l.id) >= 3);
+    case "tree_hugger":
+    case "diamond_in_the_rough":
+      return false;
   }
 };
 

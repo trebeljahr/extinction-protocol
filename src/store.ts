@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, Rock, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT, ROCK_REMOVE_COST } from "./sim/world";
+import { createWorld, createTower, spawnParticles, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT, ROCK_REMOVE_COST } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
@@ -193,6 +193,8 @@ type GameStore = {
   achievementToasts: AchievementToast[];
   newEnemyQueue: EnemyKind[];
   autoPausedForNewEnemy: boolean;
+  treeClickCounts: Record<number, number>;
+  rockClickCounts: Record<number, number>;
 
   startLevel: (id: number) => void;
   retryCurrentLevel: () => void;
@@ -238,6 +240,19 @@ const emptyInspect: InspectState = { id: null, kind: null, maxHp: null };
 
 let nextToastKey = 1;
 
+const EASTER_EGG_CLICK_THRESHOLD = 10;
+
+const tryUnlockEasterEgg = (
+  progress: ProgressData,
+  id: AchievementId,
+): { id: AchievementId; progress: ProgressData } | null => {
+  if (progress.unlocked[id] !== undefined) return null;
+  return {
+    id,
+    progress: { ...progress, unlocked: { ...progress.unlocked, [id]: Date.now() } },
+  };
+};
+
 const buildWorldForLevel = (level: LevelConfig) => {
   const world = createWorld(level);
   return {
@@ -270,6 +285,8 @@ export const useGame = create<GameStore>((set, get) => ({
   achievementToasts: [],
   newEnemyQueue: [],
   autoPausedForNewEnemy: false,
+  treeClickCounts: {},
+  rockClickCounts: {},
 
   startLevel: (id) => {
     const level = LEVELS.find(l => l.id === id);
@@ -288,6 +305,8 @@ export const useGame = create<GameStore>((set, get) => ({
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
       screen: "playing",
+      treeClickCounts: {},
+      rockClickCounts: {},
     });
   },
 
@@ -495,13 +514,26 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const w = s.world;
     if (w.status !== "running") return;
-    if (!treeById(w, id)) return;
+    const tree = treeById(w, id);
+    if (!tree) return;
     w.selectedTowerId = null;
+    const nextCount = (s.treeClickCounts[id] ?? 0) + 1;
+    const nextCounts = { ...s.treeClickCounts, [id]: nextCount };
+    const unlock = nextCount === EASTER_EGG_CLICK_THRESHOLD
+      ? tryUnlockEasterEgg(s.progress, "tree_hugger")
+      : null;
+    if (unlock) {
+      spawnParticles(w, tree.pos, 18, "#8ecf6b", [2.5, 5.5], 0.55);
+      spawnParticles(w, tree.pos, 10, "#c8f2a4", [1.5, 3.5], 0.75);
+      saveProgress(unlock.progress);
+    }
     set({
       selectedKind: null,
       selectedTreeId: id,
       selectedRockId: null,
       inspectedEnemy: emptyInspect,
+      treeClickCounts: nextCounts,
+      ...(unlock ? { progress: unlock.progress, achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }] } : {}),
       ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },
@@ -530,13 +562,26 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const w = s.world;
     if (w.status !== "running") return;
-    if (!rockById(w, id)) return;
+    const rock = rockById(w, id);
+    if (!rock) return;
     w.selectedTowerId = null;
+    const nextCount = (s.rockClickCounts[id] ?? 0) + 1;
+    const nextCounts = { ...s.rockClickCounts, [id]: nextCount };
+    const unlock = nextCount === EASTER_EGG_CLICK_THRESHOLD
+      ? tryUnlockEasterEgg(s.progress, "diamond_in_the_rough")
+      : null;
+    if (unlock) {
+      spawnParticles(w, rock.pos, 22, "#e8faff", [3, 6], 0.7);
+      spawnParticles(w, rock.pos, 12, "#aaf0ff", [1.5, 3.5], 0.9);
+      saveProgress(unlock.progress);
+    }
     set({
       selectedKind: null,
       selectedTreeId: null,
       selectedRockId: id,
       inspectedEnemy: emptyInspect,
+      rockClickCounts: nextCounts,
+      ...(unlock ? { progress: unlock.progress, achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }] } : {}),
       ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },

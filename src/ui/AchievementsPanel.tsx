@@ -39,17 +39,32 @@ export const AchievementsPanel = () => {
           {ACHIEVEMENTS.map(def => {
             const unlocked = isAchievementUnlocked(progress, def.id);
             const ts = progress.unlocked[def.id];
+            const secrecy = def.secrecy ?? "visible";
+            const hideName = !unlocked && secrecy !== "visible";
+            const hideDesc = !unlocked && secrecy !== "visible";
+            const hideHint = !unlocked && secrecy === "hidden";
+            const statusLabel = unlocked
+              ? "UNLOCKED"
+              : secrecy === "hidden"
+                ? "???"
+                : secrecy === "hint"
+                  ? "SECRET"
+                  : "LOCKED";
             return (
               <div
                 key={def.id}
-                className={`achievement-tile ${unlocked ? "unlocked" : "locked"}`}
+                className={`achievement-tile ${unlocked ? "unlocked" : "locked"} secrecy-${secrecy}`}
               >
-                <div className="achievement-tile-status">
-                  {unlocked ? "UNLOCKED" : "LOCKED"}
+                <div className="achievement-tile-status">{statusLabel}</div>
+                <div className="achievement-tile-name">
+                  {hideName ? "???" : def.name}
                 </div>
-                <div className="achievement-tile-name">{def.name}</div>
-                <div className="achievement-tile-desc">{def.desc}</div>
-                <div className="achievement-tile-hint">{def.hint}</div>
+                <div className="achievement-tile-desc">
+                  {hideDesc ? "???" : def.desc}
+                </div>
+                <div className="achievement-tile-hint">
+                  {hideHint ? "???" : def.hint}
+                </div>
                 {unlocked && ts && (
                   <div className="achievement-tile-date">
                     {new Date(ts).toLocaleDateString()}
