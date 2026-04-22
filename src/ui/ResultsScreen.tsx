@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useGame } from "../store";
-import { StarDisplay } from "./StarDisplay";
+import { StarDisplay, STAR_STAGGER_MS } from "./StarDisplay";
 import { LEVELS } from "../levels";
 import { isLevelUnlocked } from "../progress";
+import { audio } from "../audio/AudioManager";
 
 export const ResultsScreen = () => {
   const result = useGame(s => s.lastResult);
@@ -18,6 +19,16 @@ export const ResultsScreen = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [retry, goToMap]);
+
+  const stars = result?.stars ?? 0;
+  useEffect(() => {
+    if (stars <= 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < stars; i++) {
+      timers.push(setTimeout(() => audio.play("star", 0.8, 30, 1.8), i * STAR_STAGGER_MS));
+    }
+    return () => { for (const t of timers) clearTimeout(t); };
+  }, [stars]);
 
   if (!result) return null;
 
@@ -55,8 +66,8 @@ export const ResultsScreen = () => {
         </div>
 
         <div className="results-actions">
-          <button onClick={retry} className="btn">Retry (R)</button>
-          <button onClick={goToMap} className="btn btn-secondary">World Map (Esc)</button>
+          <button onClick={goToMap} className="btn">World Map (Esc)</button>
+          <button onClick={retry} className="btn btn-secondary">Retry (R)</button>
         </div>
       </div>
     </div>

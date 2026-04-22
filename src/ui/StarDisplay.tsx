@@ -1,5 +1,7 @@
 import type { Stars } from "../progress";
 
+export const STAR_STAGGER_MS = 220;
+
 type Props = {
   count: number;
   max?: number;
@@ -12,7 +14,7 @@ export const StarDisplay = ({ count, max = 3, size = 18, animate = false }: Prop
     <div className="stars-row" style={{ gap: Math.round(size * 0.25) }}>
       {Array.from({ length: max }).map((_, i) => {
         const filled = i < count;
-        const delay = animate ? `${i * 220}ms` : "0ms";
+        const delay = animate ? `${i * STAR_STAGGER_MS}ms` : "0ms";
         return (
           <Star
             key={i}
