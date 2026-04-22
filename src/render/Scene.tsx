@@ -1,3 +1,4 @@
+import { Environment } from "@react-three/drei";
 import { Ground } from "./Ground";
 import { Trees } from "./Trees";
 import { PathLine } from "./PathLine";
@@ -14,15 +15,18 @@ import { MAP_HEIGHT } from "../level";
 
 export const PlayScene = () => (
   <>
-    <color attach="background" args={["#1b2a22"]} />
-    <fog attach="fog" args={["#1b2a22", 32, 68]} />
+    <color attach="background" args={["#a7cbe3"]} />
+    <fog attach="fog" args={["#c4dcec", 48, 110]} />
 
     <CameraRig />
 
-    <ambientLight intensity={0.45} />
+    <Environment preset="park" background={false} environmentIntensity={0.6} />
+
+    <ambientLight intensity={0.55} color="#eaf2ff" />
     <directionalLight
-      position={[10, 20, 10]}
-      intensity={1.0}
+      position={[14, 26, 10]}
+      intensity={2.2}
+      color="#fff4dc"
       castShadow
       shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
@@ -30,8 +34,9 @@ export const PlayScene = () => (
       shadow-camera-right={MAP_HEIGHT}
       shadow-camera-top={MAP_HEIGHT}
       shadow-camera-bottom={-MAP_HEIGHT}
+      shadow-bias={-0.0005}
     />
-    <hemisphereLight args={["#b8dc9c", "#2a1f15", 0.45]} />
+    <hemisphereLight args={["#bcd8ff", "#6a5a3a", 0.85]} />
 
     <SimTicker />
     <Ground />
