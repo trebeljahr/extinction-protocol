@@ -33,7 +33,6 @@ export const BiomeGround = ({
 
     const pos = geom.attributes.position;
     const colors = new Float32Array(pos.count * 3);
-    const tmp = new THREE.Color();
     const acc = new THREE.Color();
 
     const nodes = LEVELS.map(l => ({
@@ -72,12 +71,9 @@ export const BiomeGround = ({
         acc.setRGB(0.065, 0.11, 0.15);
       }
 
-      // Subtle vertex noise so the ground doesn't look perfectly smooth
-      const n = (Math.sin(wx * 2.3 + wz * 1.7) + Math.cos(wx * 1.1 - wz * 0.9)) * 0.015;
-      tmp.setRGB(acc.r + n, acc.g + n, acc.b + n);
-      colors[i * 3] = tmp.r;
-      colors[i * 3 + 1] = tmp.g;
-      colors[i * 3 + 2] = tmp.b;
+      colors[i * 3] = acc.r;
+      colors[i * 3 + 1] = acc.g;
+      colors[i * 3 + 2] = acc.b;
     }
 
     geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
