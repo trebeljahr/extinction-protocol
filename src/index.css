@@ -1149,7 +1149,14 @@ canvas { display: block; touch-action: none; }
   text-align: center;
 }
 
-/* Level node labels rendered via <Html> */
+/* Level node labels rendered via <Html>.
+   The drei <Html> wrapper div sits on top of the canvas — if it catches
+   pointer events, the 3D node underneath becomes unhoverable. Wrapping
+   with .map-label-wrap kills pointer events on the whole subtree. */
+.map-label-wrap,
+.map-label-wrap > * {
+  pointer-events: none !important;
+}
 .map-label {
   font-family: inherit;
   font-size: 14px;

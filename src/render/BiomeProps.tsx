@@ -177,6 +177,8 @@ const buildPropPlan = () => {
   return perUrl;
 };
 
+const noRaycast: THREE.Mesh["raycast"] = () => {};
+
 const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) => {
   const { scene } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
@@ -201,6 +203,9 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
       if (!m.isMesh) return;
       m.castShadow = true;
       m.receiveShadow = true;
+      // Decorative — never block clicks/hovers on the level node it
+      // surrounds.
+      m.raycast = noRaycast;
     });
   }, [scene]);
 

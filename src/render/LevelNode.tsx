@@ -45,12 +45,13 @@ export const LevelNode = ({ level }: Props) => {
     return { baseColor: "#3dd1ff", emissive: "#1a6a88", emissiveIntensity: 0.8 };
   }, [unlocked, completed]);
 
-  // Hover bumps the dome a touch. Unplayed still pulses — the hover pop
-  // layers on top of the pulse.
+  // Hover bumps the dome. Locked levels still get a smaller bump so the
+  // user gets feedback that the cursor is on the node (cursor also flips
+  // to not-allowed). Unplayed levels still pulse underneath the bump.
   useFrame((state) => {
     const g = groupRef.current;
     if (!g) return;
-    const hoverBoost = hovered && unlocked ? 1.12 : 1.0;
+    const hoverBoost = hovered ? (unlocked ? 1.18 : 1.08) : 1.0;
     if (unplayed) {
       const t = state.clock.elapsedTime;
       const pulse = 1 + Math.sin(t * 3.2) * 0.08;
@@ -81,11 +82,10 @@ export const LevelNode = ({ level }: Props) => {
     document.body.style.cursor = "default";
   };
 
-  // Stars sit high above the dome; the number / lock label sits *below*
-  // the ground ring so it doesn't cover the 3D node mesh at our tilted
-  // ortho angle. Positive z is "south" on the tilted camera = below.
+  // Stars sit high above the dome; the number / lock label is centered
+  // horizontally with the node and placed at the node's base so it reads
+  // as a plaque directly under the icon.
   const starY = 3.15;
-  const labelZ = 1.8;
 
   const x = level.nodePos.x;
   const z = -level.nodePos.y;
@@ -128,12 +128,33 @@ export const LevelNode = ({ level }: Props) => {
         <meshBasicMaterial
           color={unlocked ? (completed ? "#ffd66a" : "#3dd1ff") : "#2a3240"}
           transparent
-          opacity={unlocked ? (hovered ? 0.95 : 0.6) : 0.3}
+          opacity={hovered ? (unlocked ? 0.98 : 0.7) : (unlocked ? 0.6 : 0.3)}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      <Html center position={[0, 0.05, labelZ]} zIndexRange={[0, 10]}>
+      {hovered && (
+        <mesh
+          position={[0, 0.05, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[1.55, 1.95, 48]} />
+          <meshBasicMaterial
+            color={unlocked ? (completed ? "#ffeaa0" : "#9aebff") : "#9aa6b6"}
+            transparent
+            opacity={0.85}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      <Html
+        center
+        position={[0, 0.05, 0]}
+        zIndexRange={[0, 10]}
+        wrapperClass="map-label-wrap"
+      >
         <div className={`map-label ${unlocked ? "" : "locked"}`}>
           {unlocked ? level.id : "\u{1F512}"}
         </div>
