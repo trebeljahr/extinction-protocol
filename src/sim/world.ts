@@ -359,7 +359,7 @@ export type TowerBaseStats = {
 
 export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
   pulse:  { range: 6.5, damage: 10, fireRate: 2.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
-  chain:  { range: 5.5, damage: 9,  fireRate: 1.2, splashRadius: 0,    chainCount: 5, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
+  chain:  { range: 5.5, damage: 9,  fireRate: 1.2, splashRadius: 0,    chainCount: 7, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
   cryo:   { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.4,  slowDuration: 1.5 },
   mortar: { range: 9.0, damage: 26, fireRate: 0.5, splashRadius: 1.8,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
 };
