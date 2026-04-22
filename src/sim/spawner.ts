@@ -44,10 +44,13 @@ export const getWavePlan = (world: World, wave: number): { archetype: WaveArchet
   return { archetype: spec.archetype ?? inferArchetype(spec) };
 };
 
-const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
-  const out: EnemyKind[] = [];
+type RosterEntry = { kind: EnemyKind; pathIndex: number };
+
+const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
+  const out: RosterEntry[] = [];
   for (const s of spec.spawns) {
-    for (let i = 0; i < s.count; i++) out.push(s.kind);
+    const pathIndex = s.pathIndex ?? 0;
+    for (let i = 0; i < s.count; i++) out.push({ kind: s.kind, pathIndex });
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
   if (archetype === "swarm") return out;
@@ -71,7 +74,7 @@ const startWave = (world: World) => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - world.wave * 0.03);
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
-    world.spawnQueue.push({ kind: roster[i], at: t, hpMul });
+    world.spawnQueue.push({ kind: roster[i].kind, at: t, hpMul, pathIndex: roster[i].pathIndex });
   }
   emit(world, { type: "wave-start", wave: world.wave });
 };
@@ -111,7 +114,7 @@ export const spawnerTick = (world: World, dt: number) => {
 
   while (world.spawnQueue.length > 0 && world.spawnQueue[0].at <= world.time) {
     const req = world.spawnQueue.shift()!;
-    spawnEnemy(world, req.kind, req.hpMul);
+    spawnEnemy(world, req.kind, req.hpMul, req.pathIndex);
   }
 
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {

@@ -60,7 +60,6 @@ export const ModelEnemyMesh = ({
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
-    const path = world.path;
 
     const live = new Set<number>();
     for (const e of world.enemies) {
@@ -100,6 +99,7 @@ export const ModelEnemyMesh = ({
         -e.pos.y - centerXZ.z,
       );
 
+      const path = world.paths[e.pathIndex] ?? world.paths[0];
       const a = path[e.segment];
       const b = path[e.segment + 1] ?? a;
       const dx = b.x - a.x;

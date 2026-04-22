@@ -114,9 +114,11 @@ const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
 
 const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
   const r2 = clearance * clearance;
-  for (let i = 0; i < world.path.length - 1; i++) {
-    if (segmentLength(world.path, i) === 0) continue;
-    if (distToSegmentSq(pos, world.path[i], world.path[i + 1]) < r2) return true;
+  for (const path of world.paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (segmentLength(path, i) === 0) continue;
+      if (distToSegmentSq(pos, path[i], path[i + 1]) < r2) return true;
+    }
   }
   return false;
 };

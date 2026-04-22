@@ -30,10 +30,12 @@ const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: nu
   return dx * dx + dy * dy;
 };
 
-const nearPath = (path: Vec2[], x: number, y: number, clearance: number) => {
+const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
   const r2 = clearance * clearance;
-  for (let i = 0; i < path.length - 1; i++) {
-    if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+  for (const path of paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+    }
   }
   return false;
 };
@@ -49,7 +51,7 @@ type LayerSpec = {
   maxScale: number;
 };
 
-const buildLayer = (path: Vec2[], spec: LayerSpec): Placement[][] => {
+const buildLayer = (paths: Vec2[][], spec: LayerSpec): Placement[][] => {
   const rng = mulberry32(spec.seed);
   const buckets: Placement[][] = spec.urls.map(() => []);
   let tries = 0;
@@ -58,7 +60,7 @@ const buildLayer = (path: Vec2[], spec: LayerSpec): Placement[][] => {
     tries++;
     const x = (rng() - 0.5) * MAP_WIDTH;
     const y = (rng() - 0.5) * MAP_HEIGHT;
-    if (nearPath(path, x, y, spec.clearance)) continue;
+    if (nearAnyPath(paths, x, y, spec.clearance)) continue;
     const variant = Math.floor(rng() * spec.urls.length);
     buckets[variant].push({
       x,
@@ -167,10 +169,10 @@ const NatureInstances = ({
 };
 
 export const Ground = () => {
-  const path = useGame(s => s.world.path);
+  const paths = useGame(s => s.world.paths);
   const layers = useMemo(
-    () => LAYERS.map(spec => ({ spec, buckets: buildLayer(path, spec) })),
-    [path],
+    () => LAYERS.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),
+    [paths],
   );
 
   return (

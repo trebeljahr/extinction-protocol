@@ -1,12 +1,22 @@
 import { useMemo } from "react";
 import * as THREE from "three";
+import type { Vec2 } from "../sim/types";
 import { PATH_WIDTH } from "../level";
 import { segmentLength } from "../sim/path";
 import { useGame } from "../store";
 
 export const PathLine = () => {
-  const path = useGame(s => s.world.path);
+  const paths = useGame(s => s.world.paths);
+  return (
+    <group>
+      {paths.map((path, i) => (
+        <SinglePath key={i} path={path} />
+      ))}
+    </group>
+  );
+};
 
+const SinglePath = ({ path }: { path: Vec2[] }) => {
   const segments = useMemo(() => {
     const out: { pos: [number, number, number]; rotY: number; length: number }[] = [];
     for (let i = 0; i < path.length - 1; i++) {
