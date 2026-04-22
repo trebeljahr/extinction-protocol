@@ -21,6 +21,7 @@ export const createWorld = (level: LevelConfig): World => ({
   time: 0,
   tickCount: 0,
   levelId: level.id,
+  biome: level.biome ?? "forest",
   paths: level.paths,
   plannedWaves: level.hpScale
     ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))

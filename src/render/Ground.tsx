@@ -2,8 +2,9 @@ import { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import type { Vec2 } from "../sim/types";
-import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
+import { MAP_WIDTH, MAP_HEIGHT } from "../level";
 import { useGame } from "../store";
+import { BIOME_LAYERS, BIOME_STYLE, ALL_BIOME_URLS, type BiomeLayer } from "../biomes";
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
@@ -42,16 +43,7 @@ const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) =
 
 type Placement = { x: number; y: number; scale: number; rot: number };
 
-type LayerSpec = {
-  seed: number;
-  urls: string[];
-  count: number;
-  clearance: number;
-  minScale: number;
-  maxScale: number;
-};
-
-const buildLayer = (paths: Vec2[][], spec: LayerSpec): Placement[][] => {
+const buildLayer = (paths: Vec2[][], spec: BiomeLayer): Placement[][] => {
   const rng = mulberry32(spec.seed);
   const buckets: Placement[][] = spec.urls.map(() => []);
   let tries = 0;
@@ -72,46 +64,6 @@ const buildLayer = (paths: Vec2[][], spec: LayerSpec): Placement[][] => {
   }
   return buckets;
 };
-
-const LAYERS: LayerSpec[] = [
-  {
-    seed: 1337,
-    urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
-    count: 220,
-    clearance: PATH_WIDTH / 2 + 0.3,
-    minScale: 0.6,
-    maxScale: 1.1,
-  },
-  {
-    seed: 9001,
-    urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    count: 70,
-    clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.75,
-    maxScale: 1.35,
-  },
-  {
-    seed: 4242,
-    urls: ["/models/nature/Rock1.glb", "/models/nature/Rock2.glb", "/models/nature/Rock3.glb"],
-    count: 50,
-    clearance: PATH_WIDTH / 2 + 0.9,
-    minScale: 0.55,
-    maxScale: 1.2,
-  },
-  {
-    seed: 7777,
-    urls: [
-      "/models/nature/Tree1.glb",
-      "/models/nature/Tree2.glb",
-      "/models/nature/Tree3.glb",
-      "/models/nature/Tree4.glb",
-    ],
-    count: 55,
-    clearance: PATH_WIDTH / 2 + 1.6,
-    minScale: 0.9,
-    maxScale: 1.5,
-  },
-];
 
 const NatureInstances = ({
   url,
@@ -170,25 +122,29 @@ const NatureInstances = ({
 
 export const Ground = () => {
   const paths = useGame(s => s.world.paths);
+  const biome = useGame(s => s.world.biome);
+  const style = BIOME_STYLE[biome];
+  const specs = BIOME_LAYERS[biome];
+
   const layers = useMemo(
-    () => LAYERS.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),
-    [paths],
+    () => specs.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),
+    [paths, specs],
   );
 
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[MAP_WIDTH, MAP_HEIGHT]} />
-        <meshStandardMaterial color="#475c38" roughness={0.98} metalness={0} />
+        <meshStandardMaterial color={style.groundColor} roughness={0.98} metalness={0} />
       </mesh>
 
       {layers.flatMap(({ spec, buckets }, li) =>
         buckets.map((placements, vi) => (
           <NatureInstances
-            key={`${li}-${vi}`}
+            key={`${biome}-${li}-${vi}`}
             url={spec.urls[vi]}
             placements={placements}
-            castShadow={li >= 2}
+            castShadow={spec.castShadow}
           />
         )),
       )}
@@ -196,4 +152,4 @@ export const Ground = () => {
   );
 };
 
-for (const url of LAYERS.flatMap(l => l.urls)) useGLTF.preload(url);
+for (const url of ALL_BIOME_URLS) useGLTF.preload(url);
