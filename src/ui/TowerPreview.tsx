@@ -1,14 +1,14 @@
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, Environment } from "@react-three/drei";
 import type { TowerKind } from "../sim/types";
 
 const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number; rotY: number }> = {
-  pulse:  { url: "/models/tower_pulse.glb",    targetSize: 1.6, rotY: Math.PI * 0.25 },
-  chain:  { url: "/models/tower_chain.glb",    targetSize: 1.6, rotY: Math.PI * 0.2 },
-  mortar: { url: "/models/turret_missile.glb", targetSize: 1.4, rotY: Math.PI * 0.22 },
-  cryo:   { url: "/models/turret_emp.glb",     targetSize: 1.4, rotY: Math.PI * 0.25 },
+  pulse:  { url: "/models/tower_pulse.glb",    targetSize: 1.5, rotY: 0 },
+  chain:  { url: "/models/tower_chain.glb",    targetSize: 1.5, rotY: 0 },
+  mortar: { url: "/models/turret_missile.glb", targetSize: 1.5, rotY: 0 },
+  cryo:   { url: "/models/turret_emp.glb",     targetSize: 1.5, rotY: 0 },
 };
 
 const StaticTower = ({ url, targetSize, rotY }: { url: string; targetSize: number; rotY: number }) => {
@@ -37,9 +37,9 @@ const StaticTower = ({ url, targetSize, rotY }: { url: string; targetSize: numbe
   }, [scene, targetSize]);
 
   useEffect(() => {
-    invalidate();
-    const t = setTimeout(() => invalidate(), 32);
-    return () => clearTimeout(t);
+    // Re-invalidate a few times so the env HDRI finishes loading before the final draw.
+    const timers = [0, 60, 220, 520].map(ms => setTimeout(() => invalidate(), ms));
+    return () => timers.forEach(clearTimeout);
   }, [cloned, invalidate]);
 
   return (
@@ -61,12 +61,17 @@ export const TowerPreview = ({ kind }: { kind: TowerKind }) => {
         frameloop="demand"
         dpr={[1, 2]}
         gl={{ alpha: true, antialias: true }}
-        camera={{ position: [1.3, 0.95, 1.8], fov: 28, near: 0.1, far: 20 }}
+        camera={{ position: [3.4, 0.7, 1.1], fov: 26, near: 0.1, far: 20 }}
+        onCreated={({ camera }) => {
+          camera.lookAt(0, 0, 0);
+          camera.updateProjectionMatrix();
+        }}
         style={{ width: "100%", height: "100%", background: "transparent" }}
       >
-        <ambientLight intensity={0.65} color="#eaf2ff" />
-        <directionalLight position={[3, 4, 2]} intensity={1.8} color="#fff4dc" />
-        <hemisphereLight args={["#bcd8ff", "#5a4a30", 0.6]} />
+        <Environment preset="park" background={false} environmentIntensity={0.6} />
+        <ambientLight intensity={0.55} color="#eaf2ff" />
+        <directionalLight position={[14, 26, 10]} intensity={2.2} color="#fff4dc" />
+        <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.85]} />
         <Suspense fallback={null}>
           <StaticTower url={url} targetSize={targetSize} rotY={rotY} />
         </Suspense>
