@@ -43,7 +43,11 @@ export const updateEnemies = (world: World, dt: number) => {
       world.lives -= e.damage;
       e.alive = false;
       emit(world, { type: "life-lost" });
-      if (world.lives > 0) addShake(world, 0.18);
+      // Slight jolt so the hit registers — previous 0.18 mag with decay 6
+      // faded in two frames and was easy to miss. Scales with the enemy's
+      // damage so a titan at the gate hits harder than a lone raptor.
+      const mag = 0.32 + Math.min(0.28, e.damage * 0.06);
+      addShake(world, mag, 3.5);
     }
   }
   world.enemies = world.enemies.filter(e => e.alive);
