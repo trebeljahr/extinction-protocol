@@ -4,6 +4,7 @@ import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { HealthBars } from "./HealthBars";
 import { SelectionRing } from "./SelectionRing";
+import { CryoAuras } from "./CryoAuras";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
 import { Placement } from "./Placement";
@@ -50,6 +51,7 @@ export const PlayScene = () => (
     <ModelTowerMesh kind="mortar" url="/models/turret_missile.glb" targetSize={1.4} />
     <ModelTowerMesh kind="cryo"   url="/models/turret_emp.glb"     targetSize={1.4} idleSpin />
 
+    <CryoAuras />
     <HealthBars />
     <SelectionRing />
     <ProjectileMesh />

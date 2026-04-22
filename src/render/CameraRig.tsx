@@ -10,7 +10,8 @@ export const CameraRig = () => {
   useFrame(() => {
     const g = groupRef.current;
     if (!g) return;
-    const mag = useGame.getState().world.shake.magnitude;
+    const { world } = useGame.getState();
+    const mag = world.status === "running" ? world.shake.magnitude : 0;
     if (mag > 0.001) {
       g.position.x = (Math.random() - 0.5) * mag;
       g.position.z = (Math.random() - 0.5) * mag;

@@ -20,7 +20,7 @@ export const updateEnemies = (world: World, dt: number) => {
       world.lives -= e.damage;
       e.alive = false;
       emit(world, { type: "life-lost" });
-      addShake(world, 0.35);
+      if (world.lives > 0) addShake(world, 0.18);
     }
   }
   world.enemies = world.enemies.filter(e => e.alive);
