@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Center, useGLTF } from "@react-three/drei";
 import { useGame } from "../store";
-import { TREE_REMOVE_COST } from "../sim/world";
-import { BIOME_TREE_URLS, BIOME_STYLE } from "../biomes";
+import { TREE_REMOVE_COST, ROCK_REMOVE_COST } from "../sim/world";
+import { BIOME_TREE_URLS, BIOME_LAYERS, BIOME_STYLE } from "../biomes";
 
 const StaticModel = ({ url }: { url: string }) => {
   const { scene } = useGLTF(url);
@@ -20,20 +20,54 @@ const obstacleLabel = (url: string): string => {
   return "Obstacle";
 };
 
+type Selection =
+  | { kind: "tree"; url: string; cost: number; clear: () => void; confirm: () => void }
+  | { kind: "rock"; url: string; cost: number; clear: () => void; confirm: () => void };
+
 export const TreePanel = () => {
   const selectedTreeId = useGame(s => s.selectedTreeId);
+  const selectedRockId = useGame(s => s.selectedRockId);
   const trees = useGame(s => s.world.trees);
+  const rocks = useGame(s => s.world.rocks);
   const biome = useGame(s => s.world.biome);
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
 
-  if (selectedTreeId === null || status !== "running") return null;
-  const tree = trees.find(t => t.id === selectedTreeId);
-  if (!tree) return null;
+  if (status !== "running") return null;
 
-  const url = BIOME_TREE_URLS[biome][tree.variant];
-  const label = obstacleLabel(url);
-  const canAfford = gold >= TREE_REMOVE_COST;
+  let selection: Selection | null = null;
+  if (selectedTreeId !== null) {
+    const tree = trees.find(t => t.id === selectedTreeId);
+    if (tree) {
+      selection = {
+        kind: "tree",
+        url: BIOME_TREE_URLS[biome][tree.variant],
+        cost: TREE_REMOVE_COST,
+        clear: () => useGame.getState().clearSelectedTree(),
+        confirm: () => useGame.getState().confirmRemoveTree(),
+      };
+    }
+  } else if (selectedRockId !== null) {
+    const rock = rocks.find(r => r.id === selectedRockId);
+    if (rock) {
+      const layer = BIOME_LAYERS[biome][rock.layerIndex];
+      const url = layer?.urls[rock.variant];
+      if (url) {
+        selection = {
+          kind: "rock",
+          url,
+          cost: ROCK_REMOVE_COST,
+          clear: () => useGame.getState().clearSelectedRock(),
+          confirm: () => useGame.getState().confirmRemoveRock(),
+        };
+      }
+    }
+  }
+
+  if (!selection) return null;
+
+  const label = obstacleLabel(selection.url);
+  const canAfford = gold >= selection.cost;
   const style = BIOME_STYLE[biome];
 
   return (
@@ -47,7 +81,7 @@ export const TreePanel = () => {
         </div>
         <button
           className="btn-close"
-          onClick={() => useGame.getState().clearSelectedTree()}
+          onClick={selection.clear}
           aria-label="close"
         >×</button>
       </div>
@@ -65,7 +99,7 @@ export const TreePanel = () => {
           <directionalLight position={[4, 6, 3]} intensity={1.4} color="#fff4dc" />
           <hemisphereLight args={[style.hemiTop, style.hemiBottom, 0.7]} />
           <Center>
-            <StaticModel url={url} />
+            <StaticModel url={selection.url} />
           </Center>
         </Canvas>
       </div>
@@ -73,7 +107,7 @@ export const TreePanel = () => {
       <div className="tree-cost-row">
         <span className="tree-cost-label">Clear cost</span>
         <span className={`tree-cost-value ${canAfford ? "" : "unaffordable"}`}>
-          {TREE_REMOVE_COST}g
+          {selection.cost}g
         </span>
       </div>
 
@@ -81,13 +115,13 @@ export const TreePanel = () => {
         <button
           className="btn"
           disabled={!canAfford}
-          onClick={() => useGame.getState().confirmRemoveTree()}
+          onClick={selection.confirm}
         >
-          Clear · {TREE_REMOVE_COST}g
+          Clear · {selection.cost}g
         </button>
         <button
           className="btn btn-secondary"
-          onClick={() => useGame.getState().clearSelectedTree()}
+          onClick={selection.clear}
         >
           Cancel (Esc)
         </button>

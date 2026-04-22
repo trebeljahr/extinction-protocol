@@ -39,7 +39,8 @@ export const HUD = () => {
           s.selectedKind !== null ||
           s.world.selectedTowerId !== null ||
           s.inspectedEnemy.kind !== null ||
-          s.selectedTreeId !== null
+          s.selectedTreeId !== null ||
+          s.selectedRockId !== null
         ) {
           s.clearSelection();
           (document.activeElement as HTMLElement | null)?.blur();
@@ -144,7 +145,7 @@ export const HUD = () => {
       <TreePanel />
 
       <div className="hud-bottom">
-        <span>Click empty tile to build · click a tower to inspect · click a tree to clear (10g)</span>
+        <span>Click empty tile to build · click a tower to inspect · click a tree/rock to clear</span>
         <span className="sep">·</span>
         <span>1–4: pick tower</span>
         <span className="sep">·</span>
