@@ -131,11 +131,19 @@ export class AudioManager {
   }
 
   playShoot(kind: TowerKind) {
+    // New towers reuse existing sfx keys mapped to their family:
+    //   gatling/cannon → pulse (kinetic), plasma/hive → chain (electric),
+    //   flame         → mortar (explosive boom).
     const map: Record<TowerKind, [string, number, number, number]> = {
-      pulse:  ["shoot-pulse",  0.35, 60,  0.7],
-      chain:  ["shoot-chain",  0.35, 90,  0.9],
-      cryo:   ["shoot-cryo",   0.45, 150, 1.1],
-      mortar: ["shoot-mortar", 0.55, 200, 1.4],
+      pulse:   ["shoot-pulse",  0.35, 60,  0.7],
+      chain:   ["shoot-chain",  0.35, 90,  0.9],
+      cryo:    ["shoot-cryo",   0.45, 150, 1.1],
+      mortar:  ["shoot-mortar", 0.55, 200, 1.4],
+      gatling: ["shoot-pulse",  0.25, 50,  0.6],
+      cannon:  ["shoot-pulse",  0.55, 180, 1.0],
+      plasma:  ["shoot-chain",  0.45, 120, 1.0],
+      flame:   ["shoot-mortar", 0.3,  80,  0.6],
+      hive:    ["shoot-chain",  0.35, 100, 0.9],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, vol, cd, maxDur);

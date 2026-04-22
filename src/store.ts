@@ -617,10 +617,13 @@ export const useGame = create<GameStore>((set, get) => ({
     if (w.gold < cost) return;
     if (!canPlaceAt(w, pos)) return;
     w.gold -= cost;
-    const t = createTower(w, s.selectedKind, pos);
-    w.selectedTowerId = t.id;
+    createTower(w, s.selectedKind, pos);
+    // Keep the currently-picked tower kind selected (so the player can
+    // keep placing more of the same) and *don't* auto-select the tower
+    // we just dropped — being thrown into the upgrade panel after every
+    // placement is noisy mid-wave.
     const newVersion = s.towerVersion + 1;
-    set({ selectedKind: null, towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
+    set({ towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   selectTower: (id) => {

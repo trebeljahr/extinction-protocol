@@ -212,20 +212,21 @@ canvas { display: block; touch-action: none; }
   margin-bottom: 6px;
 }
 
-/* Tower picker (bottom-left column) */
+/* Tower picker — centred along the bottom of the screen, compact cards. */
 .tower-picker {
   position: absolute;
-  left: 16px;
-  bottom: 64px;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 6px;
   pointer-events: auto;
 }
 
 .tower-card {
   position: relative;
-  width: 88px;
-  padding: 10px 8px 8px;
+  width: 72px;
+  padding: 4px 6px 6px;
   background: rgba(14, 20, 28, 0.85);
   border: 1px solid rgba(120, 160, 200, 0.18);
   border-radius: 8px;
@@ -233,10 +234,69 @@ canvas { display: block; touch-action: none; }
   color: #e6ecf2;
   font-family: inherit;
   transition: border-color 0.12s, transform 0.08s;
-  display: grid;
-  justify-items: center;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
   backdrop-filter: blur(6px);
+}
+
+.tower-preview-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.tower-preview-wrap > .tower-swatch {
+  width: 100%;
+  height: 100%;
+}
+.tower-preview-wrap .tower-hot {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #e6ecf2;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.tower-preview-wrap .tower-dmg-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.tower-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 1.1;
+}
+.tower-meta .tower-name {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tower-meta .tower-cost {
+  font-weight: 700;
+  color: #ffd66a;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .tower-card:focus { outline: none; }

@@ -25,7 +25,16 @@ export type Enemy = {
   flashUntil: number;
 };
 
-export type TowerKind = "pulse" | "chain" | "cryo" | "mortar";
+export type TowerKind =
+  | "pulse"
+  | "chain"
+  | "cryo"
+  | "mortar"
+  | "gatling"
+  | "cannon"
+  | "plasma"
+  | "flame"
+  | "hive";
 
 export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 

@@ -81,6 +81,22 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
   createProjectile(world, "splash", "explosive", t.pos, target.pos, t.damage, t.splashRadius, 14);
 };
 
+// Flamethrower — hit every enemy in short range each tick. Damage per hit is
+// small but fire rate is high, so it reads as DoT on anything lingering in
+// the cone. No slow, no projectiles — just direct AoE damage.
+const fireFlame = (world: World, t: Tower): boolean => {
+  const rangeSq = t.range * t.range;
+  let hit = false;
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    if (distSq(e.pos, t.pos) > rangeSq) continue;
+    hit = true;
+    applyDamage(world, e, t.damage, "explosive", "#ffb54a", 4);
+    spawnParticles(world, e.pos, 2, "#ffb54a", [1.4, 2.6], 0.4);
+  }
+  return hit;
+};
+
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
   createProjectile(world, "splash", "explosive", t.pos, { x: pos.x, y: pos.y }, t.damage, t.splashRadius, 14);
 };
@@ -134,9 +150,16 @@ export const updateTowers = (world: World, dt: number) => {
     t.targetId = target?.id ?? null;
 
     if (target && t.cooldown === 0) {
-      if (t.kind === "pulse") firePulse(world, t, target);
-      else if (t.kind === "chain") fireChain(world, t, target);
+      // New towers reuse existing fire logic:
+      //   gatling / cannon — single-target direct shot (same as pulse)
+      //   plasma          — splash projectile (same as mortar, electric dmg)
+      //   flame           — cryo-like AoE but with damage instead of slow
+      //   hive            — chain drones (same chain logic, more bounces)
+      if (t.kind === "pulse" || t.kind === "gatling" || t.kind === "cannon") firePulse(world, t, target);
+      else if (t.kind === "chain" || t.kind === "hive") fireChain(world, t, target);
       else if (t.kind === "mortar") fireMortar(world, t, target);
+      else if (t.kind === "plasma") fireMortar(world, t, target);
+      else if (t.kind === "flame") fireFlame(world, t);
       t.cooldown = 1 / t.fireRate;
       emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
     }

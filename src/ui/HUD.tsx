@@ -11,8 +11,20 @@ import { PauseMenu } from "./PauseMenu";
 import { DamageIcon } from "./DamageIcon";
 import { getLevel } from "../levels";
 
-const KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
-const HOTKEYS: Record<TowerKind, string> = { pulse: "1", chain: "2", cryo: "3", mortar: "4" };
+const KINDS: TowerKind[] = [
+  "pulse", "gatling", "cannon", "chain", "hive", "plasma", "flame", "mortar", "cryo",
+];
+const HOTKEYS: Record<TowerKind, string> = {
+  pulse:   "1",
+  gatling: "2",
+  cannon:  "3",
+  chain:   "4",
+  hive:    "5",
+  plasma:  "6",
+  flame:   "7",
+  mortar:  "8",
+  cryo:    "9",
+};
 
 export const HUD = () => {
   useAudioBridge();
@@ -118,6 +130,7 @@ export const HUD = () => {
                 setSelectedKind(selectedKind === kind ? null : kind);
                 e.currentTarget.blur();
               }}
+              title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
             >
               {active && (
                 <span
@@ -127,14 +140,21 @@ export const HUD = () => {
                   onClick={(e) => { e.stopPropagation(); setSelectedKind(null); }}
                 >×</span>
               )}
-              <TowerPreview kind={kind} />
-              <div className="tower-name">{TOWER_LABEL[kind]}</div>
-              <div className="tower-dmg" style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}>
-                <DamageIcon type={dmgType} size={11} title={DAMAGE_TYPE_LABEL[dmgType]} />
-                {DAMAGE_TYPE_LABEL[dmgType]}
+              <div className="tower-preview-wrap">
+                <TowerPreview kind={kind} />
+                <span className="tower-hot">{HOTKEYS[kind]}</span>
+                <span
+                  className="tower-dmg-icon"
+                  style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
+                  title={DAMAGE_TYPE_LABEL[dmgType]}
+                >
+                  <DamageIcon type={dmgType} size={13} title={DAMAGE_TYPE_LABEL[dmgType]} />
+                </span>
               </div>
-              <div className="tower-cost">{cost}g</div>
-              <div className="tower-hot">[{HOTKEYS[kind]}]</div>
+              <div className="tower-meta">
+                <span className="tower-name">{TOWER_LABEL[kind]}</span>
+                <span className="tower-cost">{cost}g</span>
+              </div>
             </button>
           );
         })}
@@ -143,20 +163,6 @@ export const HUD = () => {
       <TowerPanel />
       <EnemyPanel />
       <TreePanel />
-
-      <div className="hud-bottom">
-        <span>Click empty tile to build · click a tower to inspect · click a tree/rock to clear</span>
-        <span className="sep">·</span>
-        <span>1–4: pick tower</span>
-        <span className="sep">·</span>
-        <span>Space: call wave</span>
-        <span className="sep">·</span>
-        <span>P: pause</span>
-        <span className="sep">·</span>
-        <span>R: restart</span>
-        <span className="sep">·</span>
-        <span>Esc: menu</span>
-      </div>
 
       {paused && !compendiumOpen && <PauseMenu onResume={togglePause} />}
     </div>
