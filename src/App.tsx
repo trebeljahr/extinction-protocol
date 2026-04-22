@@ -25,11 +25,11 @@ export const App = () => {
           <SceneRoot />
           <EffectComposer multisampling={0}>
             <Bloom
-              intensity={0.7}
-              luminanceThreshold={0.55}
-              luminanceSmoothing={0.2}
+              intensity={0.28}
+              luminanceThreshold={0.82}
+              luminanceSmoothing={0.18}
               mipmapBlur
-              kernelSize={KernelSize.LARGE}
+              kernelSize={KernelSize.MEDIUM}
             />
           </EffectComposer>
         </Canvas>

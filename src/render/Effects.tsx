@@ -52,7 +52,6 @@ export const Effects = () => {
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
-  const white = useMemo(() => new THREE.Color("#ffffff"), []);
 
   const beamPairs = useMemo(() => {
     const arr: ReturnType<typeof makeBeamPair>[] = [];
@@ -113,13 +112,14 @@ export const Effects = () => {
         if (i >= MAX_EXPLOSIONS) break;
         const life = Math.max(0, (e.expiresAt - now) / e.maxLife);
         const growth = 1 - life;
-        // Outer shockwave — expanding white ring/sphere
+        // Outer shockwave — expanding translucent dome
         dummy.position.set(e.pos.x, 0.35, -e.pos.y);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.setScalar(e.radius * (0.35 + growth * 1.0));
         dummy.updateMatrix();
         eMesh.setMatrixAt(i, dummy.matrix);
-        color.copy(white).multiplyScalar(0.6 + life * 0.8);
+        // Cool slightly-blue cast so it reads as a shock front, not a headlight.
+        color.setRGB(0.82, 0.88, 1.0);
         eMesh.setColorAt(i, color);
 
         // Inner flash — warm hot core that shrinks slightly
@@ -127,7 +127,7 @@ export const Effects = () => {
         dummy.scale.setScalar(e.radius * (0.55 + life * 0.35));
         dummy.updateMatrix();
         fMesh.setMatrixAt(i, dummy.matrix);
-        color.setRGB(1.0, 0.85, 0.55).multiplyScalar(0.5 + life * 1.4);
+        color.setRGB(1.0, 0.82, 0.5).multiplyScalar(0.35 + life * 0.6);
         fMesh.setColorAt(i, color);
         i++;
       }
@@ -137,6 +137,17 @@ export const Effects = () => {
       fMesh.instanceMatrix.needsUpdate = true;
       if (eMesh.instanceColor) eMesh.instanceColor.needsUpdate = true;
       if (fMesh.instanceColor) fMesh.instanceColor.needsUpdate = true;
+      // Fade shockwave opacity with the longest-lived explosion so a single
+      // material still reads as "translucent and fading".
+      const eMat = explosionMatRef.current;
+      if (eMat && world.explosions.length > 0) {
+        let maxLife = 0;
+        for (const e of world.explosions) {
+          const l = Math.max(0, (e.expiresAt - now) / e.maxLife);
+          if (l > maxLife) maxLife = l;
+        }
+        eMat.opacity = 0.12 + maxLife * 0.28;
+      }
     }
 
     // --- Beams: jagged lightning, core + halo ---
@@ -265,8 +276,8 @@ export const Effects = () => {
           ref={explosionMatRef}
           toneMapped={false}
           transparent
-          opacity={0.75}
-          blending={THREE.AdditiveBlending}
+          opacity={0.3}
+          blending={THREE.NormalBlending}
           depthWrite={false}
         />
       </instancedMesh>
