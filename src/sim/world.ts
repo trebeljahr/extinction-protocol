@@ -11,12 +11,17 @@ import type {
   Explosion,
   GameEvent,
 } from "./types";
+import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
 
-export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
+export const STARTING_LIVES = 20;
+
+export const createWorld = (level: LevelConfig): World => ({
   time: 0,
   tickCount: 0,
-  path,
+  levelId: level.id,
+  path: level.path,
+  plannedWaves: level.waves,
   enemies: [],
   towers: [],
   projectiles: [],
@@ -25,11 +30,12 @@ export const createWorld = (path: Vec2[], totalWaves = 10): World => ({
   particles: [],
   spawnQueue: [],
   wave: 0,
-  totalWaves,
+  totalWaves: level.waves.length,
   waveActive: false,
   nextWaveIn: 3,
-  gold: 220,
-  lives: 20,
+  gold: level.startGold,
+  lives: STARTING_LIVES,
+  startLives: STARTING_LIVES,
   status: "running",
   nextEntityId: 1,
   events: [],

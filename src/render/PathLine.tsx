@@ -1,27 +1,32 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { PATH, PATH_WIDTH } from "../level";
+import { PATH_WIDTH } from "../level";
 import { segmentLength } from "../sim/path";
+import { useGame } from "../store";
 
 export const PathLine = () => {
+  const path = useGame(s => s.world.path);
+
   const segments = useMemo(() => {
     const out: { pos: [number, number, number]; rotY: number; length: number }[] = [];
-    for (let i = 0; i < PATH.length - 1; i++) {
-      const a = PATH[i];
-      const b = PATH[i + 1];
-      const length = segmentLength(PATH, i);
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i];
+      const b = path[i + 1];
+      const length = segmentLength(path, i);
       const midX = (a.x + b.x) / 2;
       const midZ = -(a.y + b.y) / 2;
       const rotY = Math.atan2(-(b.y - a.y), b.x - a.x);
       out.push({ pos: [midX, 0.02, midZ], rotY, length });
     }
     return out;
-  }, []);
+  }, [path]);
 
   const joints = useMemo(
-    () => PATH.map(p => [p.x, 0.03, -p.y] as [number, number, number]),
-    [],
+    () => path.map(p => [p.x, 0.03, -p.y] as [number, number, number]),
+    [path],
   );
+
+  if (path.length < 2) return null;
 
   return (
     <group>
@@ -38,14 +43,14 @@ export const PathLine = () => {
         </mesh>
       ))}
       <mesh
-        position={[PATH[0].x, 0.04, -PATH[0].y]}
+        position={[path[0].x, 0.04, -path[0].y]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color="#4aff88" transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
       <mesh
-        position={[PATH[PATH.length - 1].x, 0.04, -PATH[PATH.length - 1].y]}
+        position={[path[path.length - 1].x, 0.04, -path[path.length - 1].y]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <ringGeometry args={[0.6, 1.0, 24]} />

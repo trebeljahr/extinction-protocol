@@ -1,26 +1,11 @@
-import type { World, EnemyKind } from "./types";
+import type { World, EnemyKind, WaveSpec } from "./types";
 import { spawnEnemy, emit } from "./world";
 
-const rosterForWave = (wave: number): { kind: EnemyKind; hpMul: number }[] => {
-  const out: { kind: EnemyKind; hpMul: number }[] = [];
-  const hpMul = 1 + (wave - 1) * 0.08;
-
-  const raptors = 4 + wave * 2;
-  for (let i = 0; i < raptors; i++) out.push({ kind: "raptor", hpMul });
-
-  if (wave >= 2) {
-    const swarms = 2 + wave * 3;
-    for (let i = 0; i < swarms; i++) out.push({ kind: "swarm", hpMul });
+const rosterFromSpec = (spec: WaveSpec): EnemyKind[] => {
+  const out: EnemyKind[] = [];
+  for (const s of spec.spawns) {
+    for (let i = 0; i < s.count; i++) out.push(s.kind);
   }
-  if (wave >= 3) {
-    const allos = Math.floor(wave / 2);
-    for (let i = 0; i < allos; i++) out.push({ kind: "allosaur", hpMul });
-  }
-  if (wave >= 6) {
-    const stegos = Math.floor((wave - 4) / 2);
-    for (let i = 0; i < stegos; i++) out.push({ kind: "stego", hpMul });
-  }
-
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
@@ -31,11 +16,13 @@ const rosterForWave = (wave: number): { kind: EnemyKind; hpMul: number }[] => {
 const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
-  const roster = rosterForWave(world.wave);
-  const spacing = Math.max(0.35, 0.75 - world.wave * 0.035);
+  const spec = world.plannedWaves[world.wave - 1];
+  const roster = rosterFromSpec(spec);
+  const hpMul = spec.hpMul ?? 1;
+  const spacing = spec.spacing ?? Math.max(0.35, 0.75 - world.wave * 0.03);
   for (let i = 0; i < roster.length; i++) {
     const t = world.time + i * spacing;
-    world.spawnQueue.push({ kind: roster[i].kind, at: t });
+    world.spawnQueue.push({ kind: roster[i], at: t, hpMul });
   }
   emit(world, { type: "wave-start", wave: world.wave });
 };
@@ -49,10 +36,9 @@ export const spawnerTick = (world: World, dt: number) => {
     return;
   }
 
-  const hpMul = 1 + (world.wave - 1) * 0.08;
   while (world.spawnQueue.length > 0 && world.spawnQueue[0].at <= world.time) {
     const req = world.spawnQueue.shift()!;
-    spawnEnemy(world, req.kind, hpMul);
+    spawnEnemy(world, req.kind, req.hpMul);
   }
 
   if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
