@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, TargetingMode, EnemyKind } from "./sim/types";
 import { createWorld, createTower, TOWER_COST, TOWER_FOOTPRINT } from "./sim/world";
 import { applyUpgrade, sellTower } from "./sim/upgrades";
-import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward } from "./sim/spawner";
+import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
 import { Engine } from "./sim/loop";
 import { getLevel, LEVELS } from "./levels";
 import type { LevelConfig } from "./levels";
@@ -40,6 +40,7 @@ type UiSnapshot = {
   nextWaveIn: number;
   canCallEarly: boolean;
   callEarlyBonus: number;
+  callEarlyTimer: number;
   selectedTowerId: number | null;
   towerVersion: number;
   inspectedEnemyId: number | null;
@@ -70,6 +71,7 @@ const snapshot = (
     nextWaveIn: Math.ceil(w.nextWaveIn),
     canCallEarly: canCallEarly(w),
     callEarlyBonus: earlyCallGoldReward(w),
+    callEarlyTimer: Math.ceil(earlyCallTimerSec(w)),
     selectedTowerId: w.selectedTowerId,
     towerVersion,
     inspectedEnemyId: inspect.id,
@@ -90,6 +92,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.nextWaveIn === b.nextWaveIn &&
   a.canCallEarly === b.canCallEarly &&
   a.callEarlyBonus === b.callEarlyBonus &&
+  a.callEarlyTimer === b.callEarlyTimer &&
   a.selectedTowerId === b.selectedTowerId &&
   a.towerVersion === b.towerVersion &&
   a.inspectedEnemyId === b.inspectedEnemyId &&

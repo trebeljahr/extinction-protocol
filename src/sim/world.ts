@@ -37,6 +37,8 @@ export const createWorld = (level: LevelConfig): World => ({
   waveActive: false,
   nextWaveIn: 2,
   waveTotalEnemies: 0,
+  midwaveTimer: 0,
+  midwaveTimerMax: 0,
   gold: level.startGold,
   lives: STARTING_LIVES,
   startLives: STARTING_LIVES,
@@ -96,6 +98,8 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
   stego:    0.35,
   swarm:    0,
   armored:  0.75,
+  para:     0,
+  titan:    0.5,
 };
 
 export const MIN_SLOW_FACTOR = 0.25;

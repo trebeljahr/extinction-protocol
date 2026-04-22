@@ -68,7 +68,7 @@ export const HUD = () => {
             <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [Space]</div>
             <div className="stat-value">
               +{ui.callEarlyBonus}g
-              {!ui.waveActive && <span className="call-wave-sub"> · {ui.nextWaveIn}s</span>}
+              <span className="call-wave-sub"> · {ui.callEarlyTimer}s</span>
             </div>
           </button>
         ) : (

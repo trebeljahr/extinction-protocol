@@ -145,6 +145,8 @@ export type World = {
   waveActive: boolean;
   nextWaveIn: number;
   waveTotalEnemies: number;
+  midwaveTimer: number;
+  midwaveTimerMax: number;
   gold: number;
   lives: number;
   startLives: number;
