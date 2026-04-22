@@ -43,12 +43,15 @@ export const TowerVfx = () => {
 
   const orbGeom    = useMemo(() => new THREE.SphereGeometry(0.22, 16, 12), []);
   const arcGeom    = useMemo(() => new THREE.TorusGeometry(0.38, 0.028, 6, 24), []);
-  // Coil ring — disc perpendicular to barrel axis (axis = local +Z by
-  // default, so rotating about Y aligns the axis with the barrel).
-  const pulseRingGeom = useMemo(
-    () => new THREE.TorusGeometry(0.14, 0.025, 8, 20),
-    [],
-  );
+  // Coil ring — lies flat (axis vertical) so the angled TD camera sees
+  // full circles marching along the barrel rather than looking at the
+  // thin edge of a vertical disc. The geometry bakes in the X-rotation
+  // so per-instance rotation stays a cheap pure-yaw.
+  const pulseRingGeom = useMemo(() => {
+    const g = new THREE.TorusGeometry(0.14, 0.025, 8, 20);
+    g.rotateX(Math.PI / 2);
+    return g;
+  }, []);
 
   useFrame(() => {
     const { world } = useGame.getState();
@@ -102,14 +105,11 @@ export const TowerVfx = () => {
         if (charge <= 0.02) continue;
 
         const yaw = barrelYaw(t, world);
-        // A Y-rotation of `yaw` maps local +Z to world (sin yaw, 0, cos yaw),
-        // which with yaw = atan2(dx, -dy) is exactly the normalized forward
-        // vector from tower to target. Using -cos(yaw) here flipped Z and
-        // placed the rail on the wrong side of the tower.
+        // Y-rotation by `yaw = atan2(dx, -dy)` maps local +Z to world
+        // (sin yaw, 0, cos yaw) — the normalized forward vector from
+        // tower to target. So (fx, fz) is forward in world XZ.
         const fx = Math.sin(yaw);
         const fz = Math.cos(yaw);
-        // Align torus axis (local +Z) with the barrel direction in world.
-        const ringYaw = Math.atan2(fx, fz);
 
         // Geometry of the rings along the gun. Tuned against the tower_pulse
         // model's barrel — low enough to sit on it, not float above.
@@ -133,7 +133,8 @@ export const TowerVfx = () => {
             barrelY,
             -t.pos.y + fz * dist,
           );
-          dummy.rotation.set(0, ringYaw, 0);
+          // Geometry is pre-rotated flat, so no per-instance rotation.
+          dummy.rotation.set(0, 0, 0);
           dummy.scale.setScalar(0.9 + waveGlow * 0.35);
           dummy.updateMatrix();
           pulseRingRef.current!.setMatrixAt(pulseRingIdx, dummy.matrix);
