@@ -7,10 +7,13 @@ import type { World } from "../sim/types";
 
 // Overlay VFX for towers. Drives "charge up" visuals off `cooldown` progress:
 //   charge = 1 - cooldown / (1/fireRate)   -> 0 just fired, 1 ready to fire.
-// Chain gets an electrified orb with crossed arcs. Pulse gets a railgun rail
-// running along the barrel with a muzzle glow.
+// Chain gets an electrified orb with crossed arcs. Pulse gets a row of coil
+// rings along the barrel — a travelling bright band sweeps from base → tip
+// as the shot charges, reading as magnetic coils accelerating the pellet.
 
 const MAX_PER_KIND = 64;
+const PULSE_RING_COUNT = 5;
+const MAX_PULSE_RINGS = MAX_PER_KIND * PULSE_RING_COUNT;
 
 const chargeProgress = (tower: Tower): number => {
   if (tower.fireRate <= 0) return 0;
@@ -33,28 +36,26 @@ export const TowerVfx = () => {
   const chainOrbRef  = useRef<THREE.InstancedMesh>(null);
   const chainArcARef = useRef<THREE.InstancedMesh>(null);
   const chainArcBRef = useRef<THREE.InstancedMesh>(null);
-  const pulseRailRef   = useRef<THREE.InstancedMesh>(null);
-  const pulseMuzzleRef = useRef<THREE.InstancedMesh>(null);
+  const pulseRingRef = useRef<THREE.InstancedMesh>(null);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
 
   const orbGeom    = useMemo(() => new THREE.SphereGeometry(0.22, 16, 12), []);
   const arcGeom    = useMemo(() => new THREE.TorusGeometry(0.38, 0.028, 6, 24), []);
-  const muzzleGeom = useMemo(() => new THREE.SphereGeometry(0.14, 12, 10), []);
-  // Rail cylinder oriented along +Z (so scaling Z stretches along forward).
-  const railGeom = useMemo(() => {
-    const g = new THREE.CylinderGeometry(0.035, 0.035, 1.0, 8, 1, true);
-    g.rotateX(Math.PI / 2);
-    return g;
-  }, []);
+  // Coil ring — disc perpendicular to barrel axis (axis = local +Z by
+  // default, so rotating about Y aligns the axis with the barrel).
+  const pulseRingGeom = useMemo(
+    () => new THREE.TorusGeometry(0.14, 0.025, 8, 20),
+    [],
+  );
 
   useFrame(() => {
     const { world } = useGame.getState();
     const time = world.time;
 
     let chainCount = 0;
-    let pulseCount = 0;
+    let pulseRingIdx = 0;
 
     for (const t of world.towers) {
       if (t.kind === "chain") {
@@ -98,45 +99,44 @@ export const TowerVfx = () => {
         if (!hasTarget) continue;
 
         const charge = chargeProgress(t);
-        // Railgun "building up" look. Steeper curve so the last 20% really pops.
-        const pulse = 0.92 + 0.08 * Math.sin(time * 14 + t.id);
-        const glow = charge * charge * pulse;
-        if (glow <= 0.001) continue;
+        if (charge <= 0.02) continue;
 
         const yaw = barrelYaw(t, world);
         const fx = Math.sin(yaw);
         const fz = -Math.cos(yaw);
-        const barrelLen = 1.15;
-        const barrelY = 0.85;
+        // Align torus axis (local +Z) with the barrel direction in world.
+        const ringYaw = Math.atan2(fx, fz);
 
-        // Rail: cylinder scaled to barrelLen along forward.
-        dummy.position.set(
-          t.pos.x + fx * barrelLen * 0.5,
-          barrelY,
-          -t.pos.y + fz * barrelLen * 0.5,
-        );
-        dummy.rotation.set(0, yaw, 0);
-        dummy.scale.set(1, 1, barrelLen);
-        dummy.updateMatrix();
-        pulseRailRef.current!.setMatrixAt(pulseCount, dummy.matrix);
-        color.setRGB(0.55 * glow, 0.85 * glow, 1.0 * glow);
-        pulseRailRef.current!.setColorAt(pulseCount, color);
+        // Geometry of the rings along the gun. Tuned against the tower_pulse
+        // model's barrel — low enough to sit on it, not float above.
+        const barrelY = 0.55;
+        const barrelBase = 0.18;
+        const barrelLen = 1.05;
 
-        // Muzzle bulb at the tip.
-        dummy.position.set(
-          t.pos.x + fx * barrelLen,
-          barrelY,
-          -t.pos.y + fz * barrelLen,
-        );
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.setScalar(0.5 + charge * 1.4);
-        dummy.updateMatrix();
-        pulseMuzzleRef.current!.setMatrixAt(pulseCount, dummy.matrix);
-        const m = glow * 1.15;
-        color.setRGB(Math.min(1, m), Math.min(1, m), Math.min(1, m * 0.92));
-        pulseMuzzleRef.current!.setColorAt(pulseCount, color);
+        // Base glow + a sweeping brighter band that rides charge from 0→1.
+        const pulseFlicker = 0.92 + 0.08 * Math.sin(time * 14 + t.id);
+        const waveCenter = charge;
 
-        pulseCount++;
+        for (let r = 0; r < PULSE_RING_COUNT; r++) {
+          const segT = r / (PULSE_RING_COUNT - 1); // 0 at base, 1 at tip
+          const dist = barrelBase + barrelLen * segT;
+          const distFromWave = Math.abs(segT - waveCenter);
+          const waveGlow = Math.max(0, 1 - distFromWave * 5) ** 2;
+          const glow = (0.18 + 0.82 * waveGlow) * pulseFlicker * charge;
+
+          dummy.position.set(
+            t.pos.x + fx * dist,
+            barrelY,
+            -t.pos.y + fz * dist,
+          );
+          dummy.rotation.set(0, ringYaw, 0);
+          dummy.scale.setScalar(0.9 + waveGlow * 0.35);
+          dummy.updateMatrix();
+          pulseRingRef.current!.setMatrixAt(pulseRingIdx, dummy.matrix);
+          color.setRGB(0.55 * glow, 0.85 * glow, 1.0 * glow);
+          pulseRingRef.current!.setColorAt(pulseRingIdx, color);
+          pulseRingIdx++;
+        }
       }
     }
 
@@ -148,13 +148,11 @@ export const TowerVfx = () => {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
-    const pulseRefs = [pulseRailRef, pulseMuzzleRef];
-    for (const r of pulseRefs) {
-      const m = r.current;
-      if (!m) continue;
-      m.count = pulseCount;
-      m.instanceMatrix.needsUpdate = true;
-      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    const ringMesh = pulseRingRef.current;
+    if (ringMesh) {
+      ringMesh.count = pulseRingIdx;
+      ringMesh.instanceMatrix.needsUpdate = true;
+      if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
     }
   });
 
@@ -191,22 +189,11 @@ export const TowerVfx = () => {
         />
       </instancedMesh>
 
-      <instancedMesh ref={pulseRailRef} args={[railGeom, undefined, MAX_PER_KIND]}>
+      <instancedMesh ref={pulseRingRef} args={[pulseRingGeom, undefined, MAX_PULSE_RINGS]}>
         <meshBasicMaterial
           color="#9fe8ff"
           transparent
-          opacity={0.85}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
-      </instancedMesh>
-      <instancedMesh ref={pulseMuzzleRef} args={[muzzleGeom, undefined, MAX_PER_KIND]}>
-        <meshBasicMaterial
-          color="#ffffff"
-          transparent
-          opacity={0.9}
+          opacity={0.92}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
