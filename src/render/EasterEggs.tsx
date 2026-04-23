@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { ThreeEvent } from "@react-three/fiber";
+import { ThreeEvent, useFrame } from "@react-three/fiber";
 import { useGame } from "../store";
 import { EASTER_EGG_BY_ID, PRELOAD_URLS, type EasterEggDef } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
@@ -25,6 +25,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const { scene } = useGLTF(def.model);
   const clickEasterEgg = useGame(s => s.clickEasterEgg);
   const [hovered, setHovered] = useState(false);
+  const groupRef = useRef<THREE.Group>(null);
 
   const { clone, scale, minY } = useMemo(
     () => normalizeScene(scene, def.targetSize),
@@ -47,13 +48,27 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     return () => { document.body.style.cursor = prev; };
   }, [hovered]);
 
+  // Moving eggs (tumbleweed, rover) mutate pos/rotY every sim tick — read
+  // them from the live world ref each frame rather than via Zustand props.
+  useFrame(() => {
+    if (!groupRef.current) return;
+    if (!egg.vel) return;  // static eggs stay where they started
+    groupRef.current.position.set(egg.pos.x, -minY * scale, -egg.pos.y);
+    groupRef.current.rotation.y = egg.rotY;
+  });
+
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     clickEasterEgg(egg.id);
   };
 
   return (
-    <group position={[egg.pos.x, -minY * scale, -egg.pos.y]} rotation={[0, egg.rotY, 0]} scale={scale}>
+    <group
+      ref={groupRef}
+      position={[egg.pos.x, -minY * scale, -egg.pos.y]}
+      rotation={[0, egg.rotY, 0]}
+      scale={scale}
+    >
       <primitive object={clone} />
       <mesh
         position={[0, HIT_RADIUS, 0]}

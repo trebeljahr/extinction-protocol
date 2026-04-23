@@ -10,6 +10,22 @@ export type EasterEggEffect = {
   secondary?: { color: string; count: number; speed?: [number, number]; life?: number };
 };
 
+// Moving eggs roll or drive in a straight line across the map. Spawned by
+// the engine at a scheduled time rather than pre-placed in createWorld.
+export type EasterEggMotion = {
+  kind: "traverse";
+  speed: number;       // world units per second
+  lifetime: number;    // seconds until auto-despawn
+  spinRate?: number;   // radians/sec around Y (tumbleweeds spin visually)
+};
+
+// When set, this egg spawns at a random moment during gameplay rather
+// than at level start. Paired with motion to produce a moving cameo.
+export type EasterEggSchedule = {
+  earliestSec: number;
+  latestSec: number;
+};
+
 export type EasterEggDef = {
   id: string;
   achievement: AchievementId;
@@ -18,6 +34,8 @@ export type EasterEggDef = {
   targetSize: number;
   clickThreshold: number;
   effect: EasterEggEffect;
+  motion?: EasterEggMotion;
+  scheduled?: EasterEggSchedule;
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -161,6 +179,55 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleLife: 0.7,
       secondary: { color: "#ff88ba", count: 12, speed: [1.5, 3.5], life: 0.5 },
     },
+  },
+  {
+    id: "rocket",
+    achievement: "rocket_launch",
+    biomes: ["desert", "wasteland"],
+    model: "/models/scifi/rocket_baseA.glb",
+    targetSize: 2.2,
+    clickThreshold: 3,
+    effect: {
+      particleColor: "#ff9966",
+      particleCount: 28,
+      particleSpeed: [3, 7],
+      particleLife: 0.9,
+      secondary: { color: "#fff2c8", count: 18, speed: [2, 5], life: 0.6 },
+    },
+  },
+  {
+    id: "tumbleweed",
+    achievement: "tumbleweed",
+    biomes: ["desert"],
+    model: "/models/biomes/desert/Bush3.glb",
+    targetSize: 1.1,
+    clickThreshold: 1,
+    effect: {
+      particleColor: "#c8a264",
+      particleCount: 20,
+      particleSpeed: [2, 4.5],
+      particleLife: 0.6,
+      secondary: { color: "#e8d2a0", count: 12, speed: [1.5, 3], life: 0.4 },
+    },
+    motion: { kind: "traverse", speed: 6, lifetime: 9, spinRate: 6 },
+    scheduled: { earliestSec: 25, latestSec: 90 },
+  },
+  {
+    id: "rover",
+    achievement: "rover_roam",
+    biomes: ["wasteland"],
+    model: "/models/scifi/rover.glb",
+    targetSize: 1.8,
+    clickThreshold: 1,
+    effect: {
+      particleColor: "#9fd8ff",
+      particleCount: 20,
+      particleSpeed: [2, 4.5],
+      particleLife: 0.6,
+      secondary: { color: "#a08060", count: 14, speed: [1.5, 3.5], life: 0.55 },
+    },
+    motion: { kind: "traverse", speed: 4, lifetime: 14 },
+    scheduled: { earliestSec: 30, latestSec: 120 },
   },
 ];
 

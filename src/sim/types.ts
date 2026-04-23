@@ -198,6 +198,7 @@ export type World = {
   runEnemyKinds: Partial<Record<EnemyKind, boolean>>;
   runTowerKinds: Partial<Record<TowerKind, boolean>>;
   easterEggs: EasterEgg[];
+  easterEggSchedule: EasterEggScheduleEntry[];
 };
 
 export type EasterEgg = {
@@ -207,4 +208,13 @@ export type EasterEgg = {
   rotY: number;
   clickCount: number;
   triggered: boolean;
+  // Set for moving eggs (tumbleweed, rover). Static eggs leave these null.
+  vel: Vec2 | null;
+  despawnAt: number | null;  // world.time deadline for motion eggs
+  spin: number;              // radians/sec for visual rotation
+};
+
+export type EasterEggScheduleEntry = {
+  defId: string;
+  triggerTime: number;  // world.time when this egg spawns
 };

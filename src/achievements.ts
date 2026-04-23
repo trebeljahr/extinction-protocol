@@ -30,7 +30,10 @@ export type AchievementId =
   | "ancient_glyph"
   | "rusted_radio"
   | "satellite_ping"
-  | "fairy_ring";
+  | "fairy_ring"
+  | "rocket_launch"
+  | "tumbleweed"
+  | "rover_roam";
 
 export type AchievementSecrecy = "visible" | "hint" | "hidden";
 
@@ -70,6 +73,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "rusted_radio",  name: "Static Response",   desc: "Tune into a forgotten transmission.",                 hint: "The dead network still hums.",          secrecy: "hint" },
   { id: "satellite_ping", name: "Distant Signal",   desc: "Wake a dormant satellite dish.",                      hint: "Some dishes still listen.",             secrecy: "hint" },
   { id: "fairy_ring",    name: "Fairy Ring",        desc: "Disturb a wild ring of blooms.",                      hint: "Flowers answer the third visitor.",     secrecy: "hint" },
+  { id: "rocket_launch", name: "Rocket Launch",     desc: "Launch a forgotten rocket skyward.",                  hint: "Countdown starts at three.",            secrecy: "hint" },
+  { id: "tumbleweed",    name: "Tumbleweed",        desc: "Catch a rolling tumbleweed in motion.",               hint: "Watch the desert — something rolls.",   secrecy: "hint" },
+  { id: "rover_roam",    name: "Rover Roam",        desc: "Stop a wasteland rover mid-drive.",                   hint: "The wastes aren't entirely deserted.",  secrecy: "hint" },
 ];
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
@@ -143,6 +149,9 @@ const satisfies = (
     case "rusted_radio":
     case "satellite_ping":
     case "fairy_ring":
+    case "rocket_launch":
+    case "tumbleweed":
+    case "rover_roam":
       return false;
   }
 };

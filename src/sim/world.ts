@@ -15,6 +15,7 @@ import type {
   GameEvent,
   DamageType,
   EasterEgg,
+  EasterEggScheduleEntry,
 } from "./types";
 import { EASTER_EGG_DEFS } from "../easterEggs";
 import type { LevelConfig } from "../levels";
@@ -176,7 +177,9 @@ const buildEasterEggs = (
   seed: number,
   firstId: number,
 ): { eggs: EasterEgg[]; nextId: number } => {
-  const matching = EASTER_EGG_DEFS.filter(d => d.biomes.includes(biome));
+  // Only consider statically-placed eggs here — moving ones spawn on a
+  // schedule via updateEasterEggs.
+  const matching = EASTER_EGG_DEFS.filter(d => d.biomes.includes(biome) && !d.motion);
   if (matching.length === 0) return { eggs: [], nextId: firstId };
   const rng = mulberry32(seed);
   const def = matching[Math.floor(rng() * matching.length)];
@@ -216,10 +219,30 @@ const buildEasterEggs = (
       rotY: rng() * Math.PI * 2,
       clickCount: 0,
       triggered: false,
+      vel: null,
+      despawnAt: null,
+      spin: 0,
     };
     return { eggs: [egg], nextId: firstId + 1 };
   }
   return { eggs: [], nextId: firstId };
+};
+
+const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEntry[] => {
+  const matching = EASTER_EGG_DEFS.filter(
+    d => d.biomes.includes(biome) && d.scheduled !== undefined,
+  );
+  if (matching.length === 0) return [];
+  const rng = mulberry32(seed);
+  // One scheduled egg per matching def (e.g., one tumbleweed, one rover per
+  // eligible level). Keeps the feel predictable per run.
+  const out: EasterEggScheduleEntry[] = [];
+  for (const def of matching) {
+    const s = def.scheduled!;
+    const t = s.earliestSec + rng() * Math.max(0, s.latestSec - s.earliestSec);
+    out.push({ defId: def.id, triggerTime: t });
+  }
+  return out;
 };
 
 export const createWorld = (level: LevelConfig): World => {
@@ -227,6 +250,7 @@ export const createWorld = (level: LevelConfig): World => {
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
   const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees);
   const { eggs, nextId } = buildEasterEggs(biome, level.paths, trees, rocks, level.id * 2311 + 47, afterRocks);
+  const easterEggSchedule = buildEasterEggSchedule(biome, level.id * 5471 + 3);
   return {
     time: 0,
     tickCount: 0,
@@ -264,7 +288,74 @@ export const createWorld = (level: LevelConfig): World => {
     runEnemyKinds: {},
     runTowerKinds: {},
     easterEggs: eggs,
+    easterEggSchedule,
   };
+};
+
+// Spawn a moving egg (tumbleweed/rover) at a random map edge heading toward
+// the opposite edge. Straight-line traversal with a short life.
+export const spawnMovingEasterEgg = (world: World, defId: string) => {
+  const def = EASTER_EGG_DEFS.find(d => d.id === defId);
+  if (!def || !def.motion) return;
+  if (world.easterEggs.some(e => e.defId === defId)) return;  // already present
+  const rng = Math.random;
+  // Pick a side (0: left, 1: right, 2: top, 3: bottom) and a perpendicular offset.
+  const side = Math.floor(rng() * 4);
+  const margin = 3;
+  let start: Vec2, dir: Vec2;
+  if (side === 0) {
+    start = { x: -MAP_WIDTH / 2 - margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.6 };
+    dir = { x: 1, y: 0 };
+  } else if (side === 1) {
+    start = { x: MAP_WIDTH / 2 + margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.6 };
+    dir = { x: -1, y: 0 };
+  } else if (side === 2) {
+    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.6, y: MAP_HEIGHT / 2 + margin };
+    dir = { x: 0, y: -1 };
+  } else {
+    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.6, y: -MAP_HEIGHT / 2 - margin };
+    dir = { x: 0, y: 1 };
+  }
+  const speed = def.motion.speed;
+  const egg: EasterEgg = {
+    id: world.nextEntityId++,
+    defId: def.id,
+    pos: { x: start.x, y: start.y },
+    rotY: Math.atan2(dir.x, dir.y),
+    clickCount: 0,
+    triggered: false,
+    vel: { x: dir.x * speed, y: dir.y * speed },
+    despawnAt: world.time + def.motion.lifetime,
+    spin: def.motion.spinRate ?? 0,
+  };
+  // Use immutable append so React selectors see a new ref and rerender.
+  world.easterEggs = [...world.easterEggs, egg];
+};
+
+export const updateEasterEggs = (world: World, dt: number) => {
+  // Fire scheduled spawns whose time has come.
+  if (world.easterEggSchedule.length > 0) {
+    const remaining: EasterEggScheduleEntry[] = [];
+    for (const entry of world.easterEggSchedule) {
+      if (world.time >= entry.triggerTime) {
+        spawnMovingEasterEgg(world, entry.defId);
+      } else {
+        remaining.push(entry);
+      }
+    }
+    world.easterEggSchedule = remaining;
+  }
+  // Integrate motion + despawn expired eggs.
+  if (world.easterEggs.length > 0) {
+    world.easterEggs = world.easterEggs.filter(egg => {
+      if (!egg.vel) return true;
+      egg.pos.x += egg.vel.x * dt;
+      egg.pos.y += egg.vel.y * dt;
+      egg.rotY += egg.spin * dt;
+      if (egg.despawnAt !== null && world.time >= egg.despawnAt) return false;
+      return true;
+    });
+  }
 };
 
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
