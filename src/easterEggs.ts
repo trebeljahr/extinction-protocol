@@ -26,6 +26,16 @@ export type EasterEggSchedule = {
   latestSec: number;
 };
 
+// Override how a model renders. Used by dino cameos that reuse the regular
+// enemy GLBs but want a ghost-like look or a baby-pink tint.
+export type EasterEggVisual = {
+  tint?: string;       // hex color — multiplied into materials
+  opacity?: number;    // 0..1 → transparent=true, opacity=value
+  clip?: string;       // animation clip name; falls back to first clip
+  yOffset?: number;    // extra world-units on Y (negative = buried)
+  skinned?: boolean;   // true for animated skinned meshes (dinosaurs)
+};
+
 export type EasterEggDef = {
   id: string;
   achievement: AchievementId;
@@ -36,6 +46,7 @@ export type EasterEggDef = {
   effect: EasterEggEffect;
   motion?: EasterEggMotion;
   scheduled?: EasterEggSchedule;
+  visual?: EasterEggVisual;
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -228,6 +239,71 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     },
     motion: { kind: "traverse", speed: 4, lifetime: 14 },
     scheduled: { earliestSec: 30, latestSec: 120 },
+  },
+  {
+    id: "baby_raptor",
+    achievement: "baby_raptor",
+    biomes: ["forest"],
+    model: "/models/Velociraptor.glb",
+    targetSize: 0.8,
+    clickThreshold: 1,
+    effect: {
+      particleColor: "#ff88ba",
+      particleCount: 16,
+      particleSpeed: [1.5, 3.5],
+      particleLife: 0.5,
+      secondary: { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.4 },
+    },
+    visual: { tint: "#ffc8dc", skinned: true, clip: "Idle" },
+  },
+  {
+    id: "buried_para",
+    achievement: "buried_para",
+    biomes: ["snow"],
+    model: "/models/Parasaurolophus.glb",
+    targetSize: 1.6,
+    clickThreshold: 5,
+    effect: {
+      particleColor: "#e8faff",
+      particleCount: 22,
+      particleSpeed: [2.5, 5],
+      particleLife: 0.7,
+      secondary: { color: "#aaf0ff", count: 14, speed: [1.5, 3.5], life: 0.5 },
+    },
+    visual: { yOffset: -0.9, skinned: true, clip: "Idle" },
+  },
+  {
+    id: "ghost_trike",
+    achievement: "ghost_trike",
+    biomes: ["wasteland"],
+    model: "/models/Triceratops.glb",
+    targetSize: 1.6,
+    clickThreshold: 1,
+    effect: {
+      particleColor: "#b8e8ff",
+      particleCount: 18,
+      particleSpeed: [2, 4.5],
+      particleLife: 0.7,
+      secondary: { color: "#7f9fff", count: 12, speed: [1.5, 3.5], life: 0.5 },
+    },
+    visual: { opacity: 0.45, tint: "#c8e8ff", skinned: true, clip: "Walk" },
+    motion: { kind: "traverse", speed: 2.5, lifetime: 18 },
+    scheduled: { earliestSec: 35, latestSec: 130 },
+  },
+  {
+    id: "haunted_ruins",
+    achievement: "haunted_ruins",
+    biomes: ["wasteland"],
+    model: "/models/landmarks/wasteland/Ruins.glb",
+    targetSize: 2.2,
+    clickThreshold: 3,
+    effect: {
+      particleColor: "#b48cff",
+      particleCount: 24,
+      particleSpeed: [2.5, 5],
+      particleLife: 0.8,
+      secondary: { color: "#7f4fff", count: 14, speed: [1.5, 3.5], life: 0.6 },
+    },
   },
 ];
 

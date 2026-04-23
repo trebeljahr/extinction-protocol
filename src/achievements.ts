@@ -33,7 +33,11 @@ export type AchievementId =
   | "fairy_ring"
   | "rocket_launch"
   | "tumbleweed"
-  | "rover_roam";
+  | "rover_roam"
+  | "baby_raptor"
+  | "buried_para"
+  | "ghost_trike"
+  | "haunted_ruins";
 
 export type AchievementSecrecy = "visible" | "hint" | "hidden";
 
@@ -76,6 +80,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "rocket_launch", name: "Rocket Launch",     desc: "Launch a forgotten rocket skyward.",                  hint: "Countdown starts at three.",            secrecy: "hint" },
   { id: "tumbleweed",    name: "Tumbleweed",        desc: "Catch a rolling tumbleweed in motion.",               hint: "Watch the desert — something rolls.",   secrecy: "hint" },
   { id: "rover_roam",    name: "Rover Roam",        desc: "Stop a wasteland rover mid-drive.",                   hint: "The wastes aren't entirely deserted.",  secrecy: "hint" },
+  { id: "baby_raptor",   name: "Baby Raptor",       desc: "Find a hatchling hiding in the forest.",              hint: "Small things hide among the trees.",    secrecy: "hint" },
+  { id: "buried_para",   name: "Dig Out",           desc: "Shake a snowbound Parasaur free.",                    hint: "Someone's stuck in the snow.",          secrecy: "hint" },
+  { id: "ghost_trike",   name: "Phantom Trike",     desc: "Catch a translucent Triceratops passing by.",         hint: "Not all the dead stayed dead.",         secrecy: "hint" },
+  { id: "haunted_ruins", name: "Haunted Ruins",     desc: "Wake the spirits of the wasteland.",                  hint: "Old stones answer three knocks.",       secrecy: "hint" },
 ];
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
@@ -152,6 +160,10 @@ const satisfies = (
     case "rocket_launch":
     case "tumbleweed":
     case "rover_roam":
+    case "baby_raptor":
+    case "buried_para":
+    case "ghost_trike":
+    case "haunted_ruins":
       return false;
   }
 };

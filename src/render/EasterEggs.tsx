@@ -2,44 +2,93 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { useGame } from "../store";
-import { EASTER_EGG_BY_ID, PRELOAD_URLS, type EasterEggDef } from "../easterEggs";
+import { EASTER_EGG_BY_ID, PRELOAD_URLS, type EasterEggDef, type EasterEggVisual } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
 
 const HIT_RADIUS = 0.9;
 
-// Normalize a loaded GLB so its max dimension matches def.targetSize and
-// its bottom sits on y=0.
-const normalizeScene = (scene: THREE.Object3D, targetSize: number) => {
-  const clone = scene.clone(true);
+const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
+  if (!needle) return null;
+  const lower = needle.toLowerCase();
+  return clips.find(c => c.name.toLowerCase().includes(lower)) ?? null;
+};
+
+// Apply tint + opacity to every material under the clone. Each material is
+// itself cloned first so we don't mutate the cached GLB used by other
+// renderers. Casts to MeshStandardMaterial for `.color` access — the non-
+// standard branch just gets transparency applied.
+const applyVisual = (root: THREE.Object3D, visual: EasterEggVisual | undefined) => {
+  if (!visual) return;
+  const tint = visual.tint ? new THREE.Color(visual.tint) : null;
+  const opacity = visual.opacity;
+  root.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    const cloned = mats.map(mat => {
+      const c = mat.clone();
+      if (opacity !== undefined && opacity < 1) {
+        c.transparent = true;
+        c.opacity = opacity;
+        c.depthWrite = false;
+      }
+      const std = c as THREE.MeshStandardMaterial;
+      if (tint && std.color) std.color.multiply(tint);
+      return c;
+    });
+    m.material = Array.isArray(m.material) ? cloned : cloned[0];
+  });
+};
+
+// Build a renderable clone sized to def.targetSize. Skinned clones go
+// through SkeletonUtils so their skeleton stays intact for animation;
+// everything else uses a plain deep clone.
+const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
+  const skinned = def.visual?.skinned ?? false;
+  const clone = skinned
+    ? (cloneSkinned(scene) as THREE.Object3D)
+    : scene.clone(true);
   clone.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(clone);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const scale = targetSize / maxDim;
+  const scale = def.targetSize / maxDim;
   const minY = box.min.y;
+  applyVisual(clone, def.visual);
+  clone.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.castShadow = true;
+    m.receiveShadow = true;
+  });
   return { clone, scale, minY };
 };
 
 const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
-  const { scene } = useGLTF(def.model);
+  const { scene, animations } = useGLTF(def.model);
   const clickEasterEgg = useGame(s => s.clickEasterEgg);
   const [hovered, setHovered] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
-  const { clone, scale, minY } = useMemo(
-    () => normalizeScene(scene, def.targetSize),
-    [scene, def.targetSize],
-  );
+  const { clone, scale, minY } = useMemo(() => buildInstance(scene, def), [scene, def]);
 
   useEffect(() => {
-    clone.traverse(o => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.castShadow = true;
-      m.receiveShadow = true;
-    });
-  }, [clone]);
+    const clipName = def.visual?.clip;
+    if (!clipName && animations.length === 0) return;
+    const clip = findClip(animations, clipName) ?? animations[0] ?? null;
+    if (!clip) return;
+    const mixer = new THREE.AnimationMixer(clone);
+    mixer.clipAction(clip).play();
+    mixerRef.current = mixer;
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(clone);
+      mixerRef.current = null;
+    };
+  }, [clone, animations, def.visual?.clip]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -48,12 +97,12 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     return () => { document.body.style.cursor = prev; };
   }, [hovered]);
 
-  // Moving eggs (tumbleweed, rover) mutate pos/rotY every sim tick — read
-  // them from the live world ref each frame rather than via Zustand props.
-  useFrame(() => {
-    if (!groupRef.current) return;
-    if (!egg.vel) return;  // static eggs stay where they started
-    groupRef.current.position.set(egg.pos.x, -minY * scale, -egg.pos.y);
+  const yBase = -minY * scale + (def.visual?.yOffset ?? 0);
+
+  useFrame((_, delta) => {
+    mixerRef.current?.update(delta);
+    if (!groupRef.current || !egg.vel) return;  // static eggs stay put
+    groupRef.current.position.set(egg.pos.x, yBase, -egg.pos.y);
     groupRef.current.rotation.y = egg.rotY;
   });
 
@@ -65,7 +114,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   return (
     <group
       ref={groupRef}
-      position={[egg.pos.x, -minY * scale, -egg.pos.y]}
+      position={[egg.pos.x, yBase, -egg.pos.y]}
       rotation={[0, egg.rotY, 0]}
       scale={scale}
     >
