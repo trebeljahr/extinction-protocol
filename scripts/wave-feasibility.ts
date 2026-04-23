@@ -122,6 +122,11 @@ const aoeMultiplier = (
     // forward cone — hits everything stacked up in the stream
     return Math.min(3, enemiesOnScreen);
   }
+  if (kind === "hive") {
+    // 3 orbiting drones, each firing at its own target independently.
+    // Effective throughput is ~3× the nominal single-shot DPS.
+    return Math.min(3, enemiesOnScreen);
+  }
   return 1;
 };
 

@@ -73,6 +73,9 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
   }
   if (s.splashRadius > 0) return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
   if (kind === "flame") return Math.min(3, enemiesOnScreen);
+  // Hive fires 3 drones independently at their own targets — effective
+  // 3× the nominal single-shot DPS, all single-target.
+  if (kind === "hive") return Math.min(3, enemiesOnScreen);
   return 1;
 };
 
