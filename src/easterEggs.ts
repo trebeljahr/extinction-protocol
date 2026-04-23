@@ -1,0 +1,96 @@
+import type { AchievementId } from "./achievements";
+import type { Biome } from "./biomes";
+
+export type EasterEggEffect = {
+  particleColor: string;
+  particleCount: number;
+  particleSpeed?: [number, number];
+  particleLife?: number;
+  // Secondary burst rendered after the primary (for sparkle/flame layering).
+  secondary?: { color: string; count: number; speed?: [number, number]; life?: number };
+};
+
+export type EasterEggDef = {
+  id: string;
+  achievement: AchievementId;
+  biomes: Biome[];
+  model: string;
+  targetSize: number;
+  clickThreshold: number;
+  effect: EasterEggEffect;
+};
+
+export const EASTER_EGG_DEFS: EasterEggDef[] = [
+  {
+    id: "skull",
+    achievement: "whispering_skull",
+    biomes: ["desert", "wasteland"],
+    model: "/models/landmarks/wasteland/Skull.glb",
+    targetSize: 1.0,
+    clickThreshold: 1,
+    effect: { particleColor: "#cfd8e0", particleCount: 16, particleSpeed: [1.5, 3.5], particleLife: 0.5 },
+  },
+  {
+    id: "mushroom",
+    achievement: "mushroom_puff",
+    biomes: ["forest"],
+    model: "/models/landmarks/forest/Mushroom.glb",
+    targetSize: 1.0,
+    clickThreshold: 1,
+    effect: { particleColor: "#c8f2a4", particleCount: 14, particleSpeed: [1.5, 3.5], particleLife: 0.45 },
+  },
+  {
+    id: "torch",
+    achievement: "torch_lit",
+    biomes: ["snow"],
+    model: "/models/landmarks/snow/Torch.glb",
+    targetSize: 1.2,
+    clickThreshold: 1,
+    effect: {
+      particleColor: "#ffb266",
+      particleCount: 18,
+      particleSpeed: [2, 4.5],
+      particleLife: 0.55,
+      secondary: { color: "#fff2c8", count: 10, speed: [1.5, 3], life: 0.35 },
+    },
+  },
+  {
+    id: "barrel",
+    achievement: "barrel_roll",
+    biomes: ["forest"],
+    model: "/models/landmarks/forest/Barrel.glb",
+    targetSize: 1.0,
+    clickThreshold: 1,
+    effect: { particleColor: "#a07046", particleCount: 14, particleSpeed: [2, 4], particleLife: 0.5 },
+  },
+  {
+    id: "cabin",
+    achievement: "cabin_smoke",
+    biomes: ["snow"],
+    model: "/models/landmarks/snow/Cabin.glb",
+    targetSize: 2.2,
+    clickThreshold: 1,
+    effect: { particleColor: "#e2e8ee", particleCount: 20, particleSpeed: [1, 2.5], particleLife: 0.9 },
+  },
+  {
+    id: "crystal",
+    achievement: "crystal_shatter",
+    biomes: ["snow", "wasteland"],
+    model: "/models/landmarks/snow/Crystal1.glb",
+    targetSize: 1.1,
+    clickThreshold: 5,
+    effect: {
+      particleColor: "#aaf0ff",
+      particleCount: 24,
+      particleSpeed: [3, 6],
+      particleLife: 0.7,
+      secondary: { color: "#e8faff", count: 14, speed: [1.5, 3.5], life: 0.5 },
+    },
+  },
+];
+
+export const EASTER_EGG_BY_ID: Record<string, EasterEggDef> = Object.fromEntries(
+  EASTER_EGG_DEFS.map(d => [d.id, d]),
+);
+
+export const PRELOAD_URLS: string[] = Array.from(new Set(EASTER_EGG_DEFS.map(d => d.model)));

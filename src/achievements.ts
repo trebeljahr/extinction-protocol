@@ -19,7 +19,13 @@ export type AchievementId =
   | "campaign"
   | "perfect_run"
   | "tree_hugger"
-  | "diamond_in_the_rough";
+  | "diamond_in_the_rough"
+  | "whispering_skull"
+  | "mushroom_puff"
+  | "torch_lit"
+  | "barrel_roll"
+  | "cabin_smoke"
+  | "crystal_shatter";
 
 export type AchievementSecrecy = "visible" | "hint" | "hidden";
 
@@ -48,6 +54,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "perfect_run",   name: "Perfect Run",       desc: "Earn three stars on every mission.",                  hint: "Max rating everywhere." },
   { id: "tree_hugger",   name: "Tree Hugger",       desc: "Click the same tree ten times.",                      hint: "Some trees are hiding more than shade.", secrecy: "hint" },
   { id: "diamond_in_the_rough", name: "Diamond in the Rough", desc: "Click the same rock ten times.",            hint: "Persistence cracks more than stone.",   secrecy: "hint" },
+  { id: "whispering_skull", name: "Whispering Skull", desc: "Disturb the skull of the fallen.",                  hint: "The dead have things to say.",          secrecy: "hint" },
+  { id: "mushroom_puff", name: "Mushroom Puff",      desc: "Squish a mushroom loose.",                            hint: "Some fungi don't like being poked.",    secrecy: "hint" },
+  { id: "torch_lit",     name: "Light the Way",      desc: "Ignite a snowbound torch.",                           hint: "Cold places need fire.",                secrecy: "hint" },
+  { id: "barrel_roll",   name: "Barrel Roll",        desc: "Knock over an abandoned barrel.",                     hint: "Not every barrel is staying put.",      secrecy: "hint" },
+  { id: "cabin_smoke",   name: "Home Fires",         desc: "Make smoke rise from a snow cabin.",                  hint: "Someone might still live there.",       secrecy: "hint" },
+  { id: "crystal_shatter", name: "Crystal Shatter", desc: "Shatter a crystal formation.",                          hint: "Crystals break on the fifth tap.",      secrecy: "hint" },
 ];
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
@@ -110,6 +122,12 @@ const satisfies = (
       return LEVELS.every(l => getStars(p, l.id) >= 3);
     case "tree_hugger":
     case "diamond_in_the_rough":
+    case "whispering_skull":
+    case "mushroom_puff":
+    case "torch_lit":
+    case "barrel_roll":
+    case "cabin_smoke":
+    case "crystal_shatter":
       return false;
   }
 };

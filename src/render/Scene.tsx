@@ -4,6 +4,7 @@ import { Rocks } from "./Rocks";
 import { Trees } from "./Trees";
 import { BiomeCosmetics } from "./BiomeCosmetics";
 import { BiomeBases } from "./BiomeBases";
+import { EasterEggs } from "./EasterEggs";
 import { PathLine } from "./PathLine";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
@@ -55,6 +56,7 @@ export const PlayScene = () => {
       <Trees />
       <BiomeCosmetics />
       <BiomeBases />
+      <EasterEggs />
       <Placement />
       <PathLine />
 

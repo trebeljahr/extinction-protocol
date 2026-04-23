@@ -197,4 +197,14 @@ export type World = {
   selectedTowerId: EntityId | null;
   runEnemyKinds: Partial<Record<EnemyKind, boolean>>;
   runTowerKinds: Partial<Record<TowerKind, boolean>>;
+  easterEggs: EasterEgg[];
+};
+
+export type EasterEgg = {
+  id: EntityId;
+  defId: string;
+  pos: Vec2;
+  rotY: number;
+  clickCount: number;
+  triggered: boolean;
 };

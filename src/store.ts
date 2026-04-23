@@ -21,6 +21,7 @@ import {
 import type { ProgressData, Stars } from "./progress";
 import { checkAchievements } from "./achievements";
 import type { AchievementId } from "./achievements";
+import { EASTER_EGG_BY_ID } from "./easterEggs";
 
 export type Screen = "worldMap" | "playing" | "results";
 
@@ -227,6 +228,8 @@ type GameStore = {
   selectRock: (id: number) => void;
   clearSelectedRock: () => void;
   confirmRemoveRock: () => void;
+
+  clickEasterEgg: (id: number) => void;
 
   inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
   clearInspectedEnemy: () => void;
@@ -587,6 +590,46 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   clearSelectedRock: () => set({ selectedRockId: null }),
+
+  clickEasterEgg: (id) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running" && w.status !== "paused") return;
+    const egg = w.easterEggs.find(e => e.id === id);
+    if (!egg) return;
+    const def = EASTER_EGG_BY_ID[egg.defId];
+    if (!def) return;
+    egg.clickCount++;
+    spawnParticles(
+      w,
+      egg.pos,
+      def.effect.particleCount,
+      def.effect.particleColor,
+      def.effect.particleSpeed,
+      def.effect.particleLife,
+    );
+    if (def.effect.secondary) {
+      spawnParticles(
+        w,
+        egg.pos,
+        def.effect.secondary.count,
+        def.effect.secondary.color,
+        def.effect.secondary.speed,
+        def.effect.secondary.life,
+      );
+    }
+    const updates: Partial<GameStore> = {};
+    if (egg.clickCount >= def.clickThreshold && !egg.triggered) {
+      egg.triggered = true;
+      const unlock = tryUnlockEasterEgg(s.progress, def.achievement);
+      if (unlock) {
+        saveProgress(unlock.progress);
+        updates.progress = unlock.progress;
+        updates.achievementToasts = [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }];
+      }
+    }
+    set(updates);
+  },
 
   confirmRemoveRock: () => {
     const s = get();

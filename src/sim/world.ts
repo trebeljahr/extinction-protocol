@@ -14,7 +14,9 @@ import type {
   CryoWave,
   GameEvent,
   DamageType,
+  EasterEgg,
 } from "./types";
+import { EASTER_EGG_DEFS } from "../easterEggs";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
@@ -166,10 +168,65 @@ const buildRocks = (
   return { rocks, nextId };
 };
 
+const buildEasterEggs = (
+  biome: Biome,
+  paths: Vec2[][],
+  trees: Tree[],
+  rocks: Rock[],
+  seed: number,
+  firstId: number,
+): { eggs: EasterEgg[]; nextId: number } => {
+  const matching = EASTER_EGG_DEFS.filter(d => d.biomes.includes(biome));
+  if (matching.length === 0) return { eggs: [], nextId: firstId };
+  const rng = mulberry32(seed);
+  const def = matching[Math.floor(rng() * matching.length)];
+  const clearance = PATH_WIDTH / 2 + 1.5;
+  const pathR2 = clearance * clearance;
+  const minPropGap = 1.4;
+  const minGapSq = minPropGap * minPropGap;
+  let attempts = 0;
+  while (attempts < 80) {
+    attempts++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.88;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.88;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true; break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const t of trees) {
+      const dx = t.pos.x - x, dy = t.pos.y - y;
+      if (dx * dx + dy * dy < minGapSq) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    for (const r of rocks) {
+      const dx = r.pos.x - x, dy = r.pos.y - y;
+      if (dx * dx + dy * dy < minGapSq) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    const egg: EasterEgg = {
+      id: firstId,
+      defId: def.id,
+      pos: { x, y },
+      rotY: rng() * Math.PI * 2,
+      clickCount: 0,
+      triggered: false,
+    };
+    return { eggs: [egg], nextId: firstId + 1 };
+  }
+  return { eggs: [], nextId: firstId };
+};
+
 export const createWorld = (level: LevelConfig): World => {
   const biome = level.biome ?? "forest";
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
-  const { rocks, nextId } = buildRocks(biome, level.paths, trees, afterTrees);
+  const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees);
+  const { eggs, nextId } = buildEasterEggs(biome, level.paths, trees, rocks, level.id * 2311 + 47, afterRocks);
   return {
     time: 0,
     tickCount: 0,
@@ -206,6 +263,7 @@ export const createWorld = (level: LevelConfig): World => {
     selectedTowerId: null,
     runEnemyKinds: {},
     runTowerKinds: {},
+    easterEggs: eggs,
   };
 };
 
