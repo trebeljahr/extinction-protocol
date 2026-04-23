@@ -37,7 +37,8 @@ import {
 } from "../src/sim/world";
 import { UPGRADES } from "../src/sim/upgrades";
 import { pathLength } from "../src/sim/path";
-import type { EnemyKind, TowerKind, WaveSpec, Tower } from "../src/sim/types";
+import type { EnemyKind, TowerKind, WaveSpec, Tower, Vec2 } from "../src/sim/types";
+import { pathCoverage, coverageFraction } from "./lib/coverage";
 
 // ------- Tower config (same shape as wave-feasibility.ts) -------
 
@@ -195,10 +196,31 @@ const applyAction = (state: SimState, action: Action): SimState => {
   };
 };
 
-const totalEffectiveDps = (towers: TowerInstance[], wave: WaveBreakdown): number => {
+const totalEffectiveDps = (
+  towers: TowerInstance[],
+  wave: WaveBreakdown,
+  paths: Vec2[][],
+): number => {
+  if (towers.length === 0) return 0;
+  // Per-path-coverage depends on range — group towers by kind for the
+  // coverage calc, then sum each group's effective DPS.
   let sum = 0;
+  const grouped = new Map<TowerKind, TowerInstance[]>();
   for (const t of towers) {
-    sum += effectiveDpsForConfig(buildConfig(t.kind, t.tierA, t.tierB), wave);
+    const arr = grouped.get(t.kind) ?? [];
+    arr.push(t);
+    grouped.set(t.kind, arr);
+  }
+  for (const [kind, group] of grouped) {
+    let perKindDps = 0;
+    for (const t of group) {
+      perKindDps += effectiveDpsForConfig(buildConfig(t.kind, t.tierA, t.tierB), wave);
+    }
+    // Use the kind's base range for coverage — simpler than tracking
+    // per-instance ranges when upgrades vary.
+    const covPer = pathCoverage(paths, TOWER_STATS[kind].range);
+    const covFrac = coverageFraction(group.length, covPer, paths.length);
+    sum += perKindDps * covFrac;
   }
   return sum;
 };
@@ -271,7 +293,7 @@ const simulate = (
     const reqDps = (wave.totalHp / dur) * safety;
 
     const towersBefore = state.towers.slice();
-    const dpsBefore = totalEffectiveDps(state.towers, wave);
+    const dpsBefore = totalEffectiveDps(state.towers, wave, level.paths);
     const goldIn = state.gold;
 
     // Lookahead slice — this wave + next (lookahead-1), weighted by
@@ -289,14 +311,14 @@ const simulate = (
     }
 
     // Greedy loop: pick best marginal DPS/gold against the weighted horizon
-    while (totalEffectiveDps(state.towers, wave) < reqDps) {
+    while (totalEffectiveDps(state.towers, wave, level.paths) < reqDps) {
       const actions = enumerateActions(state).filter(a => a.cost <= state.gold);
       if (actions.length === 0) break;
 
       let best: { action: Action; currentGain: number; scorePerGold: number } | null = null;
       for (const action of actions) {
         const trial = applyAction(state, action);
-        const currentGain = totalEffectiveDps(trial.towers, wave) - totalEffectiveDps(state.towers, wave);
+        const currentGain = totalEffectiveDps(trial.towers, wave, level.paths) - totalEffectiveDps(state.towers, wave, level.paths);
         if (currentGain <= 0) continue;
 
         // Score = weighted average of DPS-gain across current + horizon waves
@@ -305,7 +327,7 @@ const simulate = (
         for (let j = i; j < horizonEnd; j++) {
           const w = waveBreakdowns[j];
           const weight = w.totalHp; // tighter waves (more HP) count more
-          const gain = totalEffectiveDps(trial.towers, w) - totalEffectiveDps(state.towers, w);
+          const gain = totalEffectiveDps(trial.towers, w, level.paths) - totalEffectiveDps(state.towers, w, level.paths);
           weightedGain += weight * Math.max(0, gain);
           weightSum += weight;
         }
@@ -319,7 +341,7 @@ const simulate = (
       state = applyAction(state, best.action);
     }
 
-    const dpsAfter = totalEffectiveDps(state.towers, wave);
+    const dpsAfter = totalEffectiveDps(state.towers, wave, level.paths);
     const cleared = dpsAfter >= reqDps;
     const bounty = cleared ? waveBounty(spec) + (5 + i + 1) : 0;
     const goldOut = state.gold + bounty;

@@ -39,7 +39,9 @@ import type {
   TowerKind,
   WaveSpec,
   Tower,
+  Vec2,
 } from "../src/sim/types";
+import { pathCoverage, coverageFraction } from "./lib/coverage";
 
 // ------- Tower modeling -------
 
@@ -239,6 +241,7 @@ const bestSetup = (
   wave: WaveBreakdown,
   budget: number,
   dur: number,
+  paths: Vec2[][],
 ): TowerPick[] => {
   const picks: TowerPick[] = [];
   for (const cfg of ALL_CONFIGS) {
@@ -246,7 +249,12 @@ const bestSetup = (
     const count = Math.floor(budget / cfg.cost);
     if (count === 0) continue;
     const perTowerDps = effectiveDpsVsWave(cfg, wave);
-    const totalDps = perTowerDps * count;
+    // Multi-path coverage: one tower may only reach a fraction of the
+    // enemy stream if paths don't converge near any valid placement.
+    // Optimistic: assumes the player picks the best spot for this kind's range.
+    const covPer = pathCoverage(paths, cfg.range);
+    const covFrac = coverageFraction(count, covPer, paths.length);
+    const totalDps = perTowerDps * count * covFrac;
     picks.push({
       kind: cfg.kind,
       tierA: cfg.tierA,
@@ -288,7 +296,7 @@ const analyzeLevel = (levelIdx: number) => {
     const dur = combatWindow(spec, waveNumber, wave, longestPath);
     const budget = level.startGold + cumulativeBounty + cumulativeBonus;
     const requiredDps = wave.totalHp / dur;
-    const top = bestSetup(wave, budget, dur);
+    const top = bestSetup(wave, budget, dur, level.paths);
 
     rows.push({
       wave: waveNumber,
