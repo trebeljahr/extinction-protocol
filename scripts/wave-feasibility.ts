@@ -335,6 +335,7 @@ const feasColor = (f: number): string =>
 
 const fmt = (n: number, d = 0) => n.toFixed(d);
 const pad = (s: string | number, n: number) => String(s).padStart(n);
+const padR = (s: string | number, n: number) => String(s).padEnd(n);
 
 const printLevel = (levelIdx: number, detail: boolean) => {
   const { level, rows, longestPath } = analyzeLevel(levelIdx);
@@ -381,15 +382,110 @@ const printLevel = (levelIdx: number, detail: boolean) => {
   );
 };
 
+// ------- Soft-spot analysis -------
+
+/**
+ * "Too easy" heuristic. Flags waves where:
+ *   - absolute feasibility > absThreshold (trivially overbudgeted DPS), OR
+ *   - feasibility > ratio × the level's tightest wave (pacing outlier — the
+ *     wave is so much easier than the level's actual challenge that the
+ *     player notices no resistance).
+ *
+ * Runs only for levels with id >= fromLevel (default 6), since early
+ * levels are introductions and a bit of slack is on purpose.
+ */
+const printSoftSpots = (fromLevel: number, absThreshold: number, ratio: number) => {
+  type Flagged = {
+    level: typeof LEVELS[number];
+    wave: number;
+    archetype: string;
+    feas: number;
+    tightest: number;
+    totalEnemies: number;
+    totalHp: number;
+    reasons: string[];
+  };
+  const flagged: Flagged[] = [];
+  const archCounts: Record<string, { total: number; soft: number }> = {};
+  let totalConsidered = 0;
+  let totalSoft = 0;
+
+  for (let i = 0; i < LEVELS.length; i++) {
+    const level = LEVELS[i];
+    if (level.id < fromLevel) continue;
+    const { rows } = analyzeLevel(i);
+    const feasList = rows.map(r => (r.best ? r.best.potentialDamage / r.totalHp : 0));
+    const tightest = Math.min(...feasList.filter(f => f > 0));
+    for (let j = 0; j < rows.length; j++) {
+      const r = rows[j];
+      const f = feasList[j];
+      totalConsidered++;
+      const arch = r.archetype;
+      archCounts[arch] = archCounts[arch] ?? { total: 0, soft: 0 };
+      archCounts[arch].total++;
+      const reasons: string[] = [];
+      if (f > absThreshold) reasons.push(`abs>${absThreshold}`);
+      if (tightest > 0 && f > ratio * tightest) reasons.push(`${fmt(f / tightest, 1)}× tightest`);
+      if (reasons.length > 0) {
+        totalSoft++;
+        archCounts[arch].soft++;
+        flagged.push({
+          level, wave: r.wave, archetype: arch, feas: f, tightest,
+          totalEnemies: r.totalEnemies, totalHp: r.totalHp, reasons,
+        });
+      }
+    }
+  }
+
+  console.log(`\n${C.bold}═══ Soft-spot scan — levels ${fromLevel}+, abs>${absThreshold}×, pacing>${ratio}× tightest${C.reset}`);
+
+  // Group by level
+  let currentLevelId = -1;
+  for (const f of flagged) {
+    if (f.level.id !== currentLevelId) {
+      currentLevelId = f.level.id;
+      console.log(`\n${C.bold}L${f.level.id} ${f.level.name}${C.reset} ${C.dim}(tightest ${fmt(f.tightest, 2)}×)${C.reset}`);
+    }
+    const severity = f.feas >= absThreshold * 2 ? C.red : f.feas >= absThreshold ? C.yellow : C.cyan;
+    console.log(
+      `  W${pad(f.wave, 2)} ${padR(f.archetype, 7)} ${severity}feas ${pad(fmt(f.feas, 2), 6)}×${C.reset}` +
+      ` ${C.dim}${pad(f.totalEnemies, 4)} enemies, ${pad(fmt(f.totalHp, 0), 6)} HP${C.reset}` +
+      ` ${C.dim}— ${f.reasons.join(", ")}${C.reset}`,
+    );
+  }
+
+  // Global breakdown
+  console.log(`\n${C.bold}═══ Patterns${C.reset}`);
+  console.log(`${totalSoft}/${totalConsidered} waves flagged ${C.dim}(${((totalSoft / totalConsidered) * 100).toFixed(1)}%)${C.reset}`);
+  const archEntries = Object.entries(archCounts)
+    .filter(([, c]) => c.total > 0)
+    .sort((a, b) => b[1].soft / b[1].total - a[1].soft / a[1].total);
+  console.log(`${C.dim}By archetype (flagged / total):${C.reset}`);
+  for (const [arch, c] of archEntries) {
+    const pct = ((c.soft / c.total) * 100).toFixed(0);
+    const bar = "█".repeat(Math.round(c.soft / c.total * 20));
+    console.log(`  ${padR(arch, 7)} ${pad(c.soft, 3)}/${pad(c.total, 3)}  ${pad(pct + "%", 4)}  ${bar}`);
+  }
+};
+
 // ------- Entry -------
 
 declare const process: { argv: string[]; exit(code: number): never };
 
 const args = process.argv.slice(2);
 const detail = args.includes("--detail");
+const softMode = args.includes("--soft");
+const fromArg = args.find((a: string) => a.startsWith("--from="));
+const absArg = args.find((a: string) => a.startsWith("--abs="));
+const ratioArg = args.find((a: string) => a.startsWith("--ratio="));
 const levelArg = args.find((a: string) => /^\d+$/.test(a));
 
-if (levelArg) {
+if (softMode) {
+  const fromLevel = fromArg ? Number(fromArg.split("=")[1]) : 6;
+  const abs = absArg ? Number(absArg.split("=")[1]) : 20;
+  const ratio = ratioArg ? Number(ratioArg.split("=")[1]) : 5;
+  printSoftSpots(fromLevel, abs, ratio);
+} else if (levelArg) {
   const idx = Number(levelArg) - 1;
   if (idx < 0 || idx >= LEVELS.length) {
     console.error(`Level must be 1..${LEVELS.length}`);
