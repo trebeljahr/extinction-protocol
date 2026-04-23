@@ -524,7 +524,7 @@ if (levelArg) {
     if (!r.success) failed.push(`L${r.level.id}W${r.failedAt}`);
   }
   if (failed.length === 0) {
-    console.log(`${C.green}All 20 levels clearable with greedy min-cost @ safety=${safety}×${C.reset}`);
+    console.log(`${C.green}All ${LEVELS.length} levels clearable with greedy min-cost @ safety=${safety}×${C.reset}`);
   } else {
     console.log(`${C.red}Min-cost breaks at: ${failed.join(", ")}${C.reset}`);
   }
