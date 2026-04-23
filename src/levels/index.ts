@@ -449,7 +449,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, -9, -12, -9, -6, -4, 0, 0, 8, 4, 14, 4, 20, 4),
       p(20, 10, 14, 10, 6, 8, -2, 6, -8, 2, -14, 0, -20, 0),
     ],
-    startGold: 180,
+    startGold: 220,
     nodePos: { x: 2, y: 16 },
     hpScale: 2.1,
     waves: [
