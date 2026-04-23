@@ -25,7 +25,12 @@ export type AchievementId =
   | "torch_lit"
   | "barrel_roll"
   | "cabin_smoke"
-  | "crystal_shatter";
+  | "crystal_shatter"
+  | "cactus_bloom"
+  | "ancient_glyph"
+  | "rusted_radio"
+  | "satellite_ping"
+  | "fairy_ring";
 
 export type AchievementSecrecy = "visible" | "hint" | "hidden";
 
@@ -60,6 +65,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "barrel_roll",   name: "Barrel Roll",        desc: "Knock over an abandoned barrel.",                     hint: "Not every barrel is staying put.",      secrecy: "hint" },
   { id: "cabin_smoke",   name: "Home Fires",         desc: "Make smoke rise from a snow cabin.",                  hint: "Someone might still live there.",       secrecy: "hint" },
   { id: "crystal_shatter", name: "Crystal Shatter", desc: "Shatter a crystal formation.",                          hint: "Crystals break on the fifth tap.",      secrecy: "hint" },
+  { id: "cactus_bloom",  name: "Cactus Bloom",      desc: "Coax a desert plant to flower.",                      hint: "Even cacti have a soft side.",          secrecy: "hint" },
+  { id: "ancient_glyph", name: "Ancient Glyph",     desc: "Uncover the meaning of carved stone.",                hint: "Worn markings light up under touch.",   secrecy: "hint" },
+  { id: "rusted_radio",  name: "Static Response",   desc: "Tune into a forgotten transmission.",                 hint: "The dead network still hums.",          secrecy: "hint" },
+  { id: "satellite_ping", name: "Distant Signal",   desc: "Wake a dormant satellite dish.",                      hint: "Some dishes still listen.",             secrecy: "hint" },
+  { id: "fairy_ring",    name: "Fairy Ring",        desc: "Disturb a wild ring of blooms.",                      hint: "Flowers answer the third visitor.",     secrecy: "hint" },
 ];
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
@@ -128,6 +138,11 @@ const satisfies = (
     case "barrel_roll":
     case "cabin_smoke":
     case "crystal_shatter":
+    case "cactus_bloom":
+    case "ancient_glyph":
+    case "rusted_radio":
+    case "satellite_ping":
+    case "fairy_ring":
       return false;
   }
 };
