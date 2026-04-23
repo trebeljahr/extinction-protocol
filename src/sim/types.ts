@@ -30,9 +30,6 @@ export type TowerKind =
   | "chain"
   | "cryo"
   | "mortar"
-  | "gatling"
-  | "cannon"
-  | "plasma"
   | "flame"
   | "hive";
 

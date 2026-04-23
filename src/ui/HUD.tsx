@@ -11,19 +11,14 @@ import { PauseMenu } from "./PauseMenu";
 import { DamageIcon } from "./DamageIcon";
 import { getLevel } from "../levels";
 
-const KINDS: TowerKind[] = [
-  "pulse", "gatling", "cannon", "chain", "hive", "plasma", "flame", "mortar", "cryo",
-];
+const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 const HOTKEYS: Record<TowerKind, string> = {
-  pulse:   "1",
-  gatling: "2",
-  cannon:  "3",
-  chain:   "4",
-  hive:    "5",
-  plasma:  "6",
-  flame:   "7",
-  mortar:  "8",
-  cryo:    "9",
+  pulse:  "1",
+  chain:  "2",
+  flame:  "3",
+  hive:   "4",
+  mortar: "5",
+  cryo:   "6",
 };
 
 export const HUD = () => {

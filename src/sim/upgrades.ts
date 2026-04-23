@@ -90,60 +90,6 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
       ],
     },
   },
-  gatling: {
-    a: {
-      label: "Spool",
-      tiers: [
-        { name: "Quickspin",     desc: "+30% fire rate",             cost: 55,  apply: t => { t.fireRate *= 1.3; } },
-        { name: "Overclock",     desc: "+35% fire rate",             cost: 110, apply: t => { t.fireRate *= 1.35; } },
-        { name: "Barrel Swarm",  desc: "+40% fire rate, +1 range",   cost: 190, apply: t => { t.fireRate *= 1.4; t.range += 1; } },
-      ],
-    },
-    b: {
-      label: "Rounds",
-      tiers: [
-        { name: "AP Rounds",     desc: "+55% damage",                cost: 55,  apply: t => { t.damage *= 1.55; } },
-        { name: "Depleted Core", desc: "+65% damage",                cost: 110, apply: t => { t.damage *= 1.65; } },
-        { name: "Mulcher",       desc: "+75% damage",                cost: 190, apply: t => { t.damage *= 1.75; } },
-      ],
-    },
-  },
-  cannon: {
-    a: {
-      label: "Railforce",
-      tiers: [
-        { name: "Charged Coil",  desc: "+80% damage",                cost: 100, apply: t => { t.damage *= 1.8; } },
-        { name: "Superconductor", desc: "+80% damage",               cost: 190, apply: t => { t.damage *= 1.8; } },
-        { name: "Antimatter",    desc: "+100% damage, +1 range",     cost: 340, apply: t => { t.damage *= 2.0; t.range += 1; } },
-      ],
-    },
-    b: {
-      label: "Tracking",
-      tiers: [
-        { name: "Rangefinder",   desc: "+1.5 range",                 cost: 80,  apply: t => { t.range += 1.5; } },
-        { name: "Fast Cycle",    desc: "+35% fire rate",             cost: 170, apply: t => { t.fireRate *= 1.35; } },
-        { name: "Overcharge",    desc: "+40% fire rate, +1 range",   cost: 310, apply: t => { t.fireRate *= 1.4; t.range += 1; } },
-      ],
-    },
-  },
-  plasma: {
-    a: {
-      label: "Containment",
-      tiers: [
-        { name: "Wider Field",   desc: "+30% splash radius",         cost: 70,  apply: t => { t.splashRadius *= 1.3; } },
-        { name: "Pulse Bloom",   desc: "+30% splash, +20% damage",   cost: 140, apply: t => { t.splashRadius *= 1.3; t.damage *= 1.2; } },
-        { name: "Singularity",   desc: "+30% splash, +30% damage",   cost: 250, apply: t => { t.splashRadius *= 1.3; t.damage *= 1.3; } },
-      ],
-    },
-    b: {
-      label: "Discharge",
-      tiers: [
-        { name: "Hot Coils",     desc: "+50% damage",                cost: 80,  apply: t => { t.damage *= 1.5; } },
-        { name: "Ion Cascade",   desc: "+50% damage",                cost: 160, apply: t => { t.damage *= 1.5; } },
-        { name: "Starcore",      desc: "+60% damage, +30% fire rate", cost: 280, apply: t => { t.damage *= 1.6; t.fireRate *= 1.3; } },
-      ],
-    },
-  },
   flame: {
     a: {
       label: "Combustion",
@@ -164,19 +110,19 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
   },
   hive: {
     a: {
-      label: "Swarm",
+      label: "Rotors",
       tiers: [
-        { name: "Extra Drones",  desc: "+3 chain targets",           cost: 70,  apply: t => { t.chainCount += 3; } },
-        { name: "Forkers",       desc: "+3 chain, less falloff",     cost: 140, apply: t => { t.chainCount += 3; t.chainFalloff = Math.min(1, t.chainFalloff + 0.15); } },
-        { name: "Endless Swarm", desc: "+3 chain, no falloff",       cost: 230, apply: t => { t.chainCount += 3; t.chainFalloff = 1; } },
+        { name: "Overclock",     desc: "+30% drone fire rate",       cost: 70,  apply: t => { t.fireRate *= 1.3; } },
+        { name: "Twin Thrusters", desc: "+30% fire rate",            cost: 140, apply: t => { t.fireRate *= 1.3; } },
+        { name: "Ion Engines",   desc: "+40% fire rate, +0.6 range", cost: 230, apply: t => { t.fireRate *= 1.4; t.range += 0.6; } },
       ],
     },
     b: {
       label: "Sting",
       tiers: [
-        { name: "Barbed",        desc: "+45% damage",                cost: 60,  apply: t => { t.damage *= 1.45; } },
+        { name: "Barbed",        desc: "+45% drone damage",          cost: 60,  apply: t => { t.damage *= 1.45; } },
         { name: "Razor Wing",    desc: "+55% damage",                cost: 120, apply: t => { t.damage *= 1.55; } },
-        { name: "Apex Queen",    desc: "+65% damage, +20% fire rate", cost: 210, apply: t => { t.damage *= 1.65; t.fireRate *= 1.2; } },
+        { name: "Apex Queen",    desc: "+65% damage, +0.8 range",    cost: 210, apply: t => { t.damage *= 1.65; t.range += 0.8; } },
       ],
     },
   },

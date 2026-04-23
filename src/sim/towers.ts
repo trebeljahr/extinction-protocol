@@ -203,17 +203,79 @@ export const updateTowers = (world: World, dt: number) => {
       continue;
     }
 
+    // Hive — each drone independently finds its own target from its own
+    // orbit position and fires a small direct shot. Volleys are shared by
+    // the tower cooldown so the per-drone `fireRate` stat is honest; the
+    // interleaved visual comes from the orbit rotation, not the firing.
+    if (t.kind === "hive") {
+      if (t.cooldown === 0) {
+        let anyHit = false;
+        for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
+          const dp = hiveDronePosition(t, world.time, d);
+          const droneTarget = findTargetNearPos(world, dp, t);
+          if (!droneTarget) continue;
+          anyHit = true;
+          createProjectile(world, "direct", "kinetic", dp, droneTarget, t.damage);
+        }
+        if (anyHit) {
+          t.cooldown = 1 / t.fireRate;
+          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+        }
+      }
+      continue;
+    }
+
     if (target && t.cooldown === 0) {
-      // New towers reuse existing fire logic:
-      //   gatling / cannon — single-target direct shot (same as pulse)
-      //   plasma          — splash projectile (same as mortar, electric dmg)
-      //   hive            — chain drones (same chain logic, more bounces)
-      if (t.kind === "pulse" || t.kind === "gatling" || t.kind === "cannon") firePulse(world, t, target);
-      else if (t.kind === "chain" || t.kind === "hive") fireChain(world, t, target);
+      if (t.kind === "pulse") firePulse(world, t, target);
+      else if (t.kind === "chain") fireChain(world, t, target);
       else if (t.kind === "mortar") fireMortar(world, t, target);
-      else if (t.kind === "plasma") fireMortar(world, t, target);
       t.cooldown = 1 / t.fireRate;
       emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
     }
   }
+};
+
+// --- Hive drones ------------------------------------------------------
+//
+// Three drones orbit each hive tower at a fixed radius and height. Each
+// drone finds its OWN target (nearest live enemy within `tower.range`
+// measured from the drone's world position) and fires from there, so the
+// hive behaves like three tiny independent turrets whose spots happen to
+// drift around the anchor.
+
+export const HIVE_DRONE_COUNT = 3;
+export const HIVE_ORBIT_RADIUS = 1.55;
+export const HIVE_ORBIT_HEIGHT = 1.1;
+const HIVE_ORBIT_SPEED = 0.55; // rad/s
+
+export const hiveDroneAngle = (tower: Tower, time: number, droneIdx: number): number =>
+  (tower.id * 0.37) +
+  (droneIdx * (2 * Math.PI)) / HIVE_DRONE_COUNT +
+  time * HIVE_ORBIT_SPEED;
+
+export const hiveDronePosition = (tower: Tower, time: number, droneIdx: number): Vec2 => {
+  const a = hiveDroneAngle(tower, time, droneIdx);
+  return {
+    x: tower.pos.x + Math.cos(a) * HIVE_ORBIT_RADIUS,
+    y: tower.pos.y + Math.sin(a) * HIVE_ORBIT_RADIUS,
+  };
+};
+
+const findTargetNearPos = (world: World, pos: Vec2, tower: Tower): Enemy | null => {
+  const r2 = tower.range * tower.range;
+  let best: Enemy | null = null;
+  let bestScore = Infinity;
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    const d2 = distSq(e.pos, pos);
+    if (d2 > r2) continue;
+    // Nearest-to-drone targeting. Drones are small and reactive — they
+    // should pepper whatever's next to them, not share the tower-level
+    // targeting mode (which is keyed off the hive anchor).
+    if (d2 < bestScore) {
+      best = e;
+      bestScore = d2;
+    }
+  }
+  return best;
 };
