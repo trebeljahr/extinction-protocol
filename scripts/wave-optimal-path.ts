@@ -390,6 +390,112 @@ const portfolioString = (towers: TowerInstance[]): string => {
   return Object.entries(byKind).map(([k, n]) => `${n}×${k}`).join(", ");
 };
 
+/**
+ * "Chill analysis" — after the forward-sim has built a functional portfolio,
+ * which waves required zero intervention (spent=0) AND had comfortable
+ * margin (dpsBefore >> reqDps)? Flags stretches of 3+ consecutive chill
+ * waves as potentially boring — the player is watching, not playing.
+ */
+const chillAnalysis = (safety: number, lookahead: number, marginMul: number, minStreak: number) => {
+  type Streak = {
+    level: typeof LEVELS[number];
+    startWave: number;
+    endWave: number;
+    waves: { wave: number; arch: string; dpsBefore: number; reqDps: number; margin: number }[];
+  };
+  const allStreaks: Streak[] = [];
+  const perLevelStats: {
+    level: typeof LEVELS[number];
+    totalWaves: number;
+    chillWaves: number;
+    longestStreak: number;
+    streakRange: string;
+  }[] = [];
+
+  for (let i = 0; i < LEVELS.length; i++) {
+    const level = LEVELS[i];
+    const r = simulate(level, safety, lookahead);
+    if (!r.success) continue;
+
+    // Identify "true chill" waves: spent=0 AND dpsBefore > reqDps × marginMul
+    const chill = r.history.map(h =>
+      h.spentThisWave === 0 && h.dpsBefore >= h.reqDps * marginMul,
+    );
+
+    // Find consecutive runs of chill=true
+    let longest = 0;
+    let longestStart = 0;
+    let i0 = 0;
+    while (i0 < chill.length) {
+      if (!chill[i0]) { i0++; continue; }
+      let j = i0;
+      while (j < chill.length && chill[j]) j++;
+      const len = j - i0;
+      if (len >= minStreak) {
+        const segWaves = r.history.slice(i0, j).map(h => ({
+          wave: h.wave,
+          arch: h.archetype,
+          dpsBefore: h.dpsBefore,
+          reqDps: h.reqDps,
+          margin: h.reqDps > 0 ? h.dpsBefore / h.reqDps : Infinity,
+        }));
+        allStreaks.push({
+          level, startWave: r.history[i0].wave, endWave: r.history[j - 1].wave, waves: segWaves,
+        });
+      }
+      if (len > longest) { longest = len; longestStart = i0; }
+      i0 = j;
+    }
+
+    const chillCount = chill.filter(c => c).length;
+    perLevelStats.push({
+      level, totalWaves: r.history.length, chillWaves: chillCount,
+      longestStreak: longest,
+      streakRange: longest > 0
+        ? `W${r.history[longestStart].wave}-W${r.history[longestStart + longest - 1].wave}`
+        : "—",
+    });
+  }
+
+  console.log(
+    `\n${C.bold}═══ Chill analysis — where existing towers already clear the wave${C.reset}` +
+    ` ${C.dim}(safety=${safety}×, chill margin ≥${marginMul}× req, min streak ${minStreak})${C.reset}`,
+  );
+
+  // Per-level overview
+  console.log(
+    `\n${C.dim}${padR("level", 30)} ${pad("waves", 5)} ${pad("chill", 5)} ${pad("%", 4)} ${pad("longest", 7)}  streak range${C.reset}`,
+  );
+  for (const s of perLevelStats) {
+    const pct = Math.round((s.chillWaves / s.totalWaves) * 100);
+    const streakColor = s.longestStreak >= 5 ? C.red : s.longestStreak >= 3 ? C.yellow : s.longestStreak >= 2 ? C.cyan : C.dim;
+    console.log(
+      `${padR(`L${s.level.id} ${s.level.name}`, 30)} ${pad(s.totalWaves, 5)} ${pad(s.chillWaves, 5)} ${pad(pct + "%", 4)} ${streakColor}${pad(s.longestStreak, 7)}${C.reset}  ${C.dim}${s.streakRange}${C.reset}`,
+    );
+  }
+
+  // Detailed streaks (only long ones)
+  if (allStreaks.length > 0) {
+    console.log(`\n${C.bold}Long chill stretches (≥${minStreak} waves):${C.reset}`);
+    for (const s of allStreaks) {
+      const avgMargin = s.waves.reduce((a, b) => a + b.margin, 0) / s.waves.length;
+      const marginStr = isFinite(avgMargin) ? `${fmt(avgMargin, 1)}×` : "∞";
+      console.log(
+        `  ${C.bold}L${s.level.id}${C.reset} ${padR(s.level.name, 22)} ${C.dim}W${s.startWave}-W${s.endWave}${C.reset}` +
+        ` ${C.cyan}${s.waves.length} chill waves${C.reset} ${C.dim}avg margin ${marginStr}, archetypes: ${[...new Set(s.waves.map(w => w.arch))].join("/")}${C.reset}`,
+      );
+    }
+  }
+
+  // Global stats
+  const totalWaves = perLevelStats.reduce((a, b) => a + b.totalWaves, 0);
+  const totalChill = perLevelStats.reduce((a, b) => a + b.chillWaves, 0);
+  console.log(
+    `\n${C.bold}═══ Totals${C.reset}  ${totalChill}/${totalWaves} chill waves ${C.dim}(${((totalChill / totalWaves) * 100).toFixed(1)}%)${C.reset}` +
+    `, ${allStreaks.length} stretches ≥${minStreak} long`,
+  );
+};
+
 const compareStarters = (levelIdx: number, safety: number, lookahead: number) => {
   const level = LEVELS[levelIdx];
   console.log(
@@ -479,6 +585,11 @@ const lookaheadArg = args.find((a: string) => a.startsWith("--lookahead="));
 const lookahead = lookaheadArg ? Number(lookaheadArg.split("=")[1]) : 3;
 const verbose = args.includes("--verbose") || args.includes("-v");
 const compareMode = args.includes("--compare-starters");
+const chillMode = args.includes("--chill");
+const marginArg = args.find((a: string) => a.startsWith("--margin="));
+const marginMul = marginArg ? Number(marginArg.split("=")[1]) : 1.5;
+const minStreakArg = args.find((a: string) => a.startsWith("--min-streak="));
+const minStreak = minStreakArg ? Number(minStreakArg.split("=")[1]) : 3;
 const forceFirstArg = args.find((a: string) => a.startsWith("--force-first="));
 const forceFirst = forceFirstArg
   ? (forceFirstArg.split("=")[1] as TowerKind)
@@ -497,6 +608,11 @@ if (!Number.isFinite(lookahead) || lookahead < 1) {
 if (forceFirst && !(forceFirst in TOWER_STATS)) {
   console.error(`Unknown tower kind: ${forceFirst}. Valid: ${Object.keys(TOWER_STATS).join(", ")}`);
   process.exit(1);
+}
+
+if (chillMode) {
+  chillAnalysis(safety, lookahead, marginMul, minStreak);
+  process.exit(0);
 }
 
 if (levelArg) {
