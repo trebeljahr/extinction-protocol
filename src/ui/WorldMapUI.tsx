@@ -38,12 +38,14 @@ export const WorldMapUI = () => {
           </div>
         </div>
         <button
+          type="button"
           className="btn btn-ghost worldmap-compendium-btn"
           onClick={() => setCompendiumOpen(true)}
         >
           Compendium
         </button>
         <button
+          type="button"
           className="btn btn-ghost worldmap-compendium-btn"
           onClick={() => setAchievementsOpen(true)}
         >

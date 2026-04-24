@@ -43,5 +43,17 @@
         "noUnusedImports": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["src/render/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useKeyWithClickEvents": "off"
+          }
+        }
+      }
+    }
+  ]
 }

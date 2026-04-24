@@ -79,7 +79,7 @@ export const TreePanel = () => {
             Remove this {label.toLowerCase()} to free up buildable ground.
           </div>
         </div>
-        <button className="btn-close" onClick={selection.clear} aria-label="close">
+        <button type="button" className="btn-close" onClick={selection.clear} aria-label="close">
           ×
         </button>
       </div>
@@ -110,10 +110,10 @@ export const TreePanel = () => {
       </div>
 
       <div className="tree-actions">
-        <button className="btn" disabled={!canAfford} onClick={selection.confirm}>
+        <button type="button" className="btn" disabled={!canAfford} onClick={selection.confirm}>
           Clear · {selection.cost}g
         </button>
-        <button className="btn btn-secondary" onClick={selection.clear}>
+        <button type="button" className="btn btn-secondary" onClick={selection.clear}>
           Cancel (Esc)
         </button>
       </div>

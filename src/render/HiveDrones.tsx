@@ -1,5 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { nanoid } from "nanoid";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -25,7 +26,7 @@ const BOB_AMP = 0.08;
 const BOB_SPEED = 2.2;
 const MAX_DRONES = 256;
 
-type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
+type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
 type Source = { parts: Part[]; minY: number; baseScale: number };
 
 const collectSource = (scene: THREE.Object3D): Source | null => {
@@ -37,7 +38,7 @@ const collectSource = (scene: THREE.Object3D): Source | null => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach((mat) => {
+    for (const mat of mats) {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
@@ -47,8 +48,8 @@ const collectSource = (scene: THREE.Object3D): Source | null => {
           set = true;
         } else union.union(geom.boundingBox);
       }
-      parts.push({ geom, material: mat as THREE.Material });
-    });
+      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
+    }
   });
   if (parts.length === 0 || !set) return null;
   const size = union.getSize(new THREE.Vector3());
@@ -116,7 +117,7 @@ export const HiveDrones = () => {
     <group>
       {source.parts.map((part, pi) => (
         <instancedMesh
-          key={pi}
+          key={part.id}
           ref={(el: THREE.InstancedMesh | null) => {
             partRefs.current[pi] = el;
           }}

@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_BASES, type Biome, TARGET_SIZE_BY_ROLE, classifyPropUrl } from "../biomes";
@@ -118,7 +119,7 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
   return items;
 };
 
-type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
+type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
 type Source = { parts: Part[]; minY: number; baseScale: number };
 
 // Same multi-primitive collection used in BiomeCosmetics/Rocks/Trees.
@@ -131,7 +132,7 @@ const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach((mat) => {
+    for (const mat of mats) {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
@@ -141,8 +142,8 @@ const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
           unionSet = true;
         } else union.union(geom.boundingBox);
       }
-      parts.push({ geom, material: mat as THREE.Material });
-    });
+      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
+    }
   });
   if (parts.length === 0 || !unionSet) return null;
   const size = union.getSize(new THREE.Vector3());
@@ -182,7 +183,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
     <group>
       {source.parts.map((part, pi) => (
         <instancedMesh
-          key={pi}
+          key={part.id}
           ref={(el: THREE.InstancedMesh | null) => {
             partRefs.current[pi] = el;
           }}

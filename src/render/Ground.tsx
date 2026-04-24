@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ALL_BIOME_URLS, BIOME_LAYERS, BIOME_STYLE, type BiomeLayer } from "../biomes";
@@ -135,7 +136,11 @@ export const Ground = () => {
   const specs = useMemo(() => BIOME_LAYERS[biome].filter((s) => !s.blocks), [biome]);
 
   const layers = useMemo(
-    () => specs.map((spec) => ({ spec, buckets: buildLayer(paths, spec) })),
+    () =>
+      specs.map((spec) => ({
+        spec,
+        buckets: buildLayer(paths, spec).map((placements) => ({ id: nanoid(), placements })),
+      })),
     [paths, specs],
   );
 
@@ -146,10 +151,10 @@ export const Ground = () => {
         <meshStandardMaterial color={style.groundColor} roughness={0.98} metalness={0} />
       </mesh>
 
-      {layers.flatMap(({ spec, buckets }, li) =>
-        buckets.map((placements, vi) => (
+      {layers.flatMap(({ spec, buckets }) =>
+        buckets.map(({ id, placements }, vi) => (
           <NatureInstances
-            key={`${biome}-${li}-${vi}`}
+            key={id}
             url={spec.urls[vi]}
             placements={placements}
             castShadow={spec.castShadow}

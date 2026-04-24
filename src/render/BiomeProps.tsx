@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -29,6 +30,7 @@ const mulberry32 = (seed: number) => {
 };
 
 type PropInstance = {
+  id: string;
   url: string;
   pos: THREE.Vector3;
   rotY: number;
@@ -130,6 +132,7 @@ const buildPropPlan = () => {
       placed.push({ x, z, r: radius });
       const url = bucket.urls[Math.floor(rand() * bucket.urls.length)];
       return {
+        id: nanoid(),
         url,
         pos: new THREE.Vector3(x, 0, z),
         rotY: rand() * Math.PI * 2,
@@ -174,7 +177,9 @@ const buildPropPlan = () => {
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand);
         if (!inst) continue;
-        (perUrl[inst.url] = perUrl[inst.url] ?? []).push(inst);
+        const existing = perUrl[inst.url] ?? [];
+        existing.push(inst);
+        perUrl[inst.url] = existing;
       }
     }
   }
@@ -215,11 +220,11 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
 
   return (
     <group ref={groupRef}>
-      {items.map((it, i) => {
+      {items.map((it) => {
         const s = normalizedScale * it.scale;
         return (
           <primitive
-            key={i}
+            key={it.id}
             object={scene.clone(true)}
             position={[it.pos.x - centerOffset.x * s, -minY * s, it.pos.z - centerOffset.z * s]}
             rotation={[0, it.rotY, 0]}

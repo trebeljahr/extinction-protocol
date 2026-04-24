@@ -585,9 +585,9 @@ const printLevel = (
   safety: number,
   lookahead: number,
   verbose: boolean,
-  result?: SimResult,
+  precomputed?: SimResult,
 ) => {
-  result = result ?? simulate(LEVELS[levelIdx], safety, lookahead);
+  const result = precomputed ?? simulate(LEVELS[levelIdx], safety, lookahead);
   const { level, history, success } = result;
 
   console.log(

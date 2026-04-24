@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { useMemo } from "react";
 import * as THREE from "three";
 import { BIOME_STYLE } from "../biomes";
@@ -10,11 +11,12 @@ export const PathLine = () => {
   const paths = useGame((s) => s.world.paths);
   const biome = useGame((s) => s.world.biome);
   const style = BIOME_STYLE[biome];
+  const pathsWithIds = useMemo(() => paths.map((path) => ({ id: nanoid(), path })), [paths]);
   return (
     <group>
-      {paths.map((path, i) => (
+      {pathsWithIds.map(({ id, path }) => (
         <SinglePath
-          key={i}
+          key={id}
           path={path}
           pathColor={style.pathColor}
           startColor={style.startRing}
@@ -37,7 +39,7 @@ const SinglePath = ({
   endColor: string;
 }) => {
   const segments = useMemo(() => {
-    const out: { pos: [number, number, number]; rotY: number; length: number }[] = [];
+    const out: { id: string; pos: [number, number, number]; rotY: number; length: number }[] = [];
     for (let i = 0; i < path.length - 1; i++) {
       const a = path[i];
       const b = path[i + 1];
@@ -45,13 +47,13 @@ const SinglePath = ({
       const midX = (a.x + b.x) / 2;
       const midZ = -(a.y + b.y) / 2;
       const rotY = Math.atan2(-(b.y - a.y), b.x - a.x);
-      out.push({ pos: [midX, 0.02, midZ], rotY, length });
+      out.push({ id: nanoid(), pos: [midX, 0.02, midZ], rotY, length });
     }
     return out;
   }, [path]);
 
   const joints = useMemo(
-    () => path.map((p) => [p.x, 0.03, -p.y] as [number, number, number]),
+    () => path.map((p) => ({ id: nanoid(), pos: [p.x, 0.03, -p.y] as [number, number, number] })),
     [path],
   );
 
@@ -59,14 +61,14 @@ const SinglePath = ({
 
   return (
     <group>
-      {segments.map((s, i) => (
-        <mesh key={i} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
+      {segments.map((s) => (
+        <mesh key={s.id} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
           <planeGeometry args={[s.length, PATH_WIDTH]} />
           <meshStandardMaterial color={pathColor} roughness={1} />
         </mesh>
       ))}
-      {joints.map((p, i) => (
-        <mesh key={`j${i}`} position={p} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {joints.map((j) => (
+        <mesh key={j.id} position={j.pos} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[PATH_WIDTH / 2, 16]} />
           <meshStandardMaterial color={pathColor} roughness={1} />
         </mesh>
