@@ -1,3 +1,4 @@
+import type React from "react";
 import { useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { getLevel } from "../levels";
@@ -88,12 +89,12 @@ export const PauseMenu = ({ onResume }: Props) => {
   if (confirming) {
     return (
       <div className="overlay">
-        <div className="overlay-card pause-card">
-          <h1>Return to World Map?</h1>
-          <div className="pause-confirm-text">
-            Progress on <strong>{levelName}</strong> will be lost.
+        <div className="overlay-card min-w-[420px] pt-7 px-8 pb-6 text-left">
+          <h1 className="text-center mb-1">Return to World Map?</h1>
+          <div className="text-center text-[13px] text-fg-muted mb-5 leading-[1.4]">
+            Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
           </div>
-          <div className="pause-actions">
+          <PauseActions>
             <button type="button" className="btn" onClick={goToWorldMap}>
               Return
             </button>
@@ -104,7 +105,7 @@ export const PauseMenu = ({ onResume }: Props) => {
             >
               Cancel
             </button>
-          </div>
+          </PauseActions>
         </div>
       </div>
     );
@@ -112,27 +113,33 @@ export const PauseMenu = ({ onResume }: Props) => {
 
   return (
     <div className="overlay">
-      <div className="overlay-card pause-card">
-        <h1>Paused</h1>
-        {levelName && <div className="pause-level">{levelName}</div>}
+      <div className="overlay-card min-w-[420px] pt-7 px-8 pb-6 text-left">
+        <h1 className="text-center mb-1">Paused</h1>
+        {levelName && (
+          <div className="text-center text-xs tracking-[0.22em] uppercase text-fg-dim mb-[18px]">
+            {levelName}
+          </div>
+        )}
 
-        <section className="pause-section">
-          <div className="pause-section-label">SOUND</div>
-          <div className="pause-row">
-            <span className="pause-label">Master</span>
+        <section className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg pt-3.5 px-4 pb-2.5 mb-5">
+          <div className="text-[10px] font-bold tracking-uber text-gold mb-2.5">SOUND</div>
+          <PauseRow>
+            <PauseLabel>Master</PauseLabel>
             <button
               type="button"
-              className={`pause-toggle ${muted ? "off" : "on"}`}
+              className={`flex-1 px-3 py-1.5 rounded-[5px] border text-xs font-bold tracking-mid font-[inherit] cursor-pointer ${
+                muted
+                  ? "bg-tint-pink border-[rgba(255,122,154,0.45)] text-pink"
+                  : "bg-[rgba(61,209,255,0.15)] border-cyan text-cyan"
+              }`}
               onClick={toggleMute}
               aria-pressed={!muted}
             >
               {muted ? "Muted" : "On"}
             </button>
-          </div>
-          <div className="pause-row">
-            <label className="pause-label" htmlFor="sfx-vol">
-              SFX
-            </label>
+          </PauseRow>
+          <PauseRow>
+            <PauseLabel htmlFor="sfx-vol">SFX</PauseLabel>
             <input
               id="sfx-vol"
               type="range"
@@ -142,14 +149,12 @@ export const PauseMenu = ({ onResume }: Props) => {
               value={sfx}
               onChange={(e) => updateSfx(Number(e.target.value))}
               disabled={muted}
-              className="pause-slider"
+              className="flex-1 accent-cyan disabled:opacity-40"
             />
-            <span className="pause-value">{Math.round(sfx * 100)}</span>
-          </div>
-          <div className="pause-row">
-            <label className="pause-label" htmlFor="music-vol">
-              Music
-            </label>
+            <PauseValue value={sfx} />
+          </PauseRow>
+          <PauseRow>
+            <PauseLabel htmlFor="music-vol">Music</PauseLabel>
             <input
               id="music-vol"
               type="range"
@@ -159,13 +164,13 @@ export const PauseMenu = ({ onResume }: Props) => {
               value={music}
               onChange={(e) => updateMusic(Number(e.target.value))}
               disabled={muted}
-              className="pause-slider"
+              className="flex-1 accent-cyan disabled:opacity-40"
             />
-            <span className="pause-value">{Math.round(music * 100)}</span>
-          </div>
+            <PauseValue value={music} />
+          </PauseRow>
         </section>
 
-        <div className="pause-actions">
+        <PauseActions>
           <button type="button" className="btn" onClick={onResume}>
             Resume (Esc)
           </button>
@@ -189,8 +194,36 @@ export const PauseMenu = ({ onResume }: Props) => {
           <button type="button" className="btn btn-secondary" onClick={() => setConfirming(true)}>
             World Map
           </button>
-        </div>
+        </PauseActions>
       </div>
     </div>
   );
 };
+
+const PauseRow = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 my-2">{children}</div>
+);
+const PauseLabel = ({
+  children,
+  htmlFor,
+}: {
+  children: React.ReactNode;
+  htmlFor?: string;
+}) => {
+  const cls = "w-16 text-xs tracking-[0.06em] text-fg-muted";
+  return htmlFor ? (
+    <label className={cls} htmlFor={htmlFor}>
+      {children}
+    </label>
+  ) : (
+    <span className={cls}>{children}</span>
+  );
+};
+const PauseValue = ({ value }: { value: number }) => (
+  <span className="w-[34px] text-right tabular-nums text-xs text-fg-secondary font-bold">
+    {Math.round(value * 100)}
+  </span>
+);
+const PauseActions = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex gap-2.5 justify-center flex-wrap">{children}</div>
+);
