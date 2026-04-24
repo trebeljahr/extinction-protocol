@@ -7,8 +7,6 @@ import { useGame } from "../store";
 import { EASTER_EGG_BY_ID, PRELOAD_URLS, type EasterEggDef, type EasterEggVisual } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
 
-const HIT_RADIUS = 0.9;
-
 const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
   if (!needle) return null;
   const lower = needle.toLowerCase();
@@ -97,12 +95,19 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     return () => { document.body.style.cursor = prev; };
   }, [hovered]);
 
-  const yBase = -minY * scale + (def.visual?.yOffset ?? 0);
+  // Outer group sits at ground level; the model is lifted by yModel so its
+  // bottom lands on y=yOffset (negative = buried). The hit sphere sits in
+  // outer-group space so it's always at a predictable world height,
+  // regardless of how deep a buried egg goes.
+  const yOffset = def.visual?.yOffset ?? 0;
+  const yModel = yOffset - minY * scale;
+  const hitRadius = Math.max(def.targetSize * 0.7, 0.9);
+  const hitY = Math.max(def.targetSize * 0.5, 0.9);
 
   useFrame((_, delta) => {
     mixerRef.current?.update(delta);
     if (!groupRef.current || !egg.vel) return;  // static eggs stay put
-    groupRef.current.position.set(egg.pos.x, yBase, -egg.pos.y);
+    groupRef.current.position.set(egg.pos.x, 0, -egg.pos.y);
     groupRef.current.rotation.y = egg.rotY;
   });
 
@@ -114,18 +119,17 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   return (
     <group
       ref={groupRef}
-      position={[egg.pos.x, yBase, -egg.pos.y]}
+      position={[egg.pos.x, 0, -egg.pos.y]}
       rotation={[0, egg.rotY, 0]}
-      scale={scale}
+      onClick={onClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
     >
-      <primitive object={clone} />
-      <mesh
-        position={[0, HIT_RADIUS, 0]}
-        onClick={onClick}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
-      >
-        <sphereGeometry args={[HIT_RADIUS, 12, 8]} />
+      <group position={[0, yModel, 0]} scale={scale}>
+        <primitive object={clone} />
+      </group>
+      <mesh position={[0, hitY, 0]}>
+        <sphereGeometry args={[hitRadius, 12, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
