@@ -16,8 +16,7 @@ export const SelectionRing = () => {
     if (sel) {
       ring.position.set(sel.pos.x, 0.04, -sel.pos.y);
       ring.visible = true;
-      const pulse = 1 + Math.sin(world.time * 6) * 0.03;
-      ring.scale.setScalar(sel.range * 2 * pulse);
+      ring.scale.setScalar(sel.range * 2);
     } else {
       ring.visible = false;
     }

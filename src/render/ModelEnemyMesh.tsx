@@ -16,7 +16,7 @@ type Props = {
   clip?: string;
 };
 
-type Item = { obj: THREE.Object3D; proxy: THREE.Mesh; mixer: THREE.AnimationMixer };
+type Item = { obj: THREE.Object3D; proxy: THREE.Mesh | null; mixer: THREE.AnimationMixer };
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find(c => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
@@ -47,17 +47,22 @@ export const ModelEnemyMesh = ({
   );
 
   // Invisible, oversized tap target. Lets users hit the enemy even when
-  // their finger lands next to the silhouette — critical on touch.
+  // their finger lands next to the silhouette — critical on touch. The
+  // titan's native silhouette is already huge, so it opts out.
+  const useProxy = kind !== "titan";
   const proxyRadius = useMemo(() => Math.max(targetSize * 0.8, 1.0), [targetSize]);
-  const proxyGeom = useMemo(() => new THREE.SphereGeometry(proxyRadius, 10, 8), [proxyRadius]);
+  const proxyGeom = useMemo(
+    () => (useProxy ? new THREE.SphereGeometry(proxyRadius, 10, 8) : null),
+    [proxyRadius, useProxy],
+  );
   const proxyMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
-    [],
+    () => (useProxy ? new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }) : null),
+    [useProxy],
   );
 
   useEffect(() => () => {
-    proxyGeom.dispose();
-    proxyMat.dispose();
+    proxyGeom?.dispose();
+    proxyMat?.dispose();
   }, [proxyGeom, proxyMat]);
 
   useEffect(() => () => {
@@ -66,7 +71,7 @@ export const ModelEnemyMesh = ({
     for (const [, item] of itemsRef.current) {
       item.mixer.stopAllAction();
       parent.remove(item.obj);
-      parent.remove(item.proxy);
+      if (item.proxy) parent.remove(item.proxy);
     }
     itemsRef.current.clear();
   }, []);
@@ -100,11 +105,14 @@ export const ModelEnemyMesh = ({
         if (activeClip) mixer.clipAction(activeClip).play();
         parent.add(obj);
 
-        const proxy = new THREE.Mesh(proxyGeom, proxyMat);
-        proxy.userData.enemyId = e.id;
-        proxy.userData.enemyMaxHp = e.maxHp;
-        proxy.renderOrder = -1;
-        parent.add(proxy);
+        let proxy: THREE.Mesh | null = null;
+        if (proxyGeom && proxyMat) {
+          proxy = new THREE.Mesh(proxyGeom, proxyMat);
+          proxy.userData.enemyId = e.id;
+          proxy.userData.enemyMaxHp = e.maxHp;
+          proxy.renderOrder = -1;
+          parent.add(proxy);
+        }
 
         item = { obj, proxy, mixer };
         itemsRef.current.set(e.id, item);
@@ -120,11 +128,13 @@ export const ModelEnemyMesh = ({
         yOffset - scaledMinY + bobY,
         -e.pos.y - centerXZ.z,
       );
-      item.proxy.position.set(
-        e.pos.x,
-        yOffset - scaledMinY + bobY + proxyRadius * 0.55,
-        -e.pos.y,
-      );
+      if (item.proxy) {
+        item.proxy.position.set(
+          e.pos.x,
+          yOffset - scaledMinY + bobY + proxyRadius * 0.55,
+          -e.pos.y,
+        );
+      }
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
       const a = path[e.segment];
@@ -153,7 +163,7 @@ export const ModelEnemyMesh = ({
       if (!live.has(id)) {
         item.mixer.stopAllAction();
         parent.remove(item.obj);
-        parent.remove(item.proxy);
+        if (item.proxy) parent.remove(item.proxy);
         itemsRef.current.delete(id);
       }
     }

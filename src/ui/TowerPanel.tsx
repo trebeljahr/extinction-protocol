@@ -33,6 +33,7 @@ export const TowerPanel = () => {
   useGame(s => s.ui.towerVersion);
   const gold = useGame(s => s.ui.gold);
   const status = useGame(s => s.ui.status);
+  const spotArming = useGame(s => s.spotArming);
 
   if (selectedId === null || status !== "running") return null;
   const tower = useGame.getState().world.towers.find(t => t.id === selectedId);
@@ -99,9 +100,9 @@ export const TowerPanel = () => {
             ))}
             {tower.kind === "mortar" && (
               <button
-                className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
+                className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""} ${spotArming ? "arming" : ""}`}
                 onClick={() => useGame.getState().setTargetingMode("spot")}
-                title="Fire only at a fixed map spot — click the map to place"
+                title="Press to arm; next map click sets the aim point"
               >
                 Spot
               </button>
@@ -109,7 +110,7 @@ export const TowerPanel = () => {
           </div>
         </div>
       )}
-      {tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot && (
+      {tower.kind === "mortar" && tower.targetingMode === "spot" && spotArming && (
         <div className="targeting-hint">Click a spot on the map within range to set the aim point.</div>
       )}
 
