@@ -4,7 +4,7 @@
 // be regressions if blindly replaced.
 //
 // Usage: node scripts/replace-optimized-glbs.mjs [--dry-run]
-import { readdir, stat, copyFile } from "node:fs/promises";
+import { readdir, stat, copyFile, open } from "node:fs/promises";
 import { join, dirname } from "node:path";
 
 const ROOT = "public/models";
@@ -47,6 +47,21 @@ for (const t of transformed) {
   }
   const tStat = await stat(t);
   if (tStat.size >= srcStat.size) {
+    skippedLarger++;
+    continue;
+  }
+  // Reject failed transforms before they brick runtime loads. A valid
+  // binary glTF is at least a 12-byte header starting with "glTF".
+  let valid = tStat.size >= 12;
+  if (valid) {
+    const fh = await open(t, "r");
+    const buf = Buffer.alloc(4);
+    await fh.read(buf, 0, 4, 0);
+    await fh.close();
+    valid = buf.toString("ascii") === "glTF";
+  }
+  if (!valid) {
+    console.warn(`SKIP ${t} (invalid GLB — ${tStat.size} bytes, missing magic)`);
     skippedLarger++;
     continue;
   }
