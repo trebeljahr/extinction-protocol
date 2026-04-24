@@ -145,7 +145,7 @@ export const LEVELS: LevelConfig[] = [
     name: "Ashen Valley",
     paths: [p(-20, -10, -14, -10, -9, -4, -1, -3, 3, 2, 10, 3, 15, 8, 20, 8)],
     startGold: 180,
-    nodePos: { x: 22, y: -12 },
+    nodePos: { x: 24, y: -12 },
     waves: [
       intro(14, 8),
       mixed({ raptor: 14, swarm: 12, para: 2, allosaur: 3, stego: 1 }),
@@ -161,7 +161,7 @@ export const LEVELS: LevelConfig[] = [
     name: "Fossil Ridge",
     paths: [p(-20, 8, -12, 8, -12, -6, -4, -6, -4, 8, 4, 8, 4, -6, 12, -6, 12, 8, 20, 8)],
     startGold: 180,
-    nodePos: { x: 22, y: -5 },
+    nodePos: { x: 21, y: -5 },
     hpScale: 1.05,
     waves: [
       intro(16, 10),
@@ -252,7 +252,7 @@ export const LEVELS: LevelConfig[] = [
     name: "Bonefield Plateau",
     paths: [p(-20, 10, -16, 10, -16, -10, 14, -10, 14, 6, -10, 6, -10, -4, 8, -4, 8, 2, 20, 2)],
     startGold: 160,
-    nodePos: { x: -22, y: -6 },
+    nodePos: { x: -20, y: -6 },
     hpScale: 1.15,
     waves: [
       intro(16, 10),
@@ -271,7 +271,7 @@ export const LEVELS: LevelConfig[] = [
     name: "Scorched Gulch",
     paths: [p(-20, -10, -12, -10, -12, 0, -4, 0, -4, 8, 6, 8, 6, -8, 14, -8, 14, 10, 20, 10)],
     startGold: 150,
-    nodePos: { x: -22, y: 2 },
+    nodePos: { x: -23, y: 2 },
     hpScale: 1.18,
     waves: [
       intro(16, 12),
@@ -414,7 +414,7 @@ export const LEVELS: LevelConfig[] = [
     name: "Broken Spire",
     paths: [p(-20, 10, -14, 10, -10, 4, -4, 4, -2, -4, 4, -4, 6, 2, 12, 2, 14, -8, 20, -8)],
     startGold: 140,
-    nodePos: { x: 22, y: 1 },
+    nodePos: { x: 20, y: 1 },
     hpScale: 1.45,
     waves: [
       mixed({ raptor: 16, swarm: 12, para: 4, allosaur: 4, stego: 1 }),
@@ -440,7 +440,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, 9, -10, 6, -2, 2, 0, -2, 6, -6, 14, -9, 20, -9),
     ],
     startGold: 170,
-    nodePos: { x: 22, y: 9 },
+    nodePos: { x: 23, y: 9 },
     hpScale: 1.55,
     waves: [
       split("intro", 0.9, [0, { raptor: 12 }], [1, { raptor: 12 }]),
@@ -704,7 +704,7 @@ export const LEVELS: LevelConfig[] = [
       ),
     ],
     startGold: 170,
-    nodePos: { x: -22, y: 8 },
+    nodePos: { x: -24, y: 8 },
     hpScale: 2.5,
     waves: [
       split(
@@ -794,7 +794,7 @@ export const LEVELS: LevelConfig[] = [
     // all three at once, so the player has to commit to breadth early.
     paths: [p(-20, 8, 20, 8), p(-20, 0, 20, 0), p(-20, -8, 20, -8)],
     startGold: 200,
-    nodePos: { x: -22, y: 14 },
+    nodePos: { x: -21, y: 14 },
     hpScale: 2.55,
     waves: [
       split(
@@ -1137,7 +1137,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, -10, 20, -10),
     ],
     startGold: 220,
-    nodePos: { x: 22, y: 15 },
+    nodePos: { x: 24, y: 15 },
     hpScale: 2.9,
     waves: [
       split(
@@ -1265,7 +1265,7 @@ export const LEVELS: LevelConfig[] = [
     // Two paths on opposite edges — the map center can't cover either.
     paths: [p(-20, 10, -10, 10, -10, -10, 20, -10), p(20, 10, 10, 10, 10, -10, -20, -10)],
     startGold: 190,
-    nodePos: { x: 22, y: 20 },
+    nodePos: { x: 21, y: 20 },
     hpScale: 3.1,
     waves: [
       split("intro", 0.8, [0, { raptor: 12, swarm: 4 }], [1, { raptor: 12, swarm: 4 }]),
@@ -1706,7 +1706,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, 0, -12, 0, -4, 0, 0, 0, 6, 0, 14, 0, 20, 0),
     ],
     startGold: 250,
-    nodePos: { x: -22, y: 22 },
+    nodePos: { x: -20, y: 22 },
     hpScale: 4.0,
     waves: [
       split(
