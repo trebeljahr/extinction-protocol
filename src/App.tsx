@@ -1,20 +1,38 @@
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
+import { Suspense, lazy } from "react";
 import { PlayScene } from "./render/Scene";
-import { WorldMapScene } from "./render/WorldMap";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
-import { AchievementsPanel } from "./ui/AchievementsPanel";
-import { Compendium } from "./ui/Compendium";
 import { HUD } from "./ui/HUD";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { WorldMapUI } from "./ui/WorldMapUI";
 
+// Heavy panels and the world-map scene only load when the user actually
+// opens them. WorldMapScene pulls all biome models; Compendium and
+// AchievementsPanel each carry their own art and copy. Splitting them
+// drops the initial JS payload by hundreds of KB.
+const WorldMapScene = lazy(() =>
+  import("./render/WorldMap").then((m) => ({ default: m.WorldMapScene })),
+);
+const Compendium = lazy(() => import("./ui/Compendium").then((m) => ({ default: m.Compendium })));
+const AchievementsPanel = lazy(() =>
+  import("./ui/AchievementsPanel").then((m) => ({ default: m.AchievementsPanel })),
+);
+
 const SceneRoot = () => {
   const screen = useGame((s) => s.screen);
-  return screen === "worldMap" ? <WorldMapScene /> : <PlayScene />;
+  // Suspense fallback is null — Canvas already renders nothing on first
+  // frame anyway, and the world-map only shows up post-load.
+  return screen === "worldMap" ? (
+    <Suspense fallback={null}>
+      <WorldMapScene />
+    </Suspense>
+  ) : (
+    <PlayScene />
+  );
 };
 
 // Lightweight device tier check used to scale bloom kernel and DPR cap.
@@ -58,8 +76,16 @@ export const App = () => {
       {screen === "worldMap" && !modalOpen && <WorldMapUI />}
       {screen !== "worldMap" && !modalOpen && <HUD />}
       {screen === "results" && !modalOpen && <ResultsScreen />}
-      {compendiumOpen && <Compendium />}
-      {achievementsOpen && <AchievementsPanel />}
+      {compendiumOpen && (
+        <Suspense fallback={null}>
+          <Compendium />
+        </Suspense>
+      )}
+      {achievementsOpen && (
+        <Suspense fallback={null}>
+          <AchievementsPanel />
+        </Suspense>
+      )}
       {screen === "playing" && !modalOpen && <NewEnemyAlert />}
       <AchievementToast />
     </>

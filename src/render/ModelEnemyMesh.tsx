@@ -18,6 +18,11 @@ type Props = {
 
 type Item = { obj: THREE.Object3D; proxy: THREE.Mesh | null; mixer: THREE.AnimationMixer };
 
+// Soft cap on pooled clones per kind. Beyond this we let GC reclaim them
+// so a single oversized swarm doesn't pin a permanent ceiling of skinned
+// meshes in the scene graph.
+const POOL_LIMIT = 16;
+
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
@@ -33,6 +38,10 @@ export const ModelEnemyMesh = ({
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, Item>>(new Map());
+  // Free list of skinned clones from dead-but-recyclable enemies. Reusing
+  // is significantly cheaper than another `cloneSkinned + AnimationMixer`,
+  // which matters for swarms.
+  const poolRef = useRef<Item[]>([]);
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
@@ -57,8 +66,9 @@ export const ModelEnemyMesh = ({
   // titan's native silhouette is already huge, so it opts out.
   const useProxy = kind !== "titan";
   const proxyRadius = useMemo(() => Math.max(targetSize * 0.8, 1.0), [targetSize]);
+  // Invisible click target — no need for smooth silhouette.
   const proxyGeom = useMemo(
-    () => (useProxy ? new THREE.SphereGeometry(proxyRadius, 10, 8) : null),
+    () => (useProxy ? new THREE.SphereGeometry(proxyRadius, 6, 4) : null),
     [proxyRadius, useProxy],
   );
   const proxyMat = useMemo(
@@ -87,6 +97,12 @@ export const ModelEnemyMesh = ({
         if (item.proxy) parent.remove(item.proxy);
       }
       itemsRef.current.clear();
+      for (const item of poolRef.current) {
+        item.mixer.stopAllAction();
+        parent.remove(item.obj);
+        if (item.proxy) parent.remove(item.proxy);
+      }
+      poolRef.current.length = 0;
     },
     [],
   );
@@ -103,33 +119,53 @@ export const ModelEnemyMesh = ({
       live.add(e.id);
       let item = itemsRef.current.get(e.id);
       if (!item) {
-        const obj = cloneSkinned(scene);
-        obj.scale.setScalar(normalizedScale);
-        obj.userData.enemyId = e.id;
-        obj.userData.enemyMaxHp = e.maxHp;
-        obj.traverse((o) => {
-          o.userData.enemyId = e.id;
-          o.userData.enemyMaxHp = e.maxHp;
-          const m = o as THREE.Mesh;
-          if (m.isMesh) {
-            m.castShadow = true;
-            m.receiveShadow = true;
+        const recycled = poolRef.current.pop();
+        if (recycled) {
+          // Reuse: update id metadata, restart the animation, unhide.
+          recycled.obj.visible = true;
+          recycled.obj.userData.enemyId = e.id;
+          recycled.obj.userData.enemyMaxHp = e.maxHp;
+          recycled.obj.traverse((o) => {
+            o.userData.enemyId = e.id;
+            o.userData.enemyMaxHp = e.maxHp;
+          });
+          recycled.mixer.stopAllAction();
+          if (activeClip) recycled.mixer.clipAction(activeClip).reset().play();
+          if (recycled.proxy) {
+            recycled.proxy.visible = true;
+            recycled.proxy.userData.enemyId = e.id;
+            recycled.proxy.userData.enemyMaxHp = e.maxHp;
           }
-        });
-        const mixer = new THREE.AnimationMixer(obj);
-        if (activeClip) mixer.clipAction(activeClip).play();
-        parent.add(obj);
+          item = recycled;
+        } else {
+          const obj = cloneSkinned(scene);
+          obj.scale.setScalar(normalizedScale);
+          obj.userData.enemyId = e.id;
+          obj.userData.enemyMaxHp = e.maxHp;
+          obj.traverse((o) => {
+            o.userData.enemyId = e.id;
+            o.userData.enemyMaxHp = e.maxHp;
+            const m = o as THREE.Mesh;
+            if (m.isMesh) {
+              m.castShadow = true;
+              m.receiveShadow = true;
+            }
+          });
+          const mixer = new THREE.AnimationMixer(obj);
+          if (activeClip) mixer.clipAction(activeClip).play();
+          parent.add(obj);
 
-        let proxy: THREE.Mesh | null = null;
-        if (proxyGeom && proxyMat) {
-          proxy = new THREE.Mesh(proxyGeom, proxyMat);
-          proxy.userData.enemyId = e.id;
-          proxy.userData.enemyMaxHp = e.maxHp;
-          proxy.renderOrder = -1;
-          parent.add(proxy);
+          let proxy: THREE.Mesh | null = null;
+          if (proxyGeom && proxyMat) {
+            proxy = new THREE.Mesh(proxyGeom, proxyMat);
+            proxy.userData.enemyId = e.id;
+            proxy.userData.enemyMaxHp = e.maxHp;
+            proxy.renderOrder = -1;
+            parent.add(proxy);
+          }
+
+          item = { obj, proxy, mixer };
         }
-
-        item = { obj, proxy, mixer };
         itemsRef.current.set(e.id, item);
       }
 
@@ -177,8 +213,20 @@ export const ModelEnemyMesh = ({
     for (const [id, item] of itemsRef.current) {
       if (!live.has(id)) {
         item.mixer.stopAllAction();
-        parent.remove(item.obj);
-        if (item.proxy) parent.remove(item.proxy);
+        if (poolRef.current.length < POOL_LIMIT) {
+          // Stash for reuse: hide in place, keep parent attachment, drop
+          // the userData id so a stale click can't dispatch.
+          item.obj.visible = false;
+          item.obj.userData.enemyId = undefined;
+          if (item.proxy) {
+            item.proxy.visible = false;
+            item.proxy.userData.enemyId = undefined;
+          }
+          poolRef.current.push(item);
+        } else {
+          parent.remove(item.obj);
+          if (item.proxy) parent.remove(item.proxy);
+        }
         itemsRef.current.delete(id);
       }
     }

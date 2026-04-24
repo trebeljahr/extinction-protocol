@@ -28,8 +28,10 @@ export const TowerVfx = () => {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
 
-  const orbGeom = useMemo(() => new THREE.SphereGeometry(0.22, 16, 12), []);
-  const arcGeom = useMemo(() => new THREE.TorusGeometry(0.38, 0.028, 6, 24), []);
+  // Small additive-blend overlays — segment counts above 8/12 just burn
+  // verts the silhouette can't show.
+  const orbGeom = useMemo(() => new THREE.SphereGeometry(0.22, 12, 8), []);
+  const arcGeom = useMemo(() => new THREE.TorusGeometry(0.38, 0.028, 6, 16), []);
 
   useFrame(() => {
     const { world } = useGame.getState();

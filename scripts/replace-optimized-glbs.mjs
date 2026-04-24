@@ -46,6 +46,13 @@ for (const t of transformed) {
     continue;
   }
   const tStat = await stat(t);
+  // Sanity bound: refuse to overwrite a real GLB with something empty or
+  // implausibly tiny. A failed conv3d run can leave a 0-byte stub behind.
+  if (tStat.size < 256) {
+    console.warn(`SKIP ${src}: optimized output suspiciously small (${tStat.size} bytes)`);
+    skippedLarger++;
+    continue;
+  }
   if (tStat.size >= srcStat.size) {
     skippedLarger++;
     continue;
