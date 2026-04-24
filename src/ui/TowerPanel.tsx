@@ -75,6 +75,7 @@ export const TowerPanel = () => {
           </div>
         </div>
         <button
+          type="button"
           className="btn-close"
           onClick={() => useGame.getState().selectTower(null)}
           aria-label="close"
@@ -107,6 +108,7 @@ export const TowerPanel = () => {
           <div className="targeting-buttons">
             {TARGETING_MODES.map(({ mode, label, title }) => (
               <button
+                type="button"
                 key={mode}
                 className={`targeting-btn ${tower.targetingMode === mode ? "active" : ""}`}
                 onClick={() => useGame.getState().setTargetingMode(mode)}
@@ -117,6 +119,7 @@ export const TowerPanel = () => {
             ))}
             {tower.kind === "mortar" && (
               <button
+                type="button"
                 className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
                 onClick={() => useGame.getState().setTargetingMode("spot")}
                 title="Fire only at a fixed map spot — click the map to set it"
@@ -148,6 +151,7 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
   // Reset the confirm state whenever the selected tower changes so
   // switching towers never leaves a stale "Confirm Sell" from a
   // different tower.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tower.id is the intended trigger; other tower fields can change without needing reset
   useEffect(() => {
     setConfirming(false);
   }, [tower.id]);
@@ -156,10 +160,11 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
   if (confirming) {
     return (
       <div className="panel-footer panel-footer-confirm">
-        <button className="btn-sell-cancel" onClick={() => setConfirming(false)}>
+        <button type="button" className="btn-sell-cancel" onClick={() => setConfirming(false)}>
           Cancel
         </button>
         <button
+          type="button"
           className="btn-sell btn-sell-confirm"
           onClick={() => {
             setConfirming(false);
@@ -173,7 +178,7 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
   }
   return (
     <div className="panel-footer">
-      <button className="btn-sell" onClick={() => setConfirming(true)}>
+      <button type="button" className="btn-sell" onClick={() => setConfirming(true)}>
         Sell · {refund}g
       </button>
     </div>
@@ -201,7 +206,10 @@ const BranchView = ({
       <div className="branch-label">{branch.label}</div>
       <div className="tiers">
         {branch.tiers.map((t, i) => (
-          <div key={i} className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}>
+          <div
+            key={t.name}
+            className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}
+          >
             <div className="tier-name">{t.name}</div>
             <div className="tier-desc">{t.desc}</div>
           </div>
@@ -235,6 +243,7 @@ const BranchView = ({
         )}
         {next ? (
           <button
+            type="button"
             className="btn-upgrade"
             disabled={gold < next.cost}
             onClick={() => upgrade(branchId)}

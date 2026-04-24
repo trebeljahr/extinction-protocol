@@ -90,10 +90,14 @@ export const PauseMenu = ({ onResume }: Props) => {
             Progress on <strong>{levelName}</strong> will be lost.
           </div>
           <div className="pause-actions">
-            <button className="btn" onClick={goToWorldMap}>
+            <button type="button" className="btn" onClick={goToWorldMap}>
               Return
             </button>
-            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setConfirming(false)}
+            >
               Cancel
             </button>
           </div>
@@ -111,8 +115,9 @@ export const PauseMenu = ({ onResume }: Props) => {
         <section className="pause-section">
           <div className="pause-section-label">SOUND</div>
           <div className="pause-row">
-            <label className="pause-label">Master</label>
+            <span className="pause-label">Master</span>
             <button
+              type="button"
               className={`pause-toggle ${muted ? "off" : "on"}`}
               onClick={toggleMute}
               aria-pressed={!muted}
@@ -157,19 +162,27 @@ export const PauseMenu = ({ onResume }: Props) => {
         </section>
 
         <div className="pause-actions">
-          <button className="btn" onClick={onResume}>
+          <button type="button" className="btn" onClick={onResume}>
             Resume (Esc)
           </button>
-          <button className="btn btn-secondary" onClick={retry}>
+          <button type="button" className="btn btn-secondary" onClick={retry}>
             Restart (R)
           </button>
-          <button className="btn btn-secondary" onClick={() => setCompendiumOpen(true)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setCompendiumOpen(true)}
+          >
             Compendium
           </button>
-          <button className="btn btn-secondary" onClick={() => setAchievementsOpen(true)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setAchievementsOpen(true)}
+          >
             Achievements
           </button>
-          <button className="btn btn-secondary" onClick={() => setConfirming(true)}>
+          <button type="button" className="btn btn-secondary" onClick={() => setConfirming(true)}>
             World Map
           </button>
         </div>

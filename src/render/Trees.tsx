@@ -1,5 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIOME_TREE_URLS } from "../biomes";
@@ -7,8 +8,8 @@ import type { Tree } from "../sim/types";
 import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import { useGame } from "../store";
 
-type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
-type VariantSource = { parts: Part[]; minY: number };
+type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
+type VariantSource = { id: string; parts: Part[]; minY: number };
 
 // Fat disc so the slender trunk isn't the actual click target.
 const TREE_HIT_RADIUS = 0.9;
@@ -23,6 +24,10 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   const c = useGLTF(urls[2]);
   const d = useGLTF(urls[3]);
   const scenes = [a.scene, b.scene, c.scene, d.scene];
+  // scenes change only when the four URLs change — spreading them as deps
+  // keeps the memo stable even though eslint/biome can't statically verify
+  // the identity of each scene reference.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scenes array is derived from useGLTF hooks above, references change only with urls
   return useMemo(
     () =>
       scenes.map((scene) => {
@@ -33,16 +38,16 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
           const m = o as THREE.Mesh;
           if (!m.isMesh) return;
           const mats = Array.isArray(m.material) ? m.material : [m.material];
-          mats.forEach((mat) => {
+          for (const mat of mats) {
             const geom = m.geometry.clone();
             geom.applyMatrix4(m.matrixWorld);
             geom.computeBoundingBox();
             if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
-            parts.push({ geom, material: mat as THREE.Material });
-          });
+            parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
+          }
         });
         if (parts.length === 0) return null;
-        return { parts, minY: Number.isFinite(minY) ? minY : 0 };
+        return { id: nanoid(), parts, minY: Number.isFinite(minY) ? minY : 0 };
       }),
     scenes,
   );
@@ -59,6 +64,9 @@ export const Trees = () => {
   const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
+  // treeVersion is the deliberate trigger — `trees` is read via getState
+  // and wouldn't otherwise notify React; version-bump is what re-runs the memo.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: treeVersion is the intended invalidation key
   const byVariant = useMemo(() => {
     const buckets: Tree[][] = Array.from({ length: TREE_VARIANTS }, () => []);
     for (const t of trees) buckets[t.variant]?.push(t);
@@ -90,7 +98,7 @@ export const Trees = () => {
       {byVariant.map((bucket, vi) => {
         const src = sources[vi];
         if (!src || bucket.length === 0) return null;
-        return <VariantGroup key={vi} bucket={bucket} source={src} />;
+        return <VariantGroup key={src.id} bucket={bucket} source={src} />;
       })}
 
       <TreeHitTargets trees={trees} hoveredId={hoveredId} setHoveredId={setHoveredId} />
@@ -150,7 +158,7 @@ const VariantGroup = ({
     <group>
       {source.parts.map((part, pi) => (
         <instancedMesh
-          key={pi}
+          key={part.id}
           ref={(el: THREE.InstancedMesh | null) => {
             partRefs.current[pi] = el;
           }}

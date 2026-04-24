@@ -26,6 +26,7 @@ const STAR_SHAPE = (() => {
 })();
 
 const STAR_GEOM = new THREE.ShapeGeometry(STAR_SHAPE);
+const STAR_SLOTS = ["slot-left", "slot-center", "slot-right"] as const;
 
 export const LevelNode = ({ level }: Props) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -151,12 +152,12 @@ export const LevelNode = ({ level }: Props) => {
 
       {completed && (
         <group position={[0, starY, 0]}>
-          {Array.from({ length: 3 }).map((_, i) => {
+          {STAR_SLOTS.map((slot, i) => {
             const filled = i < stars;
             const offset = (i - 1) * 1.1;
             return (
               <mesh
-                key={i}
+                key={slot}
                 geometry={STAR_GEOM}
                 position={[offset, 0, 0]}
                 rotation={[-Math.PI / 2.4, 0, 0]}

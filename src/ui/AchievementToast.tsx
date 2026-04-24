@@ -30,6 +30,7 @@ export const AchievementToast = () => {
         const def = ACHIEVEMENT_BY_ID[t.id];
         return (
           <button
+            type="button"
             key={t.key}
             className="achievement-toast"
             onClick={() => dismiss(t.key)}

@@ -80,10 +80,10 @@ export const ResultsScreen = () => {
         </div>
 
         <div className="results-actions">
-          <button onClick={goToMap} className="btn">
+          <button type="button" onClick={goToMap} className="btn">
             World Map (Esc)
           </button>
-          <button onClick={retry} className="btn btn-secondary">
+          <button type="button" onClick={retry} className="btn btn-secondary">
             Retry (R)
           </button>
         </div>

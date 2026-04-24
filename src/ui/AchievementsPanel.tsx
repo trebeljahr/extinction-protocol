@@ -30,7 +30,11 @@ export const AchievementsPanel = () => {
               {unlockedCount} / {ACHIEVEMENTS.length} unlocked
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={() => setAchievementsOpen(false)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setAchievementsOpen(false)}
+          >
             Close (Esc)
           </button>
         </header>

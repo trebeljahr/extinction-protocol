@@ -102,7 +102,7 @@ export const NewEnemyAlert = () => {
             </div>
           )}
         </div>
-        <button className="btn new-enemy-continue" onClick={dismiss}>
+        <button type="button" className="btn new-enemy-continue" onClick={dismiss}>
           Continue {remaining > 0 ? `(${remaining} more)` : ""}
         </button>
       </div>

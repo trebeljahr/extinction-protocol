@@ -80,7 +80,11 @@ export const Compendium = () => {
               {encounteredCount} / {ENEMY_ORDER.length} species catalogued
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={() => setCompendiumOpen(false)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setCompendiumOpen(false)}
+          >
             Close (Esc)
           </button>
         </header>
@@ -90,6 +94,7 @@ export const Compendium = () => {
             const seen = hasEncountered(progress, kind);
             return (
               <button
+                type="button"
                 key={kind}
                 className={`compendium-tab ${selected === kind ? "active" : ""} ${seen ? "" : "locked"}`}
                 onClick={() => setSelected(kind)}

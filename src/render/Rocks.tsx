@@ -1,5 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIOME_LAYERS } from "../biomes";
@@ -7,7 +8,7 @@ import type { Rock } from "../sim/types";
 import { ROCK_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
 
-type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
+type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
 type Source = { parts: Part[]; minY: number };
 
 // Scales with rock size but stays inside ROCK_MIN_SPACING (1.5) even at
@@ -25,13 +26,13 @@ const collectParts = (scene: THREE.Object3D): Source | null => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach((mat) => {
+    for (const mat of mats) {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
       if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
-      parts.push({ geom, material: mat as THREE.Material });
-    });
+      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
+    }
   });
   if (parts.length === 0) return null;
   return { parts, minY: Number.isFinite(minY) ? minY : 0 };
@@ -69,7 +70,7 @@ const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
     <group>
       {source.parts.map((part, pi) => (
         <instancedMesh
-          key={pi}
+          key={part.id}
           ref={(el: THREE.InstancedMesh | null) => {
             partRefs.current[pi] = el;
           }}

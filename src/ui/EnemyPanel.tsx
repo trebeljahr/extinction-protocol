@@ -46,6 +46,7 @@ export const EnemyPanel = () => {
           <div className="panel-stats">{ENEMY_DESC[kind]}</div>
         </div>
         <button
+          type="button"
           className="btn-close"
           onClick={() => useGame.getState().clearInspectedEnemy()}
           aria-label="close"

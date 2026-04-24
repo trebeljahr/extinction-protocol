@@ -90,6 +90,7 @@ export const HUD = () => {
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
         {ui.wave === 0 ? (
           <button
+            type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
             title="Start waves (Space)"
@@ -101,6 +102,7 @@ export const HUD = () => {
           </button>
         ) : ui.canCallEarly ? (
           <button
+            type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
             title="Call next wave early (Space)"
@@ -125,7 +127,7 @@ export const HUD = () => {
             <div className="level-badge-name">{levelName}</div>
           </div>
         )}
-        <button className="hud-menu-btn" onClick={togglePause} title="Menu (Esc)">
+        <button type="button" className="hud-menu-btn" onClick={togglePause} title="Menu (Esc)">
           <span className="hud-menu-icon" aria-hidden>
             <span />
             <span />
@@ -144,6 +146,7 @@ export const HUD = () => {
           const dmgType = TOWER_DAMAGE_TYPE[kind];
           return (
             <button
+              type="button"
               key={kind}
               className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
               onClick={(e) => {
@@ -153,9 +156,9 @@ export const HUD = () => {
               title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
             >
               {active && (
-                <span
+                <button
+                  type="button"
                   className="card-cancel"
-                  role="button"
                   aria-label="cancel selection"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -163,7 +166,7 @@ export const HUD = () => {
                   }}
                 >
                   ×
-                </span>
+                </button>
               )}
               <div className="tower-preview-wrap">
                 <TowerPreview kind={kind} />

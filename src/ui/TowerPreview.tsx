@@ -45,6 +45,7 @@ const StaticTower = ({
     };
   }, [scene, targetSize]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `cloned` is a re-run trigger (new GLB scene), not read inside
   useEffect(() => {
     // Re-invalidate a few times so the env HDRI finishes loading before the final draw.
     const timers = [0, 60, 220, 520].map((ms) => setTimeout(() => invalidate(), ms));
