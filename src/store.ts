@@ -196,10 +196,6 @@ type GameStore = {
   autoPausedForNewEnemy: boolean;
   treeClickCounts: Record<number, number>;
   rockClickCounts: Record<number, number>;
-  // True only between the Spot button press and the next map click that
-  // actually sets the spot. Subsequent clicks do not re-set the spot
-  // unless the user re-presses Spot.
-  spotArming: boolean;
 
   startLevel: (id: number) => void;
   retryCurrentLevel: () => void;
@@ -294,7 +290,6 @@ export const useGame = create<GameStore>((set, get) => ({
   autoPausedForNewEnemy: false,
   treeClickCounts: {},
   rockClickCounts: {},
-  spotArming: false,
 
   startLevel: (id) => {
     const level = LEVELS.find(l => l.id === id);
@@ -312,7 +307,6 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
-      spotArming: false,
       screen: "playing",
       treeClickCounts: {},
       rockClickCounts: {},
@@ -333,7 +327,6 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
-      spotArming: false,
     });
   },
 
@@ -481,7 +474,6 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: null,
       selectedRockId: null,
       inspectedEnemy: emptyInspect,
-      spotArming: false,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },
@@ -670,20 +662,16 @@ export const useGame = create<GameStore>((set, get) => ({
         selectedTreeId: null,
         selectedRockId: null,
         inspectedEnemy: emptyInspect,
-        spotArming: false,
         ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
       });
       return;
     }
 
-    // Spot-targeting: a selected mortar in "spot" mode consumes this click
-    // to set its aim point, but ONLY when the user just pressed Spot (armed).
-    // Later clicks without re-arming fall through to normal selection/deselect.
-    if (
-      s.selectedKind === null &&
-      s.spotArming &&
-      w.selectedTowerId !== null
-    ) {
+    // Spot-targeting: while a mortar is selected in "spot" mode, every
+    // empty-ground click sets/updates its aim point. The mode ends when
+    // the user selects something else (another tower, tree, rock), not
+    // when they click open ground.
+    if (s.selectedKind === null && w.selectedTowerId !== null) {
       const sel = w.towers.find(t => t.id === w.selectedTowerId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") {
         const dx = pos.x - sel.pos.x;
@@ -694,11 +682,10 @@ export const useGame = create<GameStore>((set, get) => ({
           const newVersion = s.towerVersion + 1;
           set({
             towerVersion: newVersion,
-            spotArming: false,
             ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy),
           });
         }
-        // Out-of-range click: stay armed so a second, valid click still lands.
+        // Out-of-range click: do nothing, keep mortar selected + armed.
         return;
       }
     }
@@ -715,7 +702,6 @@ export const useGame = create<GameStore>((set, get) => ({
           selectedTreeId: null,
           selectedRockId: null,
           inspectedEnemy: emptyInspect,
-          spotArming: false,
           ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
         });
       }
@@ -746,7 +732,6 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: nextTree,
       selectedRockId: nextRock,
       inspectedEnemy: nextInspect,
-      spotArming: false,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
@@ -777,17 +762,12 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.world.selectedTowerId === null) return;
     const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
     if (!t) return;
-    // Clicking the Spot button (even when already in spot mode) always (re)arms.
-    // Clicking any other mode is a no-op if already in that mode.
-    const changedMode = t.targetingMode !== mode;
-    if (!changedMode && mode !== "spot") return;
+    if (t.targetingMode === mode) return;
     t.targetingMode = mode;
     t.targetId = null;
-    const nextArming = mode === "spot";
     const newVersion = s.towerVersion + 1;
     set({
       towerVersion: newVersion,
-      spotArming: nextArming,
       ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
     });
   },

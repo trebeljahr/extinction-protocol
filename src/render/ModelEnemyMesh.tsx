@@ -173,6 +173,13 @@ export const ModelEnemyMesh = ({
     const state = useGame.getState();
     // Placing a tower? Let the placement plane handle the click.
     if (state.selectedKind !== null) return;
+    // Mortar aiming in spot mode outranks inspecting a passing dino —
+    // otherwise a wandering enemy would swallow the spot-set click.
+    const selId = state.world.selectedTowerId;
+    if (selId !== null) {
+      const sel = state.world.towers.find(t => t.id === selId);
+      if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
+    }
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
