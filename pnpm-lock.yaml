@@ -20,6 +20,9 @@ importers:
       '@react-three/postprocessing':
         specifier: ^2.19.1
         version: 2.19.1(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.167.1))(@types/three@0.167.2)(react@18.3.1)(three@0.167.1)
+      nanoid:
+        specifier: ^5.1.9
+        version: 5.1.9
       postprocessing:
         specifier: ~6.37.0
         version: 6.37.8(three@0.167.1)
@@ -939,6 +942,11 @@ packages:
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@5.1.9:
+    resolution: {integrity: sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   node-releases@2.0.38:
@@ -2011,6 +2019,8 @@ snapshots:
       three: 0.167.1
 
   nanoid@3.3.11: {}
+
+  nanoid@5.1.9: {}
 
   node-releases@2.0.38: {}
 
