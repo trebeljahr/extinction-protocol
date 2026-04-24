@@ -27,16 +27,25 @@ export const ResultsScreen = () => {
   }, [retry, goToMap]);
 
   const stars = result?.stars ?? 0;
+  const won = result?.won ?? false;
   useEffect(() => {
-    if (stars <= 0) return;
+    if (!result) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i < stars; i++) {
-      timers.push(setTimeout(() => audio.play("star", 0.8, 30, 1.8), i * STAR_STAGGER_MS));
+    // Stinger first; stars chime in on top so the moment lands as a single
+    // beat rather than the per-star spray reading as the entire result cue.
+    audio.play(won ? "victory" : "defeat", 0.85, 1000, 3.5);
+    if (stars > 0) {
+      const starOffset = 450;
+      for (let i = 0; i < stars; i++) {
+        timers.push(
+          setTimeout(() => audio.play("star", 0.8, 30, 1.8), starOffset + i * STAR_STAGGER_MS),
+        );
+      }
     }
     return () => {
       for (const t of timers) clearTimeout(t);
     };
-  }, [stars]);
+  }, [result, stars, won]);
 
   if (!result) return null;
 

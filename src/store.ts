@@ -847,6 +847,7 @@ export const useGame = create<GameStore>((set, get) => ({
   callWaveEarly: () => {
     const s = get();
     if (!simCallWaveEarly(s.world)) return;
+    emit(s.world, { type: "wave-called-early" });
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 

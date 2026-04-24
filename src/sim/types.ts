@@ -154,7 +154,8 @@ export type GameEvent =
   | { type: "tower-placed"; towerKind: TowerKind }
   | { type: "tower-sold" }
   | { type: "place-failed"; reason: "gold" | "spot" }
-  | { type: "new-enemy" };
+  | { type: "new-enemy" }
+  | { type: "wave-called-early" };
 
 export type Shake = {
   magnitude: number;

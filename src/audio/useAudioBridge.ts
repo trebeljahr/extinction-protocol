@@ -101,6 +101,9 @@ export const useAudioBridge = () => {
         case "place-failed":
           audio.ui("error");
           break;
+        case "wave-called-early":
+          audio.play("wave-call", 0.6, 200, 1.5);
+          break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();
