@@ -10,10 +10,7 @@ export const SelectionRing = () => {
     const ring = ringRef.current;
     if (!ring) return;
     const { world } = useGame.getState();
-    const sel =
-      world.selectedTowerId !== null
-        ? world.towers.find((t) => t.id === world.selectedTowerId)
-        : null;
+    const sel = world.selectedTowerId !== null ? world.towerById.get(world.selectedTowerId) : null;
     if (sel) {
       ring.position.set(sel.pos.x, 0.04, -sel.pos.y);
       ring.visible = true;

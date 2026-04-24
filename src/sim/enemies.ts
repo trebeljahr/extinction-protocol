@@ -50,5 +50,16 @@ export const updateEnemies = (world: World, dt: number) => {
       addShake(world, mag, 3.5);
     }
   }
-  world.enemies = world.enemies.filter((e) => e.alive);
+  // Swap-and-pop dead enemies in place; keep enemyById in sync.
+  const arr = world.enemies;
+  let w = 0;
+  for (let r = 0; r < arr.length; r++) {
+    const e = arr[r];
+    if (e.alive) {
+      arr[w++] = e;
+    } else {
+      world.enemyById.delete(e.id);
+    }
+  }
+  arr.length = w;
 };

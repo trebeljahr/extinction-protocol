@@ -86,8 +86,8 @@ export const ModelTowerMesh = ({
         const dy = t.targetSpot.y - t.pos.y;
         yaw = Math.atan2(dx, -dy);
       } else if (t.targetId !== null) {
-        const target = world.enemies.find((e) => e.id === t.targetId && e.alive);
-        if (target) {
+        const target = world.enemyById.get(t.targetId);
+        if (target?.alive) {
           const dx = target.pos.x - t.pos.x;
           const dy = target.pos.y - t.pos.y;
           yaw = Math.atan2(dx, -dy);

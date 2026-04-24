@@ -43,7 +43,7 @@ export const TowerPanel = () => {
   const status = useGame((s) => s.ui.status);
 
   if (selectedId === null || status !== "running") return null;
-  const tower = useGame.getState().world.towers.find((t) => t.id === selectedId);
+  const tower = useGame.getState().world.towerById.get(selectedId);
   if (!tower) return null;
 
   const damageType = TOWER_DAMAGE_TYPE[tower.kind];

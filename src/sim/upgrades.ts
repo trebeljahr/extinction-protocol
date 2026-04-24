@@ -478,5 +478,6 @@ export const sellTower = (world: World, tower: Tower) => {
   const refund = sellRefund(tower);
   world.gold += refund;
   world.towers = world.towers.filter((t) => t.id !== tower.id);
+  world.towerById.delete(tower.id);
   if (world.selectedTowerId === tower.id) world.selectedTowerId = null;
 };

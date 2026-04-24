@@ -16,7 +16,7 @@ export const SpotTargetMarker = () => {
     if (!group) return;
     const { world } = useGame.getState();
     const id = world.selectedTowerId;
-    const tower = id !== null ? world.towers.find((t) => t.id === id) : null;
+    const tower = id !== null ? world.towerById.get(id) : null;
     const visible =
       !!tower && tower.kind === "mortar" && tower.targetingMode === "spot" && !!tower.targetSpot;
     group.visible = visible;

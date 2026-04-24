@@ -95,8 +95,8 @@ const snapshot = (
   let hp: number | null = null;
   let alive = false;
   if (inspect.id !== null) {
-    const e = w.enemies.find((x) => x.id === inspect.id && x.alive);
-    if (e) {
+    const e = w.enemyById.get(inspect.id);
+    if (e?.alive) {
       hp = e.hp;
       alive = true;
     }
@@ -730,7 +730,7 @@ export const useGame = create<GameStore>((set, get) => ({
     // the user selects something else (another tower, tree, rock), not
     // when they click open ground.
     if (s.selectedKind === null && w.selectedTowerId !== null) {
-      const sel = w.towers.find((t) => t.id === w.selectedTowerId);
+      const sel = w.towerById.get(w.selectedTowerId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") {
         const dx = pos.x - sel.pos.x;
         const dy = pos.y - sel.pos.y;
@@ -804,7 +804,7 @@ export const useGame = create<GameStore>((set, get) => ({
   upgradeSelected: (branch) => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
+    const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
       const newVersion = s.towerVersion + 1;
@@ -818,7 +818,7 @@ export const useGame = create<GameStore>((set, get) => ({
   sellSelected: () => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
+    const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
     sellTower(s.world, t);
     emit(s.world, { type: "tower-sold" });
@@ -832,7 +832,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setTargetingMode: (mode) => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
+    const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
     if (t.targetingMode === mode) return;
     t.targetingMode = mode;

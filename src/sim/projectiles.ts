@@ -1,5 +1,5 @@
 import type { Projectile, World } from "./types";
-import { add, dist, distSq, normalize, scale, sub } from "./vec2";
+import { distSq } from "./vec2";
 import { addShake, applyDamage, createExplosion, emit, spawnParticles } from "./world";
 
 const HIT_RADIUS = 0.5;
@@ -21,7 +21,7 @@ const applyHit = (world: World, p: Projectile) => {
       }
     }
   } else {
-    const target = p.targetId !== null ? world.enemies.find((e) => e.id === p.targetId) : null;
+    const target = p.targetId !== null ? world.enemyById.get(p.targetId) : null;
     if (target?.alive) {
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
       applyDamage(world, target, p.damage, p.damageType);
@@ -30,28 +30,41 @@ const applyHit = (world: World, p: Projectile) => {
 };
 
 export const updateProjectiles = (world: World, dt: number) => {
-  for (const p of world.projectiles) {
+  const arr = world.projectiles;
+  for (let i = 0; i < arr.length; i++) {
+    const p = arr[i];
     if (!p.alive) continue;
 
     if (p.targetId !== null && p.kind === "direct") {
-      const target = world.enemies.find((e) => e.id === p.targetId && e.alive);
-      if (!target) {
+      const target = world.enemyById.get(p.targetId);
+      if (!target?.alive) {
         p.alive = false;
         continue;
       }
-      p.targetPos = { x: target.pos.x, y: target.pos.y };
+      p.targetPos.x = target.pos.x;
+      p.targetPos.y = target.pos.y;
     }
 
     const step = p.speed * dt;
-    const d = dist(p.pos, p.targetPos);
+    const dx = p.targetPos.x - p.pos.x;
+    const dy = p.targetPos.y - p.pos.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
     if (d <= Math.max(step, HIT_RADIUS)) {
-      p.pos = { ...p.targetPos };
+      p.pos.x = p.targetPos.x;
+      p.pos.y = p.targetPos.y;
       applyHit(world, p);
       p.alive = false;
     } else {
-      const dir = normalize(sub(p.targetPos, p.pos));
-      p.pos = add(p.pos, scale(dir, step));
+      const inv = 1 / d;
+      p.pos.x += dx * inv * step;
+      p.pos.y += dy * inv * step;
     }
   }
-  world.projectiles = world.projectiles.filter((p) => p.alive);
+  // Swap-and-pop dead in place.
+  let w = 0;
+  for (let r = 0; r < arr.length; r++) {
+    const p = arr[r];
+    if (p.alive) arr[w++] = p;
+  }
+  arr.length = w;
 };

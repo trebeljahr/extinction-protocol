@@ -1,24 +1,41 @@
 import type { World } from "./types";
-import { add, scale } from "./vec2";
+
+// Swap-and-pop in place — avoids allocating a new array each tick when
+// few items expire. Predicate returns true to keep the entry.
+const retainInPlace = <T>(arr: T[], keep: (x: T) => boolean) => {
+  let w = 0;
+  for (let r = 0; r < arr.length; r++) {
+    const x = arr[r];
+    if (keep(x)) arr[w++] = x;
+  }
+  arr.length = w;
+};
 
 export const updateBeams = (world: World) => {
-  world.beams = world.beams.filter((b) => b.expiresAt > world.time);
+  const t = world.time;
+  retainInPlace(world.beams, (b) => b.expiresAt > t);
 };
 
 export const updateExplosions = (world: World) => {
-  world.explosions = world.explosions.filter((e) => e.expiresAt > world.time);
+  const t = world.time;
+  retainInPlace(world.explosions, (e) => e.expiresAt > t);
 };
 
 export const updateCryoWaves = (world: World) => {
-  world.cryoWaves = world.cryoWaves.filter((w) => w.expiresAt > world.time);
+  const t = world.time;
+  retainInPlace(world.cryoWaves, (w) => w.expiresAt > t);
 };
 
 export const updateParticles = (world: World, dt: number) => {
+  const decay = 1 - 2 * dt;
   for (const p of world.particles) {
-    p.pos = add(p.pos, scale(p.vel, dt));
-    p.vel = scale(p.vel, 1 - 2 * dt);
+    p.pos.x += p.vel.x * dt;
+    p.pos.y += p.vel.y * dt;
+    p.vel.x *= decay;
+    p.vel.y *= decay;
   }
-  world.particles = world.particles.filter((p) => p.expiresAt > world.time);
+  const t = world.time;
+  retainInPlace(world.particles, (p) => p.expiresAt > t);
 };
 
 export const updateShake = (world: World, dt: number) => {

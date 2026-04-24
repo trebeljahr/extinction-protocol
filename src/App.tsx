@@ -17,6 +17,21 @@ const SceneRoot = () => {
   return screen === "worldMap" ? <WorldMapScene /> : <PlayScene />;
 };
 
+// Lightweight device tier check used to scale bloom kernel and DPR cap.
+// `low` = mobile-ish (<=4 logical cores or coarse pointer / mobile UA);
+// other devices keep the higher-quality MEDIUM kernel.
+const isLowEndDevice = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  const cores = navigator.hardwareConcurrency ?? 8;
+  if (cores <= 4) return true;
+  if (typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches) return true;
+  return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+};
+
+const lowEnd = isLowEndDevice();
+const bloomKernel = lowEnd ? KernelSize.SMALL : KernelSize.MEDIUM;
+const dprCap: [number, number] = lowEnd ? [1, 1.5] : [1, 2];
+
 export const App = () => {
   const screen = useGame((s) => s.screen);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
@@ -26,7 +41,7 @@ export const App = () => {
   return (
     <>
       {!modalOpen && (
-        <Canvas shadows dpr={[1, 2]}>
+        <Canvas shadows dpr={dprCap}>
           <SceneRoot />
           <EffectComposer multisampling={0}>
             <Bloom
@@ -34,7 +49,7 @@ export const App = () => {
               luminanceThreshold={0.82}
               luminanceSmoothing={0.18}
               mipmapBlur
-              kernelSize={KernelSize.MEDIUM}
+              kernelSize={bloomKernel}
             />
           </EffectComposer>
         </Canvas>

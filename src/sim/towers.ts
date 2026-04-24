@@ -39,6 +39,7 @@ const firePulse = (world: World, t: Tower, target: Enemy) => {
 
 const fireChain = (world: World, t: Tower, primary: Enemy) => {
   const hit: Enemy[] = [primary];
+  const hitSet = new Set<Enemy>([primary]);
   let damage = t.damage;
 
   const chainRangeSq = 3.5 * 3.5;
@@ -48,7 +49,7 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
     let bestDistSq = chainRangeSq;
     for (const e of world.enemies) {
       if (!e.alive) continue;
-      if (hit.includes(e)) continue;
+      if (hitSet.has(e)) continue;
       const d2 = distSq(e.pos, current.pos);
       if (d2 < bestDistSq) {
         bestDistSq = d2;
@@ -57,6 +58,7 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
     }
     if (!next) break;
     hit.push(next);
+    hitSet.add(next);
     current = next;
   }
 
@@ -153,12 +155,30 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
 
   const yellowLife = 0.28;
   const orangeLife = 0.45;
-  const redLife = 0.70;
+  const redLife = 0.7;
 
   // Hot inner jet — narrowish, fast, short-lived; reaches ~70% down the cone.
-  spawnParticles(world, nozzle, 6, "#fff0a0", speedRange(yellowLife, 0.7), yellowLife, dir, Math.PI / 10);
+  spawnParticles(
+    world,
+    nozzle,
+    6,
+    "#fff0a0",
+    speedRange(yellowLife, 0.7),
+    yellowLife,
+    dir,
+    Math.PI / 10,
+  );
   // Mid orange flames — main flame body, fills most of the cone.
-  spawnParticles(world, nozzle, 8, "#ffb54a", speedRange(orangeLife, 0.9), orangeLife, dir, Math.PI / 6);
+  spawnParticles(
+    world,
+    nozzle,
+    8,
+    "#ffb54a",
+    speedRange(orangeLife, 0.9),
+    orangeLife,
+    dir,
+    Math.PI / 6,
+  );
   // Outer red wash + trailing embers — sized so axial embers land right at
   // the damage-cone edge (range), so the visible wall matches what burns.
   spawnParticles(world, nozzle, 6, "#ff5a30", speedRange(redLife, 1.0), redLife, dir, Math.PI / 4);
@@ -244,13 +264,24 @@ export const updateTowers = (world: World, dt: number) => {
     // orbit position and fires a small direct shot. Volleys are shared by
     // the tower cooldown so the per-drone `fireRate` stat is honest; the
     // interleaved visual comes from the orbit rotation, not the firing.
+    //
+    // Target selection runs every tick (not just at fire time) so the
+    // renderer can read tower.droneTargetIds + world.enemyById and skip
+    // its own per-frame O(drones × enemies) scan.
     if (t.kind === "hive") {
+      const ids = t.droneTargetIds;
+      for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
+        const dp = hiveDronePosition(t, world.time, d);
+        ids[d] = findTargetNearPos(world, dp, t)?.id ?? null;
+      }
       if (t.cooldown === 0) {
         let anyHit = false;
         for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
+          const tid = ids[d];
+          if (tid === null) continue;
+          const droneTarget = world.enemyById.get(tid);
+          if (!droneTarget?.alive) continue;
           const dp = hiveDronePosition(t, world.time, d);
-          const droneTarget = findTargetNearPos(world, dp, t);
-          if (!droneTarget) continue;
           anyHit = true;
           createProjectile(world, "direct", "kinetic", dp, droneTarget, t.damage);
         }

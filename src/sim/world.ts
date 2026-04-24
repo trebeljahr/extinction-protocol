@@ -297,7 +297,9 @@ export const createWorld = (level: LevelConfig): World => {
       ? level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
       : level.waves,
     enemies: [],
+    enemyById: new Map(),
     towers: [],
+    towerById: new Map(),
     trees,
     rocks,
     projectiles: [],
@@ -533,6 +535,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex =
     flashUntil: 0,
   };
   world.enemies.push(enemy);
+  world.enemyById.set(enemy.id, enemy);
   world.runEnemyKinds[kind] = true;
   return enemy;
 };
@@ -656,8 +659,10 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     chainFalloff: stats.chainFalloff,
     slowFactor: stats.slowFactor,
     slowDuration: stats.slowDuration,
+    droneTargetIds: kind === "hive" ? [null, null, null] : [],
   };
   world.towers.push(tower);
+  world.towerById.set(tower.id, tower);
   world.runTowerKinds[kind] = true;
   return tower;
 };

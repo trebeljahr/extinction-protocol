@@ -66,7 +66,7 @@ export const HiveDrones = () => {
   useFrame(() => {
     if (!source) return;
     const { world } = useGame.getState();
-    const time = world.time;
+    const { time, enemyById } = world;
 
     let count = 0;
     for (const t of world.towers) {
@@ -75,19 +75,15 @@ export const HiveDrones = () => {
 
       for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
         const pos = hiveDronePosition(t, time, d);
-        const angle = hiveDroneAngle(t, time, d);
-        // Find a live target the sim would have locked — cheap, one pass,
-        // same radius as sim findTargetNearPos. Drones yaw toward it.
-        let yaw = angle + Math.PI / 2; // tangent to orbit — idle heading
-        let bestD2 = t.range * t.range;
-        for (const e of world.enemies) {
-          if (!e.alive) continue;
-          const dx = e.pos.x - pos.x;
-          const dy = e.pos.y - pos.y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 > bestD2) continue;
-          bestD2 = d2;
-          yaw = Math.atan2(dx, -dy);
+        // Sim caches the nearest target per drone in tower.droneTargetIds.
+        // Render just looks it up — no per-frame O(drones × enemies) scan.
+        let yaw = hiveDroneAngle(t, time, d) + Math.PI / 2;
+        const tid = t.droneTargetIds[d];
+        if (tid !== null) {
+          const target = enemyById.get(tid);
+          if (target?.alive) {
+            yaw = Math.atan2(target.pos.x - pos.x, -(target.pos.y - pos.y));
+          }
         }
 
         const bob = Math.sin(time * BOB_SPEED + t.id + d * 1.3) * BOB_AMP;

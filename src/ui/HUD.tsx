@@ -29,7 +29,18 @@ const HOTKEYS: Record<TowerKind, string> = {
 
 export const HUD = () => {
   useAudioBridge();
-  const ui = useGame((s) => s.ui);
+  // Atomic selectors so a single tick ticking down `nextWaveIn` doesn't
+  // re-render the whole tower picker (and its 6 Canvas previews).
+  const gold = useGame((s) => s.ui.gold);
+  const lives = useGame((s) => s.ui.lives);
+  const wave = useGame((s) => s.ui.wave);
+  const totalWaves = useGame((s) => s.ui.totalWaves);
+  const status = useGame((s) => s.ui.status);
+  const waveActive = useGame((s) => s.ui.waveActive);
+  const nextWaveIn = useGame((s) => s.ui.nextWaveIn);
+  const canCallEarly = useGame((s) => s.ui.canCallEarly);
+  const callEarlyBonus = useGame((s) => s.ui.callEarlyBonus);
+  const callEarlyTimer = useGame((s) => s.ui.callEarlyTimer);
   const selectedKind = useGame((s) => s.selectedKind);
   const setSelectedKind = useGame((s) => s.setSelectedKind);
   const retry = useGame((s) => s.retryCurrentLevel);
@@ -38,7 +49,7 @@ export const HUD = () => {
   const selectedLevelId = useGame((s) => s.selectedLevelId);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
-  const paused = ui.status === "paused";
+  const paused = status === "paused";
   const compendiumOpen = useGame((s) => s.compendiumOpen);
 
   useEffect(() => {
@@ -85,10 +96,10 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
-        <Stat label="GOLD" value={ui.gold} accent="#ffd66a" />
-        <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
-        <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
-        {ui.wave === 0 ? (
+        <Stat label="GOLD" value={gold} accent="#ffd66a" />
+        <Stat label="LIVES" value={lives} accent="#ff5a7a" />
+        <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accent="#9fd8ff" />
+        {wave === 0 ? (
           <button
             type="button"
             className="stat call-wave-btn"
@@ -100,7 +111,7 @@ export const HUD = () => {
             </div>
             <div className="stat-value">Ready</div>
           </button>
-        ) : ui.canCallEarly ? (
+        ) : canCallEarly ? (
           <button
             type="button"
             className="stat call-wave-btn"
@@ -111,13 +122,13 @@ export const HUD = () => {
               CALL WAVE [Space]
             </div>
             <div className="stat-value">
-              +{ui.callEarlyBonus}g<span className="call-wave-sub"> · {ui.callEarlyTimer}s</span>
+              +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
             </div>
           </button>
         ) : (
           <Stat
-            label={ui.waveActive ? "WAVE" : "NEXT"}
-            value={ui.waveActive ? "ACTIVE" : `${ui.nextWaveIn}s`}
+            label={waveActive ? "WAVE" : "NEXT"}
+            value={waveActive ? "ACTIVE" : `${nextWaveIn}s`}
             accent="#b4ffc9"
           />
         )}
@@ -141,7 +152,7 @@ export const HUD = () => {
       <div className="tower-picker">
         {KINDS.map((kind) => {
           const cost = TOWER_COST[kind];
-          const affordable = ui.gold >= cost;
+          const affordable = gold >= cost;
           const active = selectedKind === kind;
           const dmgType = TOWER_DAMAGE_TYPE[kind];
           return (

@@ -192,7 +192,7 @@ export const ModelEnemyMesh = ({
     // otherwise a wandering enemy would swallow the spot-set click.
     const selId = state.world.selectedTowerId;
     if (selId !== null) {
-      const sel = state.world.towers.find((t) => t.id === selId);
+      const sel = state.world.towerById.get(selId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
     let obj: THREE.Object3D | null = e.object;

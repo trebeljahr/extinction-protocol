@@ -52,6 +52,9 @@ export type Tower = {
   chainFalloff: number;
   slowFactor: number;
   slowDuration: number;
+  // Hive-only — sim writes one target id per drone each tick so the
+  // renderer doesn't have to scan enemies again.
+  droneTargetIds: (EntityId | null)[];
 };
 
 export type Tree = {
@@ -170,7 +173,12 @@ export type World = {
   paths: Vec2[][];
   plannedWaves: WaveSpec[];
   enemies: Enemy[];
+  // Rebuilt once per tick from `enemies`. Used by sim + render to skip
+  // O(n) `find(id)` scans in hot loops. Treat as read-only outside the
+  // tick boundary; mutating it invalidates the invariant.
+  enemyById: Map<EntityId, Enemy>;
   towers: Tower[];
+  towerById: Map<EntityId, Tower>;
   trees: Tree[];
   rocks: Rock[];
   projectiles: Projectile[];
