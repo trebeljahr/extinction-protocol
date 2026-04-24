@@ -1,10 +1,15 @@
 import { useEffect } from "react";
 import { ACHIEVEMENTS, isAchievementUnlocked, totalUnlocked } from "../achievements";
+import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
 
 export const AchievementsPanel = () => {
   const progress = useGame((s) => s.progress);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
+
+  useEffect(() => {
+    audio.ui("open");
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

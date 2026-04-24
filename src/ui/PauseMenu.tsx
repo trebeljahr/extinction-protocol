@@ -40,6 +40,10 @@ export const PauseMenu = ({ onResume }: Props) => {
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
+    audio.ui("open");
+  }, []);
+
+  useEffect(() => {
     const persisted = loadPersisted();
     if (persisted) {
       audio.setSfxVolume(persisted.sfx);

@@ -35,6 +35,39 @@ export const useAudioBridge = () => {
     window.addEventListener("pointerdown", resumeOnInteract);
     window.addEventListener("keydown", resumeOnInteract);
 
+    // Generic UI feedback: play a click on every button press, with a few
+    // semantic overrides for tabs/closes. tower-card is a button too but
+    // its activation is also a tower-kind selection, so it gets the
+    // distinct "select" sample.
+    const onUiPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const btn = target.closest("button") as HTMLButtonElement | null;
+      if (!btn) return;
+      if (btn.disabled) return;
+      const cls = btn.className ?? "";
+      if (cls.includes("tower-card")) {
+        if (cls.includes("active")) {
+          audio.ui("close");
+        } else if (cls.includes("disabled")) {
+          audio.ui("error");
+        } else {
+          audio.ui("select");
+        }
+        return;
+      }
+      if (cls.includes("compendium-tab") || cls.includes("targeting-btn")) {
+        audio.ui("tab");
+        return;
+      }
+      if (cls.includes("btn-close") || cls.includes("card-cancel")) {
+        audio.ui("close");
+        return;
+      }
+      audio.ui("click");
+    };
+    document.addEventListener("pointerdown", onUiPointerDown);
+
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       switch (e.type) {
         case "shoot":
@@ -59,6 +92,15 @@ export const useAudioBridge = () => {
         case "upgrade":
           audio.play("upgrade", 0.5, 100);
           break;
+        case "tower-placed":
+          audio.play("tower-place", 0.55, 60, 1.2);
+          break;
+        case "tower-sold":
+          audio.play("tower-sell", 0.6, 60, 0.8);
+          break;
+        case "place-failed":
+          audio.ui("error");
+          break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();
@@ -70,6 +112,7 @@ export const useAudioBridge = () => {
     return () => {
       cancelled = true;
       unsub();
+      document.removeEventListener("pointerdown", onUiPointerDown);
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
     };

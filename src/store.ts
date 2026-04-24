@@ -46,6 +46,7 @@ import {
   TREE_REMOVE_COST,
   createTower,
   createWorld,
+  emit,
   spawnParticles,
 } from "./sim/world";
 
@@ -765,10 +766,17 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
     const cost = TOWER_COST[s.selectedKind];
-    if (w.gold < cost) return;
-    if (!canPlaceAt(w, pos)) return;
+    if (w.gold < cost) {
+      emit(w, { type: "place-failed", reason: "gold" });
+      return;
+    }
+    if (!canPlaceAt(w, pos)) {
+      emit(w, { type: "place-failed", reason: "spot" });
+      return;
+    }
     w.gold -= cost;
     createTower(w, s.selectedKind, pos);
+    emit(w, { type: "tower-placed", towerKind: s.selectedKind });
     // Keep the currently-picked tower kind selected (so the player can
     // keep placing more of the same) and *don't* auto-select the tower
     // we just dropped — being thrown into the upgrade panel after every
@@ -813,6 +821,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
     if (!t) return;
     sellTower(s.world, t);
+    emit(s.world, { type: "tower-sold" });
     const newVersion = s.towerVersion + 1;
     set({
       towerVersion: newVersion,

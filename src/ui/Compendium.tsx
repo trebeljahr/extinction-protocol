@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { audio } from "../audio/AudioManager";
 import { hasEncountered } from "../progress";
 import type { DamageType, EnemyKind } from "../sim/types";
 import {
@@ -54,6 +55,10 @@ export const Compendium = () => {
     [progress],
   );
   const [selected, setSelected] = useState<EnemyKind>(firstEncountered);
+
+  useEffect(() => {
+    audio.ui("open");
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

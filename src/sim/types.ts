@@ -150,7 +150,11 @@ export type GameEvent =
   | { type: "wave-clear"; wave: number }
   | { type: "life-lost" }
   | { type: "game-over"; won: boolean }
-  | { type: "upgrade" };
+  | { type: "upgrade" }
+  | { type: "tower-placed"; towerKind: TowerKind }
+  | { type: "tower-sold" }
+  | { type: "place-failed"; reason: "gold" | "spot" }
+  | { type: "new-enemy" };
 
 export type Shake = {
   magnitude: number;

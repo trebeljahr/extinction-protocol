@@ -84,6 +84,15 @@ export class AudioManager {
       ["star", `${base}audio/star.mp3`],
       ["level-select", `${base}audio/level-select.mp3`],
       ["music", `${base}audio/music-ambient.mp3`],
+      ["ui-click", `${base}audio/ui-click.mp3`],
+      ["ui-tab", `${base}audio/ui-tab.mp3`],
+      ["ui-open", `${base}audio/ui-open.mp3`],
+      ["ui-close", `${base}audio/ui-close.mp3`],
+      ["ui-error", `${base}audio/ui-error.mp3`],
+      ["tower-place", `${base}audio/tower-place.mp3`],
+      ["tower-sell", `${base}audio/tower-sell.mp3`],
+      ["tower-select", `${base}audio/tower-select.mp3`],
+      ["new-enemy", `${base}audio/new-enemy.mp3`],
     ];
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));
   }
@@ -206,6 +215,19 @@ export class AudioManager {
     };
     src.start(now);
     src.stop(now + durationSec);
+  }
+
+  ui(kind: "click" | "tab" | "open" | "close" | "error" | "select") {
+    const map: Record<typeof kind, [string, number, number, number]> = {
+      click: ["ui-click", 0.4, 30, 0.4],
+      tab: ["ui-tab", 0.45, 40, 0.5],
+      open: ["ui-open", 0.4, 80, 0.6],
+      close: ["ui-close", 0.4, 80, 0.6],
+      error: ["ui-error", 0.5, 120, 0.6],
+      select: ["tower-select", 0.45, 60, 0.9],
+    };
+    const [key, vol, cd, maxDur] = map[kind];
+    this.play(key, vol, cd, maxDur);
   }
 
   startMusic() {

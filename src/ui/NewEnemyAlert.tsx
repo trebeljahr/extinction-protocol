@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { audio } from "../audio/AudioManager";
 import type { DamageType, EnemyKind } from "../sim/types";
 import { DAMAGE_TYPE_LABEL, ENEMY_LABEL, ENEMY_RESIST, ENEMY_STATS } from "../sim/world";
 import { useGame } from "../store";
@@ -33,6 +34,11 @@ export const NewEnemyAlert = () => {
   const queue = useGame((s) => s.newEnemyQueue);
   const dismiss = useGame((s) => s.dismissNewEnemy);
   const kind = queue[0];
+
+  useEffect(() => {
+    if (!kind) return;
+    audio.play("new-enemy", 0.7, 200, 2.5);
+  }, [kind]);
 
   useEffect(() => {
     if (!kind) return;
