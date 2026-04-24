@@ -17,6 +17,7 @@ import { ProjectileMesh } from "./ProjectileMesh";
 import { SimTicker } from "./SimTicker";
 import { Placement } from "./Placement";
 import { Effects } from "./Effects";
+import { BiomeAmbientVfx } from "./BiomeAmbientVfx";
 import { CameraRig } from "./CameraRig";
 import { MAP_HEIGHT } from "../level";
 import { useGame } from "../store";
@@ -82,6 +83,7 @@ export const PlayScene = () => {
       <SpotTargetMarker />
       <ProjectileMesh />
       <Effects />
+      <BiomeAmbientVfx />
     </>
   );
 };

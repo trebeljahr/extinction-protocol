@@ -1,5 +1,4 @@
 import type { Vec2, WaveSpec, EnemyKind, EnemySpec, WaveArchetype } from "../sim/types";
-import type { Biome } from "../biomes";
 
 export type LevelConfig = {
   id: number;
@@ -9,7 +8,8 @@ export type LevelConfig = {
   startGold: number;
   nodePos: { x: number; y: number };
   hpScale?: number;
-  biome?: Biome;
+  // Biome is inferred from nodePos via biomeForPos() — there is no per-level
+  // override. See src/biomes.ts for zone definitions.
 };
 
 const p = (...coords: number[]): Vec2[] => {
@@ -137,7 +137,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 5,
     name: "Ashen Valley",
-    biome: "wasteland",
     paths: [p(-20, -10, -14, -10, -9, -4, -1, -3, 3, 2, 10, 3, 15, 8, 20, 8)],
     startGold: 180,
     nodePos: { x: 2, y: -14 },
@@ -154,7 +153,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 6,
     name: "Fossil Ridge",
-    biome: "wasteland",
     paths: [p(-20, 8, -12, 8, -12, -6, -4, -6, -4, 8, 4, 8, 4, -6, 12, -6, 12, 8, 20, 8)],
     startGold: 180,
     nodePos: { x: 10, y: -11 },
@@ -172,7 +170,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 7,
     name: "Sulfur Flats",
-    biome: "desert",
     paths: [p(-20, -8, -14, -8, -8, -4, -2, 0, 4, 4, 10, 6, 16, 8, 20, 8)],
     startGold: 170,
     nodePos: { x: 18, y: -8 },
@@ -191,7 +188,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 8,
     name: "Obsidian Pass",
-    biome: "wasteland",
     // Two parallel corridors — upper and lower
     paths: [
       p(-20, 7, -10, 7, -10, 4, 10, 4, 10, 7, 20, 7),
@@ -214,7 +210,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 9,
     name: "Tarpit Gorge",
-    biome: "wasteland",
     paths: [p(-20, 8, -10, 8, -2, 0, 0, -6, 8, -8, 14, -4, 20, 2)],
     startGold: 160,
     nodePos: { x: 22, y: 2 },
@@ -234,7 +229,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 10,
     name: "Bonefield Plateau",
-    biome: "wasteland",
     paths: [p(-20, 10, -16, 10, -16, -10, 14, -10, 14, 6, -10, 6, -10, -4, 8, -4, 8, 2, 20, 2)],
     startGold: 160,
     nodePos: { x: 14, y: 6 },
@@ -254,7 +248,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 11,
     name: "Scorched Gulch",
-    biome: "desert",
     paths: [p(-20, -10, -12, -10, -12, 0, -4, 0, -4, 8, 6, 8, 6, -8, 14, -8, 14, 10, 20, 10)],
     startGold: 150,
     nodePos: { x: 6, y: 4 },
@@ -275,7 +268,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 12,
     name: "Sunken Hollow",
-    biome: "snow",
     // Two separate entries (left & right) merging toward each other's exits
     paths: [
       p(-20, -9, -10, -9, -4, -3, 4, 3, 10, 9, 20, 9),
@@ -300,7 +292,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 13,
     name: "Ironwood Thicket",
-    biome: "snow",
     paths: [p(-20, 10, -16, 10, -16, -10, -8, -10, -8, 10, 0, 10, 0, -10, 8, -10, 8, 10, 16, 10, 16, -10, 20, -10)],
     startGold: 150,
     nodePos: { x: -10, y: 6 },
@@ -322,7 +313,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 14,
     name: "Shardspike Peak",
-    biome: "snow",
     paths: [p(-20, 0, -14, 6, -10, 2, -6, 8, -2, 2, 2, 8, 6, 2, 10, -4, 14, 2, 18, -4, 20, 0)],
     startGold: 140,
     nodePos: { x: -18, y: 10 },
@@ -344,7 +334,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 15,
     name: "Broken Spire",
-    biome: "wasteland",
     paths: [p(-20, 10, -14, 10, -10, 4, -4, 4, -2, -4, 4, -4, 6, 2, 12, 2, 14, -8, 20, -8)],
     startGold: 140,
     nodePos: { x: -24, y: 6 },
@@ -367,7 +356,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 16,
     name: "Crimson Basin",
-    biome: "desert",
     // X-crossing: two paths that visually cross
     paths: [
       p(-20, -9, -10, -6, -2, -2, 0, 2, 6, 6, 14, 9, 20, 9),
@@ -394,7 +382,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 17,
     name: "Drakespine Ridge",
-    biome: "snow",
     paths: [p(-20, 8, -16, 8, -16, 2, -12, 2, -12, 8, -6, 8, -6, 2, 0, 2, 0, 8, 6, 8, 6, 2, 12, 2, 12, 8, 18, 8, 18, 0, 20, 0)],
     startGold: 140,
     nodePos: { x: -22, y: 16 },
@@ -418,7 +405,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 18,
     name: "Shatterreef",
-    biome: "snow",
     paths: [p(-20, -10, -12, -10, -12, 10, -4, 10, -4, -10, 4, -10, 4, 10, 12, 10, 12, -10, 20, -10)],
     startGold: 130,
     nodePos: { x: -10, y: 14 },
@@ -442,7 +428,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 19,
     name: "Threshold of Eschaton",
-    biome: "wasteland",
     // THREE paths: top-left entry, bottom-left entry, right-side entry, all converging toward center-exits
     paths: [
       p(-20, 9, -12, 9, -6, 4, 0, 0, 8, -4, 14, -4, 20, -4),
@@ -472,7 +457,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 20,
     name: "Extinction Point",
-    biome: "wasteland",
     // Two serpentines: upper weaving and lower weaving
     paths: [
       p(-20, 10, -14, 10, -14, 2, -8, 2, -8, 10, 0, 10, 0, 2, 8, 2, 8, 10, 14, 10, 14, 4, 20, 4),
@@ -505,7 +489,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 21,
     name: "Shattered Arc",
-    biome: "desert",
     // Three parallel lanes with a 16-unit separation — no placement covers
     // all three at once, so the player has to commit to breadth early.
     paths: [
@@ -514,7 +497,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, -8, 20, -8),
     ],
     startGold: 200,
-    nodePos: { x: -24, y: 14 },
+    nodePos: { x: 22, y: 16 },
     hpScale: 2.55,
     waves: [
       split("intro", 0.85, [0, { raptor: 12, swarm: 4 }], [1, { raptor: 12, swarm: 4 }], [2, { raptor: 12, swarm: 4 }]),
@@ -535,7 +518,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 22,
     name: "Maelstrom",
-    biome: "snow",
     // Four paths in a + pattern, all crossing at center — tight tempo,
     // enemies pour from every direction at once.
     paths: [
@@ -545,7 +527,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, 8, -6, 2, 6, -2, 20, -8),
     ],
     startGold: 200,
-    nodePos: { x: 18, y: 14 },
+    nodePos: { x: 26, y: 14 },
     hpScale: 2.7,
     waves: [
       split("intro", 0.8, [0, { raptor: 10 }], [1, { raptor: 10 }], [2, { raptor: 10 }], [3, { raptor: 10 }]),
@@ -567,12 +549,11 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 23,
     name: "Behemoth Walk",
-    biome: "wasteland",
     // Titan parade — a single long serpentine, every heavy wave has titans.
     // Single-path means coverage is easy, but DPS-vs-HP is everything.
     paths: [p(-20, -8, -14, -8, -14, 8, -6, 8, -6, -8, 2, -8, 2, 8, 10, 8, 10, -8, 18, -8, 18, 6, 20, 6)],
     startGold: 190,
-    nodePos: { x: -22, y: 14 },
+    nodePos: { x: 18, y: 14 },
     hpScale: 2.85,
     waves: [
       intro(18, 10),
@@ -594,14 +575,13 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 24,
     name: "Cascade",
-    biome: "snow",
     // Two paths that weave back and forth around each other.
     paths: [
       p(-20, 6, -14, -6, -6, 6, 2, -6, 10, 6, 20, -4),
       p(-20, -6, -14, 6, -6, -6, 2, 6, 10, -6, 20, 4),
     ],
     startGold: 180,
-    nodePos: { x: -24, y: 12 },
+    nodePos: { x: 10, y: 14 },
     hpScale: 3.0,
     waves: [
       split("intro", 0.85, [0, { raptor: 14 }], [1, { raptor: 14 }]),
@@ -625,7 +605,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 25,
     name: "Widowmaker",
-    biome: "desert",
     // Five parallel lanes — pure coverage-breadth test.
     paths: [
       p(-20, 10, 20, 10),
@@ -635,7 +614,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, -10, 20, -10),
     ],
     startGold: 220,
-    nodePos: { x: -26, y: 14 },
+    nodePos: { x: -6, y: 14 },
     hpScale: 2.9,
     waves: [
       split("intro", 0.9, [0, { raptor: 8 }], [1, { raptor: 8 }], [2, { raptor: 8 }], [3, { raptor: 8 }], [4, { raptor: 8 }]),
@@ -656,14 +635,13 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 26,
     name: "Split Horizon",
-    biome: "wasteland",
     // Two paths on opposite edges — the map center can't cover either.
     paths: [
       p(-20, 10, -10, 10, -10, -10, 20, -10),
       p(20, 10, 10, 10, 10, -10, -20, -10),
     ],
     startGold: 190,
-    nodePos: { x: 0, y: 16 },
+    nodePos: { x: -18, y: 14 },
     hpScale: 3.1,
     waves: [
       split("intro", 0.8, [0, { raptor: 12, swarm: 4 }], [1, { raptor: 12, swarm: 4 }]),
@@ -687,14 +665,13 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 27,
     name: "Blood Tide",
-    biome: "desert",
     // Swarm-emphasis. Massive waves, tight spacing — AoE towers earn their keep.
     paths: [
       p(-20, 6, -10, 6, -4, 0, 4, -6, 14, -6, 20, 0),
       p(-20, -6, -10, -6, -4, 0, 4, 6, 14, 6, 20, 0),
     ],
     startGold: 180,
-    nodePos: { x: 22, y: 6 },
+    nodePos: { x: -26, y: 18 },
     hpScale: 3.3,
     waves: [
       split("intro", 0.8, [0, { raptor: 14 }], [1, { raptor: 14 }]),
@@ -720,14 +697,13 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 28,
     name: "Onslaught",
-    biome: "wasteland",
     // Every wave is a chaos mix — no recovery time between threat types.
     paths: [
       p(-20, 8, -12, 8, -12, -4, -4, -4, -4, 8, 4, 8, 4, -8, 12, -8, 12, 4, 20, 4),
       p(20, -8, 12, -8, 12, 0, 4, 0, 4, -8, -4, -8, -4, 4, -12, 4, -12, -4, -20, -4),
     ],
     startGold: 200,
-    nodePos: { x: -2, y: 16 },
+    nodePos: { x: -28, y: 14 },
     hpScale: 3.5,
     waves: [
       split("chaos", 0.4, [0, { raptor: 16, swarm: 12, allosaur: 3 }], [1, { raptor: 16, swarm: 12, allosaur: 3 }]),
@@ -751,7 +727,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 29,
     name: "Eye of the Storm",
-    biome: "snow",
     // Four paths — three converging on the center, one perpendicular
     // cross-cutter that pulls attention away from the obvious choke.
     paths: [
@@ -761,7 +736,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, 0, -10, 0, 0, 0, 10, 0, 20, 0),
     ],
     startGold: 210,
-    nodePos: { x: 22, y: 14 },
+    nodePos: { x: -14, y: 18 },
     hpScale: 3.8,
     waves: [
       split("intro", 0.8, [0, { raptor: 10 }], [1, { raptor: 10 }], [2, { raptor: 10 }], [3, { raptor: 10 }]),
@@ -787,7 +762,6 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 30,
     name: "Final Extinction",
-    biome: "wasteland",
     // The real ending. Three converging paths, 20 waves, everything the
     // game has. hpScale 4.0× makes one-of-each stacks melt — you need
     // the full portfolio, fully upgraded, thoughtfully placed.
@@ -797,7 +771,7 @@ export const LEVELS: LevelConfig[] = [
       p(-20, 0, -12, 0, -4, 0, 0, 0, 6, 0, 14, 0, 20, 0),
     ],
     startGold: 250,
-    nodePos: { x: 26, y: 14 },
+    nodePos: { x: 26, y: 18 },
     hpScale: 4.0,
     waves: [
       split("intro", 0.85, [0, { raptor: 14, swarm: 6 }], [1, { raptor: 14, swarm: 6 }], [2, { raptor: 14, swarm: 6 }]),

@@ -167,7 +167,7 @@ export type World = {
   time: number;
   tickCount: number;
   levelId: number;
-  biome: "forest" | "desert" | "snow" | "wasteland";
+  biome: "forest" | "desert" | "snow" | "wasteland" | "lava" | "alien";
   paths: Vec2[][];
   plannedWaves: WaveSpec[];
   enemies: Enemy[];

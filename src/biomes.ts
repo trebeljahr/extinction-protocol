@@ -1,6 +1,24 @@
 import { PATH_WIDTH } from "./level";
 
-export type Biome = "forest" | "desert" | "snow" | "wasteland";
+export type Biome = "forest" | "desert" | "snow" | "wasteland" | "lava" | "alien";
+
+/**
+ * Map-authoritative biome assignment — nodePos determines visual biome,
+ * not a per-level override. Zones (walking the map bottom→top):
+ *   y < -8            : forest          (starting heartland)
+ *   -8 ≤ y < 6, outer : wasteland       (ruined ring)
+ *   -8 ≤ y < 6, center: desert          (sandy middle)
+ *   6 ≤ y < 14        : snow            (cold highlands)
+ *   y ≥ 14, x < 0     : alien           (top-left — weird)
+ *   y ≥ 14, x ≥ 0     : lava            (top-right — volcanic endgame)
+ */
+export const biomeForPos = ({ x, y }: { x: number; y: number }): Biome => {
+  if (y >= 14) return x < 0 ? "alien" : "lava";
+  if (y >= 6) return "snow";
+  if (y < -8) return "forest";
+  if (x >= 14 || x <= -14) return "wasteland";
+  return "desert";
+};
 
 export type BiomeLayer = {
   seed: number;
@@ -74,6 +92,34 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
     hemiBottom: "#5a4030",
     startRing: "#ffcf6a",
     endRing: "#ff5252",
+  },
+  // Scorched volcanic basin — dark cracked ground, bright magma in the
+  // path cracks, hazy ember-tinted sky. Tight fog for oppressive feel.
+  lava: {
+    groundColor: "#3a1c12",
+    pathColor: "#ff6a1c",
+    sceneBg: "#4a1a18",
+    fogColor: "#9a3420",
+    fogNear: 36,
+    fogFar: 82,
+    hemiTop: "#ffb060",
+    hemiBottom: "#5a1a10",
+    startRing: "#ff9050",
+    endRing: "#ffe060",
+  },
+  // Alien reaches — violet dust plains, cyan crystal veins, greenish haze.
+  // Cool-toned and eerie, pushing into out-of-this-world territory.
+  alien: {
+    groundColor: "#3a2060",
+    pathColor: "#6cffd6",
+    sceneBg: "#2a1545",
+    fogColor: "#5a3a90",
+    fogNear: 40,
+    fogFar: 90,
+    hemiTop: "#b0a0ff",
+    hemiBottom: "#2a1550",
+    startRing: "#6cffd6",
+    endRing: "#ff66cc",
   },
 };
 
@@ -187,11 +233,66 @@ const wastelandLayers = (): BiomeLayer[] => [
   },
 ];
 
+// Lava reuses the wasteland rock set (dark scorched stone) but denser and
+// slightly larger, reading as volcanic boulders and slag heaps.
+const lavaLayers = (): BiomeLayer[] => [
+  {
+    seed: 4242,
+    urls: [
+      "/models/biomes/wasteland/Rock1.glb",
+      "/models/biomes/wasteland/Rock2.glb",
+      "/models/biomes/wasteland/Rock3.glb",
+      "/models/biomes/wasteland/Rock4.glb",
+      "/models/biomes/wasteland/Rock5.glb",
+    ],
+    count: 110,
+    clearance: PATH_WIDTH / 2 + 0.8,
+    minScale: 0.6,
+    maxScale: 1.55,
+    castShadow: true,
+    blocks: true,
+  },
+];
+
+// Alien leans on the Quaternius crystal shards + wasteland rock skeletons.
+// Feels like a violet dust plain peppered with gem outcroppings.
+const alienLayers = (): BiomeLayer[] => [
+  {
+    seed: 4242,
+    urls: [
+      "/models/biomes/wasteland/Rock1.glb",
+      "/models/biomes/wasteland/Rock3.glb",
+      "/models/biomes/wasteland/Rock5.glb",
+    ],
+    count: 65,
+    clearance: PATH_WIDTH / 2 + 0.9,
+    minScale: 0.55,
+    maxScale: 1.35,
+    castShadow: true,
+    blocks: true,
+  },
+  {
+    seed: 7878,
+    urls: [
+      "/models/landmarks/wasteland/Crystal1.glb",
+      "/models/scifi/rock_crystalsLargeA.glb",
+    ],
+    count: 45,
+    clearance: PATH_WIDTH / 2 + 0.8,
+    minScale: 0.5,
+    maxScale: 1.25,
+    castShadow: true,
+    blocks: true,
+  },
+];
+
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
   forest: forestLayers(),
   desert: desertLayers(),
   snow: snowLayers(),
   wasteland: wastelandLayers(),
+  lava: lavaLayers(),
+  alien: alienLayers(),
 };
 
 // Clearable trees per biome (exactly 4 variants for compatibility with Tree.variant 0..3).
@@ -225,6 +326,21 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
     "/models/biomes/wasteland/Tree3.glb",
     "/models/biomes/wasteland/Tree4.glb",
   ],
+  // Lava and alien both reuse the wasteland dead-tree set — no real
+  // vegetation survives either environment, and the skeletal silhouettes
+  // read correctly for volcanic ash fields and alien mesa.
+  lava: [
+    "/models/biomes/wasteland/Tree1.glb",
+    "/models/biomes/wasteland/Tree2.glb",
+    "/models/biomes/wasteland/Tree3.glb",
+    "/models/biomes/wasteland/Tree4.glb",
+  ],
+  alien: [
+    "/models/biomes/wasteland/Tree1.glb",
+    "/models/biomes/wasteland/Tree3.glb",
+    "/models/biomes/wasteland/Tree4.glb",
+    "/models/biomes/wasteland/Tree2.glb",
+  ],
 };
 
 // Small cosmetic props rendered as decor in levels AND on the world map.
@@ -256,6 +372,18 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/wasteland/Crystal1.glb",
     "/models/scifi/machine_generator.glb",
     "/models/scifi/meteor_detailed.glb",
+  ],
+  lava: [
+    "/models/landmarks/wasteland/Skull.glb",
+    "/models/scifi/meteor_detailed.glb",
+    "/models/landmarks/wasteland/DeadTree.glb",
+    "/models/scifi/machine_barrelLarge.glb",
+  ],
+  alien: [
+    "/models/landmarks/wasteland/Crystal1.glb",
+    "/models/scifi/rock_crystalsLargeA.glb",
+    "/models/scifi/meteor_detailed.glb",
+    "/models/scifi/satelliteDish.glb",
   ],
 };
 
@@ -302,6 +430,32 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
       "/models/scifi/meteor_detailed.glb",
       "/models/scifi/turret_single.glb",
       "/models/scifi/rover.glb",
+    ],
+  },
+  lava: {
+    hero: [
+      "/models/scifi/structure_detailed.glb",
+      "/models/scifi/rocket_baseA.glb",
+    ],
+    support: [
+      "/models/scifi/machine_generatorLarge.glb",
+      "/models/scifi/machine_barrelLarge.glb",
+      "/models/scifi/barrels.glb",
+      "/models/scifi/meteor_detailed.glb",
+      "/models/scifi/turret_single.glb",
+    ],
+  },
+  alien: {
+    hero: [
+      "/models/scifi/hangar_smallB.glb",
+      "/models/scifi/structure_closed.glb",
+    ],
+    support: [
+      "/models/scifi/satelliteDish_detailed.glb",
+      "/models/scifi/satelliteDish.glb",
+      "/models/scifi/machine_wirelessCable.glb",
+      "/models/scifi/rock_crystalsLargeA.glb",
+      "/models/landmarks/wasteland/Crystal1.glb",
     ],
   },
 };

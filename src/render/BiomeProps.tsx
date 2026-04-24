@@ -6,6 +6,7 @@ import {
   BIOME_LAYERS,
   BIOME_TREE_URLS,
   TARGET_SIZE_BY_ROLE,
+  biomeForPos,
   classifyPropUrl,
   type Biome,
 } from "../biomes";
@@ -66,6 +67,17 @@ const BIOME_LANDMARKS: Record<Biome, string[]> = {
     "/models/landmarks/snow/Tent.glb",
   ],
   wasteland: [],
+  // Lava and alien biomes lean on sci-fi hero props — the skull plains of
+  // a dying planet and the crystal spires of an alien world both read as
+  // post-human frontiers, not rustic camps.
+  lava: [
+    "/models/scifi/structure_detailed.glb",
+    "/models/scifi/rocket_baseA.glb",
+  ],
+  alien: [
+    "/models/scifi/hangar_smallB.glb",
+    "/models/scifi/structure_closed.glb",
+  ],
 };
 
 // Pick rocks only out of each biome's layer list — no bushes/grass on
@@ -136,7 +148,7 @@ const buildPropPlan = () => {
   };
 
   for (const lvl of LEVELS) {
-    const biome: Biome = (lvl.biome ?? "forest") as Biome;
+    const biome: Biome = biomeForPos(lvl.nodePos);
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
 
@@ -247,7 +259,7 @@ export const BiomeProps = () => {
 // Preload URLs actually used by the world map.
 const allUrls = new Set<string>();
 for (const lvl of LEVELS) {
-  const biome: Biome = (lvl.biome ?? "forest") as Biome;
+  const biome: Biome = biomeForPos(lvl.nodePos);
   for (const u of rockUrls(biome)) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
   for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);

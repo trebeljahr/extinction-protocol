@@ -21,7 +21,7 @@ import { EASTER_EGG_DEFS } from "../easterEggs";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
 import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
-import { BIOME_LAYERS, type Biome } from "../biomes";
+import { BIOME_LAYERS, biomeForPos, type Biome } from "../biomes";
 
 export const STARTING_LIVES = 20;
 
@@ -246,7 +246,7 @@ const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEn
 };
 
 export const createWorld = (level: LevelConfig): World => {
-  const biome = level.biome ?? "forest";
+  const biome = biomeForPos(level.nodePos);
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
   const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees);
   const { eggs, nextId } = buildEasterEggs(biome, level.paths, trees, rocks, level.id * 2311 + 47, afterRocks);
