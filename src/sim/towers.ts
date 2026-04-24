@@ -124,6 +124,16 @@ const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
 // Continuous flame stream — emits a directed cone of particles every tick
 // while the tower is targeting. Layered colours give a hot core + outer
 // flame + trailing embers look.
+//
+// Particle reach has to track t.range so the visible flame wall lines up
+// with the damage cone (also gated by t.range). Particles decay via
+// `vel *= 1 - 2*dt` per tick in updateParticles; the continuous analogue
+// is reach = v0/2 * (1 - exp(-2*lifetime)). Solving for v0 lets us pick
+// initial speeds that land axial particles right at the range edge,
+// regardless of any range upgrades.
+const NOZZLE_OFFSET = 0.55;
+const flameReachFactor = (life: number) => 0.5 * (1 - Math.exp(-2 * life));
+
 const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   const dx = target.pos.x - t.pos.x;
   const dy = target.pos.y - t.pos.y;
@@ -133,15 +143,25 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   const dir = { x: dirX, y: dirY };
   // Nozzle slightly in front of the tower so particles don't pop out of
   // its body.
-  const nozzle = { x: t.pos.x + dirX * 0.55, y: t.pos.y + dirY * 0.55 };
+  const nozzle = { x: t.pos.x + dirX * NOZZLE_OFFSET, y: t.pos.y + dirY * NOZZLE_OFFSET };
 
-  // Hot inner jet — bright yellow, narrowish, fast, short-lived.
-  spawnParticles(world, nozzle, 6, "#fff0a0", [7.5, 10.5], 0.28, dir, Math.PI / 10);
+  const reach = Math.max(0.4, t.range - NOZZLE_OFFSET);
+  const speedRange = (life: number, frac: number, jitter = 0.18): [number, number] => {
+    const mid = (reach * frac) / flameReachFactor(life);
+    return [mid * (1 - jitter), mid * (1 + jitter)];
+  };
+
+  const yellowLife = 0.28;
+  const orangeLife = 0.45;
+  const redLife = 0.70;
+
+  // Hot inner jet — narrowish, fast, short-lived; reaches ~70% down the cone.
+  spawnParticles(world, nozzle, 6, "#fff0a0", speedRange(yellowLife, 0.7), yellowLife, dir, Math.PI / 10);
   // Mid orange flames — main flame body, fills most of the cone.
-  spawnParticles(world, nozzle, 8, "#ffb54a", [5.5, 8.5], 0.45, dir, Math.PI / 6);
-  // Outer red wash + trailing embers, full damage cone, longest life so
-  // they linger and drift after the stream sweeps past.
-  spawnParticles(world, nozzle, 6, "#ff5a30", [4.0, 6.5], 0.7, dir, Math.PI / 4);
+  spawnParticles(world, nozzle, 8, "#ffb54a", speedRange(orangeLife, 0.9), orangeLife, dir, Math.PI / 6);
+  // Outer red wash + trailing embers — sized so axial embers land right at
+  // the damage-cone edge (range), so the visible wall matches what burns.
+  spawnParticles(world, nozzle, 6, "#ff5a30", speedRange(redLife, 1.0), redLife, dir, Math.PI / 4);
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
