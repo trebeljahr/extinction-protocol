@@ -28,7 +28,14 @@
       import { GLTFLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/GLTFLoader.js";
 
       const canvas = document.getElementById("c");
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      // preserveDrawingBuffer keeps the rendered frame readable for later
+      // canvas.toDataURL / drawImage capture from the screenshot tooling.
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true,
+      });
       renderer.setPixelRatio(2);
       renderer.setSize(1024, 1024, false);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
