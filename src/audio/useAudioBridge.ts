@@ -1,7 +1,10 @@
 import { useEffect } from "react";
+import type { Biome } from "../biomes";
 import type { GameEvent } from "../sim/types";
 import { useGame } from "../store";
-import { audio } from "./AudioManager";
+import { type MusicTrack, audio } from "./AudioManager";
+
+const biomeTrack = (biome: Biome): MusicTrack => `music-${biome}` as MusicTrack;
 
 const VOL_KEY = "extinction-protocol:audio:v1";
 
@@ -26,14 +29,27 @@ export const useAudioBridge = () => {
       loadPersistedAudio();
     });
 
+    const pickTrack = (): MusicTrack => {
+      const s = useGame.getState();
+      if (s.screen === "playing") return biomeTrack(s.world.biome);
+      return "music";
+    };
+
     const resumeOnInteract = async () => {
       await audio.ensureResumed();
-      audio.startMusic();
+      audio.startMusic(pickTrack());
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
     };
     window.addEventListener("pointerdown", resumeOnInteract);
     window.addEventListener("keydown", resumeOnInteract);
+
+    // Crossfade music whenever the screen changes (worldMap ↔ playing ↔
+    // results) or when the player enters a level on a different biome.
+    const unsubMusic = useGame.subscribe((state, prev) => {
+      if (state.screen === prev.screen && state.world.biome === prev.world.biome) return;
+      audio.crossfadeTo(pickTrack());
+    });
 
     // Generic UI feedback: play a click on every button press, with a few
     // semantic overrides for tabs/closes. tower-card is a button too but
@@ -80,7 +96,7 @@ export const useAudioBridge = () => {
           audio.play("death", 0.3, 60);
           break;
         case "wave-start":
-          audio.startMusic();
+          audio.startMusic(pickTrack());
           audio.play("wave-start", 0.5, 500);
           break;
         case "wave-clear":
@@ -115,6 +131,7 @@ export const useAudioBridge = () => {
     return () => {
       cancelled = true;
       unsub();
+      unsubMusic();
       document.removeEventListener("pointerdown", onUiPointerDown);
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
