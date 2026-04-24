@@ -167,17 +167,9 @@ export const HUD = () => {
               title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
             >
               {active && (
-                <button
-                  type="button"
-                  className="card-cancel"
-                  aria-label="cancel selection"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedKind(null);
-                  }}
-                >
+                <span className="card-cancel" aria-hidden>
                   ×
-                </button>
+                </span>
               )}
               <div className="tower-preview-wrap">
                 <TowerPreview kind={kind} />
