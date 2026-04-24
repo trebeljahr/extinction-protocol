@@ -96,9 +96,9 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
-        <Stat label="GOLD" value={gold} accent="#ffd66a" />
-        <Stat label="LIVES" value={lives} accent="#ff5a7a" />
-        <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accent="#9fd8ff" />
+        <Stat label="GOLD" value={gold} accentClass="text-gold" />
+        <Stat label="LIVES" value={lives} accentClass="text-red" />
+        <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accentClass="text-blue" />
         {wave === 0 ? (
           <button
             type="button"
@@ -106,9 +106,7 @@ export const HUD = () => {
             onClick={callWaveEarly}
             title="Start waves (Space)"
           >
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>
-              START WAVES [Space]
-            </div>
+            <div className="stat-label text-mint">START WAVES [Space]</div>
             <div className="stat-value">Ready</div>
           </button>
         ) : canCallEarly ? (
@@ -118,9 +116,7 @@ export const HUD = () => {
             onClick={callWaveEarly}
             title="Call next wave early (Space)"
           >
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>
-              CALL WAVE [Space]
-            </div>
+            <div className="stat-label text-mint">CALL WAVE [Space]</div>
             <div className="stat-value">
               +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
             </div>
@@ -129,7 +125,7 @@ export const HUD = () => {
           <Stat
             label={waveActive ? "WAVE" : "NEXT"}
             value={waveActive ? "ACTIVE" : `${nextWaveIn}s`}
-            accent="#b4ffc9"
+            accentClass="text-mint"
           />
         )}
         {levelName && (
@@ -203,12 +199,10 @@ export const HUD = () => {
 const Stat = ({
   label,
   value,
-  accent,
-}: { label: string; value: string | number; accent: string }) => (
+  accentClass,
+}: { label: string; value: string | number; accentClass: string }) => (
   <div className="stat">
-    <div className="stat-label" style={{ color: accent }}>
-      {label}
-    </div>
+    <div className={`stat-label ${accentClass}`}>{label}</div>
     <div className="stat-value">{value}</div>
   </div>
 );

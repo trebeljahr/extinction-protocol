@@ -1,7 +1,99 @@
+/* Tailwind v4: skip preflight (existing CSS supplies its own reset).
+   Theme tokens below generate utilities (bg-*, text-*, etc.). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  /* === Surfaces === */
+  --color-surface-0: #0b1016;
+  --color-surface-1: rgba(10, 16, 24, 0.72);
+  --color-surface-2: rgba(14, 20, 28, 0.92);
+  --color-surface-3: rgba(18, 26, 36, 0.95);
+  --color-surface-inset: rgba(6, 10, 14, 0.4);
+  --color-surface-faint: rgba(255, 255, 255, 0.03);
+  --color-scrim: rgba(8, 12, 18, 0.7);
+
+  /* === Borders === */
+  --color-border: rgba(120, 160, 200, 0.18);
+  --color-border-strong: rgba(120, 160, 200, 0.28);
+  --color-border-faint: rgba(120, 160, 200, 0.12);
+
+  /* === Foreground (text) === */
+  --color-fg: #e6ecf2;
+  --color-fg-secondary: #cfe8ff;
+  --color-fg-muted: #a8b4c2;
+  --color-fg-dim: #9fb4c8;
+  --color-fg-faint: #6a7a8c;
+
+  /* === Accents === */
+  --color-blue: #9fd8ff;
+  --color-cyan: #3dd1ff;
+  --color-gold: #ffd66a;
+  --color-green: #3dff8a;
+  --color-mint: #b4ffc9;
+  --color-red: #ff5a7a;
+  --color-pink: #ff7a9a;
+  --color-orange: #ffb266;
+  --color-purple: #b48cff;
+
+  /* === Tints (semi-transparent accent fills) === */
+  --color-tint-blue: rgba(159, 216, 255, 0.18);
+  --color-tint-blue-soft: rgba(159, 216, 255, 0.08);
+  --color-tint-gold: rgba(255, 214, 106, 0.1);
+  --color-tint-gold-soft: rgba(255, 214, 106, 0.08);
+  --color-tint-green: rgba(61, 255, 138, 0.1);
+  --color-tint-red: rgba(255, 90, 122, 0.1);
+  --color-tint-pink: rgba(255, 122, 154, 0.12);
+
+  /* === Spacing (multiplier base; p-1=4px, p-2=8px, p-3=12px, p-4=16px...) === */
+  --spacing: 4px;
+
+  /* === Radii === */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-pill: 999px;
+
+  /* === Letter-spacing === */
+  --tracking-tight: 0.04em;
+  --tracking-mid: 0.08em;
+  --tracking-wide: 0.14em;
+  --tracking-uber: 0.24em;
+
+  /* === Blur === */
+  --blur-sm: 6px;
+  --blur-md: 8px;
+}
+
 :root {
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+
+  /* === Type scale (custom CSS only; not exposed as Tailwind utilities) === */
+  --fs-2xs: 9px;
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-md: 12px;
+  --fs-base: 13px;
+  --fs-lg: 14px;
+  --fs-xl: 15px;
+  --fs-2xl: 22px;
+
+  /* === Spacing aliases (used by hand-written CSS rules below) === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* === Transition durations === */
+  --t-fast: 0.08s;
+  --t-base: 0.12s;
 }
 
 * {
@@ -102,30 +194,33 @@ canvas {
   }
 }
 
-.enemy-panel {
+/* Panel base — shared by enemy/tree/tower side panels.
+   Each variant only overrides position and accent (border/bg tint). */
+.enemy-panel,
+.tree-panel,
+.tower-panel {
   position: absolute;
+  width: 330px;
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  pointer-events: auto;
+  backdrop-filter: blur(var(--blur-md));
+}
+
+.enemy-panel {
   right: 16px;
   bottom: 64px;
-  width: 330px;
   background: rgba(18, 14, 14, 0.92);
-  border: 1px solid rgba(200, 120, 120, 0.22);
-  border-radius: 10px;
-  padding: 14px;
-  pointer-events: auto;
-  backdrop-filter: blur(8px);
+  border-color: rgba(200, 120, 120, 0.22);
 }
 
 .tree-panel {
-  position: absolute;
   right: 16px;
   top: 16px;
-  width: 330px;
   background: rgba(14, 20, 14, 0.92);
-  border: 1px solid rgba(140, 200, 140, 0.25);
-  border-radius: 10px;
-  padding: 14px;
-  pointer-events: auto;
-  backdrop-filter: blur(8px);
+  border-color: rgba(140, 200, 140, 0.25);
 }
 
 .tree-preview {
@@ -449,18 +544,10 @@ canvas {
   opacity: 0.55;
 }
 
-/* Tower panel (right side) */
+/* Tower panel (right side) — uses .panel base above; default blueish accent. */
 .tower-panel {
-  position: absolute;
   right: 16px;
   top: 16px;
-  width: 330px;
-  background: rgba(14, 20, 28, 0.92);
-  border: 1px solid rgba(120, 160, 200, 0.2);
-  border-radius: 10px;
-  padding: 14px;
-  pointer-events: auto;
-  backdrop-filter: blur(8px);
 }
 
 .panel-header {
@@ -552,17 +639,15 @@ canvas {
 
 .btn-close {
   background: transparent;
-  color: #a8b4c2;
+  color: var(--color-fg-muted);
   border: 1px solid rgba(120, 160, 200, 0.2);
   width: 28px;
   height: 28px;
-  border-radius: 6px;
   font-size: 16px;
-  cursor: pointer;
 }
 .btn-close:hover {
   color: #fff;
-  border-color: #9fd8ff;
+  border-color: var(--color-blue);
 }
 
 .targeting-row {
@@ -721,14 +806,10 @@ canvas {
 .btn-upgrade {
   width: 100%;
   padding: 8px;
-  background: #ffd66a;
+  background: var(--color-gold);
   color: #1a1200;
   border: none;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-base);
 }
 .btn-upgrade:disabled {
   background: #4a4030;
@@ -777,17 +858,14 @@ canvas {
   width: 100%;
   padding: 8px;
   background: transparent;
-  color: #ff7a9a;
+  color: var(--color-pink);
   border: 1px solid rgba(255, 122, 154, 0.4);
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-md);
+  letter-spacing: var(--tracking-mid);
   text-transform: uppercase;
 }
 .btn-sell:hover {
-  background: rgba(255, 122, 154, 0.12);
+  background: var(--color-tint-pink);
 }
 
 .panel-footer-confirm {
@@ -798,18 +876,15 @@ canvas {
 .btn-sell-cancel {
   padding: 8px;
   background: transparent;
-  color: #a8b4c2;
+  color: var(--color-fg-muted);
   border: 1px solid rgba(120, 160, 200, 0.35);
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-md);
+  letter-spacing: var(--tracking-mid);
   text-transform: uppercase;
 }
 .btn-sell-cancel:hover {
   background: rgba(120, 160, 200, 0.12);
-  color: #e6ecf2;
+  color: var(--color-fg);
 }
 
 .btn-sell-confirm {
@@ -1231,17 +1306,26 @@ canvas {
   }
 }
 
+/* === Buttons ===
+   Shared base (zero specificity via :where) covers every button variant
+   below. Each variant rule only overrides its own visual identity. */
+:where(.btn, .btn-close, .btn-sell, .btn-sell-cancel, .btn-upgrade) {
+  font-family: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  border-radius: var(--radius-md);
+  transition: background var(--t-base), border-color var(--t-base), color var(--t-base), box-shadow
+    var(--t-base), transform var(--t-fast);
+}
+
 .btn {
-  background: #3dd1ff;
+  background: var(--color-cyan);
   color: #031018;
   border: none;
   padding: 10px 20px;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  pointer-events: auto;
+  font-size: var(--fs-lg);
 }
 
 .btn:hover {
@@ -1250,23 +1334,23 @@ canvas {
 
 .btn-secondary {
   background: transparent;
-  color: #9fd8ff;
+  color: var(--color-blue);
   border: 1px solid rgba(159, 216, 255, 0.4);
 }
 .btn-secondary:hover {
-  background: rgba(159, 216, 255, 0.12);
-  color: #cfe8ff;
+  background: var(--color-tint-blue);
+  color: var(--color-fg-secondary);
 }
 
 .btn-ghost {
   background: rgba(14, 20, 28, 0.72);
-  color: #cfe8ff;
-  border: 1px solid rgba(120, 160, 200, 0.26);
+  color: var(--color-fg-secondary);
+  border: 1px solid var(--color-border-strong);
   padding: 8px 14px;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .btn-ghost:hover {
-  border-color: #9fd8ff;
+  border-color: var(--color-blue);
   color: #fff;
 }
 
