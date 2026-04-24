@@ -23,6 +23,10 @@ vite.config.js
 # Tauri
 src-tauri/target
 src-tauri/gen
+# Override global `Icon?` glob (matches macOS resource fork) so generated icon
+# directories stay tracked.
+!src-tauri/icons/
+!public/icons/
 # claude code
 .claude/settings.local.json
 .claude/worktrees/
