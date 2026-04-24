@@ -3,21 +3,22 @@ import { PATH_WIDTH } from "./level";
 export type Biome = "forest" | "desert" | "snow" | "wasteland" | "lava" | "alien";
 
 /**
- * Map-authoritative biome assignment — nodePos determines visual biome,
- * not a per-level override. Zones (walking the map bottom→top):
- *   y < -8            : forest          (starting heartland)
- *   -8 ≤ y < 6, outer : wasteland       (ruined ring)
- *   -8 ≤ y < 6, center: desert          (sandy middle)
- *   6 ≤ y < 14        : snow            (cold highlands)
- *   y ≥ 14, x < 0     : alien           (top-left — weird)
- *   y ≥ 14, x ≥ 0     : lava            (top-right — volcanic endgame)
+ * Map-authoritative biome — purely y-banded so the level IDs align cleanly
+ * with a single biome each (five levels per band). Reading bottom→top:
+ *   band 1  y ≤ -9  : forest     (L1-L5)
+ *   band 2  y ≤ -2  : snow       (L6-L10)
+ *   band 3  y ≤  5  : desert     (L11-L15)
+ *   band 4  y ≤ 12  : wasteland  (L16-L20)
+ *   band 5  y ≤ 19  : lava       (L21-L25)
+ *   band 6  y  > 19 : alien      (L26-L30)
  */
-export const biomeForPos = ({ x, y }: { x: number; y: number }): Biome => {
-  if (y >= 14) return x < 0 ? "alien" : "lava";
-  if (y >= 6) return "snow";
-  if (y < -8) return "forest";
-  if (x >= 14 || x <= -14) return "wasteland";
-  return "desert";
+export const biomeForPos = ({ y }: { x: number; y: number }): Biome => {
+  if (y <= -9) return "forest";
+  if (y <= -2) return "snow";
+  if (y <= 5) return "desert";
+  if (y <= 12) return "wasteland";
+  if (y <= 19) return "lava";
+  return "alien";
 };
 
 export type BiomeLayer = {
