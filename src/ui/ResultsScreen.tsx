@@ -1,3 +1,4 @@
+import type React from "react";
 import { useEffect } from "react";
 import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
@@ -55,32 +56,36 @@ export const ResultsScreen = () => {
 
   return (
     <div className="overlay">
-      <div className="overlay-card results-card">
+      <div className="overlay-card min-w-[420px] px-10 py-8">
         <h1>{result.won ? "Outpost held." : "Extinction complete."}</h1>
-        <div className="results-level">{result.levelName}</div>
+        <div className="text-[13px] tracking-uber uppercase text-fg-dim -mt-2 mb-5">
+          {result.levelName}
+        </div>
 
-        <div className="results-stars">
+        <div className="flex justify-center mt-2.5 mb-[18px]">
           <StarDisplay count={result.stars} size={44} animate />
         </div>
 
-        <div className="results-stats">
-          <div className="results-row">
-            <span className="results-label">Lives remaining</span>
-            <span className="results-value">{result.livesRemaining} / 20</span>
-          </div>
-          <div className="results-row">
-            <span className="results-label">Best</span>
-            <span className="results-value">
-              <StarDisplay count={result.bestStars} size={14} />
-            </span>
-          </div>
-          {result.improved && <div className="results-new-best">NEW BEST</div>}
-          {nextNowUnlocked && <div className="results-unlock">Unlocked: {nextLevel!.name}</div>}
+        <div className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg px-4 py-3.5 mb-5">
+          <ResultRow label="Lives remaining" value={`${result.livesRemaining} / 20`} />
+          <ResultRow label="Best" value={<StarDisplay count={result.bestStars} size={14} />} />
+          {result.improved && (
+            <div className="mt-2.5 text-center text-[11px] tracking-uber text-gold font-bold">
+              NEW BEST
+            </div>
+          )}
+          {nextNowUnlocked && (
+            <div className="mt-1.5 text-center text-xs text-cyan tracking-[0.06em]">
+              Unlocked: {nextLevel!.name}
+            </div>
+          )}
           {result.unlockedAchievements.length > 0 && (
-            <div className="results-achievements">
-              <div className="results-achievements-label">Achievements unlocked</div>
+            <div className="mt-3.5 px-3 py-2.5 rounded-lg bg-tint-gold-soft border border-[rgba(255,214,106,0.35)] text-left">
+              <div className="text-[10px] font-bold tracking-[0.18em] text-gold mb-1.5">
+                Achievements unlocked
+              </div>
               {result.unlockedAchievements.map((id) => (
-                <div key={id} className="results-achievement-row">
+                <div key={id} className="text-[13px] font-semibold text-fg py-0.5">
                   {ACHIEVEMENT_BY_ID[id].name}
                 </div>
               ))}
@@ -88,7 +93,7 @@ export const ResultsScreen = () => {
           )}
         </div>
 
-        <div className="results-actions">
+        <div className="flex gap-2.5 justify-center">
           <button type="button" onClick={goToMap} className="btn">
             World Map (Esc)
           </button>
@@ -100,3 +105,10 @@ export const ResultsScreen = () => {
     </div>
   );
 };
+
+const ResultRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex justify-between items-center text-[13px] my-1.5">
+    <span className="text-fg-muted tracking-tight">{label}</span>
+    <span className="text-fg font-bold inline-flex items-center">{value}</span>
+  </div>
+);
