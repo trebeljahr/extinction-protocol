@@ -84,7 +84,10 @@ export const TreePanel = () => {
         </button>
       </div>
 
-      <div className="tree-preview" style={{ background: style.groundColor }}>
+      <div
+        className="w-full h-[180px] mb-3 rounded-lg overflow-hidden border border-[rgba(120,160,120,0.18)]"
+        style={{ background: style.groundColor }}
+      >
         <Canvas
           camera={{ position: [3.2, 1.6, 0], fov: 26 }}
           dpr={[1, 2]}
@@ -102,14 +105,18 @@ export const TreePanel = () => {
         </Canvas>
       </div>
 
-      <div className="tree-cost-row">
-        <span className="tree-cost-label">Clear cost</span>
-        <span className={`tree-cost-value ${canAfford ? "" : "unaffordable"}`}>
+      <div className="flex justify-between items-baseline mb-2.5 px-2.5 py-1.5 rounded-md bg-surface-inset border border-border-faint">
+        <span className="text-[11px] font-bold tracking-wide text-fg-muted uppercase">
+          Clear cost
+        </span>
+        <span
+          className={`text-lg font-bold tabular-nums ${canAfford ? "text-gold" : "text-[#ff7a8a]"}`}
+        >
           {selection.cost}g
         </span>
       </div>
 
-      <div className="tree-actions">
+      <div className="grid grid-cols-2 gap-2">
         <button type="button" className="btn" disabled={!canAfford} onClick={selection.confirm}>
           Clear · {selection.cost}g
         </button>
