@@ -18,6 +18,7 @@ import { Placement } from "./Placement";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { Rocks } from "./Rocks";
 import { SelectionRing } from "./SelectionRing";
+import { ShaderPrewarm } from "./ShaderPrewarm";
 import { SimTicker } from "./SimTicker";
 import { SpotTargetMarker } from "./SpotTargetMarker";
 import { TowerVfx } from "./TowerVfx";
@@ -52,6 +53,7 @@ export const PlayScene = () => {
       <hemisphereLight args={[style.hemiTop, style.hemiBottom, 0.85]} />
 
       <SimTicker />
+      <ShaderPrewarm />
       <Ground />
       <Rocks />
       <Trees />
