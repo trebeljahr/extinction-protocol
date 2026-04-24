@@ -94,11 +94,12 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
     startRing: "#ffcf6a",
     endRing: "#ff5252",
   },
-  // Scorched volcanic basin — dark cracked ground, bright magma in the
-  // path cracks, hazy ember-tinted sky. Tight fog for oppressive feel.
+  // Scorched volcanic basin — dark cracked ground, dark scorched-stone
+  // paths, bright magma reserved for rivers/lakes (LavaFeatures.tsx).
+  // Hazy ember-tinted sky, tight fog for oppressive feel.
   lava: {
     groundColor: "#3a1c12",
-    pathColor: "#ff6a1c",
+    pathColor: "#5a3a24",
     sceneBg: "#4a1a18",
     fogColor: "#9a3420",
     fogNear: 36,

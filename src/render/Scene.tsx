@@ -11,6 +11,7 @@ import { Effects } from "./Effects";
 import { Ground } from "./Ground";
 import { HealthBars } from "./HealthBars";
 import { HiveDrones } from "./HiveDrones";
+import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { PathLine } from "./PathLine";
@@ -55,6 +56,7 @@ export const PlayScene = () => {
       <SimTicker />
       <ShaderPrewarm />
       <Ground />
+      <LavaFeatures />
       <Rocks />
       <Trees />
       <BiomeCosmetics />
