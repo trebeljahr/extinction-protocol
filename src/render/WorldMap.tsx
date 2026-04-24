@@ -9,15 +9,16 @@ import { MapRoute } from "./MapRoute";
 import { BiomeGround } from "./BiomeGround";
 import { BiomeProps } from "./BiomeProps";
 
-// Level node bounds span roughly x: [-30, 26], y: [-14, 18].
-// Map content area — the region nodes + biome colors occupy.
+// Level node bounds span x: [-24, 22], y: [-14, 26] — content grew taller
+// after the 6-biome-band layout (alien band tops out at y=26).
 const CONTENT_W = 80;
-const CONTENT_H = 48;
+const CONTENT_H = 64;
 
 // Rendered ground — oversized so the fallback-coloured outer ring is
-// always off-screen at any valid pan/zoom combination.
-const GROUND_W = 200;
-const GROUND_H = 140;
+// always off-screen at any valid pan/zoom combination. Bumped up with
+// content height so zoom-out never reveals the plane edge.
+const GROUND_W = 360;
+const GROUND_H = 260;
 
 // How far the camera target can drift from origin before being clamped.
 // Tight enough that the user can't pan the biome cluster off-screen.

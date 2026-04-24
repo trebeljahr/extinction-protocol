@@ -7,6 +7,11 @@ import { BIOME_STYLE, biomeForPos } from "../biomes";
 // bleeds into neighbors. Larger = more blended; smaller = sharper biome patches.
 const FALLOFF = 9;
 
+// Half-width of the edge fade — points within this distance of the plane
+// boundary smoothly blend toward the fallback sky color so the rectangular
+// plane edge never reads as a hard seam at any zoom.
+const EDGE_FADE = 24;
+
 // The world map is WORLD_W x WORLD_H centred at (0,0) in xy sim coords.
 // Render plane lies on the xz plane (y-up), so sim.y maps to world -z.
 export const BiomeGround = ({
@@ -34,6 +39,10 @@ export const BiomeGround = ({
       color: new THREE.Color(BIOME_STYLE[biomeForPos(l.nodePos)].groundColor),
     }));
 
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const sky = new THREE.Color(0.72, 0.816, 0.894); // #b8d0e4 — matches WorldMap BG
+
     for (let i = 0; i < pos.count; i++) {
       const wx = pos.getX(i);
       const wz = pos.getZ(i);
@@ -60,9 +69,21 @@ export const BiomeGround = ({
         acc.g /= totalW;
         acc.b /= totalW;
       } else {
-        // Far from all nodes — blend into the sky/fog so map edges don't
-        // pop against the scene background when panned or zoomed out.
-        acc.setRGB(0.72, 0.816, 0.894); // #b8d0e4 — matches WorldMap BG/FOG
+        acc.copy(sky);
+      }
+
+      // Edge-fade: within EDGE_FADE of the plane boundary, crossfade to
+      // the sky color so the plane edge can never read as a rectangular seam.
+      const edgeDistX = halfW - Math.abs(wx);
+      const edgeDistZ = halfH - Math.abs(wz);
+      const edgeDist = Math.min(edgeDistX, edgeDistZ);
+      if (edgeDist < EDGE_FADE) {
+        // Smoothstep 0..1 across the fade band.
+        const t = Math.max(0, edgeDist / EDGE_FADE);
+        const k = t * t * (3 - 2 * t);
+        acc.r = acc.r * k + sky.r * (1 - k);
+        acc.g = acc.g * k + sky.g * (1 - k);
+        acc.b = acc.b * k + sky.b * (1 - k);
       }
 
       colors[i * 3] = acc.r;
