@@ -1,26 +1,26 @@
 import { Canvas } from "@react-three/fiber";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
-import { useGame } from "./store";
 import { PlayScene } from "./render/Scene";
 import { WorldMapScene } from "./render/WorldMap";
-import { HUD } from "./ui/HUD";
-import { WorldMapUI } from "./ui/WorldMapUI";
-import { ResultsScreen } from "./ui/ResultsScreen";
-import { Compendium } from "./ui/Compendium";
-import { AchievementsPanel } from "./ui/AchievementsPanel";
+import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
+import { AchievementsPanel } from "./ui/AchievementsPanel";
+import { Compendium } from "./ui/Compendium";
+import { HUD } from "./ui/HUD";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
+import { ResultsScreen } from "./ui/ResultsScreen";
+import { WorldMapUI } from "./ui/WorldMapUI";
 
 const SceneRoot = () => {
-  const screen = useGame(s => s.screen);
+  const screen = useGame((s) => s.screen);
   return screen === "worldMap" ? <WorldMapScene /> : <PlayScene />;
 };
 
 export const App = () => {
-  const screen = useGame(s => s.screen);
-  const compendiumOpen = useGame(s => s.compendiumOpen);
-  const achievementsOpen = useGame(s => s.achievementsOpen);
+  const screen = useGame((s) => s.screen);
+  const compendiumOpen = useGame((s) => s.compendiumOpen);
+  const achievementsOpen = useGame((s) => s.achievementsOpen);
   const modalOpen = compendiumOpen || achievementsOpen;
 
   return (

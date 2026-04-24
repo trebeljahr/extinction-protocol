@@ -1,27 +1,53 @@
 import { create } from "zustand";
-import type { Vec2, RunStatus, World, TowerKind, GameEvent, Tower, Tree, Rock, TargetingMode, EnemyKind } from "./sim/types";
-import { createWorld, createTower, spawnParticles, TOWER_COST, TOWER_FOOTPRINT, TREE_FOOTPRINT, TREE_REMOVE_COST, ROCK_FOOTPRINT, ROCK_REMOVE_COST } from "./sim/world";
-import { applyUpgrade, sellTower } from "./sim/upgrades";
-import { callWaveEarly as simCallWaveEarly, canCallEarly, earlyCallGoldReward, earlyCallTimerSec } from "./sim/spawner";
-import { Engine } from "./sim/loop";
-import { getLevel, LEVELS } from "./levels";
-import type { LevelConfig } from "./levels";
-import { distSq } from "./sim/vec2";
-import { segmentLength } from "./sim/path";
-import { PATH_WIDTH } from "./level";
-import {
-  loadProgress,
-  saveProgress,
-  starsForLives,
-  recordLevelResult,
-  getStars,
-  isLevelUnlocked,
-  markEncountered,
-} from "./progress";
-import type { ProgressData, Stars } from "./progress";
 import { checkAchievements } from "./achievements";
 import type { AchievementId } from "./achievements";
 import { EASTER_EGG_BY_ID } from "./easterEggs";
+import { PATH_WIDTH } from "./level";
+import { LEVELS, getLevel } from "./levels";
+import type { LevelConfig } from "./levels";
+import {
+  getStars,
+  isLevelUnlocked,
+  loadProgress,
+  markEncountered,
+  recordLevelResult,
+  saveProgress,
+  starsForLives,
+} from "./progress";
+import type { ProgressData, Stars } from "./progress";
+import { Engine } from "./sim/loop";
+import { segmentLength } from "./sim/path";
+import {
+  canCallEarly,
+  earlyCallGoldReward,
+  earlyCallTimerSec,
+  callWaveEarly as simCallWaveEarly,
+} from "./sim/spawner";
+import type {
+  EnemyKind,
+  GameEvent,
+  Rock,
+  RunStatus,
+  TargetingMode,
+  Tower,
+  TowerKind,
+  Tree,
+  Vec2,
+  World,
+} from "./sim/types";
+import { applyUpgrade, sellTower } from "./sim/upgrades";
+import { distSq } from "./sim/vec2";
+import {
+  ROCK_FOOTPRINT,
+  ROCK_REMOVE_COST,
+  TOWER_COST,
+  TOWER_FOOTPRINT,
+  TREE_FOOTPRINT,
+  TREE_REMOVE_COST,
+  createTower,
+  createWorld,
+  spawnParticles,
+} from "./sim/world";
 
 export type Screen = "worldMap" | "playing" | "results";
 
@@ -68,8 +94,11 @@ const snapshot = (
   let hp: number | null = null;
   let alive = false;
   if (inspect.id !== null) {
-    const e = w.enemies.find(x => x.id === inspect.id && x.alive);
-    if (e) { hp = e.hp; alive = true; }
+    const e = w.enemies.find((x) => x.id === inspect.id && x.alive);
+    if (e) {
+      hp = e.hp;
+      alive = true;
+    }
   }
   return {
     gold: w.gold,
@@ -144,7 +173,8 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   for (const t of world.towers) {
     if (distSq(t.pos, pos) < footprintSq) return false;
   }
-  const treeBlockSq = (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
+  const treeBlockSq =
+    (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
   for (const tr of world.trees) {
     if (distSq(tr.pos, pos) < treeBlockSq) return false;
   }
@@ -165,10 +195,10 @@ const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
 };
 
 const treeById = (world: World, id: number): Tree | null =>
-  world.trees.find(t => t.id === id) ?? null;
+  world.trees.find((t) => t.id === id) ?? null;
 
 const rockById = (world: World, id: number): Rock | null =>
-  world.rocks.find(r => r.id === id) ?? null;
+  world.rocks.find((r) => r.id === id) ?? null;
 
 type InspectState = { id: number | null; kind: EnemyKind | null; maxHp: number | null };
 
@@ -292,7 +322,7 @@ export const useGame = create<GameStore>((set, get) => ({
   rockClickCounts: {},
 
   startLevel: (id) => {
-    const level = LEVELS.find(l => l.id === id);
+    const level = LEVELS.find((l) => l.id === id);
     if (!level) return;
     if (!isLevelUnlocked(id, get().progress)) return;
     const { engine } = get();
@@ -337,7 +367,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
 
   dismissAchievementToast: (key) =>
-    set(state => ({ achievementToasts: state.achievementToasts.filter(t => t.key !== key) })),
+    set((state) => ({ achievementToasts: state.achievementToasts.filter((t) => t.key !== key) })),
 
   reset: () => {
     get().retryCurrentLevel();
@@ -378,12 +408,12 @@ export const useGame = create<GameStore>((set, get) => ({
       const kinds = new Set<EnemyKind>();
       for (const e of s.world.enemies) kinds.add(e.kind);
       const kindList = Array.from(kinds);
-      const newlySeen = kindList.filter(k => !progress.encountered[k]);
+      const newlySeen = kindList.filter((k) => !progress.encountered[k]);
       const nextProgress = markEncountered(progress, kindList);
       if (nextProgress) {
         progress = nextProgress;
         const alreadyQueued = new Set(newEnemyQueue);
-        const toQueue = newlySeen.filter(k => !alreadyQueued.has(k));
+        const toQueue = newlySeen.filter((k) => !alreadyQueued.has(k));
         if (toQueue.length > 0) newEnemyQueue = [...newEnemyQueue, ...toQueue];
         // Auto-pause on first sighting so the popup isn't buried under action.
         // Track that WE caused the pause, so dismiss won't unpause a manual pause.
@@ -398,7 +428,10 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.world.events.length > 0) {
       for (const ev of s.world.events) {
         if (ev.type === "death") {
-          progress = { ...progress, stats: { ...progress.stats, killsTotal: progress.stats.killsTotal + 1 } };
+          progress = {
+            ...progress,
+            stats: { ...progress.stats, killsTotal: progress.stats.killsTotal + 1 },
+          };
         }
         if (ev.type === "game-over") {
           const w = s.world;
@@ -406,9 +439,12 @@ export const useGame = create<GameStore>((set, get) => ({
           const prev = getStars(progress, w.levelId);
           if (ev.won && stars > prev) progress = recordLevelResult(progress, w.levelId, stars);
           if (ev.won) {
-            progress = { ...progress, stats: { ...progress.stats, winsTotal: progress.stats.winsTotal + 1 } };
+            progress = {
+              ...progress,
+              stats: { ...progress.stats, winsTotal: progress.stats.winsTotal + 1 },
+            };
           }
-          const level = LEVELS.find(l => l.id === w.levelId);
+          const level = LEVELS.find((l) => l.id === w.levelId);
           const bestStars: Stars = Math.max(prev, ev.won ? stars : 0) as Stars;
           lastResult = {
             levelId: w.levelId,
@@ -522,9 +558,10 @@ export const useGame = create<GameStore>((set, get) => ({
     w.selectedTowerId = null;
     const nextCount = (s.treeClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.treeClickCounts, [id]: nextCount };
-    const unlock = nextCount === EASTER_EGG_CLICK_THRESHOLD
-      ? tryUnlockEasterEgg(s.progress, "tree_hugger")
-      : null;
+    const unlock =
+      nextCount === EASTER_EGG_CLICK_THRESHOLD
+        ? tryUnlockEasterEgg(s.progress, "tree_hugger")
+        : null;
     if (unlock) {
       spawnParticles(w, tree.pos, 18, "#8ecf6b", [2.5, 5.5], 0.55);
       spawnParticles(w, tree.pos, 10, "#c8f2a4", [1.5, 3.5], 0.75);
@@ -536,7 +573,12 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedRockId: null,
       inspectedEnemy: emptyInspect,
       treeClickCounts: nextCounts,
-      ...(unlock ? { progress: unlock.progress, achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }] } : {}),
+      ...(unlock
+        ? {
+            progress: unlock.progress,
+            achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }],
+          }
+        : {}),
       ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },
@@ -549,10 +591,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const id = s.selectedTreeId;
     if (id === null || w.status !== "running") return;
     const tree = treeById(w, id);
-    if (!tree) { set({ selectedTreeId: null }); return; }
+    if (!tree) {
+      set({ selectedTreeId: null });
+      return;
+    }
     if (w.gold < TREE_REMOVE_COST) return;
     w.gold -= TREE_REMOVE_COST;
-    w.trees = w.trees.filter(t => t.id !== id);
+    w.trees = w.trees.filter((t) => t.id !== id);
     const newTreeVersion = s.treeVersion + 1;
     set({
       treeVersion: newTreeVersion,
@@ -570,9 +615,10 @@ export const useGame = create<GameStore>((set, get) => ({
     w.selectedTowerId = null;
     const nextCount = (s.rockClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.rockClickCounts, [id]: nextCount };
-    const unlock = nextCount === EASTER_EGG_CLICK_THRESHOLD
-      ? tryUnlockEasterEgg(s.progress, "diamond_in_the_rough")
-      : null;
+    const unlock =
+      nextCount === EASTER_EGG_CLICK_THRESHOLD
+        ? tryUnlockEasterEgg(s.progress, "diamond_in_the_rough")
+        : null;
     if (unlock) {
       spawnParticles(w, rock.pos, 22, "#e8faff", [3, 6], 0.7);
       spawnParticles(w, rock.pos, 12, "#aaf0ff", [1.5, 3.5], 0.9);
@@ -584,7 +630,12 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedRockId: id,
       inspectedEnemy: emptyInspect,
       rockClickCounts: nextCounts,
-      ...(unlock ? { progress: unlock.progress, achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }] } : {}),
+      ...(unlock
+        ? {
+            progress: unlock.progress,
+            achievementToasts: [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }],
+          }
+        : {}),
       ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },
@@ -595,7 +646,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const w = s.world;
     if (w.status !== "running" && w.status !== "paused") return;
-    const egg = w.easterEggs.find(e => e.id === id);
+    const egg = w.easterEggs.find((e) => e.id === id);
     if (!egg) return;
     const def = EASTER_EGG_BY_ID[egg.defId];
     if (!def) return;
@@ -625,7 +676,10 @@ export const useGame = create<GameStore>((set, get) => ({
       if (unlock) {
         saveProgress(unlock.progress);
         updates.progress = unlock.progress;
-        updates.achievementToasts = [...s.achievementToasts, { id: unlock.id, key: nextToastKey++ }];
+        updates.achievementToasts = [
+          ...s.achievementToasts,
+          { id: unlock.id, key: nextToastKey++ },
+        ];
       }
     }
     set(updates);
@@ -637,10 +691,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const id = s.selectedRockId;
     if (id === null || w.status !== "running") return;
     const rock = rockById(w, id);
-    if (!rock) { set({ selectedRockId: null }); return; }
+    if (!rock) {
+      set({ selectedRockId: null });
+      return;
+    }
     if (w.gold < ROCK_REMOVE_COST) return;
     w.gold -= ROCK_REMOVE_COST;
-    w.rocks = w.rocks.filter(r => r.id !== id);
+    w.rocks = w.rocks.filter((r) => r.id !== id);
     const newTreeVersion = s.treeVersion + 1;
     set({
       treeVersion: newTreeVersion,
@@ -672,7 +729,7 @@ export const useGame = create<GameStore>((set, get) => ({
     // the user selects something else (another tower, tree, rock), not
     // when they click open ground.
     if (s.selectedKind === null && w.selectedTowerId !== null) {
-      const sel = w.towers.find(t => t.id === w.selectedTowerId);
+      const sel = w.towers.find((t) => t.id === w.selectedTowerId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") {
         const dx = pos.x - sel.pos.x;
         const dy = pos.y - sel.pos.y;
@@ -739,28 +796,34 @@ export const useGame = create<GameStore>((set, get) => ({
   upgradeSelected: (branch) => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
       const newVersion = s.towerVersion + 1;
-      set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy) });
+      set({
+        towerVersion: newVersion,
+        ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+      });
     }
   },
 
   sellSelected: () => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
     if (!t) return;
     sellTower(s.world, t);
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy) });
+    set({
+      towerVersion: newVersion,
+      ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+    });
   },
 
   setTargetingMode: (mode) => {
     const s = get();
     if (s.world.selectedTowerId === null) return;
-    const t = s.world.towers.find(x => x.id === s.world.selectedTowerId);
+    const t = s.world.towers.find((x) => x.id === s.world.selectedTowerId);
     if (!t) return;
     if (t.targetingMode === mode) return;
     t.targetingMode = mode;
@@ -779,9 +842,9 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   onEvent: (fn) => {
-    set(state => ({ eventListeners: [...state.eventListeners, fn] }));
+    set((state) => ({ eventListeners: [...state.eventListeners, fn] }));
     return () => {
-      set(state => ({ eventListeners: state.eventListeners.filter(f => f !== fn) }));
+      set((state) => ({ eventListeners: state.eventListeners.filter((f) => f !== fn) }));
     };
   },
 }));

@@ -1,6 +1,6 @@
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import { useGame } from "../store";
 
 const MAX_PROJECTILES = 512;
@@ -16,7 +16,8 @@ export const ProjectileMesh = () => {
     const splash = splashRef.current;
     if (!direct || !splash) return;
 
-    let d = 0, s = 0;
+    let d = 0;
+    let s = 0;
     for (const p of world.projectiles) {
       if (p.kind === "splash") {
         if (s < MAX_PROJECTILES) {

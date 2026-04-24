@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useGame } from "../store";
 import { audio } from "../audio/AudioManager";
 import { getLevel } from "../levels";
+import { useGame } from "../store";
 
 type Props = {
   onResume: () => void;
@@ -20,15 +20,19 @@ const loadPersisted = () => {
 };
 
 const savePersisted = (s: { sfx: number; music: number; muted: boolean }) => {
-  try { localStorage.setItem(VOL_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(VOL_KEY, JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
 };
 
 export const PauseMenu = ({ onResume }: Props) => {
-  const selectedLevelId = useGame(s => s.selectedLevelId);
-  const goToWorldMap = useGame(s => s.goToWorldMap);
-  const retry = useGame(s => s.retryCurrentLevel);
-  const setCompendiumOpen = useGame(s => s.setCompendiumOpen);
-  const setAchievementsOpen = useGame(s => s.setAchievementsOpen);
+  const selectedLevelId = useGame((s) => s.selectedLevelId);
+  const goToWorldMap = useGame((s) => s.goToWorldMap);
+  const retry = useGame((s) => s.retryCurrentLevel);
+  const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
+  const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
 
   const [sfx, setSfx] = useState(audio.getSfxVolume());
   const [music, setMusic] = useState(audio.getMusicVolume());
@@ -86,8 +90,12 @@ export const PauseMenu = ({ onResume }: Props) => {
             Progress on <strong>{levelName}</strong> will be lost.
           </div>
           <div className="pause-actions">
-            <button className="btn" onClick={goToWorldMap}>Return</button>
-            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>Cancel</button>
+            <button className="btn" onClick={goToWorldMap}>
+              Return
+            </button>
+            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
           </div>
         </div>
       </div>
@@ -113,7 +121,9 @@ export const PauseMenu = ({ onResume }: Props) => {
             </button>
           </div>
           <div className="pause-row">
-            <label className="pause-label" htmlFor="sfx-vol">SFX</label>
+            <label className="pause-label" htmlFor="sfx-vol">
+              SFX
+            </label>
             <input
               id="sfx-vol"
               type="range"
@@ -121,14 +131,16 @@ export const PauseMenu = ({ onResume }: Props) => {
               max={1}
               step={0.01}
               value={sfx}
-              onChange={e => updateSfx(Number(e.target.value))}
+              onChange={(e) => updateSfx(Number(e.target.value))}
               disabled={muted}
               className="pause-slider"
             />
             <span className="pause-value">{Math.round(sfx * 100)}</span>
           </div>
           <div className="pause-row">
-            <label className="pause-label" htmlFor="music-vol">Music</label>
+            <label className="pause-label" htmlFor="music-vol">
+              Music
+            </label>
             <input
               id="music-vol"
               type="range"
@@ -136,7 +148,7 @@ export const PauseMenu = ({ onResume }: Props) => {
               max={1}
               step={0.01}
               value={music}
-              onChange={e => updateMusic(Number(e.target.value))}
+              onChange={(e) => updateMusic(Number(e.target.value))}
               disabled={muted}
               className="pause-slider"
             />
@@ -145,11 +157,21 @@ export const PauseMenu = ({ onResume }: Props) => {
         </section>
 
         <div className="pause-actions">
-          <button className="btn" onClick={onResume}>Resume (Esc)</button>
-          <button className="btn btn-secondary" onClick={retry}>Restart (R)</button>
-          <button className="btn btn-secondary" onClick={() => setCompendiumOpen(true)}>Compendium</button>
-          <button className="btn btn-secondary" onClick={() => setAchievementsOpen(true)}>Achievements</button>
-          <button className="btn btn-secondary" onClick={() => setConfirming(true)}>World Map</button>
+          <button className="btn" onClick={onResume}>
+            Resume (Esc)
+          </button>
+          <button className="btn btn-secondary" onClick={retry}>
+            Restart (R)
+          </button>
+          <button className="btn btn-secondary" onClick={() => setCompendiumOpen(true)}>
+            Compendium
+          </button>
+          <button className="btn btn-secondary" onClick={() => setAchievementsOpen(true)}>
+            Achievements
+          </button>
+          <button className="btn btn-secondary" onClick={() => setConfirming(true)}>
+            World Map
+          </button>
         </div>
       </div>
     </div>

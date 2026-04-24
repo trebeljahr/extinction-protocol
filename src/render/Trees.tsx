@@ -1,11 +1,11 @@
+import { useGLTF } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { useGLTF } from "@react-three/drei";
-import { ThreeEvent } from "@react-three/fiber";
-import { useGame } from "../store";
-import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
-import type { Tree } from "../sim/types";
 import { BIOME_TREE_URLS } from "../biomes";
+import type { Tree } from "../sim/types";
+import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
+import { useGame } from "../store";
 
 type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
 type VariantSource = { parts: Part[]; minY: number };
@@ -25,15 +25,15 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   const scenes = [a.scene, b.scene, c.scene, d.scene];
   return useMemo(
     () =>
-      scenes.map(scene => {
+      scenes.map((scene) => {
         scene.updateMatrixWorld(true);
         const parts: Part[] = [];
-        let minY = Infinity;
-        scene.traverse(o => {
+        let minY = Number.POSITIVE_INFINITY;
+        scene.traverse((o) => {
           const m = o as THREE.Mesh;
           if (!m.isMesh) return;
           const mats = Array.isArray(m.material) ? m.material : [m.material];
-          mats.forEach(mat => {
+          mats.forEach((mat) => {
             const geom = m.geometry.clone();
             geom.applyMatrix4(m.matrixWorld);
             geom.computeBoundingBox();
@@ -42,20 +42,20 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
           });
         });
         if (parts.length === 0) return null;
-        return { parts, minY: isFinite(minY) ? minY : 0 };
+        return { parts, minY: Number.isFinite(minY) ? minY : 0 };
       }),
     scenes,
   );
 };
 
 export const Trees = () => {
-  const treeVersion = useGame(s => s.ui.treeVersion);
+  const treeVersion = useGame((s) => s.ui.treeVersion);
   void treeVersion;
   const trees = useGame.getState().world.trees;
-  const biome = useGame(s => s.world.biome);
-  const gold = useGame(s => s.ui.gold);
-  const status = useGame(s => s.ui.status);
-  const selectedTreeId = useGame(s => s.selectedTreeId);
+  const biome = useGame((s) => s.world.biome);
+  const gold = useGame((s) => s.ui.gold);
+  const status = useGame((s) => s.ui.status);
+  const selectedTreeId = useGame((s) => s.selectedTreeId);
   const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
@@ -66,19 +66,22 @@ export const Trees = () => {
   }, [trees, treeVersion]);
 
   useEffect(() => {
-    if (hoveredId !== null && !trees.some(t => t.id === hoveredId)) setHoveredId(null);
+    if (hoveredId !== null && !trees.some((t) => t.id === hoveredId)) setHoveredId(null);
   }, [trees, hoveredId]);
 
   const canAfford = gold >= TREE_REMOVE_COST;
   const running = status === "running";
-  const hovered = hoveredId !== null ? trees.find(t => t.id === hoveredId) ?? null : null;
-  const selected = selectedTreeId !== null ? trees.find(t => t.id === selectedTreeId) ?? null : null;
+  const hovered = hoveredId !== null ? (trees.find((t) => t.id === hoveredId) ?? null) : null;
+  const selected =
+    selectedTreeId !== null ? (trees.find((t) => t.id === selectedTreeId) ?? null) : null;
 
   useEffect(() => {
     if (hovered && running) {
       const prev = document.body.style.cursor;
       document.body.style.cursor = "pointer";
-      return () => { document.body.style.cursor = prev; };
+      return () => {
+        document.body.style.cursor = prev;
+      };
     }
   }, [hovered, running]);
 
@@ -90,11 +93,7 @@ export const Trees = () => {
         return <VariantGroup key={vi} bucket={bucket} source={src} />;
       })}
 
-      <TreeHitTargets
-        trees={trees}
-        hoveredId={hoveredId}
-        setHoveredId={setHoveredId}
-      />
+      <TreeHitTargets trees={trees} hoveredId={hoveredId} setHoveredId={setHoveredId} />
 
       {hovered && hovered.id !== selectedTreeId && (
         <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
@@ -113,12 +112,7 @@ export const Trees = () => {
         <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.62, 0.9, 40]} />
-            <meshBasicMaterial
-              color="#ffd66a"
-              transparent
-              opacity={0.95}
-              side={THREE.DoubleSide}
-            />
+            <meshBasicMaterial color="#ffd66a" transparent opacity={0.95} side={THREE.DoubleSide} />
           </mesh>
         </group>
       )}
@@ -157,7 +151,9 @@ const VariantGroup = ({
       {source.parts.map((part, pi) => (
         <instancedMesh
           key={pi}
-          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          ref={(el: THREE.InstancedMesh | null) => {
+            partRefs.current[pi] = el;
+          }}
           args={[part.geom, part.material, Math.max(1, bucket.length)]}
           castShadow
           receiveShadow
@@ -186,7 +182,13 @@ const TreeHitTargets = ({
     () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     [],
   );
-  useEffect(() => () => { geom.dispose(); material.dispose(); }, [geom, material]);
+  useEffect(
+    () => () => {
+      geom.dispose();
+      material.dispose();
+    },
+    [geom, material],
+  );
 
   useEffect(() => {
     const im = ref.current;
@@ -220,7 +222,7 @@ const TreeHitTargets = ({
   };
 
   const onOut = () => {
-    if (hoveredId !== null && trees.some(t => t.id === hoveredId)) setHoveredId(null);
+    if (hoveredId !== null && trees.some((t) => t.id === hoveredId)) setHoveredId(null);
   };
 
   if (trees.length === 0) return null;

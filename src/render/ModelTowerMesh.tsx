@@ -1,9 +1,9 @@
-import { useRef, useMemo, useEffect } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useGame } from "../store";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import type { TowerKind } from "../sim/types";
+import { useGame } from "../store";
 
 type Props = {
   kind: TowerKind;
@@ -15,7 +15,12 @@ type Props = {
 };
 
 export const ModelTowerMesh = ({
-  kind, url, targetSize, yOffset = 0, baseRotY = 0, idleSpin = false,
+  kind,
+  url,
+  targetSize,
+  yOffset = 0,
+  baseRotY = 0,
+  idleSpin = false,
 }: Props) => {
   const { scene } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
@@ -35,7 +40,7 @@ export const ModelTowerMesh = ({
   }, [scene, targetSize]);
 
   useEffect(() => {
-    scene.traverse(obj => {
+    scene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const m = obj as THREE.Mesh;
         m.castShadow = true;
@@ -44,12 +49,15 @@ export const ModelTowerMesh = ({
     });
   }, [scene]);
 
-  useEffect(() => () => {
-    const parent = groupRef.current;
-    if (!parent) return;
-    for (const [, item] of itemsRef.current) parent.remove(item);
-    itemsRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      const parent = groupRef.current;
+      if (!parent) return;
+      for (const [, item] of itemsRef.current) parent.remove(item);
+      itemsRef.current.clear();
+    },
+    [],
+  );
 
   useFrame(() => {
     const parent = groupRef.current;
@@ -68,11 +76,7 @@ export const ModelTowerMesh = ({
         itemsRef.current.set(t.id, item);
       }
 
-      item.position.set(
-        t.pos.x - centerXZ.x,
-        yOffset - scaledMinY,
-        -t.pos.y - centerXZ.z,
-      );
+      item.position.set(t.pos.x - centerXZ.x, yOffset - scaledMinY, -t.pos.y - centerXZ.z);
 
       let yaw = 0;
       if (idleSpin) {
@@ -82,7 +86,7 @@ export const ModelTowerMesh = ({
         const dy = t.targetSpot.y - t.pos.y;
         yaw = Math.atan2(dx, -dy);
       } else if (t.targetId !== null) {
-        const target = world.enemies.find(e => e.id === t.targetId && e.alive);
+        const target = world.enemies.find((e) => e.id === t.targetId && e.alive);
         if (target) {
           const dx = target.pos.x - t.pos.x;
           const dy = target.pos.y - t.pos.y;

@@ -1,9 +1,15 @@
-import type { World } from "./types";
-import { spawnerTick, checkRunEnd } from "./spawner";
+import {
+  updateBeams,
+  updateCryoWaves,
+  updateExplosions,
+  updateParticles,
+  updateShake,
+} from "./effects";
 import { updateEnemies } from "./enemies";
-import { updateTowers } from "./towers";
 import { updateProjectiles } from "./projectiles";
-import { updateBeams, updateExplosions, updateCryoWaves, updateParticles, updateShake } from "./effects";
+import { checkRunEnd, spawnerTick } from "./spawner";
+import { updateTowers } from "./towers";
+import type { World } from "./types";
 import { updateEasterEggs } from "./world";
 
 export const TICK_RATE = 60;

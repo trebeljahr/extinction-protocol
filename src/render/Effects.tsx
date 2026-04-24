@@ -1,6 +1,6 @@
-import { useRef, useMemo, useEffect } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import { useGame } from "../store";
 
 const MAX_PARTICLES = 1024;
@@ -182,7 +182,10 @@ export const Effects = () => {
     let idx = 0;
     for (const b of world.beams) {
       if (idx >= MAX_BEAMS) break;
-      if (b.points.length < 2 || b.points.length > MAX_BEAM_POINTS) { idx++; continue; }
+      if (b.points.length < 2 || b.points.length > MAX_BEAM_POINTS) {
+        idx++;
+        continue;
+      }
 
       const pair = beamPairs[idx];
       const coreArr = pair.core.line.geometry.attributes.position.array as Float32Array;
@@ -226,12 +229,16 @@ export const Effects = () => {
           const taper = Math.sin(t * Math.PI);
           const nCore = rng() * BEAM_NOISE * taper;
           const nHalo = rng() * BEAM_NOISE * 1.9 * taper;
-          writePoint(coreArr, coreVi++,
+          writePoint(
+            coreArr,
+            coreVi++,
             baseX + perpX * nCore,
             0.85 + rng() * 0.05 * taper,
             -baseY + perpZ * nCore,
           );
-          writePoint(haloArr, haloVi++,
+          writePoint(
+            haloArr,
+            haloVi++,
             baseX + perpX * nHalo,
             0.95 + rng() * 0.12 * taper,
             -baseY + perpZ * nHalo,
@@ -296,7 +303,13 @@ export const Effects = () => {
 
       <instancedMesh ref={cryoWaveRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
         <ringGeometry args={[0.92, 1.0, 48]} />
-        <meshBasicMaterial toneMapped={false} transparent opacity={0.35} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial
+          toneMapped={false}
+          transparent
+          opacity={0.35}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
       </instancedMesh>
 
       <group ref={beamsGroupRef} />

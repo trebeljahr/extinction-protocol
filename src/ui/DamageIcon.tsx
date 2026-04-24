@@ -11,13 +11,7 @@ type Props = {
 export const DamageIcon = ({ type, size = 16, title, color }: Props) => {
   const fill = color ?? DAMAGE_TYPE_COLOR[type];
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      role="img"
-      aria-label={title ?? type}
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={title ?? type}>
       {title && <title>{title}</title>}
       {type === "kinetic" && <KineticPath fill={fill} />}
       {type === "electric" && <ElectricPath fill={fill} />}
@@ -91,7 +85,13 @@ const ExplosivePath = ({ fill }: { fill: string }) => {
   }
   return (
     <g>
-      <polygon points={pts.join(" ")} fill={fill} stroke={fill} strokeWidth="0.6" strokeLinejoin="round" />
+      <polygon
+        points={pts.join(" ")}
+        fill={fill}
+        stroke={fill}
+        strokeWidth="0.6"
+        strokeLinejoin="round"
+      />
       <circle cx={cx} cy={cy} r={2.4} fill="#fff" opacity={0.7} />
     </g>
   );

@@ -1,7 +1,7 @@
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { EnemyKind } from "../sim/types";
 import { ENEMY_MODEL } from "../sim/world";
@@ -12,7 +12,7 @@ type Props = {
 };
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
-  clips.find(c => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
+  clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
 const Creature = ({ kind }: { kind: EnemyKind }) => {
   const cfg = ENEMY_MODEL[kind];
@@ -28,7 +28,7 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
     const s = cfg.targetSize / maxDim;
     cloned.scale.setScalar(s);
     cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
-    cloned.traverse(o => {
+    cloned.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.castShadow = true;
@@ -39,7 +39,7 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
       // main PlayScene renderer and shared state gets stale when we
       // use the same material in this separate Canvas.
       if (Array.isArray(m.material)) {
-        m.material = m.material.map(mm => mm.clone());
+        m.material = m.material.map((mm) => mm.clone());
       } else if (m.material) {
         m.material = (m.material as THREE.Material).clone();
       }
@@ -57,7 +57,10 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
       gltf.animations[0];
     if (clip) mx.clipAction(clip).play();
     mixerRef.current = mx;
-    return () => { mx.stopAllAction(); mixerRef.current = null; };
+    return () => {
+      mx.stopAllAction();
+      mixerRef.current = null;
+    };
   }, [obj, gltf.animations, cfg.clip]);
 
   useFrame((_, delta) => {
@@ -68,7 +71,7 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
 };
 
 export const EnemyPreview = ({ kind, size = 360 }: Props) => {
-  const span = (ENEMY_MODEL[kind].targetSize + 0.4);
+  const span = ENEMY_MODEL[kind].targetSize + 0.4;
   const target: [number, number, number] = [0, span * 0.35, 0];
   return (
     <div className="enemy-preview" style={{ width: size, height: size }}>

@@ -23,3 +23,6 @@ vite.config.js
 # Tauri
 src-tauri/target
 src-tauri/gen
+# claude code
+.claude/settings.local.json
+.claude/worktrees/

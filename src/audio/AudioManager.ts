@@ -25,7 +25,10 @@ export class AudioManager {
   async init() {
     if (this.ctx) return;
     try {
-      this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      this.ctx = new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      )();
     } catch {
       return;
     }
@@ -67,20 +70,20 @@ export class AudioManager {
     await this.init();
     const base = import.meta.env.BASE_URL ?? "/";
     const entries: [string, string][] = [
-      ["shoot-pulse",  `${base}audio/shoot-pulse.mp3`],
-      ["shoot-chain",  `${base}audio/shoot-chain.mp3`],
-      ["shoot-cryo",   `${base}audio/shoot-cryo.mp3`],
+      ["shoot-pulse", `${base}audio/shoot-pulse.mp3`],
+      ["shoot-chain", `${base}audio/shoot-chain.mp3`],
+      ["shoot-cryo", `${base}audio/shoot-cryo.mp3`],
       ["shoot-mortar", `${base}audio/shoot-mortar.mp3`],
-      ["impact",       `${base}audio/impact.mp3`],
-      ["death",        `${base}audio/death.mp3`],
-      ["wave-start",   `${base}audio/wave-start.mp3`],
-      ["wave-clear",   `${base}audio/wave-clear.mp3`],
-      ["life-lost",    `${base}audio/life-lost.mp3`],
-      ["game-over",    `${base}audio/game-over.mp3`],
-      ["upgrade",      `${base}audio/upgrade.mp3`],
-      ["star",         `${base}audio/star.mp3`],
+      ["impact", `${base}audio/impact.mp3`],
+      ["death", `${base}audio/death.mp3`],
+      ["wave-start", `${base}audio/wave-start.mp3`],
+      ["wave-clear", `${base}audio/wave-clear.mp3`],
+      ["life-lost", `${base}audio/life-lost.mp3`],
+      ["game-over", `${base}audio/game-over.mp3`],
+      ["upgrade", `${base}audio/upgrade.mp3`],
+      ["star", `${base}audio/star.mp3`],
       ["level-select", `${base}audio/level-select.mp3`],
-      ["music",        `${base}audio/music-ambient.mp3`],
+      ["music", `${base}audio/music-ambient.mp3`],
     ];
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));
   }
@@ -126,7 +129,11 @@ export class AudioManager {
       const stopAt = ctxNow + maxDurationSec;
       gain.gain.setValueAtTime(gain.gain.value, fadeStart);
       gain.gain.linearRampToValueAtTime(0, stopAt);
-      try { src.stop(stopAt); } catch { /* ok */ }
+      try {
+        src.stop(stopAt);
+      } catch {
+        /* ok */
+      }
     }
   }
 
@@ -138,14 +145,14 @@ export class AudioManager {
       return;
     }
     const map: Record<TowerKind, [string, number, number, number]> = {
-      pulse:  ["shoot-pulse",  0.35, 60,  0.7],
-      chain:  ["shoot-chain",  0.35, 90,  0.9],
-      cryo:   ["shoot-cryo",   0.45, 150, 1.1],
+      pulse: ["shoot-pulse", 0.35, 60, 0.7],
+      chain: ["shoot-chain", 0.35, 90, 0.9],
+      cryo: ["shoot-cryo", 0.45, 150, 1.1],
       mortar: ["shoot-mortar", 0.55, 200, 1.4],
-      flame:  ["shoot-mortar", 0.3,  80,  0.6], // unused — see early return
+      flame: ["shoot-mortar", 0.3, 80, 0.6], // unused — see early return
       // Hive volley — pulse sfx at lower volume; one tick can fire up to
       // 3 drones, so we don't want a big stack.
-      hive:   ["shoot-pulse",  0.28, 80,  0.7],
+      hive: ["shoot-pulse", 0.28, 80, 0.7],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, vol, cd, maxDur);
@@ -194,7 +201,9 @@ export class AudioManager {
 
     src.connect(bp).connect(lp).connect(gain).connect(this.sfxGain);
     this.activeWhooshes.add(src);
-    src.onended = () => { this.activeWhooshes.delete(src); };
+    src.onended = () => {
+      this.activeWhooshes.delete(src);
+    };
     src.start(now);
     src.stop(now + durationSec);
   }
@@ -214,7 +223,11 @@ export class AudioManager {
 
   stopMusic() {
     if (this.music) {
-      try { this.music.stop(); } catch { /* ok */ }
+      try {
+        this.music.stop();
+      } catch {
+        /* ok */
+      }
       this.music = null;
     }
   }
@@ -223,7 +236,11 @@ export class AudioManager {
     for (const [key, set] of this.activeVoices.entries()) {
       if (key === except) continue;
       for (const src of set) {
-        try { src.stop(); } catch { /* ok */ }
+        try {
+          src.stop();
+        } catch {
+          /* ok */
+        }
       }
       set.clear();
     }
@@ -234,21 +251,27 @@ export class AudioManager {
     if (this.master) this.master.gain.value = v ? 0 : 1;
   }
 
-  isMuted() { return this.muted; }
+  isMuted() {
+    return this.muted;
+  }
 
   setSfxVolume(v: number) {
     this.sfxVolume = Math.max(0, Math.min(1, v));
     if (this.sfxGain) this.sfxGain.gain.value = this.sfxVolume;
   }
 
-  getSfxVolume() { return this.sfxVolume; }
+  getSfxVolume() {
+    return this.sfxVolume;
+  }
 
   setMusicVolume(v: number) {
     this.musicVolume = Math.max(0, Math.min(1, v));
     if (this.musicGain) this.musicGain.gain.value = this.musicVolume;
   }
 
-  getMusicVolume() { return this.musicVolume; }
+  getMusicVolume() {
+    return this.musicVolume;
+  }
 }
 
 export const audio = new AudioManager();

@@ -1,8 +1,8 @@
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { useGame } from "../store";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import type { Tower } from "../sim/types";
+import { useGame } from "../store";
 
 // Overlay VFX for towers. Drives "charge up" visuals off `cooldown` progress:
 //   charge = 1 - cooldown / (1/fireRate)   -> 0 just fired, 1 ready to fire.
@@ -21,7 +21,7 @@ const chargeProgress = (tower: Tower): number => {
 };
 
 export const TowerVfx = () => {
-  const chainOrbRef  = useRef<THREE.InstancedMesh>(null);
+  const chainOrbRef = useRef<THREE.InstancedMesh>(null);
   const chainArcARef = useRef<THREE.InstancedMesh>(null);
   const chainArcBRef = useRef<THREE.InstancedMesh>(null);
 
@@ -42,7 +42,7 @@ export const TowerVfx = () => {
       const charge = chargeProgress(t);
       // Flicker: small jitter so it reads as "electrified", ramps with charge.
       const flicker = 0.55 + 0.45 * Math.sin(time * 22 + t.id * 3.1);
-      const baseGlow = 0.25;                  // ambient, visible when idle
+      const baseGlow = 0.25; // ambient, visible when idle
       const intensity = baseGlow + (1 - baseGlow) * charge * flicker;
       const orbY = 1.35;
 
@@ -69,7 +69,7 @@ export const TowerVfx = () => {
       dummy.scale.setScalar(arcScale);
       dummy.updateMatrix();
       chainArcBRef.current!.setMatrixAt(chainCount, dummy.matrix);
-      color.setRGB(0.60 * intensity, 0.95 * intensity, 1.0 * intensity);
+      color.setRGB(0.6 * intensity, 0.95 * intensity, 1.0 * intensity);
       chainArcBRef.current!.setColorAt(chainCount, color);
 
       chainCount++;

@@ -1,22 +1,22 @@
-import type { World, EnemyKind, WaveSpec, WaveArchetype } from "./types";
-import { spawnEnemy, emit } from "./world";
+import type { EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
+import { emit, spawnEnemy } from "./world";
 
 export type { WaveArchetype };
 
 export const WAVE_ARCHETYPE_LABEL: Record<WaveArchetype, string> = {
-  intro:  "Intro",
-  mixed:  "Mixed",
-  swarm:  "Swarm rush",
-  heavy:  "Armored push",
-  chaos:  "Chaos",
+  intro: "Intro",
+  mixed: "Mixed",
+  swarm: "Swarm rush",
+  heavy: "Armored push",
+  chaos: "Chaos",
 };
 
 export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
-  intro:  "",
-  mixed:  "balanced composition",
-  swarm:  "favors AoE towers",
-  heavy:  "favors single-target",
-  chaos:  "bring everything",
+  intro: "",
+  mixed: "balanced composition",
+  swarm: "favors AoE towers",
+  heavy: "favors single-target",
+  chaos: "bring everything",
 };
 
 const inferArchetype = (spec: WaveSpec): WaveArchetype => {
@@ -66,8 +66,7 @@ const EARLY_CALL_THRESHOLD = 1 / 2;
 const MIDWAVE_PER_ENEMY_SEC = 0.4;
 const MIDWAVE_BUFFER_SEC = 1.0;
 
-const remainingEnemies = (world: World) =>
-  world.spawnQueue.length + world.enemies.length;
+const remainingEnemies = (world: World) => world.spawnQueue.length + world.enemies.length;
 
 const midwaveThresholdCrossed = (world: World): boolean => {
   if (!world.waveActive) return false;
@@ -92,8 +91,7 @@ const startWave = (world: World) => {
   emit(world, { type: "wave-start", wave: world.wave });
 };
 
-const earlyCallBase = (world: World): number =>
-  world.wave === 0 ? 0 : 15 + world.wave;
+const earlyCallBase = (world: World): number => (world.wave === 0 ? 0 : 15 + world.wave);
 
 export const earlyCallBonus = (world: World): number => {
   const base = earlyCallBase(world);

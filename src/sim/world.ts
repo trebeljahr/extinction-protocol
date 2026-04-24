@@ -1,27 +1,27 @@
+import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
+import { EASTER_EGG_DEFS } from "../easterEggs";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
+import type { LevelConfig } from "../levels";
+import { samplePath } from "./path";
 import type {
-  Vec2,
-  World,
-  Enemy,
-  EnemyKind,
-  Tower,
-  TowerKind,
-  Tree,
-  Rock,
-  Projectile,
-  ProjectileKind,
   Beam,
-  Explosion,
   CryoWave,
-  GameEvent,
   DamageType,
   EasterEgg,
   EasterEggScheduleEntry,
+  Enemy,
+  EnemyKind,
+  Explosion,
+  GameEvent,
+  Projectile,
+  ProjectileKind,
+  Rock,
+  Tower,
+  TowerKind,
+  Tree,
+  Vec2,
+  World,
 } from "./types";
-import { EASTER_EGG_DEFS } from "../easterEggs";
-import type { LevelConfig } from "../levels";
-import { samplePath } from "./path";
-import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
-import { BIOME_LAYERS, biomeForPos, type Biome } from "../biomes";
 
 export const STARTING_LIVES = 20;
 
@@ -43,14 +43,21 @@ const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
     a |= 0;
-    a = (a + 0x6D2B79F5) | 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
 
-const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+const distPointToSegSq = (
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+) => {
   const abx = bx - ax;
   const aby = by - ay;
   const apx = px - ax;
@@ -64,7 +71,11 @@ const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: nu
   return dx * dx + dy * dy;
 };
 
-const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tree[]; nextId: number } => {
+const buildTrees = (
+  paths: Vec2[][],
+  seed: number,
+  firstId: number,
+): { trees: Tree[]; nextId: number } => {
   const rng = mulberry32(seed);
   const trees: Tree[] = [];
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
@@ -90,7 +101,10 @@ const buildTrees = (paths: Vec2[][], seed: number, firstId: number): { trees: Tr
     for (const t of trees) {
       const dx = t.pos.x - x;
       const dy = t.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
+      if (dx * dx + dy * dy < spacingSq) {
+        blocked = true;
+        break;
+      }
     }
     if (blocked) continue;
     trees.push({
@@ -145,13 +159,19 @@ const buildRocks = (
       for (const tr of trees) {
         const dx = tr.pos.x - x;
         const dy = tr.pos.y - y;
-        if (dx * dx + dy * dy < treeSpacingSq) { blocked = true; break; }
+        if (dx * dx + dy * dy < treeSpacingSq) {
+          blocked = true;
+          break;
+        }
       }
       if (blocked) continue;
       for (const r of rocks) {
         const dx = r.pos.x - x;
         const dy = r.pos.y - y;
-        if (dx * dx + dy * dy < rockSpacingSq) { blocked = true; break; }
+        if (dx * dx + dy * dy < rockSpacingSq) {
+          blocked = true;
+          break;
+        }
       }
       if (blocked) continue;
 
@@ -179,7 +199,7 @@ const buildEasterEggs = (
 ): { eggs: EasterEgg[]; nextId: number } => {
   // Only consider statically-placed eggs here — moving ones spawn on a
   // schedule via updateEasterEggs.
-  const matching = EASTER_EGG_DEFS.filter(d => d.biomes.includes(biome) && !d.motion);
+  const matching = EASTER_EGG_DEFS.filter((d) => d.biomes.includes(biome) && !d.motion);
   if (matching.length === 0) return { eggs: [], nextId: firstId };
   const rng = mulberry32(seed);
   const def = matching[Math.floor(rng() * matching.length)];
@@ -196,20 +216,29 @@ const buildEasterEggs = (
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
         if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true; break;
+          blocked = true;
+          break;
         }
       }
       if (blocked) break;
     }
     if (blocked) continue;
     for (const t of trees) {
-      const dx = t.pos.x - x, dy = t.pos.y - y;
-      if (dx * dx + dy * dy < minGapSq) { blocked = true; break; }
+      const dx = t.pos.x - x;
+      const dy = t.pos.y - y;
+      if (dx * dx + dy * dy < minGapSq) {
+        blocked = true;
+        break;
+      }
     }
     if (blocked) continue;
     for (const r of rocks) {
-      const dx = r.pos.x - x, dy = r.pos.y - y;
-      if (dx * dx + dy * dy < minGapSq) { blocked = true; break; }
+      const dx = r.pos.x - x;
+      const dy = r.pos.y - y;
+      if (dx * dx + dy * dy < minGapSq) {
+        blocked = true;
+        break;
+      }
     }
     if (blocked) continue;
     const egg: EasterEgg = {
@@ -230,7 +259,7 @@ const buildEasterEggs = (
 
 const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEntry[] => {
   const matching = EASTER_EGG_DEFS.filter(
-    d => d.biomes.includes(biome) && d.scheduled !== undefined,
+    (d) => d.biomes.includes(biome) && d.scheduled !== undefined,
   );
   if (matching.length === 0) return [];
   const rng = mulberry32(seed);
@@ -249,7 +278,14 @@ export const createWorld = (level: LevelConfig): World => {
   const biome = biomeForPos(level.nodePos);
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
   const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees);
-  const { eggs, nextId } = buildEasterEggs(biome, level.paths, trees, rocks, level.id * 2311 + 47, afterRocks);
+  const { eggs, nextId } = buildEasterEggs(
+    biome,
+    level.paths,
+    trees,
+    rocks,
+    level.id * 2311 + 47,
+    afterRocks,
+  );
   const easterEggSchedule = buildEasterEggSchedule(biome, level.id * 5471 + 3);
   return {
     time: 0,
@@ -258,7 +294,7 @@ export const createWorld = (level: LevelConfig): World => {
     biome,
     paths: level.paths,
     plannedWaves: level.hpScale
-      ? level.waves.map(w => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
+      ? level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
       : level.waves,
     enemies: [],
     towers: [],
@@ -295,14 +331,15 @@ export const createWorld = (level: LevelConfig): World => {
 // Spawn a moving egg (tumbleweed/rover) at a random map edge heading toward
 // the opposite edge. Straight-line traversal with a short life.
 export const spawnMovingEasterEgg = (world: World, defId: string) => {
-  const def = EASTER_EGG_DEFS.find(d => d.id === defId);
+  const def = EASTER_EGG_DEFS.find((d) => d.id === defId);
   if (!def || !def.motion) return;
-  if (world.easterEggs.some(e => e.defId === defId)) return;  // already present
+  if (world.easterEggs.some((e) => e.defId === defId)) return; // already present
   const rng = Math.random;
   // Pick a side (0: left, 1: right, 2: top, 3: bottom) and a perpendicular offset.
   const side = Math.floor(rng() * 4);
   const margin = 3;
-  let start: Vec2, dir: Vec2;
+  let start: Vec2;
+  let dir: Vec2;
   if (side === 0) {
     start = { x: -MAP_WIDTH / 2 - margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.6 };
     dir = { x: 1, y: 0 };
@@ -347,7 +384,7 @@ export const updateEasterEggs = (world: World, dt: number) => {
   }
   // Integrate motion + despawn expired eggs.
   if (world.easterEggs.length > 0) {
-    world.easterEggs = world.easterEggs.filter(egg => {
+    world.easterEggs = world.easterEggs.filter((egg) => {
       if (!egg.vel) return true;
       egg.pos.x += egg.vel.x * dt;
       egg.pos.y += egg.vel.y * dt;
@@ -361,78 +398,78 @@ export const updateEasterEggs = (world: World, dt: number) => {
 type EnemyBaseStats = Pick<Enemy, "kind" | "hp" | "maxHp" | "speed" | "bounty" | "damage">;
 
 export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
-  raptor:   { kind: "raptor",   hp: 20,  maxHp: 20,  speed: 2.2,  bounty:  3, damage: 1 },
-  allosaur: { kind: "allosaur", hp: 60,  maxHp: 60,  speed: 1.4,  bounty:  7, damage: 2 },
-  stego:    { kind: "stego",    hp: 180, maxHp: 180, speed: 0.9,  bounty: 16, damage: 3 },
-  swarm:    { kind: "swarm",    hp: 10,  maxHp: 10,  speed: 3.0,  bounty:  1, damage: 1 },
-  armored:  { kind: "armored",  hp: 300, maxHp: 300, speed: 1.1,  bounty: 22, damage: 1 },
-  para:     { kind: "para",     hp: 45,  maxHp: 45,  speed: 1.8,  bounty:  5, damage: 2 },
-  titan:    { kind: "titan",    hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
+  raptor: { kind: "raptor", hp: 20, maxHp: 20, speed: 2.2, bounty: 3, damage: 1 },
+  allosaur: { kind: "allosaur", hp: 60, maxHp: 60, speed: 1.4, bounty: 7, damage: 2 },
+  stego: { kind: "stego", hp: 180, maxHp: 180, speed: 0.9, bounty: 16, damage: 3 },
+  swarm: { kind: "swarm", hp: 10, maxHp: 10, speed: 3.0, bounty: 1, damage: 1 },
+  armored: { kind: "armored", hp: 300, maxHp: 300, speed: 1.1, bounty: 22, damage: 1 },
+  para: { kind: "para", hp: 45, maxHp: 45, speed: 1.8, bounty: 5, damage: 2 },
+  titan: { kind: "titan", hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
 };
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
-  pulse:   "kinetic",
-  chain:   "electric",
-  cryo:    "cold",
-  mortar:  "explosive",
-  flame:   "explosive",
-  hive:    "kinetic",
+  pulse: "kinetic",
+  chain: "electric",
+  cryo: "cold",
+  mortar: "explosive",
+  flame: "explosive",
+  hive: "kinetic",
 };
 
 export const DAMAGE_TYPE_LABEL: Record<DamageType, string> = {
-  kinetic:   "Kinetic",
-  electric:  "Electric",
-  cold:      "Cold",
+  kinetic: "Kinetic",
+  electric: "Electric",
+  cold: "Cold",
   explosive: "Explosive",
 };
 
 export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
-  kinetic:   "#c9cbd1",
-  electric:  "#c48cff",
-  cold:      "#aaf0ff",
+  kinetic: "#c9cbd1",
+  electric: "#c48cff",
+  cold: "#aaf0ff",
   explosive: "#ffb266",
 };
 
 export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
-  raptor:   { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
+  raptor: { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
-  stego:    { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6 },
-  swarm:    { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7 },
-  armored:  { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
-  para:     { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
-  titan:    { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
+  stego: { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6 },
+  swarm: { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7 },
+  armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
+  para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
+  titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
 };
 
 export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
-  raptor:   0,
+  raptor: 0,
   allosaur: 0,
-  stego:    0.35,
-  swarm:    0,
-  armored:  0.75,
-  para:     0,
-  titan:    0.5,
+  stego: 0.35,
+  swarm: 0,
+  armored: 0.75,
+  para: 0,
+  titan: 0.5,
 };
 
 export const MIN_SLOW_FACTOR = 0.25;
 
 export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; clip?: string }> = {
-  raptor:   { url: "/models/Velociraptor.glb",    targetSize: 1.6 },
-  swarm:    { url: "/models/Velociraptor.glb",    targetSize: 0.8 },
-  para:     { url: "/models/Parasaurolophus.glb", targetSize: 1.7 },
-  allosaur: { url: "/models/Trex.glb",            targetSize: 2.2 },
-  stego:    { url: "/models/Stegosaurus.glb",     targetSize: 1.9 },
-  armored:  { url: "/models/Triceratops.glb",     targetSize: 2.0 },
-  titan:    { url: "/models/Apatosaurus.glb",     targetSize: 11.0, clip: "Walk" },
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 1.6 },
+  swarm: { url: "/models/Velociraptor.glb", targetSize: 0.8 },
+  para: { url: "/models/Parasaurolophus.glb", targetSize: 1.7 },
+  allosaur: { url: "/models/Trex.glb", targetSize: 2.2 },
+  stego: { url: "/models/Stegosaurus.glb", targetSize: 1.9 },
+  armored: { url: "/models/Triceratops.glb", targetSize: 2.0 },
+  titan: { url: "/models/Apatosaurus.glb", targetSize: 11.0, clip: "Walk" },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
-  raptor:   "Raptor",
+  raptor: "Raptor",
   allosaur: "T-Rex",
-  stego:    "Stegosaur",
-  swarm:    "Swarm",
-  armored:  "Triceratops",
-  para:     "Parasaur",
-  titan:    "Apatosaur",
+  stego: "Stegosaur",
+  swarm: "Swarm",
+  armored: "Triceratops",
+  para: "Parasaur",
+  titan: "Apatosaur",
 };
 
 export const applyDamage = (
@@ -459,13 +496,13 @@ export const applyDamage = (
 // centerline keeps the stomp feeling authoritative. Everyone else gets
 // the full lateral range.
 const LATERAL_OFFSET_BY_KIND: Record<EnemyKind, number> = {
-  raptor:   PATH_WIDTH * 0.35,
-  swarm:    PATH_WIDTH * 0.4,
-  para:     PATH_WIDTH * 0.3,
+  raptor: PATH_WIDTH * 0.35,
+  swarm: PATH_WIDTH * 0.4,
+  para: PATH_WIDTH * 0.3,
   allosaur: PATH_WIDTH * 0.25,
-  stego:    PATH_WIDTH * 0.2,
-  armored:  PATH_WIDTH * 0.2,
-  titan:    PATH_WIDTH * 0.08,
+  stego: PATH_WIDTH * 0.2,
+  armored: PATH_WIDTH * 0.2,
+  titan: PATH_WIDTH * 0.08,
 };
 
 export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex = 0): Enemy => {
@@ -512,17 +549,71 @@ export type TowerBaseStats = {
 };
 
 export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
-  pulse:   { range: 6.5, damage: 10, fireRate: 2.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
-  chain:   { range: 5.5, damage: 9,  fireRate: 1.2, splashRadius: 0,    chainCount: 7, chainFalloff: 0.6, slowFactor: 1,   slowDuration: 0 },
-  cryo:    { range: 4.5, damage: 0,  fireRate: 1.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 0.4, slowDuration: 1.5 },
-  mortar:  { range: 9.0, damage: 26, fireRate: 0.5, splashRadius: 1.8,  chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
+  pulse: {
+    range: 6.5,
+    damage: 10,
+    fireRate: 2.0,
+    splashRadius: 0,
+    chainCount: 0,
+    chainFalloff: 1,
+    slowFactor: 1,
+    slowDuration: 0,
+  },
+  chain: {
+    range: 5.5,
+    damage: 9,
+    fireRate: 1.2,
+    splashRadius: 0,
+    chainCount: 7,
+    chainFalloff: 0.6,
+    slowFactor: 1,
+    slowDuration: 0,
+  },
+  cryo: {
+    range: 4.5,
+    damage: 0,
+    fireRate: 1.5,
+    splashRadius: 0,
+    chainCount: 0,
+    chainFalloff: 1,
+    slowFactor: 0.4,
+    slowDuration: 1.5,
+  },
+  mortar: {
+    range: 9.0,
+    damage: 26,
+    fireRate: 0.5,
+    splashRadius: 1.8,
+    chainCount: 0,
+    chainFalloff: 1,
+    slowFactor: 1,
+    slowDuration: 0,
+  },
   // Flame — mid-range forward cone, base damage at high tick rate so it
   // reads as a continuous burn on anything stuck in the stream.
-  flame:   { range: 6.0, damage: 5,  fireRate: 5.0, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
+  flame: {
+    range: 6.0,
+    damage: 5,
+    fireRate: 5.0,
+    splashRadius: 0,
+    chainCount: 0,
+    chainFalloff: 1,
+    slowFactor: 1,
+    slowDuration: 0,
+  },
   // Hive — per-drone stats; the tower has HIVE_DRONE_COUNT (3) drones
   // orbiting it, each firing from its own offset position. `range` here
   // is each drone's individual search range, not the hive's.
-  hive:    { range: 5.5, damage: 5,  fireRate: 2.5, splashRadius: 0,    chainCount: 0, chainFalloff: 1,   slowFactor: 1,   slowDuration: 0 },
+  hive: {
+    range: 5.5,
+    damage: 5,
+    fireRate: 2.5,
+    splashRadius: 0,
+    chainCount: 0,
+    chainFalloff: 1,
+    slowFactor: 1,
+    slowDuration: 0,
+  },
 };
 
 export const TOWER_COST: Record<TowerKind, number> = {
@@ -599,15 +690,10 @@ export const createProjectile = (
   return p;
 };
 
-export const createBeam = (
-  world: World,
-  points: Vec2[],
-  color: string,
-  lifeSec = 0.12,
-): Beam => {
+export const createBeam = (world: World, points: Vec2[], color: string, lifeSec = 0.12): Beam => {
   const b: Beam = {
     id: world.nextEntityId++,
-    points: points.map(p => ({ x: p.x, y: p.y })),
+    points: points.map((p) => ({ x: p.x, y: p.y })),
     color,
     expiresAt: world.time + lifeSec,
   };

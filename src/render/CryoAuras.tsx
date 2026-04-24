@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { useGame } from "../store";
 
 export const CryoAuras = () => {
-  useGame(s => s.ui.towerVersion);
+  useGame((s) => s.ui.towerVersion);
   const towers = useGame.getState().world.towers;
-  const cryos = towers.filter(t => t.kind === "cryo");
+  const cryos = towers.filter((t) => t.kind === "cryo");
 
   return (
     <group>
-      {cryos.map(t => (
+      {cryos.map((t) => (
         <CryoAura key={t.id} x={t.pos.x} y={t.pos.y} range={t.range} />
       ))}
     </group>

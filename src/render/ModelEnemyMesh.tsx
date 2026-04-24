@@ -1,10 +1,10 @@
-import { useRef, useMemo, useEffect } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { useFrame, ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { useGame } from "../store";
 import type { EnemyKind } from "../sim/types";
+import { useGame } from "../store";
 
 type Props = {
   kind: EnemyKind;
@@ -19,10 +19,16 @@ type Props = {
 type Item = { obj: THREE.Object3D; proxy: THREE.Mesh | null; mixer: THREE.AnimationMixer };
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
-  clips.find(c => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
+  clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
 export const ModelEnemyMesh = ({
-  kind, url, targetSize, yOffset = 0, baseRotY = 0, bob = false, clip = "Run",
+  kind,
+  url,
+  targetSize,
+  yOffset = 0,
+  baseRotY = 0,
+  bob = false,
+  clip = "Run",
 }: Props) => {
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
@@ -56,25 +62,34 @@ export const ModelEnemyMesh = ({
     [proxyRadius, useProxy],
   );
   const proxyMat = useMemo(
-    () => (useProxy ? new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }) : null),
+    () =>
+      useProxy
+        ? new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+        : null,
     [useProxy],
   );
 
-  useEffect(() => () => {
-    proxyGeom?.dispose();
-    proxyMat?.dispose();
-  }, [proxyGeom, proxyMat]);
+  useEffect(
+    () => () => {
+      proxyGeom?.dispose();
+      proxyMat?.dispose();
+    },
+    [proxyGeom, proxyMat],
+  );
 
-  useEffect(() => () => {
-    const parent = groupRef.current;
-    if (!parent) return;
-    for (const [, item] of itemsRef.current) {
-      item.mixer.stopAllAction();
-      parent.remove(item.obj);
-      if (item.proxy) parent.remove(item.proxy);
-    }
-    itemsRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      const parent = groupRef.current;
+      if (!parent) return;
+      for (const [, item] of itemsRef.current) {
+        item.mixer.stopAllAction();
+        parent.remove(item.obj);
+        if (item.proxy) parent.remove(item.proxy);
+      }
+      itemsRef.current.clear();
+    },
+    [],
+  );
 
   useFrame((_, delta) => {
     const parent = groupRef.current;
@@ -92,7 +107,7 @@ export const ModelEnemyMesh = ({
         obj.scale.setScalar(normalizedScale);
         obj.userData.enemyId = e.id;
         obj.userData.enemyMaxHp = e.maxHp;
-        obj.traverse(o => {
+        obj.traverse((o) => {
           o.userData.enemyId = e.id;
           o.userData.enemyMaxHp = e.maxHp;
           const m = o as THREE.Mesh;
@@ -145,7 +160,7 @@ export const ModelEnemyMesh = ({
       item.obj.rotation.set(0, baseRotY + pathYaw, 0);
 
       const flashing = world.time < e.flashUntil;
-      item.obj.traverse(o => {
+      item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
@@ -177,18 +192,14 @@ export const ModelEnemyMesh = ({
     // otherwise a wandering enemy would swallow the spot-set click.
     const selId = state.world.selectedTowerId;
     if (selId !== null) {
-      const sel = state.world.towers.find(t => t.id === selId);
+      const sel = state.world.towers.find((t) => t.id === selId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
     e.stopPropagation();
-    state.inspectEnemy(
-      obj.userData.enemyId as number,
-      kind,
-      obj.userData.enemyMaxHp as number,
-    );
+    state.inspectEnemy(obj.userData.enemyId as number, kind, obj.userData.enemyMaxHp as number);
   };
 
   return <group ref={groupRef} onClick={handleClick} />;

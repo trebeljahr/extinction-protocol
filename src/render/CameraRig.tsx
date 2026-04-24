@@ -1,7 +1,7 @@
-import { useRef } from "react";
-import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
 import { OrthographicCamera } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useRef } from "react";
+import type * as THREE from "three";
 import { useGame } from "../store";
 
 export const CameraRig = () => {

@@ -72,19 +72,14 @@ export const starsForLives = (lives: number): Stars => {
   return 0;
 };
 
-export const getStars = (p: ProgressData, levelId: number): Stars =>
-  p.starsByLevel[levelId] ?? 0;
+export const getStars = (p: ProgressData, levelId: number): Stars => p.starsByLevel[levelId] ?? 0;
 
 export const isLevelUnlocked = (levelId: number, p: ProgressData): boolean => {
   if (levelId <= 1) return true;
   return getStars(p, levelId - 1) >= 1;
 };
 
-export const recordLevelResult = (
-  p: ProgressData,
-  levelId: number,
-  stars: Stars,
-): ProgressData => {
+export const recordLevelResult = (p: ProgressData, levelId: number, stars: Stars): ProgressData => {
   const prev = getStars(p, levelId);
   if (stars <= prev) return p;
   return {
@@ -100,7 +95,7 @@ export const totalStars = (p: ProgressData): number => {
 };
 
 export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressData | null => {
-  const missing = kinds.filter(k => !p.encountered[k]);
+  const missing = kinds.filter((k) => !p.encountered[k]);
   if (missing.length === 0) return null;
   const next: ProgressData = {
     ...p,

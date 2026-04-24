@@ -1,15 +1,10 @@
+import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useGLTF } from "@react-three/drei";
-import { useGame } from "../store";
-import {
-  BIOME_BASES,
-  TARGET_SIZE_BY_ROLE,
-  classifyPropUrl,
-  type Biome,
-} from "../biomes";
-import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
+import { BIOME_BASES, type Biome, TARGET_SIZE_BY_ROLE, classifyPropUrl } from "../biomes";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
+import { useGame } from "../store";
 
 // A "base" is a deliberate cluster of sci-fi props tucked off to the side
 // of the map — hero structure (hangar/rocket/structure) ringed by a few
@@ -41,9 +36,12 @@ const mulberry32 = (seed: number) => {
 };
 
 const distPointToSegSq = (
-  px: number, py: number,
-  ax: number, ay: number,
-  bx: number, by: number,
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
 ) => {
   const abx = bx - ax;
   const aby = by - ay;
@@ -63,9 +61,9 @@ const distPointToSegSq = (
 const pickBaseCenter = (rng: () => number, paths: Vec2[][]): Vec2 | null => {
   const corners: Vec2[] = [
     { x: -MAP_WIDTH / 2 + BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
-    { x:  MAP_WIDTH / 2 - BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
-    { x: -MAP_WIDTH / 2 + BASE_INSET_X, y:  MAP_HEIGHT / 2 - BASE_INSET_Y },
-    { x:  MAP_WIDTH / 2 - BASE_INSET_X, y:  MAP_HEIGHT / 2 - BASE_INSET_Y },
+    { x: MAP_WIDTH / 2 - BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
+    { x: -MAP_WIDTH / 2 + BASE_INSET_X, y: MAP_HEIGHT / 2 - BASE_INSET_Y },
+    { x: MAP_WIDTH / 2 - BASE_INSET_X, y: MAP_HEIGHT / 2 - BASE_INSET_Y },
   ];
   for (let i = corners.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -77,7 +75,9 @@ const pickBaseCenter = (rng: () => number, paths: Vec2[][]): Vec2 | null => {
     let ok = true;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(c.x, c.y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < minDist2) {
+        if (
+          distPointToSegSq(c.x, c.y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < minDist2
+        ) {
           ok = false;
           break;
         }
@@ -102,9 +102,7 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
 
   const hero = recipe.hero[Math.floor(rng() * recipe.hero.length)];
   const baseRot = rng() * Math.PI * 2;
-  const items: Instance[] = [
-    { url: hero, pos: center, scale: HERO_SCALE, rotY: baseRot },
-  ];
+  const items: Instance[] = [{ url: hero, pos: center, scale: HERO_SCALE, rotY: baseRot }];
 
   for (let i = 0; i < SUPPORT_COUNT; i++) {
     const u = recipe.support[Math.floor(rng() * recipe.support.length)];
@@ -129,17 +127,19 @@ const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
   const parts: Part[] = [];
   const union = new THREE.Box3();
   let unionSet = false;
-  scene.traverse(o => {
+  scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach(mat => {
+    mats.forEach((mat) => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
       if (geom.boundingBox) {
-        if (!unionSet) { union.copy(geom.boundingBox); unionSet = true; }
-        else union.union(geom.boundingBox);
+        if (!unionSet) {
+          union.copy(geom.boundingBox);
+          unionSet = true;
+        } else union.union(geom.boundingBox);
       }
       parts.push({ geom, material: mat as THREE.Material });
     });
@@ -183,7 +183,9 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       {source.parts.map((part, pi) => (
         <instancedMesh
           key={pi}
-          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          ref={(el: THREE.InstancedMesh | null) => {
+            partRefs.current[pi] = el;
+          }}
           args={[part.geom, part.material, items.length]}
           castShadow
           receiveShadow
@@ -194,9 +196,9 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
 };
 
 export const BiomeBases = () => {
-  const biome = useGame(s => s.world.biome);
-  const paths = useGame(s => s.world.paths);
-  const levelId = useGame(s => s.world.levelId);
+  const biome = useGame((s) => s.world.biome);
+  const paths = useGame((s) => s.world.paths);
+  const levelId = useGame((s) => s.world.levelId);
 
   const groups = useMemo(() => {
     const items = buildBase(biome, paths, levelId);

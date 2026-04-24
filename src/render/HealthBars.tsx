@@ -1,6 +1,6 @@
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import { useGame } from "../store";
 
 const MAX_ENEMIES = 256;

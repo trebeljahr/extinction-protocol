@@ -14,9 +14,9 @@ export type EasterEggEffect = {
 // the engine at a scheduled time rather than pre-placed in createWorld.
 export type EasterEggMotion = {
   kind: "traverse";
-  speed: number;       // world units per second
-  lifetime: number;    // seconds until auto-despawn
-  spinRate?: number;   // radians/sec around Y (tumbleweeds spin visually)
+  speed: number; // world units per second
+  lifetime: number; // seconds until auto-despawn
+  spinRate?: number; // radians/sec around Y (tumbleweeds spin visually)
 };
 
 // When set, this egg spawns at a random moment during gameplay rather
@@ -29,11 +29,11 @@ export type EasterEggSchedule = {
 // Override how a model renders. Used by dino cameos that reuse the regular
 // enemy GLBs but want a ghost-like look or a baby-pink tint.
 export type EasterEggVisual = {
-  tint?: string;       // hex color — multiplied into materials
-  opacity?: number;    // 0..1 → transparent=true, opacity=value
-  clip?: string;       // animation clip name; falls back to first clip
-  yOffset?: number;    // extra world-units on Y (negative = buried)
-  skinned?: boolean;   // true for animated skinned meshes (dinosaurs)
+  tint?: string; // hex color — multiplied into materials
+  opacity?: number; // 0..1 → transparent=true, opacity=value
+  clip?: string; // animation clip name; falls back to first clip
+  yOffset?: number; // extra world-units on Y (negative = buried)
+  skinned?: boolean; // true for animated skinned meshes (dinosaurs)
 };
 
 export type EasterEggDef = {
@@ -57,7 +57,12 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/wasteland/Skull.glb",
     targetSize: 1.0,
     clickThreshold: 1,
-    effect: { particleColor: "#cfd8e0", particleCount: 16, particleSpeed: [1.5, 3.5], particleLife: 0.5 },
+    effect: {
+      particleColor: "#cfd8e0",
+      particleCount: 16,
+      particleSpeed: [1.5, 3.5],
+      particleLife: 0.5,
+    },
   },
   {
     id: "mushroom",
@@ -66,7 +71,12 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/forest/Mushroom.glb",
     targetSize: 1.0,
     clickThreshold: 1,
-    effect: { particleColor: "#c8f2a4", particleCount: 14, particleSpeed: [1.5, 3.5], particleLife: 0.45 },
+    effect: {
+      particleColor: "#c8f2a4",
+      particleCount: 14,
+      particleSpeed: [1.5, 3.5],
+      particleLife: 0.45,
+    },
   },
   {
     id: "torch",
@@ -90,7 +100,12 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/forest/Barrel.glb",
     targetSize: 1.0,
     clickThreshold: 1,
-    effect: { particleColor: "#a07046", particleCount: 14, particleSpeed: [2, 4], particleLife: 0.5 },
+    effect: {
+      particleColor: "#a07046",
+      particleCount: 14,
+      particleSpeed: [2, 4],
+      particleLife: 0.5,
+    },
   },
   {
     id: "cabin",
@@ -99,7 +114,12 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/snow/Cabin.glb",
     targetSize: 2.2,
     clickThreshold: 1,
-    effect: { particleColor: "#e2e8ee", particleCount: 20, particleSpeed: [1, 2.5], particleLife: 0.9 },
+    effect: {
+      particleColor: "#e2e8ee",
+      particleCount: 20,
+      particleSpeed: [1, 2.5],
+      particleLife: 0.9,
+    },
   },
   {
     id: "crystal",
@@ -308,7 +328,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
 ];
 
 export const EASTER_EGG_BY_ID: Record<string, EasterEggDef> = Object.fromEntries(
-  EASTER_EGG_DEFS.map(d => [d.id, d]),
+  EASTER_EGG_DEFS.map((d) => [d.id, d]),
 );
 
-export const PRELOAD_URLS: string[] = Array.from(new Set(EASTER_EGG_DEFS.map(d => d.model)));
+export const PRELOAD_URLS: string[] = Array.from(new Set(EASTER_EGG_DEFS.map((d) => d.model)));

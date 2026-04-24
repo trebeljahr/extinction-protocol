@@ -24,24 +24,18 @@
  */
 
 import { LEVELS } from "../src/levels";
+import { pathLength } from "../src/sim/path";
+import type { EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
+import { UPGRADES } from "../src/sim/upgrades";
 import {
-  ENEMY_STATS,
   ENEMY_RESIST,
-  TOWER_STATS,
+  ENEMY_STATS,
   TOWER_COST,
   TOWER_DAMAGE_TYPE,
+  TOWER_STATS,
   type TowerBaseStats,
 } from "../src/sim/world";
-import { UPGRADES } from "../src/sim/upgrades";
-import { pathLength } from "../src/sim/path";
-import type {
-  EnemyKind,
-  TowerKind,
-  WaveSpec,
-  Tower,
-  Vec2,
-} from "../src/sim/types";
-import { pathCoverage, coverageFraction } from "./lib/coverage";
+import { coverageFraction, pathCoverage } from "./lib/coverage";
 
 // ------- Tower modeling -------
 
@@ -53,11 +47,7 @@ type TowerConfig = TowerBaseStats & {
 };
 
 /** Build a tower stat block at a given (tierA, tierB) upgrade state. */
-const buildConfig = (
-  kind: TowerKind,
-  tierA: 0 | 1 | 2 | 3,
-  tierB: 0 | 1 | 2 | 3,
-): TowerConfig => {
+const buildConfig = (kind: TowerKind, tierA: 0 | 1 | 2 | 3, tierB: 0 | 1 | 2 | 3): TowerConfig => {
   const base = TOWER_STATS[kind];
   const t = { ...base, upgrades: { a: 0, b: 0 } } as unknown as Tower;
   let cost = TOWER_COST[kind];
@@ -103,16 +93,12 @@ const ALL_CONFIGS: TowerConfig[] = (() => {
  * Targets-hit-per-shot estimate for a given tower config.
  * Capped by enemies realistically on-screen to keep the bound honest.
  */
-const aoeMultiplier = (
-  kind: TowerKind,
-  s: TowerConfig,
-  enemiesOnScreen: number,
-): number => {
+const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number): number => {
   if (s.chainCount > 0) {
     // 1 primary + chain bounces with falloff ramp
     let mult = 1;
     for (let i = 0; i < s.chainCount; i++) {
-      mult += Math.pow(s.chainFalloff, i + 1);
+      mult += s.chainFalloff ** (i + 1);
     }
     return Math.min(mult, enemiesOnScreen);
   }
@@ -146,7 +132,7 @@ const analyzeWave = (spec: WaveSpec, levelHpScale: number): WaveBreakdown => {
   const counts: Partial<Record<EnemyKind, number>> = {};
   let totalHp = 0;
   let totalEnemies = 0;
-  let slowestSpeed = Infinity;
+  let slowestSpeed = Number.POSITIVE_INFINITY;
   for (const s of spec.spawns) {
     const stats = ENEMY_STATS[s.kind];
     counts[s.kind] = (counts[s.kind] ?? 0) + s.count;
@@ -158,7 +144,7 @@ const analyzeWave = (spec: WaveSpec, levelHpScale: number): WaveBreakdown => {
     totalHp,
     counts,
     totalEnemies,
-    slowestSpeed: isFinite(slowestSpeed) ? slowestSpeed : 1,
+    slowestSpeed: Number.isFinite(slowestSpeed) ? slowestSpeed : 1,
   };
 };
 
@@ -185,10 +171,7 @@ const combatWindow = (
  * Effective single-tower DPS vs a wave's enemy mix.
  * Weight resist by HP share so tanky enemies (stego/titan) dominate correctly.
  */
-const effectiveDpsVsWave = (
-  cfg: TowerConfig,
-  wave: WaveBreakdown,
-): number => {
+const effectiveDpsVsWave = (cfg: TowerConfig, wave: WaveBreakdown): number => {
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
   let weightedResist = 0;
   let totalHp = 0;
@@ -277,7 +260,7 @@ const bestSetup = (
     topByKind.push(p);
     if (topByKind.length === 3) break;
   }
-  return [picks[0], ...topByKind.filter(p => p !== picks[0])].slice(0, 3);
+  return [picks[0], ...topByKind.filter((p) => p !== picks[0])].slice(0, 3);
 };
 
 const analyzeLevel = (levelIdx: number) => {
@@ -339,16 +322,19 @@ const padR = (s: string | number, n: number) => String(s).padEnd(n);
 
 const printLevel = (levelIdx: number, detail: boolean) => {
   const { level, rows, longestPath } = analyzeLevel(levelIdx);
-  const clearedCount = rows.filter(r => r.best && r.best.potentialDamage >= r.totalHp).length;
-  const tightestWave = rows.reduce((t, r) => {
-    const f = r.best ? r.best.potentialDamage / r.totalHp : 0;
-    return f < t.f ? { f, wave: r.wave } : t;
-  }, { f: Infinity, wave: 0 });
+  const clearedCount = rows.filter((r) => r.best && r.best.potentialDamage >= r.totalHp).length;
+  const tightestWave = rows.reduce(
+    (t, r) => {
+      const f = r.best ? r.best.potentialDamage / r.totalHp : 0;
+      return f < t.f ? { f, wave: r.wave } : t;
+    },
+    { f: Number.POSITIVE_INFINITY, wave: 0 },
+  );
 
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name}${C.reset}` +
-    `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
-    ` ${C.dim}startGold=${level.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u${C.reset}`,
+      `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
+      ` ${C.dim}startGold=${level.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u${C.reset}`,
   );
   console.log(
     `${C.dim}${pad("W", 3)} ${pad("arch", 7)} ${pad("enemies", 7)} ${pad("totalHp", 8)} ${pad("sec", 6)} ${pad("gold", 6)} ${pad("reqDPS", 7)} ${pad("bestT", 8)} ${pad("×N", 4)} ${pad("gotDPS", 7)} ${pad("feas", 6)}${C.reset}`,
@@ -358,11 +344,11 @@ const printLevel = (levelIdx: number, detail: boolean) => {
     const best = r.best;
     console.log(
       `${pad(r.wave, 3)} ${pad(r.archetype, 7)} ${pad(r.totalEnemies, 7)} ` +
-      `${pad(fmt(r.totalHp, 0), 8)} ${pad(fmt(r.durationSec, 1), 6)} ` +
-      `${pad(r.goldBudget, 6)} ${pad(fmt(r.requiredDps, 0), 7)} ` +
-      `${pad(best?.kind ?? "—", 8)} ${pad(best?.count ?? 0, 4)} ` +
-      `${pad(fmt(best?.totalDps ?? 0, 0), 7)} ` +
-      `${feasColor(feas)}${pad(fmt(feas, 2), 6)}${C.reset}`,
+        `${pad(fmt(r.totalHp, 0), 8)} ${pad(fmt(r.durationSec, 1), 6)} ` +
+        `${pad(r.goldBudget, 6)} ${pad(fmt(r.requiredDps, 0), 7)} ` +
+        `${pad(best?.kind ?? "—", 8)} ${pad(best?.count ?? 0, 4)} ` +
+        `${pad(fmt(best?.totalDps ?? 0, 0), 7)} ` +
+        `${feasColor(feas)}${pad(fmt(feas, 2), 6)}${C.reset}`,
     );
     if (detail && r.top3.length > 0) {
       for (const p of r.top3) {
@@ -373,10 +359,14 @@ const printLevel = (levelIdx: number, detail: boolean) => {
       }
     }
   }
-  const tailColor = clearedCount === rows.length ? C.green
-    : clearedCount >= rows.length - 1 ? C.cyan
-    : clearedCount >= rows.length * 0.7 ? C.yellow
-    : C.red;
+  const tailColor =
+    clearedCount === rows.length
+      ? C.green
+      : clearedCount >= rows.length - 1
+        ? C.cyan
+        : clearedCount >= rows.length * 0.7
+          ? C.yellow
+          : C.red;
   console.log(
     `${tailColor}  → ${clearedCount}/${rows.length} waves clearable; tightest = wave ${tightestWave.wave} @ ${fmt(tightestWave.f, 2)}×${C.reset}`,
   );
@@ -396,7 +386,7 @@ const printLevel = (levelIdx: number, detail: boolean) => {
  */
 const printSoftSpots = (fromLevel: number, absThreshold: number, ratio: number) => {
   type Flagged = {
-    level: typeof LEVELS[number];
+    level: (typeof LEVELS)[number];
     wave: number;
     archetype: string;
     feas: number;
@@ -414,8 +404,8 @@ const printSoftSpots = (fromLevel: number, absThreshold: number, ratio: number) 
     const level = LEVELS[i];
     if (level.id < fromLevel) continue;
     const { rows } = analyzeLevel(i);
-    const feasList = rows.map(r => (r.best ? r.best.potentialDamage / r.totalHp : 0));
-    const tightest = Math.min(...feasList.filter(f => f > 0));
+    const feasList = rows.map((r) => (r.best ? r.best.potentialDamage / r.totalHp : 0));
+    const tightest = Math.min(...feasList.filter((f) => f > 0));
     for (let j = 0; j < rows.length; j++) {
       const r = rows[j];
       const f = feasList[j];
@@ -430,41 +420,56 @@ const printSoftSpots = (fromLevel: number, absThreshold: number, ratio: number) 
         totalSoft++;
         archCounts[arch].soft++;
         flagged.push({
-          level, wave: r.wave, archetype: arch, feas: f, tightest,
-          totalEnemies: r.totalEnemies, totalHp: r.totalHp, reasons,
+          level,
+          wave: r.wave,
+          archetype: arch,
+          feas: f,
+          tightest,
+          totalEnemies: r.totalEnemies,
+          totalHp: r.totalHp,
+          reasons,
         });
       }
     }
   }
 
-  console.log(`\n${C.bold}═══ Soft-spot scan — levels ${fromLevel}+, abs>${absThreshold}×, pacing>${ratio}× tightest${C.reset}`);
+  console.log(
+    `\n${C.bold}═══ Soft-spot scan — levels ${fromLevel}+, abs>${absThreshold}×, pacing>${ratio}× tightest${C.reset}`,
+  );
 
   // Group by level
   let currentLevelId = -1;
   for (const f of flagged) {
     if (f.level.id !== currentLevelId) {
       currentLevelId = f.level.id;
-      console.log(`\n${C.bold}L${f.level.id} ${f.level.name}${C.reset} ${C.dim}(tightest ${fmt(f.tightest, 2)}×)${C.reset}`);
+      console.log(
+        `\n${C.bold}L${f.level.id} ${f.level.name}${C.reset} ${C.dim}(tightest ${fmt(f.tightest, 2)}×)${C.reset}`,
+      );
     }
-    const severity = f.feas >= absThreshold * 2 ? C.red : f.feas >= absThreshold ? C.yellow : C.cyan;
+    const severity =
+      f.feas >= absThreshold * 2 ? C.red : f.feas >= absThreshold ? C.yellow : C.cyan;
     console.log(
       `  W${pad(f.wave, 2)} ${padR(f.archetype, 7)} ${severity}feas ${pad(fmt(f.feas, 2), 6)}×${C.reset}` +
-      ` ${C.dim}${pad(f.totalEnemies, 4)} enemies, ${pad(fmt(f.totalHp, 0), 6)} HP${C.reset}` +
-      ` ${C.dim}— ${f.reasons.join(", ")}${C.reset}`,
+        ` ${C.dim}${pad(f.totalEnemies, 4)} enemies, ${pad(fmt(f.totalHp, 0), 6)} HP${C.reset}` +
+        ` ${C.dim}— ${f.reasons.join(", ")}${C.reset}`,
     );
   }
 
   // Global breakdown
   console.log(`\n${C.bold}═══ Patterns${C.reset}`);
-  console.log(`${totalSoft}/${totalConsidered} waves flagged ${C.dim}(${((totalSoft / totalConsidered) * 100).toFixed(1)}%)${C.reset}`);
+  console.log(
+    `${totalSoft}/${totalConsidered} waves flagged ${C.dim}(${((totalSoft / totalConsidered) * 100).toFixed(1)}%)${C.reset}`,
+  );
   const archEntries = Object.entries(archCounts)
     .filter(([, c]) => c.total > 0)
     .sort((a, b) => b[1].soft / b[1].total - a[1].soft / a[1].total);
   console.log(`${C.dim}By archetype (flagged / total):${C.reset}`);
   for (const [arch, c] of archEntries) {
     const pct = ((c.soft / c.total) * 100).toFixed(0);
-    const bar = "█".repeat(Math.round(c.soft / c.total * 20));
-    console.log(`  ${padR(arch, 7)} ${pad(c.soft, 3)}/${pad(c.total, 3)}  ${pad(pct + "%", 4)}  ${bar}`);
+    const bar = "█".repeat(Math.round((c.soft / c.total) * 20));
+    console.log(
+      `  ${padR(arch, 7)} ${pad(c.soft, 3)}/${pad(c.total, 3)}  ${pad(pct + "%", 4)}  ${bar}`,
+    );
   }
 };
 
@@ -496,7 +501,8 @@ if (softMode) {
   for (let i = 0; i < LEVELS.length; i++) printLevel(i, detail);
   // Global summary
   console.log(`\n${C.bold}═══ Summary${C.reset}`);
-  let totalWaves = 0, clearable = 0;
+  let totalWaves = 0;
+  let clearable = 0;
   const problemWaves: string[] = [];
   for (let i = 0; i < LEVELS.length; i++) {
     const { level, rows } = analyzeLevel(i);
@@ -509,7 +515,7 @@ if (softMode) {
   }
   console.log(
     `${clearable}/${totalWaves} waves theoretically clearable ` +
-    `${C.dim}(${((clearable / totalWaves) * 100).toFixed(1)}%)${C.reset}`,
+      `${C.dim}(${((clearable / totalWaves) * 100).toFixed(1)}%)${C.reset}`,
   );
   if (problemWaves.length > 0) {
     console.log(`${C.red}Below 1.0×: ${problemWaves.join(", ")}${C.reset}`);

@@ -1,21 +1,26 @@
 import { useEffect } from "react";
-import { useGame } from "../store";
-import { StarDisplay, STAR_STAGGER_MS } from "./StarDisplay";
-import { LEVELS } from "../levels";
-import { isLevelUnlocked } from "../progress";
 import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
+import { LEVELS } from "../levels";
+import { isLevelUnlocked } from "../progress";
+import { useGame } from "../store";
+import { STAR_STAGGER_MS, StarDisplay } from "./StarDisplay";
 
 export const ResultsScreen = () => {
-  const result = useGame(s => s.lastResult);
-  const progress = useGame(s => s.progress);
-  const retry = useGame(s => s.retryCurrentLevel);
-  const goToMap = useGame(s => s.goToWorldMap);
+  const result = useGame((s) => s.lastResult);
+  const progress = useGame((s) => s.progress);
+  const retry = useGame((s) => s.retryCurrentLevel);
+  const goToMap = useGame((s) => s.goToWorldMap);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "KeyR") { e.preventDefault(); retry(); }
-      else if (e.code === "Escape") { e.preventDefault(); goToMap(); }
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        retry();
+      } else if (e.code === "Escape") {
+        e.preventDefault();
+        goToMap();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -28,12 +33,14 @@ export const ResultsScreen = () => {
     for (let i = 0; i < stars; i++) {
       timers.push(setTimeout(() => audio.play("star", 0.8, 30, 1.8), i * STAR_STAGGER_MS));
     }
-    return () => { for (const t of timers) clearTimeout(t); };
+    return () => {
+      for (const t of timers) clearTimeout(t);
+    };
   }, [stars]);
 
   if (!result) return null;
 
-  const nextLevel = LEVELS.find(l => l.id === result.levelId + 1);
+  const nextLevel = LEVELS.find((l) => l.id === result.levelId + 1);
   const nextNowUnlocked =
     result.won && nextLevel !== undefined && isLevelUnlocked(nextLevel.id, progress);
 
@@ -58,16 +65,12 @@ export const ResultsScreen = () => {
               <StarDisplay count={result.bestStars} size={14} />
             </span>
           </div>
-          {result.improved && (
-            <div className="results-new-best">NEW BEST</div>
-          )}
-          {nextNowUnlocked && (
-            <div className="results-unlock">Unlocked: {nextLevel!.name}</div>
-          )}
+          {result.improved && <div className="results-new-best">NEW BEST</div>}
+          {nextNowUnlocked && <div className="results-unlock">Unlocked: {nextLevel!.name}</div>}
           {result.unlockedAchievements.length > 0 && (
             <div className="results-achievements">
               <div className="results-achievements-label">Achievements unlocked</div>
-              {result.unlockedAchievements.map(id => (
+              {result.unlockedAchievements.map((id) => (
                 <div key={id} className="results-achievement-row">
                   {ACHIEVEMENT_BY_ID[id].name}
                 </div>
@@ -77,8 +80,12 @@ export const ResultsScreen = () => {
         </div>
 
         <div className="results-actions">
-          <button onClick={goToMap} className="btn">World Map (Esc)</button>
-          <button onClick={retry} className="btn btn-secondary">Retry (R)</button>
+          <button onClick={goToMap} className="btn">
+            World Map (Esc)
+          </button>
+          <button onClick={retry} className="btn btn-secondary">
+            Retry (R)
+          </button>
         </div>
       </div>
     </div>

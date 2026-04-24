@@ -1,13 +1,13 @@
+import { Environment, OrbitControls, OrthographicCamera } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { useFrame } from "@react-three/fiber";
-import { Environment, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { LEVELS } from "../levels";
-import { LevelNode } from "./LevelNode";
-import { MapRoute } from "./MapRoute";
 import { BiomeGround } from "./BiomeGround";
 import { BiomeProps } from "./BiomeProps";
+import { LevelNode } from "./LevelNode";
+import { MapRoute } from "./MapRoute";
 
 // Level node bounds span x: [-24, 22], y: [-14, 26] — content grew taller
 // after the 6-biome-band layout (alien band tops out at y=26).
@@ -114,7 +114,7 @@ export const WorldMapScene = () => (
 
     <MapRoute />
 
-    {LEVELS.map(level => (
+    {LEVELS.map((level) => (
       <LevelNode key={level.id} level={level} />
     ))}
   </>

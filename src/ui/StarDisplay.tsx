@@ -16,13 +16,7 @@ export const StarDisplay = ({ count, max = 3, size = 18, animate = false }: Prop
         const filled = i < count;
         const delay = animate ? `${i * STAR_STAGGER_MS}ms` : "0ms";
         return (
-          <Star
-            key={i}
-            size={size}
-            filled={filled}
-            animate={animate && filled}
-            delay={delay}
-          />
+          <Star key={i} size={size} filled={filled} animate={animate && filled} delay={delay} />
         );
       })}
     </div>
@@ -30,7 +24,10 @@ export const StarDisplay = ({ count, max = 3, size = 18, animate = false }: Prop
 };
 
 const Star = ({
-  size, filled, animate, delay,
+  size,
+  filled,
+  animate,
+  delay,
 }: { size: number; filled: boolean; animate: boolean; delay: string }) => {
   const color = filled ? "#ffd66a" : "#2a3240";
   const stroke = filled ? "#ffe8a8" : "#3a4452";

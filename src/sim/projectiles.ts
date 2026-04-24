@@ -1,6 +1,6 @@
-import type { World, Projectile } from "./types";
-import { dist, sub, scale, normalize, add, distSq } from "./vec2";
-import { createExplosion, emit, addShake, spawnParticles, applyDamage } from "./world";
+import type { Projectile, World } from "./types";
+import { add, dist, distSq, normalize, scale, sub } from "./vec2";
+import { addShake, applyDamage, createExplosion, emit, spawnParticles } from "./world";
 
 const HIT_RADIUS = 0.5;
 
@@ -21,8 +21,8 @@ const applyHit = (world: World, p: Projectile) => {
       }
     }
   } else {
-    const target = p.targetId !== null ? world.enemies.find(e => e.id === p.targetId) : null;
-    if (target && target.alive) {
+    const target = p.targetId !== null ? world.enemies.find((e) => e.id === p.targetId) : null;
+    if (target?.alive) {
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
       applyDamage(world, target, p.damage, p.damageType);
     }
@@ -34,7 +34,7 @@ export const updateProjectiles = (world: World, dt: number) => {
     if (!p.alive) continue;
 
     if (p.targetId !== null && p.kind === "direct") {
-      const target = world.enemies.find(e => e.id === p.targetId && e.alive);
+      const target = world.enemies.find((e) => e.id === p.targetId && e.alive);
       if (!target) {
         p.alive = false;
         continue;
@@ -53,5 +53,5 @@ export const updateProjectiles = (world: World, dt: number) => {
       p.pos = add(p.pos, scale(dir, step));
     }
   }
-  world.projectiles = world.projectiles.filter(p => p.alive);
+  world.projectiles = world.projectiles.filter((p) => p.alive);
 };

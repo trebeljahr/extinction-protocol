@@ -1,16 +1,21 @@
-import { useMemo, useState, useEffect, useRef } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { ThreeEvent, useFrame } from "@react-three/fiber";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { useGame } from "../store";
-import { EASTER_EGG_BY_ID, PRELOAD_URLS, type EasterEggDef, type EasterEggVisual } from "../easterEggs";
+import {
+  EASTER_EGG_BY_ID,
+  type EasterEggDef,
+  type EasterEggVisual,
+  PRELOAD_URLS,
+} from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
+import { useGame } from "../store";
 
 const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
   if (!needle) return null;
   const lower = needle.toLowerCase();
-  return clips.find(c => c.name.toLowerCase().includes(lower)) ?? null;
+  return clips.find((c) => c.name.toLowerCase().includes(lower)) ?? null;
 };
 
 // Apply tint + opacity to every material under the clone. Each material is
@@ -21,11 +26,11 @@ const applyVisual = (root: THREE.Object3D, visual: EasterEggVisual | undefined) 
   if (!visual) return;
   const tint = visual.tint ? new THREE.Color(visual.tint) : null;
   const opacity = visual.opacity;
-  root.traverse(o => {
+  root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    const cloned = mats.map(mat => {
+    const cloned = mats.map((mat) => {
       const c = mat.clone();
       if (opacity !== undefined && opacity < 1) {
         c.transparent = true;
@@ -45,9 +50,7 @@ const applyVisual = (root: THREE.Object3D, visual: EasterEggVisual | undefined) 
 // everything else uses a plain deep clone.
 const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
   const skinned = def.visual?.skinned ?? false;
-  const clone = skinned
-    ? (cloneSkinned(scene) as THREE.Object3D)
-    : scene.clone(true);
+  const clone = skinned ? (cloneSkinned(scene) as THREE.Object3D) : scene.clone(true);
   clone.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(clone);
   const size = box.getSize(new THREE.Vector3());
@@ -55,7 +58,7 @@ const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
   const scale = def.targetSize / maxDim;
   const minY = box.min.y;
   applyVisual(clone, def.visual);
-  clone.traverse(o => {
+  clone.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     m.castShadow = true;
@@ -66,7 +69,7 @@ const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
 
 const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const { scene, animations } = useGLTF(def.model);
-  const clickEasterEgg = useGame(s => s.clickEasterEgg);
+  const clickEasterEgg = useGame((s) => s.clickEasterEgg);
   const [hovered, setHovered] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
@@ -92,7 +95,9 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     if (!hovered) return;
     const prev = document.body.style.cursor;
     document.body.style.cursor = "pointer";
-    return () => { document.body.style.cursor = prev; };
+    return () => {
+      document.body.style.cursor = prev;
+    };
   }, [hovered]);
 
   // Outer group sits at ground level; the model is lifted by yModel so its
@@ -106,7 +111,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
 
   useFrame((_, delta) => {
     mixerRef.current?.update(delta);
-    if (!groupRef.current || !egg.vel) return;  // static eggs stay put
+    if (!groupRef.current || !egg.vel) return; // static eggs stay put
     groupRef.current.position.set(egg.pos.x, 0, -egg.pos.y);
     groupRef.current.rotation.y = egg.rotY;
   });
@@ -137,11 +142,11 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
 };
 
 export const EasterEggs = () => {
-  const eggs = useGame(s => s.world.easterEggs);
+  const eggs = useGame((s) => s.world.easterEggs);
   if (eggs.length === 0) return null;
   return (
     <>
-      {eggs.map(egg => {
+      {eggs.map((egg) => {
         const def = EASTER_EGG_BY_ID[egg.defId];
         if (!def) return null;
         return <EasterEggMesh key={egg.id} egg={egg} def={def} />;

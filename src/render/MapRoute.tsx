@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { LEVELS } from "../levels";
-import { useGame } from "../store";
 import { isLevelUnlocked } from "../progress";
+import { useGame } from "../store";
 
 export const MapRoute = () => {
-  const progress = useGame(s => s.progress);
+  const progress = useGame((s) => s.progress);
 
   const { reachedPoints, lockedPoints } = useMemo(() => {
     const reached: THREE.Vector3[] = [];
@@ -14,8 +14,7 @@ export const MapRoute = () => {
     for (let i = 0; i < LEVELS.length - 1; i++) {
       const a = LEVELS[i];
       const b = LEVELS[i + 1];
-      const bothUnlocked =
-        isLevelUnlocked(a.id, progress) && isLevelUnlocked(b.id, progress);
+      const bothUnlocked = isLevelUnlocked(a.id, progress) && isLevelUnlocked(b.id, progress);
       const from = new THREE.Vector3(a.nodePos.x, 0.02, -a.nodePos.y);
       const to = new THREE.Vector3(b.nodePos.x, 0.02, -b.nodePos.y);
       if (bothUnlocked) {

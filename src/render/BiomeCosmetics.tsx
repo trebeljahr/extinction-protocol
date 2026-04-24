@@ -1,15 +1,10 @@
+import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useGLTF } from "@react-three/drei";
-import { useGame } from "../store";
-import {
-  BIOME_COSMETICS,
-  TARGET_SIZE_BY_ROLE,
-  classifyPropUrl,
-  type Biome,
-} from "../biomes";
-import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../level";
+import { BIOME_COSMETICS, type Biome, TARGET_SIZE_BY_ROLE, classifyPropUrl } from "../biomes";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
+import { useGame } from "../store";
 
 // Render-only decorative cosmetics scattered across the playable level.
 // Deterministic per-level via PRNG seeded on levelId. These don't live in
@@ -26,14 +21,21 @@ const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
     a |= 0;
-    a = (a + 0x6D2B79F5) | 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
 
-const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+const distPointToSegSq = (
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+) => {
   const abx = bx - ax;
   const aby = by - ay;
   const apx = px - ax;
@@ -82,14 +84,20 @@ const buildInstances = (
     for (const b of blockers) {
       const dx = b.pos.x - x;
       const dy = b.pos.y - y;
-      if (dx * dx + dy * dy < b.radius * b.radius) { blocked = true; break; }
+      if (dx * dx + dy * dy < b.radius * b.radius) {
+        blocked = true;
+        break;
+      }
     }
     if (blocked) continue;
 
     for (const p of out) {
       const dx = p.pos.x - x;
       const dy = p.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) { blocked = true; break; }
+      if (dx * dx + dy * dy < spacingSq) {
+        blocked = true;
+        break;
+      }
     }
     if (blocked) continue;
 
@@ -114,17 +122,19 @@ const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
   const parts: Part[] = [];
   const union = new THREE.Box3();
   let unionSet = false;
-  scene.traverse(o => {
+  scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach(mat => {
+    mats.forEach((mat) => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
       if (geom.boundingBox) {
-        if (!unionSet) { union.copy(geom.boundingBox); unionSet = true; }
-        else union.union(geom.boundingBox);
+        if (!unionSet) {
+          union.copy(geom.boundingBox);
+          unionSet = true;
+        } else union.union(geom.boundingBox);
       }
       parts.push({ geom, material: mat as THREE.Material });
     });
@@ -168,7 +178,9 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       {source.parts.map((part, pi) => (
         <instancedMesh
           key={pi}
-          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          ref={(el: THREE.InstancedMesh | null) => {
+            partRefs.current[pi] = el;
+          }}
           args={[part.geom, part.material, items.length]}
           castShadow
           receiveShadow
@@ -179,17 +191,17 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
 };
 
 export const BiomeCosmetics = () => {
-  const biome = useGame(s => s.world.biome);
-  const paths = useGame(s => s.world.paths);
-  const levelId = useGame(s => s.world.levelId);
-  const trees = useGame(s => s.world.trees);
-  const rocks = useGame(s => s.world.rocks);
+  const biome = useGame((s) => s.world.biome);
+  const paths = useGame((s) => s.world.paths);
+  const levelId = useGame((s) => s.world.levelId);
+  const trees = useGame((s) => s.world.trees);
+  const rocks = useGame((s) => s.world.rocks);
 
   const groups = useMemo(() => {
     // Block cosmetics from spawning on top of trees/rocks that already exist.
     const blockers: { pos: Vec2; radius: number }[] = [
-      ...trees.map(t => ({ pos: t.pos, radius: 0.9 * t.scale })),
-      ...rocks.map(r => ({ pos: r.pos, radius: 0.7 * r.scale })),
+      ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
+      ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
     const instances = buildInstances(biome, paths, levelId, blockers);
     const byUrl = new Map<string, Instance[]>();

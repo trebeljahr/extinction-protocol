@@ -1,6 +1,14 @@
-import type { World, Tower, Enemy, Vec2 } from "./types";
+import type { Enemy, Tower, Vec2, World } from "./types";
 import { distSq } from "./vec2";
-import { createProjectile, createBeam, createCryoWave, emit, applySlow, applyDamage, spawnParticles } from "./world";
+import {
+  applyDamage,
+  applySlow,
+  createBeam,
+  createCryoWave,
+  createProjectile,
+  emit,
+  spawnParticles,
+} from "./world";
 
 const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
@@ -12,7 +20,7 @@ const scoreEnemy = (tower: Tower, e: Enemy): number => {
 const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   const rangeSq = tower.range * tower.range;
   let best: Enemy | null = null;
-  let bestScore = -Infinity;
+  let bestScore = Number.NEGATIVE_INFINITY;
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (distSq(e.pos, tower.pos) > rangeSq) continue;
@@ -52,7 +60,7 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
     current = next;
   }
 
-  const points = [t.pos, ...hit.map(e => e.pos)];
+  const points = [t.pos, ...hit.map((e) => e.pos)];
   createBeam(world, points, "#9fd8ff", 0.1);
 
   for (const e of hit) {
@@ -137,7 +145,16 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
-  createProjectile(world, "splash", "explosive", t.pos, { x: pos.x, y: pos.y }, t.damage, t.splashRadius, 14);
+  createProjectile(
+    world,
+    "splash",
+    "explosive",
+    t.pos,
+    { x: pos.x, y: pos.y },
+    t.damage,
+    t.splashRadius,
+    14,
+  );
 };
 
 // Only fire at the spot if at least one live enemy is within splash radius;
@@ -249,9 +266,7 @@ export const HIVE_ORBIT_HEIGHT = 1.1;
 const HIVE_ORBIT_SPEED = 0.55; // rad/s
 
 export const hiveDroneAngle = (tower: Tower, time: number, droneIdx: number): number =>
-  (tower.id * 0.37) +
-  (droneIdx * (2 * Math.PI)) / HIVE_DRONE_COUNT +
-  time * HIVE_ORBIT_SPEED;
+  tower.id * 0.37 + (droneIdx * (2 * Math.PI)) / HIVE_DRONE_COUNT + time * HIVE_ORBIT_SPEED;
 
 export const hiveDronePosition = (tower: Tower, time: number, droneIdx: number): Vec2 => {
   const a = hiveDroneAngle(tower, time, droneIdx);
@@ -264,7 +279,7 @@ export const hiveDronePosition = (tower: Tower, time: number, droneIdx: number):
 const findTargetNearPos = (world: World, pos: Vec2, tower: Tower): Enemy | null => {
   const r2 = tower.range * tower.range;
   let best: Enemy | null = null;
-  let bestScore = Infinity;
+  let bestScore = Number.POSITIVE_INFINITY;
   for (const e of world.enemies) {
     if (!e.alive) continue;
     const d2 = distSq(e.pos, pos);

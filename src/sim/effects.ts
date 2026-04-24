@@ -2,15 +2,15 @@ import type { World } from "./types";
 import { add, scale } from "./vec2";
 
 export const updateBeams = (world: World) => {
-  world.beams = world.beams.filter(b => b.expiresAt > world.time);
+  world.beams = world.beams.filter((b) => b.expiresAt > world.time);
 };
 
 export const updateExplosions = (world: World) => {
-  world.explosions = world.explosions.filter(e => e.expiresAt > world.time);
+  world.explosions = world.explosions.filter((e) => e.expiresAt > world.time);
 };
 
 export const updateCryoWaves = (world: World) => {
-  world.cryoWaves = world.cryoWaves.filter(w => w.expiresAt > world.time);
+  world.cryoWaves = world.cryoWaves.filter((w) => w.expiresAt > world.time);
 };
 
 export const updateParticles = (world: World, dt: number) => {
@@ -18,7 +18,7 @@ export const updateParticles = (world: World, dt: number) => {
     p.pos = add(p.pos, scale(p.vel, dt));
     p.vel = scale(p.vel, 1 - 2 * dt);
   }
-  world.particles = world.particles.filter(p => p.expiresAt > world.time);
+  world.particles = world.particles.filter((p) => p.expiresAt > world.time);
 };
 
 export const updateShake = (world: World, dt: number) => {

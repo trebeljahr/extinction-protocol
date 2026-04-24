@@ -1,23 +1,30 @@
-import { useMemo, useRef, useEffect } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
+import { ALL_BIOME_URLS, BIOME_LAYERS, BIOME_STYLE, type BiomeLayer } from "../biomes";
+import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
-import { MAP_WIDTH, MAP_HEIGHT } from "../level";
 import { useGame } from "../store";
-import { BIOME_LAYERS, BIOME_STYLE, ALL_BIOME_URLS, type BiomeLayer } from "../biomes";
 
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
     a |= 0;
-    a = (a + 0x6D2B79F5) | 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
 
-const distPointToSegSq = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+const distPointToSegSq = (
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+) => {
   const abx = bx - ax;
   const aby = by - ay;
   const apx = px - ax;
@@ -35,7 +42,8 @@ const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) =
   const r2 = clearance * clearance;
   for (const path of paths) {
     for (let i = 0; i < path.length - 1; i++) {
-      if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2) return true;
+      if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < r2)
+        return true;
     }
   }
   return false;
@@ -79,7 +87,7 @@ const NatureInstances = ({
 
   const source = useMemo(() => {
     let mesh: THREE.Mesh | null = null;
-    scene.traverse(o => {
+    scene.traverse((o) => {
       if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
     });
     if (!mesh) return null;
@@ -121,16 +129,13 @@ const NatureInstances = ({
 };
 
 export const Ground = () => {
-  const paths = useGame(s => s.world.paths);
-  const biome = useGame(s => s.world.biome);
+  const paths = useGame((s) => s.world.paths);
+  const biome = useGame((s) => s.world.biome);
   const style = BIOME_STYLE[biome];
-  const specs = useMemo(
-    () => BIOME_LAYERS[biome].filter(s => !s.blocks),
-    [biome],
-  );
+  const specs = useMemo(() => BIOME_LAYERS[biome].filter((s) => !s.blocks), [biome]);
 
   const layers = useMemo(
-    () => specs.map(spec => ({ spec, buckets: buildLayer(paths, spec) })),
+    () => specs.map((spec) => ({ spec, buckets: buildLayer(paths, spec) })),
     [paths, specs],
   );
 

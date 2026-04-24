@@ -12,15 +12,16 @@
  * cover every lane.
  */
 
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../../src/level";
 import type { Vec2 } from "../../src/sim/types";
-import { MAP_WIDTH, MAP_HEIGHT, PATH_WIDTH } from "../../src/level";
 
 // Mirrors the placement check in src/store.ts canPlaceTower:
 //   cannot sit within PATH_WIDTH/2 + 0.4 of any path segment.
 const MIN_PATH_DIST = PATH_WIDTH / 2 + 0.4;
 
 const distPointToSeg = (p: Vec2, a: Vec2, b: Vec2): number => {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
   const l2 = dx * dx + dy * dy;
   if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
@@ -28,7 +29,7 @@ const distPointToSeg = (p: Vec2, a: Vec2, b: Vec2): number => {
 };
 
 const distPointToPath = (p: Vec2, path: Vec2[]): number => {
-  let min = Infinity;
+  let min = Number.POSITIVE_INFINITY;
   for (let i = 0; i < path.length - 1; i++) {
     const d = distPointToSeg(p, path[i], path[i + 1]);
     if (d < min) min = d;
@@ -54,7 +55,7 @@ export const pathCoverage = (paths: Vec2[][], range: number): number => {
       const p = { x, y };
 
       // Reject placements too close to any path (tower footprint rule)
-      let nearestPath = Infinity;
+      let nearestPath = Number.POSITIVE_INFINITY;
       for (const path of paths) {
         const d = distPointToPath(p, path);
         if (d < nearestPath) nearestPath = d;

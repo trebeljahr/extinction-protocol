@@ -1,11 +1,11 @@
-import { useMemo, useRef, useEffect, useState } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { ThreeEvent } from "@react-three/fiber";
-import type { Rock } from "../sim/types";
-import { useGame } from "../store";
-import { ROCK_REMOVE_COST } from "../sim/world";
+import type { ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import { BIOME_LAYERS } from "../biomes";
+import type { Rock } from "../sim/types";
+import { ROCK_REMOVE_COST } from "../sim/world";
+import { useGame } from "../store";
 
 type Part = { geom: THREE.BufferGeometry; material: THREE.Material };
 type Source = { parts: Part[]; minY: number };
@@ -20,12 +20,12 @@ const rockHitRadius = (scale: number) => 0.55 + 0.25 * scale;
 const collectParts = (scene: THREE.Object3D): Source | null => {
   scene.updateMatrixWorld(true);
   const parts: Part[] = [];
-  let minY = Infinity;
-  scene.traverse(o => {
+  let minY = Number.POSITIVE_INFINITY;
+  scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach(mat => {
+    mats.forEach((mat) => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
@@ -34,7 +34,7 @@ const collectParts = (scene: THREE.Object3D): Source | null => {
     });
   });
   if (parts.length === 0) return null;
-  return { parts, minY: isFinite(minY) ? minY : 0 };
+  return { parts, minY: Number.isFinite(minY) ? minY : 0 };
 };
 
 // Pointer events go to the hit discs, not the model silhouette.
@@ -70,7 +70,9 @@ const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
       {source.parts.map((part, pi) => (
         <instancedMesh
           key={pi}
-          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          ref={(el: THREE.InstancedMesh | null) => {
+            partRefs.current[pi] = el;
+          }}
           args={[part.geom, part.material, rocks.length]}
           castShadow
           receiveShadow
@@ -82,27 +84,30 @@ const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
 };
 
 export const Rocks = () => {
-  const biome = useGame(s => s.world.biome);
-  const rocks = useGame(s => s.world.rocks);
-  const status = useGame(s => s.ui.status);
-  const gold = useGame(s => s.ui.gold);
-  const selectedRockId = useGame(s => s.selectedRockId);
+  const biome = useGame((s) => s.world.biome);
+  const rocks = useGame((s) => s.world.rocks);
+  const status = useGame((s) => s.ui.status);
+  const gold = useGame((s) => s.ui.gold);
+  const selectedRockId = useGame((s) => s.selectedRockId);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (hoveredId !== null && !rocks.some(r => r.id === hoveredId)) setHoveredId(null);
+    if (hoveredId !== null && !rocks.some((r) => r.id === hoveredId)) setHoveredId(null);
   }, [rocks, hoveredId]);
 
   const running = status === "running";
-  const hovered = hoveredId !== null ? rocks.find(r => r.id === hoveredId) ?? null : null;
-  const selected = selectedRockId !== null ? rocks.find(r => r.id === selectedRockId) ?? null : null;
+  const hovered = hoveredId !== null ? (rocks.find((r) => r.id === hoveredId) ?? null) : null;
+  const selected =
+    selectedRockId !== null ? (rocks.find((r) => r.id === selectedRockId) ?? null) : null;
   const canAfford = gold >= ROCK_REMOVE_COST;
 
   useEffect(() => {
     if (hovered && running) {
       const prev = document.body.style.cursor;
       document.body.style.cursor = "pointer";
-      return () => { document.body.style.cursor = prev; };
+      return () => {
+        document.body.style.cursor = prev;
+      };
     }
   }, [hovered, running]);
 
@@ -127,11 +132,7 @@ export const Rocks = () => {
         <RockGroup key={url} url={url} rocks={group} />
       ))}
 
-      <RockHitTargets
-        rocks={rocks}
-        hoveredId={hoveredId}
-        setHoveredId={setHoveredId}
-      />
+      <RockHitTargets rocks={rocks} hoveredId={hoveredId} setHoveredId={setHoveredId} />
 
       {hovered && hovered.id !== selectedRockId && (
         <RockRing
@@ -162,9 +163,19 @@ type Vec2 = { x: number; y: number };
 // depthTest:false so the ring stays visible even when the rock body
 // occludes the ground disc from above.
 const RockRing = ({
-  pos, radius, thickness, color, y, opacity,
+  pos,
+  radius,
+  thickness,
+  color,
+  y,
+  opacity,
 }: {
-  pos: Vec2; radius: number; thickness: number; color: string; y: number; opacity: number;
+  pos: Vec2;
+  radius: number;
+  thickness: number;
+  color: string;
+  y: number;
+  opacity: number;
 }) => (
   <group position={[pos.x, y, -pos.y]}>
     <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
@@ -196,7 +207,13 @@ const RockHitTargets = ({
     () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     [],
   );
-  useEffect(() => () => { geom.dispose(); material.dispose(); }, [geom, material]);
+  useEffect(
+    () => () => {
+      geom.dispose();
+      material.dispose();
+    },
+    [geom, material],
+  );
 
   useEffect(() => {
     const im = ref.current;
@@ -230,7 +247,7 @@ const RockHitTargets = ({
   };
 
   const onOut = () => {
-    if (hoveredId !== null && rocks.some(r => r.id === hoveredId)) setHoveredId(null);
+    if (hoveredId !== null && rocks.some((r) => r.id === hoveredId)) setHoveredId(null);
   };
 
   if (rocks.length === 0) return null;

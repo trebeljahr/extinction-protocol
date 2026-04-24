@@ -1,6 +1,6 @@
-import type { World } from "./types";
 import { advanceAlongPath } from "./path";
-import { emit, addShake } from "./world";
+import type { World } from "./types";
+import { addShake, emit } from "./world";
 
 export const updateEnemies = (world: World, dt: number) => {
   for (const e of world.enemies) {
@@ -50,5 +50,5 @@ export const updateEnemies = (world: World, dt: number) => {
       addShake(world, mag, 3.5);
     }
   }
-  world.enemies = world.enemies.filter(e => e.alive);
+  world.enemies = world.enemies.filter((e) => e.alive);
 };

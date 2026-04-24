@@ -1,6 +1,6 @@
+import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
 import { useGame } from "../store";
 
 // Static circular splash-radius ring at a mortar's spot-target location.
@@ -16,12 +16,9 @@ export const SpotTargetMarker = () => {
     if (!group) return;
     const { world } = useGame.getState();
     const id = world.selectedTowerId;
-    const tower = id !== null ? world.towers.find(t => t.id === id) : null;
+    const tower = id !== null ? world.towers.find((t) => t.id === id) : null;
     const visible =
-      !!tower &&
-      tower.kind === "mortar" &&
-      tower.targetingMode === "spot" &&
-      !!tower.targetSpot;
+      !!tower && tower.kind === "mortar" && tower.targetingMode === "spot" && !!tower.targetSpot;
     group.visible = visible;
     if (!visible || !tower?.targetSpot) return;
     group.position.set(tower.targetSpot.x, 0.04, -tower.targetSpot.y);

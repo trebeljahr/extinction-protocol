@@ -1,8 +1,8 @@
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
+import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { useGame } from "../store";
-import { MAP_WIDTH, MAP_HEIGHT } from "../level";
 
 // Small pool of self-managing render-only particles. Not tied to sim state
 // (doesn't consume world.particles budget); purely atmospheric decoration.
@@ -12,7 +12,7 @@ type P = {
   x: number;
   y: number;
   z: number;
-  vy: number;   // vertical velocity
+  vy: number; // vertical velocity
   drift: number; // horizontal drift scalar
   life: number; // current life (0..1, 1=just born)
   maxLife: number;
@@ -32,7 +32,7 @@ const freshAlienSpore = (p: P) => {
   p.x = (Math.random() * 2 - 1) * (MAP_WIDTH / 2 - 1);
   p.z = (Math.random() * 2 - 1) * (MAP_HEIGHT / 2 - 1);
   p.y = 0.2 + Math.random() * 3;
-  p.vy = 0.15 + Math.random() * 0.3;   // slow — spores float gently
+  p.vy = 0.15 + Math.random() * 0.3; // slow — spores float gently
   p.drift = (Math.random() * 2 - 1) * 0.6;
   p.maxLife = 3 + Math.random() * 3;
   p.life = p.maxLife;
@@ -46,7 +46,7 @@ const freshAlienSpore = (p: P) => {
  * Other biomes hide the mesh entirely (visible=false).
  */
 export const BiomeAmbientVfx = () => {
-  const biome = useGame(s => s.world.biome);
+  const biome = useGame((s) => s.world.biome);
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -88,8 +88,7 @@ export const BiomeAmbientVfx = () => {
 
       const t = Math.max(0, p.life / p.maxLife); // 1..0 remaining-life ratio
       // Fade in at birth, fade out at death — bell curve via sin
-      const alpha = Math.sin(Math.min(1, (1 - t) * 3) * Math.PI * 0.5) *
-                    Math.min(1, t * 2);
+      const alpha = Math.sin(Math.min(1, (1 - t) * 3) * Math.PI * 0.5) * Math.min(1, t * 2);
       const size = 0.14 + 0.14 * (1 - t);
 
       dummy.position.set(p.x, p.y, p.z);

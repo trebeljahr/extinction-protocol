@@ -188,10 +188,7 @@ const desertLayers = (): BiomeLayer[] => [
 const snowLayers = (): BiomeLayer[] => [
   {
     seed: 9001,
-    urls: [
-      "/models/biomes/snow/Bush1.glb",
-      "/models/biomes/snow/Bush2.glb",
-    ],
+    urls: ["/models/biomes/snow/Bush1.glb", "/models/biomes/snow/Bush2.glb"],
     count: 60,
     clearance: PATH_WIDTH / 2 + 0.7,
     minScale: 0.7,
@@ -203,9 +200,7 @@ const snowLayers = (): BiomeLayer[] => [
     // Rock2 + Rock3 pulled — both render as hollow/shelf half-domes you can
     // see into, which reads as a broken mesh (open interior). Rock1 is the
     // solid variant that stays.
-    urls: [
-      "/models/biomes/snow/Rock1.glb",
-    ],
+    urls: ["/models/biomes/snow/Rock1.glb"],
     count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.75,
@@ -274,10 +269,7 @@ const alienLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: [
-      "/models/landmarks/wasteland/Crystal1.glb",
-      "/models/scifi/rock_crystalsLargeA.glb",
-    ],
+    urls: ["/models/landmarks/wasteland/Crystal1.glb", "/models/scifi/rock_crystalsLargeA.glb"],
     count: 45,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.5,
@@ -396,10 +388,7 @@ export type BaseRecipe = { hero: string[]; support: string[] };
 export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
   forest: null,
   desert: {
-    hero: [
-      "/models/scifi/hangar_smallA.glb",
-      "/models/scifi/rocket_baseA.glb",
-    ],
+    hero: ["/models/scifi/hangar_smallA.glb", "/models/scifi/rocket_baseA.glb"],
     support: [
       "/models/scifi/machine_generator.glb",
       "/models/scifi/satelliteDish_detailed.glb",
@@ -409,10 +398,7 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
     ],
   },
   snow: {
-    hero: [
-      "/models/scifi/hangar_smallB.glb",
-      "/models/scifi/structure_closed.glb",
-    ],
+    hero: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
     support: [
       "/models/scifi/machine_generatorLarge.glb",
       "/models/scifi/satelliteDish.glb",
@@ -421,10 +407,7 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
     ],
   },
   wasteland: {
-    hero: [
-      "/models/scifi/structure_detailed.glb",
-      "/models/scifi/rocket_baseA.glb",
-    ],
+    hero: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
     support: [
       "/models/scifi/machine_generator.glb",
       "/models/scifi/satelliteDish_large.glb",
@@ -434,10 +417,7 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
     ],
   },
   lava: {
-    hero: [
-      "/models/scifi/structure_detailed.glb",
-      "/models/scifi/rocket_baseA.glb",
-    ],
+    hero: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
     support: [
       "/models/scifi/machine_generatorLarge.glb",
       "/models/scifi/machine_barrelLarge.glb",
@@ -447,10 +427,7 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
     ],
   },
   alien: {
-    hero: [
-      "/models/scifi/hangar_smallB.glb",
-      "/models/scifi/structure_closed.glb",
-    ],
+    hero: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
     support: [
       "/models/scifi/satelliteDish_detailed.glb",
       "/models/scifi/satelliteDish.glb",
@@ -474,10 +451,10 @@ export type PropRole = "building" | "tree" | "bush" | "rock" | "grass" | "cosmet
 // cosmetics are quiet dressing half the size of a rock.
 export const TARGET_SIZE_BY_ROLE: Record<PropRole, number> = {
   building: 2.8,
-  tree:     2.4,
-  bush:     0.85,
-  rock:     0.7,
-  grass:    0.4,
+  tree: 2.4,
+  bush: 0.85,
+  rock: 0.7,
+  grass: 0.4,
   cosmetic: 0.5,
 };
 
@@ -485,7 +462,8 @@ export const classifyPropUrl = (url: string): PropRole => {
   const f = url.toLowerCase();
   // Large sci-fi structures sit in the building slot so they anchor
   // bases the way houses/cabins anchor nature biomes.
-  if (/hangar_|rocket_|structure_|gate_|satellitedish_(?:large|detailed)/.test(f)) return "building";
+  if (/hangar_|rocket_|structure_|gate_|satellitedish_(?:large|detailed)/.test(f))
+    return "building";
   if (/house|cabin|sawmill|tent|ruins|tower_/.test(f)) return "building";
   if (/tree|deadtree/.test(f)) return "tree";
   if (/bushflowers/.test(f)) return "cosmetic";
@@ -499,8 +477,8 @@ export const classifyPropUrl = (url: string): PropRole => {
 };
 
 export const ALL_BIOME_URLS = [
-  ...Object.values(BIOME_LAYERS).flatMap(ls => ls.flatMap(l => l.urls)),
+  ...Object.values(BIOME_LAYERS).flatMap((ls) => ls.flatMap((l) => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
   ...Object.values(BIOME_COSMETICS).flat(),
-  ...Object.values(BIOME_BASES).flatMap(r => r ? [...r.hero, ...r.support] : []),
+  ...Object.values(BIOME_BASES).flatMap((r) => (r ? [...r.hero, ...r.support] : [])),
 ];

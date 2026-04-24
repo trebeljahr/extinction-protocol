@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import type { Vec2 } from "../sim/types";
+import { BIOME_STYLE } from "../biomes";
 import { PATH_WIDTH } from "../level";
 import { segmentLength } from "../sim/path";
+import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
-import { BIOME_STYLE } from "../biomes";
 
 export const PathLine = () => {
-  const paths = useGame(s => s.world.paths);
-  const biome = useGame(s => s.world.biome);
+  const paths = useGame((s) => s.world.paths);
+  const biome = useGame((s) => s.world.biome);
   const style = BIOME_STYLE[biome];
   return (
     <group>
@@ -26,7 +26,10 @@ export const PathLine = () => {
 };
 
 const SinglePath = ({
-  path, pathColor, startColor, endColor,
+  path,
+  pathColor,
+  startColor,
+  endColor,
 }: {
   path: Vec2[];
   pathColor: string;
@@ -48,7 +51,7 @@ const SinglePath = ({
   }, [path]);
 
   const joints = useMemo(
-    () => path.map(p => [p.x, 0.03, -p.y] as [number, number, number]),
+    () => path.map((p) => [p.x, 0.03, -p.y] as [number, number, number]),
     [path],
   );
 
@@ -68,10 +71,7 @@ const SinglePath = ({
           <meshStandardMaterial color={pathColor} roughness={1} />
         </mesh>
       ))}
-      <mesh
-        position={[path[0].x, 0.04, -path[0].y]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <mesh position={[path[0].x, 0.04, -path[0].y]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={startColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>

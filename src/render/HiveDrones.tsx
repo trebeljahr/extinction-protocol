@@ -1,14 +1,14 @@
-import { useMemo, useRef } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useGame } from "../store";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import {
   HIVE_DRONE_COUNT,
   HIVE_ORBIT_HEIGHT,
   hiveDroneAngle,
   hiveDronePosition,
 } from "../sim/towers";
+import { useGame } from "../store";
 
 // One instanced mesh renders every drone of every hive tower on the
 // field. Each drone bobs a little, orbits the hive, and yaws toward
@@ -33,17 +33,19 @@ const collectSource = (scene: THREE.Object3D): Source | null => {
   const parts: Part[] = [];
   const union = new THREE.Box3();
   let set = false;
-  scene.traverse(o => {
+  scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    mats.forEach(mat => {
+    mats.forEach((mat) => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
       if (geom.boundingBox) {
-        if (!set) { union.copy(geom.boundingBox); set = true; }
-        else union.union(geom.boundingBox);
+        if (!set) {
+          union.copy(geom.boundingBox);
+          set = true;
+        } else union.union(geom.boundingBox);
       }
       parts.push({ geom, material: mat as THREE.Material });
     });
@@ -115,7 +117,9 @@ export const HiveDrones = () => {
       {source.parts.map((part, pi) => (
         <instancedMesh
           key={pi}
-          ref={(el: THREE.InstancedMesh | null) => { partRefs.current[pi] = el; }}
+          ref={(el: THREE.InstancedMesh | null) => {
+            partRefs.current[pi] = el;
+          }}
           args={[part.geom, part.material, MAX_DRONES]}
           castShadow
         />

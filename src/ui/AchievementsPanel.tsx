@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { useGame } from "../store";
 import { ACHIEVEMENTS, isAchievementUnlocked, totalUnlocked } from "../achievements";
+import { useGame } from "../store";
 
 export const AchievementsPanel = () => {
-  const progress = useGame(s => s.progress);
-  const setAchievementsOpen = useGame(s => s.setAchievementsOpen);
+  const progress = useGame((s) => s.progress);
+  const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -36,7 +36,7 @@ export const AchievementsPanel = () => {
         </header>
 
         <div className="achievements-grid">
-          {ACHIEVEMENTS.map(def => {
+          {ACHIEVEMENTS.map((def) => {
             const unlocked = isAchievementUnlocked(progress, def.id);
             const ts = progress.unlocked[def.id];
             const secrecy = def.secrecy ?? "visible";
@@ -56,19 +56,11 @@ export const AchievementsPanel = () => {
                 className={`achievement-tile ${unlocked ? "unlocked" : "locked"} secrecy-${secrecy}`}
               >
                 <div className="achievement-tile-status">{statusLabel}</div>
-                <div className="achievement-tile-name">
-                  {hideName ? "???" : def.name}
-                </div>
-                <div className="achievement-tile-desc">
-                  {hideDesc ? "???" : def.desc}
-                </div>
-                <div className="achievement-tile-hint">
-                  {hideHint ? "???" : def.hint}
-                </div>
+                <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
+                <div className="achievement-tile-desc">{hideDesc ? "???" : def.desc}</div>
+                <div className="achievement-tile-hint">{hideHint ? "???" : def.hint}</div>
                 {unlocked && ts && (
-                  <div className="achievement-tile-date">
-                    {new Date(ts).toLocaleDateString()}
-                  </div>
+                  <div className="achievement-tile-date">{new Date(ts).toLocaleDateString()}</div>
                 )}
               </div>
             );

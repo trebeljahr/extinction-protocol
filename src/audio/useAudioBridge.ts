@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { audio } from "./AudioManager";
-import { useGame } from "../store";
 import type { GameEvent } from "../sim/types";
+import { useGame } from "../store";
+import { audio } from "./AudioManager";
 
 const VOL_KEY = "extinction-protocol:audio:v1";
 
@@ -13,7 +13,9 @@ const loadPersistedAudio = () => {
     if (typeof s.sfx === "number") audio.setSfxVolume(s.sfx);
     if (typeof s.music === "number") audio.setMusicVolume(s.music);
     if (typeof s.muted === "boolean") audio.setMuted(s.muted);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 export const useAudioBridge = () => {
@@ -35,16 +37,28 @@ export const useAudioBridge = () => {
 
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       switch (e.type) {
-        case "shoot":       audio.playShoot(e.towerKind); break;
-        case "impact":      audio.play("impact", 0.25, 60, 1.0); break;
-        case "death":       audio.play("death", 0.3, 60); break;
+        case "shoot":
+          audio.playShoot(e.towerKind);
+          break;
+        case "impact":
+          audio.play("impact", 0.25, 60, 1.0);
+          break;
+        case "death":
+          audio.play("death", 0.3, 60);
+          break;
         case "wave-start":
           audio.startMusic();
           audio.play("wave-start", 0.5, 500);
           break;
-        case "wave-clear":  audio.play("wave-clear", 0.6, 500); break;
-        case "life-lost":   audio.play("life-lost", 0.7, 120); break;
-        case "upgrade":     audio.play("upgrade", 0.5, 100); break;
+        case "wave-clear":
+          audio.play("wave-clear", 0.6, 500);
+          break;
+        case "life-lost":
+          audio.play("life-lost", 0.7, 120);
+          break;
+        case "upgrade":
+          audio.play("upgrade", 0.5, 100);
+          break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();

@@ -1,28 +1,30 @@
-import { useGame } from "../store";
+import type { DamageType } from "../sim/types";
 import {
+  DAMAGE_TYPE_COLOR,
+  DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
-  DAMAGE_TYPE_LABEL,
-  DAMAGE_TYPE_COLOR,
 } from "../sim/world";
-import type { DamageType } from "../sim/types";
+import { useGame } from "../store";
 
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
 
 const ENEMY_DESC: Record<string, string> = {
-  raptor:   "Fast, lightly armored. Weak to shock.",
-  swarm:    "Tiny, fast, fragile. Comes in huge numbers — built for AoE.",
+  raptor: "Fast, lightly armored. Weak to shock.",
+  swarm: "Tiny, fast, fragile. Comes in huge numbers — built for AoE.",
   allosaur: "Balanced bruiser. No exploitable weakness.",
-  stego:    "Armored back plates. Shrugs off kinetic; cracks under explosives. Partially resists chill.",
-  armored:  "Juggernaut. Hardened against blast and shock. Heavy momentum shrugs off chill — only kinetic reliably hurts.",
+  stego:
+    "Armored back plates. Shrugs off kinetic; cracks under explosives. Partially resists chill.",
+  armored:
+    "Juggernaut. Hardened against blast and shock. Heavy momentum shrugs off chill — only kinetic reliably hurts.",
 };
 
 export const EnemyPanel = () => {
-  const kind = useGame(s => s.ui.inspectedEnemyKind);
-  const hp = useGame(s => s.ui.inspectedEnemyHp);
-  const maxHp = useGame(s => s.ui.inspectedEnemyMaxHp);
-  const alive = useGame(s => s.ui.inspectedEnemyAlive);
+  const kind = useGame((s) => s.ui.inspectedEnemyKind);
+  const hp = useGame((s) => s.ui.inspectedEnemyHp);
+  const maxHp = useGame((s) => s.ui.inspectedEnemyMaxHp);
+  const alive = useGame((s) => s.ui.inspectedEnemyAlive);
 
   if (kind === null) return null;
 
@@ -47,7 +49,9 @@ export const EnemyPanel = () => {
           className="btn-close"
           onClick={() => useGame.getState().clearInspectedEnemy()}
           aria-label="close"
-        >×</button>
+        >
+          ×
+        </button>
       </div>
 
       {alive && maxHp !== null ? (
@@ -55,7 +59,9 @@ export const EnemyPanel = () => {
           <div className="enemy-hp-bar">
             <div className="enemy-hp-fill" style={{ width: `${hpPct * 100}%` }} />
           </div>
-          <div className="enemy-hp-text">{Math.max(0, Math.ceil(hp ?? 0))} / {maxHp} HP</div>
+          <div className="enemy-hp-text">
+            {Math.max(0, Math.ceil(hp ?? 0))} / {maxHp} HP
+          </div>
         </div>
       ) : (
         <div className="enemy-hp">
@@ -65,7 +71,7 @@ export const EnemyPanel = () => {
 
       <div className="resist-label">Damage taken</div>
       <div className="resist-row">
-        {DAMAGE_TYPE_ORDER.map(type => {
+        {DAMAGE_TYPE_ORDER.map((type) => {
           const mul = resist[type];
           const pct = Math.round((mul - 1) * 100);
           const cls = pct > 0 ? "bad" : pct < 0 ? "good" : "neutral";

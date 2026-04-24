@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { LEVELS } from "../levels";
 import { BIOME_STYLE, biomeForPos } from "../biomes";
+import { LEVELS } from "../levels";
 
 // Soft falloff width in world units — how quickly one level node's biome
 // bleeds into neighbors. Larger = more blended; smaller = sharper biome patches.
@@ -33,7 +33,7 @@ export const BiomeGround = ({
     const colors = new Float32Array(pos.count * 3);
     const acc = new THREE.Color();
 
-    const nodes = LEVELS.map(l => ({
+    const nodes = LEVELS.map((l) => ({
       x: l.nodePos.x,
       y: l.nodePos.y,
       color: new THREE.Color(BIOME_STYLE[biomeForPos(l.nodePos)].groundColor),

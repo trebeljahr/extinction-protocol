@@ -1,27 +1,34 @@
+import { useGLTF } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import type { TowerKind } from "../sim/types";
 
 const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number; rotY: number }> = {
-  pulse:  { url: "/models/tower_pulse.glb",                 targetSize: 1.5, rotY: 0 },
-  chain:  { url: "/models/turrets/Lighting Turret.glb",     targetSize: 1.5, rotY: 0 },
-  mortar: { url: "/models/turrets/Missile Turret.glb",      targetSize: 1.5, rotY: 0 },
-  cryo:   { url: "/models/turrets/Emp Turret.glb",          targetSize: 1.5, rotY: 0 },
-  flame:  { url: "/models/turrets/Flamethrower Turret.glb", targetSize: 1.5, rotY: 0 },
-  hive:   { url: "/models/turrets/Hive Turret.glb",         targetSize: 1.5, rotY: 0 },
+  pulse: { url: "/models/tower_pulse.glb", targetSize: 1.5, rotY: 0 },
+  chain: { url: "/models/turrets/Lighting Turret.glb", targetSize: 1.5, rotY: 0 },
+  mortar: { url: "/models/turrets/Missile Turret.glb", targetSize: 1.5, rotY: 0 },
+  cryo: { url: "/models/turrets/Emp Turret.glb", targetSize: 1.5, rotY: 0 },
+  flame: { url: "/models/turrets/Flamethrower Turret.glb", targetSize: 1.5, rotY: 0 },
+  hive: { url: "/models/turrets/Hive Turret.glb", targetSize: 1.5, rotY: 0 },
 };
 
-const StaticTower = ({ url, targetSize, rotY }: { url: string; targetSize: number; rotY: number }) => {
+const StaticTower = ({
+  url,
+  targetSize,
+  rotY,
+}: { url: string; targetSize: number; rotY: number }) => {
   const { scene } = useGLTF(url);
   const { invalidate } = useThree();
 
   const cloned = useMemo(() => {
     const c = scene.clone(true);
-    c.traverse(o => {
+    c.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; }
+      if (m.isMesh) {
+        m.castShadow = false;
+        m.receiveShadow = false;
+      }
     });
     return c;
   }, [scene]);
@@ -40,7 +47,7 @@ const StaticTower = ({ url, targetSize, rotY }: { url: string; targetSize: numbe
 
   useEffect(() => {
     // Re-invalidate a few times so the env HDRI finishes loading before the final draw.
-    const timers = [0, 60, 220, 520].map(ms => setTimeout(() => invalidate(), ms));
+    const timers = [0, 60, 220, 520].map((ms) => setTimeout(() => invalidate(), ms));
     return () => timers.forEach(clearTimeout);
   }, [cloned, invalidate]);
 

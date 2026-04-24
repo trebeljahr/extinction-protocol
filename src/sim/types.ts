@@ -25,13 +25,7 @@ export type Enemy = {
   flashUntil: number;
 };
 
-export type TowerKind =
-  | "pulse"
-  | "chain"
-  | "cryo"
-  | "mortar"
-  | "flame"
-  | "hive";
+export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
 
 export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
 
@@ -210,11 +204,11 @@ export type EasterEgg = {
   triggered: boolean;
   // Set for moving eggs (tumbleweed, rover). Static eggs leave these null.
   vel: Vec2 | null;
-  despawnAt: number | null;  // world.time deadline for motion eggs
-  spin: number;              // radians/sec for visual rotation
+  despawnAt: number | null; // world.time deadline for motion eggs
+  spin: number; // radians/sec for visual rotation
 };
 
 export type EasterEggScheduleEntry = {
   defId: string;
-  triggerTime: number;  // world.time when this egg spawns
+  triggerTime: number; // world.time when this egg spawns
 };

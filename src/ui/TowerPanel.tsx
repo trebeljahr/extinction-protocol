@@ -1,25 +1,33 @@
 import { useEffect, useState } from "react";
-import { useGame } from "../store";
+import type { EnemyKind, TargetingMode, Tower } from "../sim/types";
 import {
-  TOWER_LABEL,
-  TOWER_DAMAGE_TYPE,
-  DAMAGE_TYPE_LABEL,
-  DAMAGE_TYPE_COLOR,
-  ENEMY_RESIST,
-  ENEMY_LABEL,
-} from "../sim/world";
-import {
-  UPGRADES,
-  nextUpgrade,
-  sellRefund,
-  previewUpgrade,
-  formatStat,
   STAT_LABEL,
+  UPGRADES,
+  formatStat,
+  nextUpgrade,
+  previewUpgrade,
+  sellRefund,
 } from "../sim/upgrades";
-import type { Tower, EnemyKind, TargetingMode } from "../sim/types";
+import {
+  DAMAGE_TYPE_COLOR,
+  DAMAGE_TYPE_LABEL,
+  ENEMY_LABEL,
+  ENEMY_RESIST,
+  TOWER_DAMAGE_TYPE,
+  TOWER_LABEL,
+} from "../sim/world";
+import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 
-const ENEMY_ORDER: EnemyKind[] = ["raptor", "swarm", "para", "allosaur", "stego", "armored", "titan"];
+const ENEMY_ORDER: EnemyKind[] = [
+  "raptor",
+  "swarm",
+  "para",
+  "allosaur",
+  "stego",
+  "armored",
+  "titan",
+];
 
 const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] = [
   { mode: "tower", label: "Near", title: "Closest to tower" },
@@ -29,13 +37,13 @@ const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] =
 ];
 
 export const TowerPanel = () => {
-  const selectedId = useGame(s => s.ui.selectedTowerId);
-  useGame(s => s.ui.towerVersion);
-  const gold = useGame(s => s.ui.gold);
-  const status = useGame(s => s.ui.status);
+  const selectedId = useGame((s) => s.ui.selectedTowerId);
+  useGame((s) => s.ui.towerVersion);
+  const gold = useGame((s) => s.ui.gold);
+  const status = useGame((s) => s.ui.status);
 
   if (selectedId === null || status !== "running") return null;
-  const tower = useGame.getState().world.towers.find(t => t.id === selectedId);
+  const tower = useGame.getState().world.towers.find((t) => t.id === selectedId);
   if (!tower) return null;
 
   const damageType = TOWER_DAMAGE_TYPE[tower.kind];
@@ -49,14 +57,18 @@ export const TowerPanel = () => {
             {TOWER_LABEL[tower.kind]}
             <span
               className="dmg-tag"
-              style={{ color: DAMAGE_TYPE_COLOR[damageType], borderColor: DAMAGE_TYPE_COLOR[damageType] }}
+              style={{
+                color: DAMAGE_TYPE_COLOR[damageType],
+                borderColor: DAMAGE_TYPE_COLOR[damageType],
+              }}
             >
               <DamageIcon type={damageType} size={12} title={DAMAGE_TYPE_LABEL[damageType]} />
               {DAMAGE_TYPE_LABEL[damageType]}
             </span>
           </div>
           <div className="panel-stats">
-            DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG {tower.range.toFixed(1)}
+            DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG{" "}
+            {tower.range.toFixed(1)}
             {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
             {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
             {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}
@@ -66,16 +78,22 @@ export const TowerPanel = () => {
           className="btn-close"
           onClick={() => useGame.getState().selectTower(null)}
           aria-label="close"
-        >×</button>
+        >
+          ×
+        </button>
       </div>
 
       <div className="resist-row">
-        {ENEMY_ORDER.map(k => {
+        {ENEMY_ORDER.map((k) => {
           const mul = ENEMY_RESIST[k][damageType];
           const pct = Math.round((mul - 1) * 100);
           const cls = pct > 0 ? "good" : pct < 0 ? "bad" : "neutral";
           return (
-            <div key={k} className={`resist-chip ${cls}`} title={`vs ${ENEMY_LABEL[k]}: ${mul.toFixed(2)}×`}>
+            <div
+              key={k}
+              className={`resist-chip ${cls}`}
+              title={`vs ${ENEMY_LABEL[k]}: ${mul.toFixed(2)}×`}
+            >
               <span className="resist-name">{ENEMY_LABEL[k]}</span>
               <span className="resist-val">{pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}</span>
             </div>
@@ -110,7 +128,9 @@ export const TowerPanel = () => {
         </div>
       )}
       {tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot && (
-        <div className="targeting-hint">Click a spot on the map within range to set the aim point.</div>
+        <div className="targeting-hint">
+          Click a spot on the map within range to set the aim point.
+        </div>
       )}
 
       <div className="branches">
@@ -128,16 +148,15 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
   // Reset the confirm state whenever the selected tower changes so
   // switching towers never leaves a stale "Confirm Sell" from a
   // different tower.
-  useEffect(() => { setConfirming(false); }, [tower.id]);
+  useEffect(() => {
+    setConfirming(false);
+  }, [tower.id]);
   const refund = sellRefund(tower);
 
   if (confirming) {
     return (
       <div className="panel-footer panel-footer-confirm">
-        <button
-          className="btn-sell-cancel"
-          onClick={() => setConfirming(false)}
-        >
+        <button className="btn-sell-cancel" onClick={() => setConfirming(false)}>
           Cancel
         </button>
         <button
@@ -154,10 +173,7 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
   }
   return (
     <div className="panel-footer">
-      <button
-        className="btn-sell"
-        onClick={() => setConfirming(true)}
-      >
+      <button className="btn-sell" onClick={() => setConfirming(true)}>
         Sell · {refund}g
       </button>
     </div>
@@ -176,7 +192,7 @@ const BranchView = ({
   const branch = UPGRADES[tower.kind][branchId];
   const tier = tower.upgrades[branchId];
   const next = nextUpgrade(tower, branchId);
-  const upgrade = useGame(s => s.upgradeSelected);
+  const upgrade = useGame((s) => s.upgradeSelected);
 
   const deltas = next ? previewUpgrade(tower, next) : [];
 
@@ -200,7 +216,7 @@ const BranchView = ({
       <div className="branch-upgrade-slot">
         {next && deltas.length > 0 && (
           <div className="tier-preview">
-            {deltas.map(d => {
+            {deltas.map((d) => {
               const better =
                 // For slowFactor lower is better, everything else higher.
                 d.key === "slowFactor" ? d.to < d.from : d.to > d.from;

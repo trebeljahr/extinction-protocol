@@ -1,44 +1,57 @@
 import { useEffect } from "react";
-import { useGame } from "../store";
-import type { TowerKind } from "../sim/types";
-import { TOWER_COST, TOWER_LABEL, TOWER_DAMAGE_TYPE, DAMAGE_TYPE_LABEL, DAMAGE_TYPE_COLOR } from "../sim/world";
 import { useAudioBridge } from "../audio/useAudioBridge";
+import { getLevel } from "../levels";
+import type { TowerKind } from "../sim/types";
+import {
+  DAMAGE_TYPE_COLOR,
+  DAMAGE_TYPE_LABEL,
+  TOWER_COST,
+  TOWER_DAMAGE_TYPE,
+  TOWER_LABEL,
+} from "../sim/world";
+import { useGame } from "../store";
+import { DamageIcon } from "./DamageIcon";
+import { EnemyPanel } from "./EnemyPanel";
+import { PauseMenu } from "./PauseMenu";
 import { TowerPanel } from "./TowerPanel";
 import { TowerPreview } from "./TowerPreview";
-import { EnemyPanel } from "./EnemyPanel";
 import { TreePanel } from "./TreePanel";
-import { PauseMenu } from "./PauseMenu";
-import { DamageIcon } from "./DamageIcon";
-import { getLevel } from "../levels";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 const HOTKEYS: Record<TowerKind, string> = {
-  pulse:  "1",
-  chain:  "2",
-  flame:  "3",
-  hive:   "4",
+  pulse: "1",
+  chain: "2",
+  flame: "3",
+  hive: "4",
   mortar: "5",
-  cryo:   "6",
+  cryo: "6",
 };
 
 export const HUD = () => {
   useAudioBridge();
-  const ui = useGame(s => s.ui);
-  const selectedKind = useGame(s => s.selectedKind);
-  const setSelectedKind = useGame(s => s.setSelectedKind);
-  const retry = useGame(s => s.retryCurrentLevel);
-  const togglePause = useGame(s => s.togglePause);
-  const callWaveEarly = useGame(s => s.callWaveEarly);
-  const selectedLevelId = useGame(s => s.selectedLevelId);
+  const ui = useGame((s) => s.ui);
+  const selectedKind = useGame((s) => s.selectedKind);
+  const setSelectedKind = useGame((s) => s.setSelectedKind);
+  const retry = useGame((s) => s.retryCurrentLevel);
+  const togglePause = useGame((s) => s.togglePause);
+  const callWaveEarly = useGame((s) => s.callWaveEarly);
+  const selectedLevelId = useGame((s) => s.selectedLevelId);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const paused = ui.status === "paused";
-  const compendiumOpen = useGame(s => s.compendiumOpen);
+  const compendiumOpen = useGame((s) => s.compendiumOpen);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space") { e.preventDefault(); callWaveEarly(); return; }
-      if (e.code === "KeyP") { togglePause(); return; }
+      if (e.code === "Space") {
+        e.preventDefault();
+        callWaveEarly();
+        return;
+      }
+      if (e.code === "KeyP") {
+        togglePause();
+        return;
+      }
       if (e.code === "Escape") {
         e.preventDefault();
         const s = useGame.getState();
@@ -57,9 +70,12 @@ export const HUD = () => {
         (document.activeElement as HTMLElement | null)?.blur();
         return;
       }
-      if (e.code === "KeyR") { retry(); return; }
+      if (e.code === "KeyR") {
+        retry();
+        return;
+      }
       const digit = e.key;
-      const kind = (Object.keys(HOTKEYS) as TowerKind[]).find(k => HOTKEYS[k] === digit);
+      const kind = (Object.keys(HOTKEYS) as TowerKind[]).find((k) => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
     };
     window.addEventListener("keydown", onKey);
@@ -73,16 +89,27 @@ export const HUD = () => {
         <Stat label="LIVES" value={ui.lives} accent="#ff5a7a" />
         <Stat label="WAVE" value={`${ui.wave} / ${ui.totalWaves}`} accent="#9fd8ff" />
         {ui.wave === 0 ? (
-          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Start waves (Space)">
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>START WAVES [Space]</div>
+          <button
+            className="stat call-wave-btn"
+            onClick={callWaveEarly}
+            title="Start waves (Space)"
+          >
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>
+              START WAVES [Space]
+            </div>
             <div className="stat-value">Ready</div>
           </button>
         ) : ui.canCallEarly ? (
-          <button className="stat call-wave-btn" onClick={callWaveEarly} title="Call next wave early (Space)">
-            <div className="stat-label" style={{ color: "#b4ffc9" }}>CALL WAVE [Space]</div>
+          <button
+            className="stat call-wave-btn"
+            onClick={callWaveEarly}
+            title="Call next wave early (Space)"
+          >
+            <div className="stat-label" style={{ color: "#b4ffc9" }}>
+              CALL WAVE [Space]
+            </div>
             <div className="stat-value">
-              +{ui.callEarlyBonus}g
-              <span className="call-wave-sub"> · {ui.callEarlyTimer}s</span>
+              +{ui.callEarlyBonus}g<span className="call-wave-sub"> · {ui.callEarlyTimer}s</span>
             </div>
           </button>
         ) : (
@@ -98,13 +125,11 @@ export const HUD = () => {
             <div className="level-badge-name">{levelName}</div>
           </div>
         )}
-        <button
-          className="hud-menu-btn"
-          onClick={togglePause}
-          title="Menu (Esc)"
-        >
+        <button className="hud-menu-btn" onClick={togglePause} title="Menu (Esc)">
           <span className="hud-menu-icon" aria-hidden>
-            <span /><span /><span />
+            <span />
+            <span />
+            <span />
           </span>
           <span className="hud-menu-label">Menu</span>
           <span className="hud-menu-key">Esc</span>
@@ -112,7 +137,7 @@ export const HUD = () => {
       </div>
 
       <div className="tower-picker">
-        {KINDS.map(kind => {
+        {KINDS.map((kind) => {
           const cost = TOWER_COST[kind];
           const affordable = ui.gold >= cost;
           const active = selectedKind === kind;
@@ -132,8 +157,13 @@ export const HUD = () => {
                   className="card-cancel"
                   role="button"
                   aria-label="cancel selection"
-                  onClick={(e) => { e.stopPropagation(); setSelectedKind(null); }}
-                >×</span>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedKind(null);
+                  }}
+                >
+                  ×
+                </span>
               )}
               <div className="tower-preview-wrap">
                 <TowerPreview kind={kind} />
@@ -165,10 +195,14 @@ export const HUD = () => {
 };
 
 const Stat = ({
-  label, value, accent,
+  label,
+  value,
+  accent,
 }: { label: string; value: string | number; accent: string }) => (
   <div className="stat">
-    <div className="stat-label" style={{ color: accent }}>{label}</div>
+    <div className="stat-label" style={{ color: accent }}>
+      {label}
+    </div>
     <div className="stat-value">{value}</div>
   </div>
 );

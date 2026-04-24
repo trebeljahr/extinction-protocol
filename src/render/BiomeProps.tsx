@@ -1,15 +1,15 @@
-import { useEffect, useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { LEVELS } from "../levels";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import {
   BIOME_LAYERS,
   BIOME_TREE_URLS,
+  type Biome,
   TARGET_SIZE_BY_ROLE,
   biomeForPos,
   classifyPropUrl,
-  type Biome,
 } from "../biomes";
+import { LEVELS } from "../levels";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
 // recognizable little vignette rather than a noisy pile. Detailed
@@ -52,52 +52,38 @@ type PropRoleBucket = {
 // Non-nature biomes prefer sci-fi tech (hangars, structures, rockets) over
 // wooden cabins/sawmills; tents stay — they read as modern camp gear, not wood.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
-  forest: [
-    "/models/landmarks/forest/House.glb",
-    "/models/scifi/structure_detailed.glb",
-  ],
+  forest: ["/models/landmarks/forest/House.glb", "/models/scifi/structure_detailed.glb"],
   desert: [
     "/models/landmarks/desert/Tent.glb",
     "/models/landmarks/desert/Tent.glb",
     "/models/landmarks/desert/Tent.glb",
     "/models/scifi/rocket_baseA.glb", // sparingly — reads as a crashed rocket
   ],
-  snow: [
-    "/models/scifi/hangar_smallA.glb",
-    "/models/landmarks/snow/Tent.glb",
-  ],
+  snow: ["/models/scifi/hangar_smallA.glb", "/models/landmarks/snow/Tent.glb"],
   wasteland: [],
   // Lava and alien biomes lean on sci-fi hero props — the skull plains of
   // a dying planet and the crystal spires of an alien world both read as
   // post-human frontiers, not rustic camps.
-  lava: [
-    "/models/scifi/structure_detailed.glb",
-    "/models/scifi/rocket_baseA.glb",
-  ],
-  alien: [
-    "/models/scifi/hangar_smallB.glb",
-    "/models/scifi/structure_closed.glb",
-  ],
+  lava: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
+  alien: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
 };
 
 // Pick rocks only out of each biome's layer list — no bushes/grass on
 // the world map, they just add noise at this zoom level.
 const rockUrls = (biome: Biome): string[] =>
-  BIOME_LAYERS[biome]
-    .flatMap(l => l.urls)
-    .filter(u => /rock/i.test(u));
+  BIOME_LAYERS[biome].flatMap((l) => l.urls).filter((u) => /rock/i.test(u));
 
 // Per-level cluster geometry.
 // Nodes need a generous ring of empty ground around them — a hangar's
 // footprint is ~3 units wide and sitting 2.4u from the node center put
 // its silhouette basically touching the bubble. Bumped the inner hole to
 // 4.0 and pushed the outer ring out so props still have room to land.
-const CLUSTER_R = 7.0;   // outer radius
-const NODE_CLEAR = 4.0;  // inner hole — keep hero props off the node
+const CLUSTER_R = 7.0; // outer radius
+const NODE_CLEAR = 4.0; // inner hole — keep hero props off the node
 const MIN_GAP = 1.2;
 const MAX_RETRIES = 14;
 
-const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map(l => ({
+const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map((l) => ({
   x: l.nodePos.x,
   z: -l.nodePos.y,
 }));
@@ -123,7 +109,10 @@ const buildPropPlan = () => {
       for (const n of NODE_POSITIONS) {
         const dx = x - n.x;
         const dz = z - n.z;
-        if (dx * dx + dz * dz < NODE_CLEAR * NODE_CLEAR) { bad = true; break; }
+        if (dx * dx + dz * dz < NODE_CLEAR * NODE_CLEAR) {
+          bad = true;
+          break;
+        }
       }
       if (bad) continue;
 
@@ -131,7 +120,10 @@ const buildPropPlan = () => {
         const dx = x - p.x;
         const dz = z - p.z;
         const minDist = radius + p.r + MIN_GAP * 0.25;
-        if (dx * dx + dz * dz < minDist * minDist) { bad = true; break; }
+        if (dx * dx + dz * dz < minDist * minDist) {
+          bad = true;
+          break;
+        }
       }
       if (bad) continue;
 
@@ -210,7 +202,7 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
   }, [scene, url]);
 
   useEffect(() => {
-    scene.traverse(o => {
+    scene.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.castShadow = true;
@@ -229,11 +221,7 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
           <primitive
             key={i}
             object={scene.clone(true)}
-            position={[
-              it.pos.x - centerOffset.x * s,
-              -minY * s,
-              it.pos.z - centerOffset.z * s,
-            ]}
+            position={[it.pos.x - centerOffset.x * s, -minY * s, it.pos.z - centerOffset.z * s]}
             rotation={[0, it.rotY, 0]}
             scale={s}
           />

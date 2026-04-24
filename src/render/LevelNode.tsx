@@ -1,11 +1,11 @@
-import { useRef, useMemo, useState } from "react";
-import * as THREE from "three";
-import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import { useGame } from "../store";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
 import type { LevelConfig } from "../levels";
 import { getStars, isLevelUnlocked } from "../progress";
+import { useGame } from "../store";
 
 type Props = { level: LevelConfig };
 
@@ -29,9 +29,9 @@ const STAR_GEOM = new THREE.ShapeGeometry(STAR_SHAPE);
 
 export const LevelNode = ({ level }: Props) => {
   const groupRef = useRef<THREE.Group>(null);
-  const progress = useGame(s => s.progress);
-  const startLevel = useGame(s => s.startLevel);
-  const setHoveredLevel = useGame(s => s.setHoveredLevel);
+  const progress = useGame((s) => s.progress);
+  const startLevel = useGame((s) => s.startLevel);
+  const setHoveredLevel = useGame((s) => s.setHoveredLevel);
   const [hovered, setHovered] = useState(false);
 
   const unlocked = isLevelUnlocked(level.id, progress);
@@ -120,24 +120,18 @@ export const LevelNode = ({ level }: Props) => {
         </mesh>
       </group>
 
-      <mesh
-        position={[0, 0.04, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[1.25, 1.5, 32]} />
         <meshBasicMaterial
           color={unlocked ? (completed ? "#ffd66a" : "#3dd1ff") : "#2a3240"}
           transparent
-          opacity={hovered ? (unlocked ? 0.98 : 0.7) : (unlocked ? 0.6 : 0.3)}
+          opacity={hovered ? (unlocked ? 0.98 : 0.7) : unlocked ? 0.6 : 0.3}
           side={THREE.DoubleSide}
         />
       </mesh>
 
       {hovered && (
-        <mesh
-          position={[0, 0.05, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
+        <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[1.55, 1.95, 48]} />
           <meshBasicMaterial
             color={unlocked ? (completed ? "#ffeaa0" : "#9aebff") : "#9aa6b6"}
@@ -149,12 +143,7 @@ export const LevelNode = ({ level }: Props) => {
         </mesh>
       )}
 
-      <Html
-        center
-        position={[0, 0.05, 0]}
-        zIndexRange={[0, 10]}
-        wrapperClass="map-label-wrap"
-      >
+      <Html center position={[0, 0.05, 0]} zIndexRange={[0, 10]} wrapperClass="map-label-wrap">
         <div className={`map-label ${unlocked ? "" : "locked"}`}>
           {unlocked ? level.id : "\u{1F512}"}
         </div>

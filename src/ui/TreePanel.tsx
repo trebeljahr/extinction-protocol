@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
 import { Center, useGLTF } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { useMemo } from "react";
+import { BIOME_LAYERS, BIOME_STYLE, BIOME_TREE_URLS } from "../biomes";
+import { ROCK_REMOVE_COST, TREE_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
-import { TREE_REMOVE_COST, ROCK_REMOVE_COST } from "../sim/world";
-import { BIOME_TREE_URLS, BIOME_LAYERS, BIOME_STYLE } from "../biomes";
 
 const StaticModel = ({ url }: { url: string }) => {
   const { scene } = useGLTF(url);
@@ -25,19 +25,19 @@ type Selection =
   | { kind: "rock"; url: string; cost: number; clear: () => void; confirm: () => void };
 
 export const TreePanel = () => {
-  const selectedTreeId = useGame(s => s.selectedTreeId);
-  const selectedRockId = useGame(s => s.selectedRockId);
-  const trees = useGame(s => s.world.trees);
-  const rocks = useGame(s => s.world.rocks);
-  const biome = useGame(s => s.world.biome);
-  const gold = useGame(s => s.ui.gold);
-  const status = useGame(s => s.ui.status);
+  const selectedTreeId = useGame((s) => s.selectedTreeId);
+  const selectedRockId = useGame((s) => s.selectedRockId);
+  const trees = useGame((s) => s.world.trees);
+  const rocks = useGame((s) => s.world.rocks);
+  const biome = useGame((s) => s.world.biome);
+  const gold = useGame((s) => s.ui.gold);
+  const status = useGame((s) => s.ui.status);
 
   if (status !== "running") return null;
 
   let selection: Selection | null = null;
   if (selectedTreeId !== null) {
-    const tree = trees.find(t => t.id === selectedTreeId);
+    const tree = trees.find((t) => t.id === selectedTreeId);
     if (tree) {
       selection = {
         kind: "tree",
@@ -48,7 +48,7 @@ export const TreePanel = () => {
       };
     }
   } else if (selectedRockId !== null) {
-    const rock = rocks.find(r => r.id === selectedRockId);
+    const rock = rocks.find((r) => r.id === selectedRockId);
     if (rock) {
       const layer = BIOME_LAYERS[biome][rock.layerIndex];
       const url = layer?.urls[rock.variant];
@@ -79,11 +79,9 @@ export const TreePanel = () => {
             Remove this {label.toLowerCase()} to free up buildable ground.
           </div>
         </div>
-        <button
-          className="btn-close"
-          onClick={selection.clear}
-          aria-label="close"
-        >×</button>
+        <button className="btn-close" onClick={selection.clear} aria-label="close">
+          ×
+        </button>
       </div>
 
       <div className="tree-preview" style={{ background: style.groundColor }}>
@@ -112,17 +110,10 @@ export const TreePanel = () => {
       </div>
 
       <div className="tree-actions">
-        <button
-          className="btn"
-          disabled={!canAfford}
-          onClick={selection.confirm}
-        >
+        <button className="btn" disabled={!canAfford} onClick={selection.confirm}>
           Clear · {selection.cost}g
         </button>
-        <button
-          className="btn btn-secondary"
-          onClick={selection.clear}
-        >
+        <button className="btn btn-secondary" onClick={selection.clear}>
           Cancel (Esc)
         </button>
       </div>

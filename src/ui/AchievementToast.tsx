@@ -1,20 +1,20 @@
 import { useEffect } from "react";
-import { useGame } from "../store";
 import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
+import { useGame } from "../store";
 
 const TOAST_LIFETIME_MS = 5000;
 
 export const AchievementToast = () => {
-  const toasts = useGame(s => s.achievementToasts);
-  const dismiss = useGame(s => s.dismissAchievementToast);
+  const toasts = useGame((s) => s.achievementToasts);
+  const dismiss = useGame((s) => s.dismissAchievementToast);
 
   useEffect(() => {
     if (toasts.length === 0) return;
-    const timers = toasts.map(t =>
-      setTimeout(() => dismiss(t.key), TOAST_LIFETIME_MS),
-    );
-    return () => { for (const id of timers) clearTimeout(id); };
+    const timers = toasts.map((t) => setTimeout(() => dismiss(t.key), TOAST_LIFETIME_MS));
+    return () => {
+      for (const id of timers) clearTimeout(id);
+    };
   }, [toasts, dismiss]);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export const AchievementToast = () => {
 
   return (
     <div className="achievement-toast-stack">
-      {toasts.map(t => {
+      {toasts.map((t) => {
         const def = ACHIEVEMENT_BY_ID[t.id];
         return (
           <button

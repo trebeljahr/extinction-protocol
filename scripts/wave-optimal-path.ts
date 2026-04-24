@@ -27,18 +27,18 @@
  */
 
 import { LEVELS } from "../src/levels";
+import { pathLength } from "../src/sim/path";
+import type { EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
+import { UPGRADES } from "../src/sim/upgrades";
 import {
-  ENEMY_STATS,
   ENEMY_RESIST,
-  TOWER_STATS,
+  ENEMY_STATS,
   TOWER_COST,
   TOWER_DAMAGE_TYPE,
+  TOWER_STATS,
   type TowerBaseStats,
 } from "../src/sim/world";
-import { UPGRADES } from "../src/sim/upgrades";
-import { pathLength } from "../src/sim/path";
-import type { EnemyKind, TowerKind, WaveSpec, Tower, Vec2 } from "../src/sim/types";
-import { pathCoverage, coverageFraction } from "./lib/coverage";
+import { coverageFraction, pathCoverage } from "./lib/coverage";
 
 // ------- Tower config (same shape as wave-feasibility.ts) -------
 
@@ -58,18 +58,25 @@ const buildConfig = (kind: TowerKind, tierA: Tier, tierB: Tier): TowerConfig => 
     cost += tree.b.tiers[i].cost;
   }
   return {
-    kind, tierA, tierB,
-    range: t.range, damage: t.damage, fireRate: t.fireRate,
-    splashRadius: t.splashRadius, chainCount: t.chainCount,
-    chainFalloff: t.chainFalloff, slowFactor: t.slowFactor,
-    slowDuration: t.slowDuration, cost,
+    kind,
+    tierA,
+    tierB,
+    range: t.range,
+    damage: t.damage,
+    fireRate: t.fireRate,
+    splashRadius: t.splashRadius,
+    chainCount: t.chainCount,
+    chainFalloff: t.chainFalloff,
+    slowFactor: t.slowFactor,
+    slowDuration: t.slowDuration,
+    cost,
   };
 };
 
 const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number): number => {
   if (s.chainCount > 0) {
     let mult = 1;
-    for (let i = 0; i < s.chainCount; i++) mult += Math.pow(s.chainFalloff, i + 1);
+    for (let i = 0; i < s.chainCount; i++) mult += s.chainFalloff ** (i + 1);
     return Math.min(mult, enemiesOnScreen);
   }
   if (s.splashRadius > 0) return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
@@ -92,7 +99,9 @@ type WaveBreakdown = {
 const analyzeWave = (spec: WaveSpec, hpScale: number): WaveBreakdown => {
   const hpMul = (spec.hpMul ?? 1) * hpScale;
   const counts: Partial<Record<EnemyKind, number>> = {};
-  let totalHp = 0, totalEnemies = 0, slowestSpeed = Infinity;
+  let totalHp = 0;
+  let totalEnemies = 0;
+  let slowestSpeed = Number.POSITIVE_INFINITY;
   for (const s of spec.spawns) {
     const stats = ENEMY_STATS[s.kind];
     counts[s.kind] = (counts[s.kind] ?? 0) + s.count;
@@ -100,13 +109,23 @@ const analyzeWave = (spec: WaveSpec, hpScale: number): WaveBreakdown => {
     totalEnemies += s.count;
     if (stats.speed < slowestSpeed) slowestSpeed = stats.speed;
   }
-  return { totalHp, counts, totalEnemies, slowestSpeed: isFinite(slowestSpeed) ? slowestSpeed : 1 };
+  return {
+    totalHp,
+    counts,
+    totalEnemies,
+    slowestSpeed: Number.isFinite(slowestSpeed) ? slowestSpeed : 1,
+  };
 };
 
 const waveBounty = (spec: WaveSpec): number =>
   spec.spawns.reduce((n, s) => n + ENEMY_STATS[s.kind].bounty * s.count, 0);
 
-const combatWindow = (spec: WaveSpec, waveNumber: number, w: WaveBreakdown, longestPath: number): number => {
+const combatWindow = (
+  spec: WaveSpec,
+  waveNumber: number,
+  w: WaveBreakdown,
+  longestPath: number,
+): number => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - waveNumber * 0.03);
   const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
   return spawnSpan + longestPath / w.slowestSpeed;
@@ -114,7 +133,8 @@ const combatWindow = (spec: WaveSpec, waveNumber: number, w: WaveBreakdown, long
 
 const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number => {
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
-  let weightedResist = 0, totalHp = 0;
+  let weightedResist = 0;
+  let totalHp = 0;
   for (const k of Object.keys(wave.counts) as EnemyKind[]) {
     const count = wave.counts[k] ?? 0;
     if (!count) continue;
@@ -133,7 +153,11 @@ type TowerInstance = { kind: TowerKind; tierA: Tier; tierB: Tier };
 
 type BuildAction = { type: "build"; kind: TowerKind; cost: number };
 type UpgradeAction = {
-  type: "upgrade"; towerIdx: number; branch: "a" | "b"; newTier: Tier; cost: number;
+  type: "upgrade";
+  towerIdx: number;
+  branch: "a" | "b";
+  newTier: Tier;
+  cost: number;
 };
 type Action = BuildAction | UpgradeAction;
 
@@ -145,7 +169,10 @@ type SimState = {
 };
 
 const emptySpentByKind = (): Record<TowerKind, number> =>
-  Object.fromEntries((Object.keys(TOWER_STATS) as TowerKind[]).map(k => [k, 0])) as Record<TowerKind, number>;
+  Object.fromEntries((Object.keys(TOWER_STATS) as TowerKind[]).map((k) => [k, 0])) as Record<
+    TowerKind,
+    number
+  >;
 
 const enumerateActions = (state: SimState): Action[] => {
   const out: Action[] = [];
@@ -156,14 +183,18 @@ const enumerateActions = (state: SimState): Action[] => {
     const t = state.towers[i];
     if (t.tierA < 3) {
       out.push({
-        type: "upgrade", towerIdx: i, branch: "a",
+        type: "upgrade",
+        towerIdx: i,
+        branch: "a",
         newTier: (t.tierA + 1) as Tier,
         cost: UPGRADES[t.kind].a.tiers[t.tierA as 0 | 1 | 2].cost,
       });
     }
     if (t.tierB < 3) {
       out.push({
-        type: "upgrade", towerIdx: i, branch: "b",
+        type: "upgrade",
+        towerIdx: i,
+        branch: "b",
         newTier: (t.tierB + 1) as Tier,
         cost: UPGRADES[t.kind].b.tiers[t.tierB as 0 | 1 | 2].cost,
       });
@@ -245,7 +276,7 @@ type WaveStep = {
 };
 
 type SimResult = {
-  level: typeof LEVELS[number];
+  level: (typeof LEVELS)[number];
   history: WaveStep[];
   success: boolean;
   failedAt?: number;
@@ -267,7 +298,7 @@ const summarizeActions = (before: TowerInstance[], after: TowerInstance[]): stri
 };
 
 const simulate = (
-  level: typeof LEVELS[number],
+  level: (typeof LEVELS)[number],
   safety: number,
   lookahead: number,
   forceFirstKind?: TowerKind,
@@ -276,7 +307,7 @@ const simulate = (
   const longestPath = Math.max(...level.paths.map(pathLength));
 
   // Precompute wave breakdowns so lookahead is cheap
-  const waveBreakdowns = level.waves.map(w => analyzeWave(w, hpScale));
+  const waveBreakdowns = level.waves.map((w) => analyzeWave(w, hpScale));
 
   let state: SimState = {
     gold: level.startGold,
@@ -312,13 +343,15 @@ const simulate = (
 
     // Greedy loop: pick best marginal DPS/gold against the weighted horizon
     while (totalEffectiveDps(state.towers, wave, level.paths) < reqDps) {
-      const actions = enumerateActions(state).filter(a => a.cost <= state.gold);
+      const actions = enumerateActions(state).filter((a) => a.cost <= state.gold);
       if (actions.length === 0) break;
 
       let best: { action: Action; currentGain: number; scorePerGold: number } | null = null;
       for (const action of actions) {
         const trial = applyAction(state, action);
-        const currentGain = totalEffectiveDps(trial.towers, wave, level.paths) - totalEffectiveDps(state.towers, wave, level.paths);
+        const currentGain =
+          totalEffectiveDps(trial.towers, wave, level.paths) -
+          totalEffectiveDps(state.towers, wave, level.paths);
         if (currentGain <= 0) continue;
 
         // Score = weighted average of DPS-gain across current + horizon waves
@@ -327,7 +360,9 @@ const simulate = (
         for (let j = i; j < horizonEnd; j++) {
           const w = waveBreakdowns[j];
           const weight = w.totalHp; // tighter waves (more HP) count more
-          const gain = totalEffectiveDps(trial.towers, w, level.paths) - totalEffectiveDps(state.towers, w, level.paths);
+          const gain =
+            totalEffectiveDps(trial.towers, w, level.paths) -
+            totalEffectiveDps(state.towers, w, level.paths);
           weightedGain += weight * Math.max(0, gain);
           weightSum += weight;
         }
@@ -376,8 +411,13 @@ const simulate = (
 
 const C = {
   reset: "\x1b[0m",
-  red: "\x1b[31m", green: "\x1b[32m", yellow: "\x1b[33m",
-  cyan: "\x1b[36m", magenta: "\x1b[35m", bold: "\x1b[1m", dim: "\x1b[2m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
 };
 
 const fmt = (n: number, d = 0) => n.toFixed(d);
@@ -387,7 +427,9 @@ const padR = (s: string | number, n: number) => String(s).padEnd(n);
 const portfolioString = (towers: TowerInstance[]): string => {
   const byKind: Partial<Record<TowerKind, number>> = {};
   for (const t of towers) byKind[t.kind] = (byKind[t.kind] ?? 0) + 1;
-  return Object.entries(byKind).map(([k, n]) => `${n}×${k}`).join(", ");
+  return Object.entries(byKind)
+    .map(([k, n]) => `${n}×${k}`)
+    .join(", ");
 };
 
 /**
@@ -398,14 +440,14 @@ const portfolioString = (towers: TowerInstance[]): string => {
  */
 const chillAnalysis = (safety: number, lookahead: number, marginMul: number, minStreak: number) => {
   type Streak = {
-    level: typeof LEVELS[number];
+    level: (typeof LEVELS)[number];
     startWave: number;
     endWave: number;
     waves: { wave: number; arch: string; dpsBefore: number; reqDps: number; margin: number }[];
   };
   const allStreaks: Streak[] = [];
   const perLevelStats: {
-    level: typeof LEVELS[number];
+    level: (typeof LEVELS)[number];
     totalWaves: number;
     chillWaves: number;
     longestStreak: number;
@@ -418,8 +460,8 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
     if (!r.success) continue;
 
     // Identify "true chill" waves: spent=0 AND dpsBefore > reqDps × marginMul
-    const chill = r.history.map(h =>
-      h.spentThisWave === 0 && h.dpsBefore >= h.reqDps * marginMul,
+    const chill = r.history.map(
+      (h) => h.spentThisWave === 0 && h.dpsBefore >= h.reqDps * marginMul,
     );
 
     // Find consecutive runs of chill=true
@@ -427,39 +469,51 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
     let longestStart = 0;
     let i0 = 0;
     while (i0 < chill.length) {
-      if (!chill[i0]) { i0++; continue; }
+      if (!chill[i0]) {
+        i0++;
+        continue;
+      }
       let j = i0;
       while (j < chill.length && chill[j]) j++;
       const len = j - i0;
       if (len >= minStreak) {
-        const segWaves = r.history.slice(i0, j).map(h => ({
+        const segWaves = r.history.slice(i0, j).map((h) => ({
           wave: h.wave,
           arch: h.archetype,
           dpsBefore: h.dpsBefore,
           reqDps: h.reqDps,
-          margin: h.reqDps > 0 ? h.dpsBefore / h.reqDps : Infinity,
+          margin: h.reqDps > 0 ? h.dpsBefore / h.reqDps : Number.POSITIVE_INFINITY,
         }));
         allStreaks.push({
-          level, startWave: r.history[i0].wave, endWave: r.history[j - 1].wave, waves: segWaves,
+          level,
+          startWave: r.history[i0].wave,
+          endWave: r.history[j - 1].wave,
+          waves: segWaves,
         });
       }
-      if (len > longest) { longest = len; longestStart = i0; }
+      if (len > longest) {
+        longest = len;
+        longestStart = i0;
+      }
       i0 = j;
     }
 
-    const chillCount = chill.filter(c => c).length;
+    const chillCount = chill.filter((c) => c).length;
     perLevelStats.push({
-      level, totalWaves: r.history.length, chillWaves: chillCount,
+      level,
+      totalWaves: r.history.length,
+      chillWaves: chillCount,
       longestStreak: longest,
-      streakRange: longest > 0
-        ? `W${r.history[longestStart].wave}-W${r.history[longestStart + longest - 1].wave}`
-        : "—",
+      streakRange:
+        longest > 0
+          ? `W${r.history[longestStart].wave}-W${r.history[longestStart + longest - 1].wave}`
+          : "—",
     });
   }
 
   console.log(
     `\n${C.bold}═══ Chill analysis — where existing towers already clear the wave${C.reset}` +
-    ` ${C.dim}(safety=${safety}×, chill margin ≥${marginMul}× req, min streak ${minStreak})${C.reset}`,
+      ` ${C.dim}(safety=${safety}×, chill margin ≥${marginMul}× req, min streak ${minStreak})${C.reset}`,
   );
 
   // Per-level overview
@@ -468,7 +522,14 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
   );
   for (const s of perLevelStats) {
     const pct = Math.round((s.chillWaves / s.totalWaves) * 100);
-    const streakColor = s.longestStreak >= 5 ? C.red : s.longestStreak >= 3 ? C.yellow : s.longestStreak >= 2 ? C.cyan : C.dim;
+    const streakColor =
+      s.longestStreak >= 5
+        ? C.red
+        : s.longestStreak >= 3
+          ? C.yellow
+          : s.longestStreak >= 2
+            ? C.cyan
+            : C.dim;
     console.log(
       `${padR(`L${s.level.id} ${s.level.name}`, 30)} ${pad(s.totalWaves, 5)} ${pad(s.chillWaves, 5)} ${pad(pct + "%", 4)} ${streakColor}${pad(s.longestStreak, 7)}${C.reset}  ${C.dim}${s.streakRange}${C.reset}`,
     );
@@ -479,10 +540,10 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
     console.log(`\n${C.bold}Long chill stretches (≥${minStreak} waves):${C.reset}`);
     for (const s of allStreaks) {
       const avgMargin = s.waves.reduce((a, b) => a + b.margin, 0) / s.waves.length;
-      const marginStr = isFinite(avgMargin) ? `${fmt(avgMargin, 1)}×` : "∞";
+      const marginStr = Number.isFinite(avgMargin) ? `${fmt(avgMargin, 1)}×` : "∞";
       console.log(
         `  ${C.bold}L${s.level.id}${C.reset} ${padR(s.level.name, 22)} ${C.dim}W${s.startWave}-W${s.endWave}${C.reset}` +
-        ` ${C.cyan}${s.waves.length} chill waves${C.reset} ${C.dim}avg margin ${marginStr}, archetypes: ${[...new Set(s.waves.map(w => w.arch))].join("/")}${C.reset}`,
+          ` ${C.cyan}${s.waves.length} chill waves${C.reset} ${C.dim}avg margin ${marginStr}, archetypes: ${[...new Set(s.waves.map((w) => w.arch))].join("/")}${C.reset}`,
       );
     }
   }
@@ -492,7 +553,7 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
   const totalChill = perLevelStats.reduce((a, b) => a + b.chillWaves, 0);
   console.log(
     `\n${C.bold}═══ Totals${C.reset}  ${totalChill}/${totalWaves} chill waves ${C.dim}(${((totalChill / totalWaves) * 100).toFixed(1)}%)${C.reset}` +
-    `, ${allStreaks.length} stretches ≥${minStreak} long`,
+      `, ${allStreaks.length} stretches ≥${minStreak} long`,
   );
 };
 
@@ -500,7 +561,7 @@ const compareStarters = (levelIdx: number, safety: number, lookahead: number) =>
   const level = LEVELS[levelIdx];
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name} — starter comparison${C.reset} ` +
-    `${C.dim}(safety=${safety}×, lookahead=${lookahead})${C.reset}`,
+      `${C.dim}(safety=${safety}×, lookahead=${lookahead})${C.reset}`,
   );
   console.log(
     `${C.dim}${padR("starter", 9)} ${padR("result", 10)} ${pad("waves", 6)} ${pad("spent", 6)} ${pad("endGold", 7)}  final portfolio${C.reset}`,
@@ -531,8 +592,8 @@ const printLevel = (
 
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name}${C.reset}` +
-    `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
-    ` ${C.dim}startGold=${level.startGold}, safety=${safety}×${C.reset}`,
+      `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
+      ` ${C.dim}startGold=${level.startGold}, safety=${safety}×${C.reset}`,
   );
   console.log(
     `${C.dim}${pad("W", 3)} ${padR("arch", 7)} ${pad("reqDPS", 7)} ${pad("before", 7)} ${pad("after", 7)} ${pad("spent", 6)} ${pad("goldOut", 7)}  actions${C.reset}`,
@@ -543,7 +604,7 @@ const printLevel = (
     const hitMark = s.cleared ? "" : `${C.red} ✗${C.reset}`;
     console.log(
       `${pad(s.wave, 3)} ${padR(s.archetype, 7)} ${pad(fmt(s.reqDps, 0), 7)} ${pad(fmt(s.dpsBefore, 0), 7)} ${pad(fmt(s.dpsAfter, 0), 7)} ` +
-      `${pad(s.spentThisWave, 6)} ${tight}${pad(s.goldOut, 7)}${tight ? C.reset : ""}  ${s.actionsDesc}${hitMark}`,
+        `${pad(s.spentThisWave, 6)} ${tight}${pad(s.goldOut, 7)}${tight ? C.reset : ""}  ${s.actionsDesc}${hitMark}`,
     );
     if (verbose) {
       console.log(`    ${C.dim}portfolio: ${portfolioString(s.towersAfter)}${C.reset}`);
@@ -552,7 +613,9 @@ const printLevel = (
 
   // Summary
   if (!success) {
-    console.log(`${C.red}  ✗ INFEASIBLE at wave ${result.failedAt} — greedy min-cost couldn't meet ${safety}× required DPS${C.reset}`);
+    console.log(
+      `${C.red}  ✗ INFEASIBLE at wave ${result.failedAt} — greedy min-cost couldn't meet ${safety}× required DPS${C.reset}`,
+    );
   }
 
   const finalPortfolio = portfolioString(result.finalState.towers);
@@ -560,17 +623,21 @@ const printLevel = (
   const spentEntries = (Object.entries(spentByKind) as [TowerKind, number][])
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1]);
-  const lockIn = spentEntries.map(([k, v]) => `${k} ${v}g (sunk ${Math.floor(v * 0.35)}g)`).join(", ");
+  const lockIn = spentEntries
+    .map(([k, v]) => `${k} ${v}g (sunk ${Math.floor(v * 0.35)}g)`)
+    .join(", ");
   console.log(`${C.dim}  portfolio: ${finalPortfolio || "—"}${C.reset}`);
-  console.log(`${C.dim}  total spent ${result.finalState.totalSpent}g; lock-in (35% non-refundable): ${lockIn || "—"}${C.reset}`);
+  console.log(
+    `${C.dim}  total spent ${result.finalState.totalSpent}g; lock-in (35% non-refundable): ${lockIn || "—"}${C.reset}`,
+  );
 
   // Tightest waves
   const byTightness = [...history]
-    .map(s => ({ wave: s.wave, slack: s.goldOut, arch: s.archetype, spent: s.spentThisWave }))
+    .map((s) => ({ wave: s.wave, slack: s.goldOut, arch: s.archetype, spent: s.spentThisWave }))
     .sort((a, b) => a.slack - b.slack)
     .slice(0, 3);
   console.log(
-    `${C.dim}  tightest: ${byTightness.map(t => `W${t.wave}(${t.arch}, goldOut=${t.slack})`).join(", ")}${C.reset}`,
+    `${C.dim}  tightest: ${byTightness.map((t) => `W${t.wave}(${t.arch}, goldOut=${t.slack})`).join(", ")}${C.reset}`,
   );
 };
 
@@ -591,9 +658,7 @@ const marginMul = marginArg ? Number(marginArg.split("=")[1]) : 1.5;
 const minStreakArg = args.find((a: string) => a.startsWith("--min-streak="));
 const minStreak = minStreakArg ? Number(minStreakArg.split("=")[1]) : 3;
 const forceFirstArg = args.find((a: string) => a.startsWith("--force-first="));
-const forceFirst = forceFirstArg
-  ? (forceFirstArg.split("=")[1] as TowerKind)
-  : undefined;
+const forceFirst = forceFirstArg ? (forceFirstArg.split("=")[1] as TowerKind) : undefined;
 const levelArg = args.find((a: string) => /^\d+$/.test(a));
 
 if (!Number.isFinite(safety) || safety <= 0) {
@@ -640,7 +705,9 @@ if (levelArg) {
     if (!r.success) failed.push(`L${r.level.id}W${r.failedAt}`);
   }
   if (failed.length === 0) {
-    console.log(`${C.green}All ${LEVELS.length} levels clearable with greedy min-cost @ safety=${safety}×${C.reset}`);
+    console.log(
+      `${C.green}All ${LEVELS.length} levels clearable with greedy min-cost @ safety=${safety}×${C.reset}`,
+    );
   } else {
     console.log(`${C.red}Min-cost breaks at: ${failed.join(", ")}${C.reset}`);
   }

@@ -1,8 +1,7 @@
 import type { Vec2 } from "./types";
 import { dist, lerp } from "./vec2";
 
-export const segmentLength = (path: Vec2[], i: number): number =>
-  dist(path[i], path[i + 1]);
+export const segmentLength = (path: Vec2[], i: number): number => dist(path[i], path[i + 1]);
 
 export const pathLength = (path: Vec2[]): number => {
   let total = 0;
