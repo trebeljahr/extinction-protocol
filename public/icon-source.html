@@ -26,6 +26,7 @@
       // esm.sh resolves the GLTFLoader's bare `from 'three'` specifier; the unpkg URL does not.
       import * as THREE from "https://esm.sh/three@0.167.1";
       import { GLTFLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/GLTFLoader.js";
+      import { DRACOLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/DRACOLoader.js";
 
       const canvas = document.getElementById("c");
       // preserveDrawingBuffer keeps the rendered frame readable for later
@@ -62,7 +63,10 @@
       scene.add(rim);
       scene.add(new THREE.AmbientLight("#ffffff", 0.35));
 
+      const draco = new DRACOLoader();
+      draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
       const loader = new GLTFLoader();
+      loader.setDRACOLoader(draco);
       loader.load(
         "/models/tower_pulse.glb",
         (gltf) => {
@@ -72,7 +76,9 @@
           const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-          const target = 1.6;
+          // Larger target so the tower fills more of the frame — important for
+          // legibility at 32×32 / favicon sizes.
+          const target = 2.3;
           const s = target / maxDim;
           root.scale.setScalar(s);
           // Re-center; nudge slightly down so the muzzle dominates the upper half.
