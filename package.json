@@ -1,9 +1,9 @@
 {
   "name": "extinction-protocol",
   "private": true,
+  "packageManager": "pnpm@10.33.2",
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "vite",
@@ -48,6 +48,8 @@
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css}": ["biome check --write --no-errors-on-unmatched"]
+    "*.{js,jsx,ts,tsx,json,jsonc,css}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
   }
 }
