@@ -16,7 +16,33 @@ type Props = {
   clip?: string;
 };
 
-type Item = { obj: THREE.Object3D; proxy: THREE.Mesh | null; mixer: THREE.AnimationMixer };
+type Item = {
+  obj: THREE.Object3D;
+  proxy: THREE.Mesh | null;
+  mixer: THREE.AnimationMixer;
+  // Smoothed visual state — lags `e.pos` / path yaw slightly so corner
+  // turns arc instead of teleport+snap. Sim-side `e.pos` stays the
+  // source of truth for towers and click hits.
+  visX: number;
+  visZ: number;
+  visYaw: number;
+  visInit: boolean;
+};
+
+// Exp-damp half-life (seconds). Lower = snappier, higher = floatier.
+// 0.08s on yaw matches roughly a quarter-second to settle through a
+// 90° corner at typical speeds — readable as a turn, not a flick.
+const POS_HALFLIFE = 0.06;
+const YAW_HALFLIFE = 0.09;
+
+const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
+
+const shortAngleDelta = (from: number, to: number) => {
+  let d = (to - from) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+};
 
 // Soft cap on pooled clones per kind. Beyond this we let GC reclaim them
 // so a single oversized swarm doesn't pin a permanent ceiling of skinned
@@ -136,6 +162,7 @@ export const ModelEnemyMesh = ({
             recycled.proxy.userData.enemyId = e.id;
             recycled.proxy.userData.enemyMaxHp = e.maxHp;
           }
+          recycled.visInit = false;
           item = recycled;
         } else {
           const obj = cloneSkinned(scene);
@@ -164,7 +191,7 @@ export const ModelEnemyMesh = ({
             parent.add(proxy);
           }
 
-          item = { obj, proxy, mixer };
+          item = { obj, proxy, mixer, visX: 0, visZ: 0, visYaw: 0, visInit: false };
         }
         itemsRef.current.set(e.id, item);
       }
@@ -173,27 +200,44 @@ export const ModelEnemyMesh = ({
       item.mixer.timeScale = slowed ? e.slowFactor : 1;
       item.mixer.update(delta);
 
+      const path = world.paths[e.pathIndex] ?? world.paths[0];
+      const a = path[e.segment];
+      const b = path[e.segment + 1] ?? a;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const targetYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : item.visYaw;
+
+      const targetX = e.pos.x;
+      const targetZ = -e.pos.y;
+      if (!item.visInit) {
+        item.visX = targetX;
+        item.visZ = targetZ;
+        item.visYaw = targetYaw;
+        item.visInit = true;
+      } else {
+        const kp = dampFactor(delta, POS_HALFLIFE);
+        item.visX += (targetX - item.visX) * kp;
+        item.visZ += (targetZ - item.visZ) * kp;
+        const ky = dampFactor(delta, YAW_HALFLIFE);
+        item.visYaw += shortAngleDelta(item.visYaw, targetYaw) * ky;
+      }
+
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
       item.obj.position.set(
-        e.pos.x - centerXZ.x,
+        item.visX - centerXZ.x,
         yOffset - scaledMinY + bobY,
-        -e.pos.y - centerXZ.z,
+        item.visZ - centerXZ.z,
       );
       if (item.proxy) {
+        // Click target tracks the true sim position so taps line up with
+        // the actual enemy state, not the smoothed render lag.
         item.proxy.position.set(
           e.pos.x,
           yOffset - scaledMinY + bobY + proxyRadius * 0.55,
           -e.pos.y,
         );
       }
-
-      const path = world.paths[e.pathIndex] ?? world.paths[0];
-      const a = path[e.segment];
-      const b = path[e.segment + 1] ?? a;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const pathYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : 0;
-      item.obj.rotation.set(0, baseRotY + pathYaw, 0);
+      item.obj.rotation.set(0, baseRotY + item.visYaw, 0);
 
       const flashing = world.time < e.flashUntil;
       item.obj.traverse((o) => {
