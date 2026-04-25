@@ -84,6 +84,21 @@ export const useAudioBridge = () => {
     };
     document.addEventListener("pointerdown", onUiPointerDown);
 
+    // Subtle hover tick on overlay/menu buttons. Scoped to the variants
+    // that show up in modal flows so we don't spam the audio channel
+    // when the user wags the mouse over the in-game tower bar.
+    const onUiPointerOver = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const btn = target.closest("button") as HTMLButtonElement | null;
+      if (!btn || btn.disabled) return;
+      const cls = btn.className ?? "";
+      if (cls.includes("btn-ghost") || cls.includes("btn-secondary") || cls.includes("btn-close")) {
+        audio.ui("tab");
+      }
+    };
+    document.addEventListener("pointerover", onUiPointerOver);
+
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       switch (e.type) {
         case "shoot":

@@ -573,8 +573,13 @@
     width: 28px;
     height: 28px;
     padding: 0;
-    font-size: var(--fs-lg);
+    font-size: var(--fs-md);
     line-height: 1;
+    /* Inline-flex centers the glyph optically — pure padding/line-height
+       leaves the ✕ floating high-left because it has no descender. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .btn-close:hover {
     color: #fff;
@@ -1163,6 +1168,16 @@
     opacity: 0.55;
   }
 
+  /* Press feedback — small scale-down on click registers the hit even
+     when the visual hover state is subtle. The transition on .transform
+     for these buttons already runs on `--t-fast`. */
+  .btn:not(:disabled):active,
+  .btn-secondary:not(:disabled):active,
+  .btn-ghost:not(:disabled):active,
+  .btn-close:not(:disabled):active {
+    transform: scale(0.94);
+  }
+
   /* Size modifiers — apply alongside the variant class for explicit
      small / large pill heights. Default (no modifier) is medium. */
   .btn--sm {
@@ -1202,7 +1217,11 @@
     color: var(--color-fg-secondary);
     border-color: var(--color-border-strong);
   }
+  /* Pin the bg explicitly: when this class is paired with `.btn`, the
+     `.btn:hover` rule would otherwise flip the background to bright
+     cyan, leaving white text on light blue. */
   .btn-ghost:hover {
+    background: rgba(28, 40, 56, 0.85);
     border-color: var(--color-blue);
     color: #fff;
   }

@@ -43,7 +43,6 @@ export const HUD = () => {
   const callEarlyTimer = useGame((s) => s.ui.callEarlyTimer);
   const selectedKind = useGame((s) => s.selectedKind);
   const setSelectedKind = useGame((s) => s.setSelectedKind);
-  const retry = useGame((s) => s.retryCurrentLevel);
   const togglePause = useGame((s) => s.togglePause);
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
@@ -81,17 +80,13 @@ export const HUD = () => {
         (document.activeElement as HTMLElement | null)?.blur();
         return;
       }
-      if (e.code === "KeyR") {
-        retry();
-        return;
-      }
       const digit = e.key;
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find((k) => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, retry, setSelectedKind, selectedKind, callWaveEarly]);
+  }, [togglePause, setSelectedKind, selectedKind, callWaveEarly]);
 
   return (
     <div className="hud">

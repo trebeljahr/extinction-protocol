@@ -16,7 +16,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const retry = useGame((s) => s.retryCurrentLevel);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
 
   useEffect(() => {
     audio.ui("open");
@@ -25,20 +25,21 @@ export const PauseMenu = ({ onResume }: Props) => {
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
 
   if (confirming) {
+    const isRestart = confirming === "restart";
     return (
       <MenuOverlay
-        title="Return to World Map?"
-        onClose={() => setConfirming(false)}
+        title={isRestart ? "Restart Level?" : "Return to World Map?"}
+        onClose={() => setConfirming(null)}
         closeLabel="Cancel"
       >
         <div className="text-center text-[13px] text-fg-muted mb-5 leading-[1.4]">
           Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
         </div>
         <ActionsRow>
-          <button type="button" className="btn" onClick={goToWorldMap}>
-            Return
+          <button type="button" className="btn" onClick={isRestart ? retry : goToWorldMap}>
+            {isRestart ? "Restart" : "Return"}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => setConfirming(false)}>
+          <button type="button" className="btn btn-secondary" onClick={() => setConfirming(null)}>
             Cancel
           </button>
         </ActionsRow>
@@ -55,9 +56,6 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeTitle="Resume (Esc)"
     >
       <SoundControls />
-      <button type="button" className="btn w-full mb-2.5" onClick={retry}>
-        Restart (R)
-      </button>
       <ActionsRow>
         <button
           type="button"
@@ -76,9 +74,16 @@ export const PauseMenu = ({ onResume }: Props) => {
         <button
           type="button"
           className="btn btn-ghost btn--sm flex-1"
-          onClick={() => setConfirming(true)}
+          onClick={() => setConfirming("restart")}
         >
-          World Map
+          Restart
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn--sm flex-1"
+          onClick={() => setConfirming("worldMap")}
+        >
+          Return to World Map
         </button>
       </ActionsRow>
     </MenuOverlay>
