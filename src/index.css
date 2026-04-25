@@ -1,11 +1,8 @@
-/* Tailwind v4: skip preflight (existing CSS supplies its own reset).
-   Theme tokens below generate utilities (bg-*, text-*, etc.).
-   Explicit @source so utility detection is independent of the auto-scanner
-   that ships with the bundled `@import "tailwindcss"` (we split the import). */
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
-@source "../**/*.{ts,tsx}";
+/* Tailwind v4. The legacy hand-written CSS lives in @layer components
+   (bottom of file) so utilities cascade above it. Preflight is left enabled
+   — anywhere it conflicts with hand-written rules, the hand-written rule
+   wins via the components layer. */
+@import "tailwindcss";
 
 @theme {
   /* === Surfaces === */
