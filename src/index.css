@@ -1,8 +1,11 @@
 /* Tailwind v4: skip preflight (existing CSS supplies its own reset).
-   Theme tokens below generate utilities (bg-*, text-*, etc.). */
+   Theme tokens below generate utilities (bg-*, text-*, etc.).
+   Explicit @source so utility detection is independent of the auto-scanner
+   that ships with the bundled `@import "tailwindcss"` (we split the import). */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+@source "../**/*.{ts,tsx}";
 
 @theme {
   /* === Surfaces === */
