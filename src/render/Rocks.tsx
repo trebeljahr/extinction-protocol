@@ -244,10 +244,15 @@ const RockHitTargets = ({
     if (e.instanceId == null) return;
     const rock = rocks[e.instanceId];
     if (!rock) return;
+    // Consume so the tree hit-disc (same y-level) doesn't also fire
+    // its onPointerMove and double-highlight at the overlap. R3F
+    // dispatches closest-first, so the front rock wins.
+    e.stopPropagation();
     if (hoveredId !== rock.id) setHoveredId(rock.id);
   };
 
-  const onOut = () => {
+  const onOut = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
     if (hoveredId !== null && rocks.some((r) => r.id === hoveredId)) setHoveredId(null);
   };
 

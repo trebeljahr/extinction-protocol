@@ -127,8 +127,14 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       position={[egg.pos.x, 0, -egg.pos.y]}
       rotation={[0, egg.rotY, 0]}
       onClick={onClick}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHovered(false);
+      }}
     >
       <group position={[0, yModel, 0]} scale={scale}>
         <primitive object={clone} />
