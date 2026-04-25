@@ -176,6 +176,15 @@ export const ModelEnemyMesh = ({
             if (m.isMesh) {
               m.castShadow = true;
               m.receiveShadow = true;
+              // SkeletonUtils.clone shares material references across
+              // clones, so mutating .emissive for the hit-flash would
+              // light up every enemy of this kind. Give each clone its
+              // own material so flashes stay local.
+              if (Array.isArray(m.material)) {
+                m.material = m.material.map((mm) => mm.clone());
+              } else if (m.material) {
+                m.material = (m.material as THREE.Material).clone();
+              }
             }
           });
           const mixer = new THREE.AnimationMixer(obj);
@@ -268,6 +277,14 @@ export const ModelEnemyMesh = ({
           }
           poolRef.current.push(item);
         } else {
+          // Pool full — drop. Dispose per-clone materials we created in
+          // the constructor branch so GPU resources don't leak.
+          item.obj.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (!m.isMesh || !m.material) return;
+            if (Array.isArray(m.material)) for (const mm of m.material) mm.dispose();
+            else (m.material as THREE.Material).dispose();
+          });
           parent.remove(item.obj);
           if (item.proxy) parent.remove(item.proxy);
         }
