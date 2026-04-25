@@ -158,11 +158,14 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   const redLife = 0.7;
 
   // Hot inner jet — narrowish, fast, short-lived; reaches ~70% down the cone.
+  // Color is warmer than pure white-yellow because additive blending stacks
+  // these particles on top of the orange/red layers and the centerline used
+  // to read as a blown-out white-hot core.
   spawnParticles(
     world,
     nozzle,
-    6,
-    "#fff0a0",
+    4,
+    "#ffc868",
     speedRange(yellowLife, 0.7),
     yellowLife,
     dir,
