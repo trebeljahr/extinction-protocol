@@ -1,15 +1,15 @@
 import { nanoid } from "nanoid";
 import { useMemo } from "react";
-import { PATH_WIDTH } from "../level";
-import type { Vec2 } from "../sim/types";
-import { useGame } from "../store";
 import {
   LAVA_COLOR,
   LAVA_EMISSIVE,
   LAVA_EMISSIVE_INTENSITY,
   RIVER_WIDTH,
   buildLavaFeatures,
-} from "./lavaGeometry";
+} from "../lavaGeometry";
+import { PATH_WIDTH } from "../level";
+import type { Vec2 } from "../sim/types";
+import { useGame } from "../store";
 
 const BRIDGE_DECK = "#2e1a10";
 const BRIDGE_TRIM = "#7a3a1e";

@@ -1,5 +1,5 @@
-import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
-import type { Vec2 } from "../sim/types";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
+import type { Vec2 } from "./sim/types";
 
 export const LAVA_COLOR = "#ff6a1c";
 export const LAVA_EMISSIVE = "#ff5010";
@@ -235,13 +235,7 @@ export const buildLavaSurface = (features: LavaFeatures): LavaSurface => {
   return { items, total };
 };
 
-// Pick a random world-space (x, y) point on the lava surface, weighted by
-// area so larger features spawn proportionally more embers. Returns level
-// (x, y) coords; caller maps y → -z for three.js.
-export const sampleLavaSurface = (
-  surface: LavaSurface,
-  rand: () => number,
-): { x: number; y: number } | null => {
+const sampleOnce = (surface: LavaSurface, rand: () => number): { x: number; y: number } | null => {
   if (surface.total <= 0) return null;
   let r = rand() * surface.total;
   for (const item of surface.items) {
@@ -273,4 +267,62 @@ export const sampleLavaSurface = (
     return { x: item.x + lx * c - ly * s, y: item.y + lx * s + ly * c };
   }
   return null;
+};
+
+// Bridge approximated as a stadium: distance-to-segment between the two
+// endpoints, with radius = bridge half-width. Slight padding so embers
+// don't visibly poke out from beneath the deck.
+const BRIDGE_OCCLUDE_PAD = 0.2;
+export const isUnderBridge = (bridges: Bridge[], x: number, y: number): boolean => {
+  if (bridges.length === 0) return false;
+  const halfW = (PATH_WIDTH + 0.4) / 2 + BRIDGE_OCCLUDE_PAD;
+  const r2 = halfW * halfW;
+  for (const b of bridges) {
+    const tx = Math.cos(b.rotY);
+    const ty = -Math.sin(b.rotY);
+    const halfL = b.length / 2;
+    const ax = b.pos.x - tx * halfL;
+    const ay = b.pos.y - ty * halfL;
+    const bx = b.pos.x + tx * halfL;
+    const by = b.pos.y + ty * halfL;
+    if (distPointToSegSq(x, y, ax, ay, bx, by) < r2) return true;
+  }
+  return false;
+};
+
+// Pick a random world-space (x, y) point on the lava surface, weighted by
+// area so larger features spawn proportionally more embers. Rejects samples
+// that fall under a bridge so embers don't poke through the deck. Returns
+// level (x, y) coords; caller maps y → -z for three.js.
+export const sampleLavaSurface = (
+  surface: LavaSurface,
+  bridges: Bridge[],
+  rand: () => number,
+): { x: number; y: number } | null => {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const sample = sampleOnce(surface, rand);
+    if (!sample) return null;
+    if (!isUnderBridge(bridges, sample.x, sample.y)) return sample;
+  }
+  // Give up rather than skip the spawn — keeps the pool full even if a
+  // particularly bridge-heavy level rejects every try.
+  return sampleOnce(surface, rand);
+};
+
+// True if (x, y) is inside any lava lake's ellipse, padded outward by
+// `padding` world units. Used to keep environmental decorations from
+// spawning on top of the molten pools.
+export const isInsideLavaLake = (lakes: Lake[], x: number, y: number, padding = 0): boolean => {
+  for (const l of lakes) {
+    const dx = x - l.x;
+    const dy = y - l.y;
+    const c = Math.cos(-l.rot);
+    const s = Math.sin(-l.rot);
+    const lx = dx * c - dy * s;
+    const ly = dx * s + dy * c;
+    const rx = l.rx + padding;
+    const ry = l.ry + padding;
+    if ((lx * lx) / (rx * rx) + (ly * ly) / (ry * ry) <= 1) return true;
+  }
+  return false;
 };

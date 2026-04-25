@@ -1,9 +1,14 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import {
+  type LavaFeatures,
+  buildLavaFeatures,
+  buildLavaSurface,
+  sampleLavaSurface,
+} from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { useGame } from "../store";
-import { buildLavaFeatures, buildLavaSurface, sampleLavaSurface } from "./lavaGeometry";
 
 // Self-managing render-only particles. Not tied to sim state (doesn't
 // consume world.particles budget); purely atmospheric decoration.
@@ -27,12 +32,14 @@ type P = {
   brightness: number;
 };
 
-const freshLavaEmber = (p: P, surface: ReturnType<typeof buildLavaSurface> | null) => {
+type LavaSpawn = { surface: ReturnType<typeof buildLavaSurface>; features: LavaFeatures };
+
+const freshLavaEmber = (p: P, lava: LavaSpawn | null) => {
   // 35% sparks (bright, snappy, tiny), 65% embers (slower, larger, dimmer)
   const isSpark = Math.random() < 0.35;
   p.kind = isSpark ? "spark" : "ember";
 
-  const sample = surface ? sampleLavaSurface(surface, Math.random) : null;
+  const sample = lava ? sampleLavaSurface(lava.surface, lava.features.bridges, Math.random) : null;
   if (sample) {
     p.x = sample.x;
     p.z = -sample.y;
@@ -92,9 +99,10 @@ export const BiomeAmbientVfx = () => {
   const color = useMemo(() => new THREE.Color(), []);
   const baseColorTmp = useMemo(() => new THREE.Color(), []);
 
-  const lavaSurface = useMemo(() => {
+  const lavaSpawn = useMemo<LavaSpawn | null>(() => {
     if (biome !== "lava") return null;
-    return buildLavaSurface(buildLavaFeatures(paths, levelId));
+    const features = buildLavaFeatures(paths, levelId);
+    return { features, surface: buildLavaSurface(features) };
   }, [biome, paths, levelId]);
 
   const pool = useMemo<P[]>(() => {
@@ -134,7 +142,7 @@ export const BiomeAmbientVfx = () => {
     let i = 0;
     for (const p of pool) {
       if (p.life <= 0) {
-        if (isLava) freshLavaEmber(p, lavaSurface);
+        if (isLava) freshLavaEmber(p, lavaSpawn);
         else freshAlienSpore(p);
       }
       p.life -= dt;

@@ -1,5 +1,6 @@
 import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
 import { EASTER_EGG_DEFS } from "../easterEggs";
+import { type Lake, buildLavaFeatures, isInsideLavaLake } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
@@ -75,6 +76,7 @@ const buildTrees = (
   paths: Vec2[][],
   seed: number,
   firstId: number,
+  lakes: Lake[],
 ): { trees: Tree[]; nextId: number } => {
   const rng = mulberry32(seed);
   const trees: Tree[] = [];
@@ -87,6 +89,7 @@ const buildTrees = (
     tries++;
     const x = (rng() - 0.5) * MAP_WIDTH * 0.95;
     const y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
+    if (isInsideLavaLake(lakes, x, y, TREE_FOOTPRINT)) continue;
     let blocked = false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
@@ -123,6 +126,7 @@ const buildRocks = (
   paths: Vec2[][],
   trees: Tree[],
   firstId: number,
+  lakes: Lake[],
 ): { rocks: Rock[]; nextId: number } => {
   const rocks: Rock[] = [];
   const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
@@ -145,6 +149,7 @@ const buildRocks = (
       const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
       const rot = rng() * Math.PI * 2;
 
+      if (isInsideLavaLake(lakes, x, y, ROCK_FOOTPRINT * scale)) continue;
       let blocked = false;
       for (const path of paths) {
         for (let i = 0; i < path.length - 1; i++) {
@@ -196,6 +201,7 @@ const buildEasterEggs = (
   rocks: Rock[],
   seed: number,
   firstId: number,
+  lakes: Lake[],
 ): { eggs: EasterEgg[]; nextId: number } => {
   // Only consider statically-placed eggs here — moving ones spawn on a
   // schedule via updateEasterEggs.
@@ -212,6 +218,7 @@ const buildEasterEggs = (
     attempts++;
     const x = (rng() - 0.5) * MAP_WIDTH * 0.88;
     const y = (rng() - 0.5) * MAP_HEIGHT * 0.88;
+    if (isInsideLavaLake(lakes, x, y, 0.6)) continue;
     let blocked = false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
@@ -276,8 +283,12 @@ const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEn
 
 export const createWorld = (level: LevelConfig): World => {
   const biome = biomeForPos(level.nodePos);
-  const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1);
-  const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees);
+  // Lava lakes block organic decoration placement so trees, rocks, and
+  // easter eggs don't spawn in molten pools. Only lava biome has lakes;
+  // empty list short-circuits inside isInsideLavaLake for other biomes.
+  const lakes = biome === "lava" ? buildLavaFeatures(level.paths, level.id).lakes : [];
+  const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1, lakes);
+  const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees, lakes);
   const { eggs, nextId } = buildEasterEggs(
     biome,
     level.paths,
@@ -285,6 +296,7 @@ export const createWorld = (level: LevelConfig): World => {
     rocks,
     level.id * 2311 + 47,
     afterRocks,
+    lakes,
   );
   const easterEggSchedule = buildEasterEggSchedule(biome, level.id * 5471 + 3);
   return {
