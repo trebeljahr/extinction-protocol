@@ -175,17 +175,21 @@ export const HUD = () => {
               <div className="tower-preview-wrap">
                 <TowerPreview kind={kind} />
                 <span className="tower-hot">{HOTKEYS[kind]}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 mt-1">
                 <span
-                  className="tower-dmg-icon"
+                  className="inline-flex items-center"
                   style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
                   title={DAMAGE_TYPE_LABEL[dmgType]}
                 >
                   <DamageIcon type={dmgType} size={13} title={DAMAGE_TYPE_LABEL[dmgType]} />
                 </span>
+                <span className="tower-cost text-[11px] font-bold tabular-nums text-gold">
+                  {cost}g
+                </span>
               </div>
-              <div className="tower-meta">
-                <span className="tower-name">{TOWER_LABEL[kind]}</span>
-                <span className="tower-cost">{cost}g</span>
+              <div className="tower-name text-[10px] font-semibold leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-center">
+                {TOWER_LABEL[kind]}
               </div>
             </button>
           );

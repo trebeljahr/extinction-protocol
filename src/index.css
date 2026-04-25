@@ -336,42 +336,6 @@
     border-radius: 4px;
     pointer-events: none;
   }
-  .tower-preview-wrap .tower-dmg-icon {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    background: rgba(0, 0, 0, 0.55);
-    border-radius: 4px;
-    pointer-events: none;
-  }
-
-  .tower-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 4px;
-    font-size: 10px;
-    line-height: 1.1;
-  }
-  .tower-meta .tower-name {
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tower-meta .tower-cost {
-    font-weight: 700;
-    color: var(--color-gold);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-  }
-
   .tower-card:focus {
     outline: none;
   }
