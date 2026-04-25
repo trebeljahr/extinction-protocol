@@ -120,6 +120,15 @@
   canvas {
     display: block;
     touch-action: none;
+    cursor: default;
+  }
+
+  /* Gameplay-aware cursor: crosshair while a tower kind is selected
+     for placement. Toggled by App.tsx via body.is-placing. Buttons in
+     the HUD keep `cursor: pointer` because their rules win on
+     specificity. */
+  body.is-placing canvas {
+    cursor: crosshair;
   }
 
   .hud {

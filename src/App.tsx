@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
@@ -54,7 +54,18 @@ export const App = () => {
   const screen = useGame((s) => s.screen);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   const achievementsOpen = useGame((s) => s.achievementsOpen);
+  const selectedKind = useGame((s) => s.selectedKind);
   const modalOpen = compendiumOpen || achievementsOpen;
+
+  // Drive the cursor from gameplay state. Crosshair on the canvas
+  // while a tower kind is selected, default everywhere else. Buttons
+  // keep `cursor: pointer` because their rules win on specificity.
+  useEffect(() => {
+    const cls = "is-placing";
+    if (selectedKind !== null) document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+    return () => document.body.classList.remove(cls);
+  }, [selectedKind]);
 
   return (
     <>
