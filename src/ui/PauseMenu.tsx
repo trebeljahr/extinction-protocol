@@ -56,40 +56,44 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeTitle="Resume (Esc)"
     >
       <SoundControls />
-      <ActionsRow>
+      <ActionsCol>
         <button
           type="button"
-          className="btn btn-ghost btn--sm flex-1"
+          className="btn btn-ghost w-full"
           onClick={() => setCompendiumOpen(true)}
         >
           Compendium
         </button>
         <button
           type="button"
-          className="btn btn-ghost btn--sm flex-1"
+          className="btn btn-ghost w-full"
           onClick={() => setAchievementsOpen(true)}
         >
           Achievements
         </button>
         <button
           type="button"
-          className="btn btn-ghost btn--sm flex-1"
+          className="btn btn-ghost w-full"
           onClick={() => setConfirming("restart")}
         >
           Restart
         </button>
         <button
           type="button"
-          className="btn btn-ghost btn--sm flex-1"
+          className="btn btn-ghost w-full"
           onClick={() => setConfirming("worldMap")}
         >
           Return to World Map
         </button>
-      </ActionsRow>
+      </ActionsCol>
     </MenuOverlay>
   );
 };
 
 const ActionsRow = ({ children }: { children: React.ReactNode }) => (
   <div className="flex gap-2.5 justify-center flex-wrap">{children}</div>
+);
+
+const ActionsCol = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-col gap-2">{children}</div>
 );

@@ -1206,7 +1206,11 @@
     padding: var(--btn-pad-lg, 10px 20px);
     font-size: var(--fs-lg);
   }
-  .btn-secondary:hover {
+  /* `:not(:disabled)` matches the specificity of `.btn:hover:not(:disabled)`
+     so that when this variant is paired with `.btn` (e.g. `.btn .btn-secondary`),
+     this rule's bg/color win on source order instead of losing to the cyan
+     primary hover. */
+  .btn-secondary:hover:not(:disabled) {
     background: rgba(14, 20, 28, 0.72);
     border-color: var(--color-blue);
     color: #fff;
@@ -1217,10 +1221,10 @@
     color: var(--color-fg-secondary);
     border-color: var(--color-border-strong);
   }
-  /* Pin the bg explicitly: when this class is paired with `.btn`, the
-     `.btn:hover` rule would otherwise flip the background to bright
-     cyan, leaving white text on light blue. */
-  .btn-ghost:hover {
+  /* `:not(:disabled)` matches the specificity of `.btn:hover:not(:disabled)`
+     — without it, the cyan primary hover wins when this class is paired
+     with `.btn`, leaving white text on bright cyan. */
+  .btn-ghost:hover:not(:disabled) {
     background: rgba(28, 40, 56, 0.85);
     border-color: var(--color-blue);
     color: #fff;
