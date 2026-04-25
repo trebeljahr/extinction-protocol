@@ -4,7 +4,6 @@ import {
   LAVA_COLOR,
   LAVA_EMISSIVE,
   LAVA_EMISSIVE_INTENSITY,
-  RIVER_WIDTH,
   buildLavaFeatures,
 } from "../lavaGeometry";
 import { PATH_WIDTH } from "../level";
@@ -36,7 +35,7 @@ export const LavaFeatures = () => {
   return (
     <group>
       {decorated.rivers.map((river) => (
-        <RiverMesh key={river.id} points={river.points} />
+        <RiverMesh key={river.id} points={river.points} width={river.width} />
       ))}
       {decorated.lakes.map((l) => (
         <mesh
@@ -76,7 +75,7 @@ export const LavaFeatures = () => {
   );
 };
 
-const RiverMesh = ({ points }: { points: Vec2[] }) => {
+const RiverMesh = ({ points, width }: { points: Vec2[]; width: number }) => {
   const segs = useMemo(() => {
     const out: { id: string; pos: [number, number, number]; rotY: number; length: number }[] = [];
     for (let i = 0; i < points.length - 1; i++) {
@@ -105,7 +104,7 @@ const RiverMesh = ({ points }: { points: Vec2[] }) => {
     <group>
       {segs.map((s) => (
         <mesh key={s.id} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
-          <planeGeometry args={[s.length, RIVER_WIDTH]} />
+          <planeGeometry args={[s.length, width]} />
           <meshStandardMaterial
             color={LAVA_COLOR}
             emissive={LAVA_EMISSIVE}
@@ -117,7 +116,7 @@ const RiverMesh = ({ points }: { points: Vec2[] }) => {
       ))}
       {joints.map((j) => (
         <mesh key={j.id} position={j.pos} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <circleGeometry args={[RIVER_WIDTH / 2, 16]} />
+          <circleGeometry args={[width / 2, 16]} />
           <meshStandardMaterial
             color={LAVA_COLOR}
             emissive={LAVA_EMISSIVE}

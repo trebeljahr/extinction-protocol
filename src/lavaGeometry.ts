@@ -5,8 +5,11 @@ export const LAVA_COLOR = "#ff6a1c";
 export const LAVA_EMISSIVE = "#ff5010";
 export const LAVA_EMISSIVE_INTENSITY = 1.6;
 export const RIVER_WIDTH = 2.2;
+// Tributaries are visibly thinner so the main river still reads as the main
+// river. Roughly 0.55× width, capped to keep the molten band readable.
+export const TRIBUTARY_WIDTH = 1.25;
 
-export type River = { points: Vec2[] };
+export type River = { points: Vec2[]; width: number };
 export type Lake = { x: number; y: number; rx: number; ry: number; rot: number };
 export type Bridge = { pos: Vec2; rotY: number; length: number };
 export type LavaFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
@@ -41,6 +44,55 @@ const distPointToSegSq = (
   const dx = px - cx;
   const dy = py - cy;
   return dx * dx + dy * dy;
+};
+
+// Pick a perpendicular direction at a point along a polyline (sign-randomized).
+const perpAt = (
+  pts: Vec2[],
+  i: number,
+  rng: () => number,
+): { ox: number; oy: number; tx: number; ty: number } => {
+  const a = pts[Math.max(0, i - 1)];
+  const b = pts[Math.min(pts.length - 1, i + 1)];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const tx = dx / len;
+  const ty = dy / len;
+  const sign = rng() < 0.5 ? -1 : 1;
+  return { ox: -ty * sign, oy: tx * sign, tx, ty };
+};
+
+// Short meandering offshoot that leaves the parent river roughly perpendicular
+// at index `parentIdx`, drifts a few units, then peters out. Uses the same
+// sinusoidal+noise wobble as main rivers but at smaller amplitude.
+const buildTributary = (rng: () => number, parent: Vec2[], parentIdx: number): Vec2[] => {
+  const { ox, oy, tx, ty } = perpAt(parent, parentIdx, rng);
+  const start = parent[parentIdx];
+  const N = 5 + Math.floor(rng() * 3); // 5–7 segments
+  const length = 4 + rng() * 3.5; // 4–7.5 world units
+  const amp = 0.6 + rng() * 0.5;
+  const phase = rng() * Math.PI * 2;
+  // 35° drift along the parent so tributaries don't always come in at right
+  // angles — looks more like real branching channels.
+  const drift = (rng() - 0.5) * 0.6;
+  const dirX = ox + tx * drift;
+  const dirY = oy + ty * drift;
+  const dlen = Math.hypot(dirX, dirY) || 1;
+  const ux = dirX / dlen;
+  const uy = dirY / dlen;
+  const nx = -uy;
+  const ny = ux;
+  const out: Vec2[] = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const along = t * length;
+    const wobble = Math.sin(phase + t * Math.PI * 1.6) * amp * (1 - 0.6 * t);
+    const x = start.x + ux * along + nx * wobble;
+    const y = start.y + uy * along + ny * wobble;
+    out.push({ x, y });
+  }
+  return out;
 };
 
 // Meandering polyline crossing the map on the chosen axis. Endpoints push
@@ -151,9 +203,10 @@ const segIntersect = (a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2): Vec2 | null => {
 
 // At each path × river crossing emit a bridge whose long axis follows the
 // path. Length is widened when the crossing is oblique so the deck still
-// covers the river's footprint along the path direction.
+// covers the river's footprint along the path direction. Bridge length scales
+// with river width so tributary crossings get smaller decks.
 const BRIDGE_OVERHANG = 2.2;
-const computeBridges = (paths: Vec2[][], rivers: Vec2[][]): Bridge[] => {
+const computeBridges = (paths: Vec2[][], rivers: River[]): Bridge[] => {
   const out: Bridge[] = [];
   for (const path of paths) {
     for (let pi = 0; pi < path.length - 1; pi++) {
@@ -168,9 +221,10 @@ const computeBridges = (paths: Vec2[][], rivers: Vec2[][]): Bridge[] => {
       const rotY = Math.atan2(-pdy, pdx);
 
       for (const river of rivers) {
-        for (let ri = 0; ri < river.length - 1; ri++) {
-          const r1 = river[ri];
-          const r2 = river[ri + 1];
+        const pts = river.points;
+        for (let ri = 0; ri < pts.length - 1; ri++) {
+          const r1 = pts[ri];
+          const r2 = pts[ri + 1];
           const hit = segIntersect(a, b, r1, r2);
           if (!hit) continue;
 
@@ -179,7 +233,7 @@ const computeBridges = (paths: Vec2[][], rivers: Vec2[][]): Bridge[] => {
           const rLen = Math.hypot(rdx, rdy);
           if (rLen < 1e-6) continue;
           const sinTheta = Math.abs(ptx * (rdy / rLen) - pty * (rdx / rLen));
-          const projected = RIVER_WIDTH / Math.max(0.25, sinTheta);
+          const projected = river.width / Math.max(0.25, sinTheta);
           out.push({ pos: hit, rotY, length: projected + BRIDGE_OVERHANG });
         }
       }
@@ -190,18 +244,48 @@ const computeBridges = (paths: Vec2[][], rivers: Vec2[][]): Bridge[] => {
 
 export const buildLavaFeatures = (paths: Vec2[][], levelId: number): LavaFeatures => {
   const rng = mulberry32(levelId * 7919 + 31);
-  const riverPoints = [buildRiver(rng, "h"), buildRiver(rng, "v")];
+  const mainPoints = [buildRiver(rng, "h"), buildRiver(rng, "v")];
+  const rivers: River[] = mainPoints.map((points) => ({ points, width: RIVER_WIDTH }));
+
+  // 1–2 tributaries off each main river, branching from non-endpoint indices.
+  // Skipped if the rolled parentIdx puts the offshoot off the map.
+  for (const main of mainPoints) {
+    const branchCount = 1 + (rng() < 0.5 ? 1 : 0);
+    for (let b = 0; b < branchCount; b++) {
+      const parentIdx = 2 + Math.floor(rng() * Math.max(1, main.length - 4));
+      const points = buildTributary(rng, main, parentIdx);
+      const last = points[points.length - 1];
+      if (
+        last.x < -MAP_WIDTH / 2 - 2 ||
+        last.x > MAP_WIDTH / 2 + 2 ||
+        last.y < -MAP_HEIGHT / 2 - 2 ||
+        last.y > MAP_HEIGHT / 2 + 2
+      )
+        continue;
+      rivers.push({ points, width: TRIBUTARY_WIDTH });
+    }
+  }
+
+  const allPoints = rivers.map((r) => r.points);
   return {
-    rivers: riverPoints.map((points) => ({ points })),
-    lakes: buildLakes(rng, paths, riverPoints),
-    bridges: computeBridges(paths, riverPoints),
+    rivers,
+    lakes: buildLakes(rng, paths, allPoints),
+    bridges: computeBridges(paths, rivers),
   };
 };
 
 // Weighted sampling table over the lava surface (rivers + lakes). Built
 // once per level so per-frame ember spawns just pick a point in O(items).
 type SurfaceItem =
-  | { kind: "river"; ax: number; ay: number; bx: number; by: number; weight: number }
+  | {
+      kind: "river";
+      ax: number;
+      ay: number;
+      bx: number;
+      by: number;
+      width: number;
+      weight: number;
+    }
   | { kind: "lake"; x: number; y: number; rx: number; ry: number; rot: number; weight: number };
 
 export type LavaSurface = { items: SurfaceItem[]; total: number };
@@ -214,9 +298,17 @@ export const buildLavaSurface = (features: LavaFeatures): LavaSurface => {
       const a = river.points[i];
       const b = river.points[i + 1];
       const len = Math.hypot(b.x - a.x, b.y - a.y);
-      const weight = len * RIVER_WIDTH;
+      const weight = len * river.width;
       total += weight;
-      items.push({ kind: "river", ax: a.x, ay: a.y, bx: b.x, by: b.y, weight });
+      items.push({
+        kind: "river",
+        ax: a.x,
+        ay: a.y,
+        bx: b.x,
+        by: b.y,
+        width: river.width,
+        weight,
+      });
     }
   }
   for (const lake of features.lakes) {
@@ -249,10 +341,10 @@ const sampleOnce = (surface: LavaSurface, rand: () => number): { x: number; y: n
       const dy = item.by - item.ay;
       const len = Math.hypot(dx, dy);
       if (len < 1e-6) return { x: cx, y: cy };
-      // Perpendicular offset within ±RIVER_WIDTH/2, biased toward center
+      // Perpendicular offset within ±width/2, biased toward center
       // (square the random so embers cluster down the river spine).
       const u = rand() * 2 - 1;
-      const off = Math.sign(u) * u * u * (RIVER_WIDTH / 2);
+      const off = Math.sign(u) * u * u * (item.width / 2);
       const nx = -dy / len;
       const ny = dx / len;
       return { x: cx + nx * off, y: cy + ny * off };
@@ -331,10 +423,10 @@ export const isOnLavaSurface = (
     const ry = l.ry + padding;
     if ((lx * lx) / (rx * rx) + (ly * ly) / (ry * ry) <= 1) return true;
   }
-  const riverHalf = RIVER_WIDTH / 2 + padding;
-  const r2 = riverHalf * riverHalf;
   for (const river of features.rivers) {
     const pts = river.points;
+    const riverHalf = river.width / 2 + padding;
+    const r2 = riverHalf * riverHalf;
     for (let i = 0; i < pts.length - 1; i++) {
       if (distPointToSegSq(x, y, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < r2) return true;
     }

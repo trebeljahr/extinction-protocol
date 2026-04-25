@@ -26,11 +26,16 @@ import type {
 
 export const STARTING_LIVES = 20;
 
-export const TREE_COUNT = 28;
+export const TREE_COUNT = 20;
+// Trees clump into a handful of groves rather than evenly speckling the map.
+const TREE_CLUSTER_SEEDS = 5;
+const TREE_CLUSTER_SIGMA = 2.4;
 export const TREE_VARIANTS = 4;
 export const TREE_CLEARANCE_MARGIN = 2.0;
-export const TREE_MIN_SCALE = 0.55;
-export const TREE_MAX_SCALE = 0.95;
+// Wider range with a slight central bias gives a more natural mix —
+// most trees mid-sized, with the occasional sapling and elder.
+export const TREE_MIN_SCALE = 0.45;
+export const TREE_MAX_SCALE = 1.15;
 export const TREE_MIN_SPACING = 2.2;
 export const TREE_FOOTPRINT = 0.85;
 export const TREE_REMOVE_COST = 10;
@@ -72,6 +77,13 @@ const distPointToSegSq = (
   return dx * dx + dy * dy;
 };
 
+// Box–Muller normal sample for cluster offsets.
+const gaussian = (rng: () => number, sigma: number): number => {
+  const u = Math.max(rng(), 1e-9);
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
+};
+
 const buildTrees = (
   paths: Vec2[][],
   seed: number,
@@ -83,12 +95,59 @@ const buildTrees = (
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
   const pathR2 = clearance * clearance;
   const spacingSq = TREE_MIN_SPACING * TREE_MIN_SPACING;
+
+  // Pre-pick cluster seeds clear of the path. Trees grow in groves around
+  // these anchors instead of sprinkling across the map evenly.
+  const seeds: Vec2[] = [];
+  let seedTries = 0;
+  while (seeds.length < TREE_CLUSTER_SEEDS && seedTries < TREE_CLUSTER_SEEDS * 60) {
+    seedTries++;
+    const sx = (rng() - 0.5) * MAP_WIDTH * 0.85;
+    const sy = (rng() - 0.5) * MAP_HEIGHT * 0.85;
+    if (isOnLavaSurface(lava, sx, sy, 1.5)) continue;
+    let blockedSeed = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(sx, sy, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blockedSeed = true;
+          break;
+        }
+      }
+      if (blockedSeed) break;
+    }
+    if (blockedSeed) continue;
+    let tooClose = false;
+    for (const s of seeds) {
+      const dx = s.x - sx;
+      const dy = s.y - sy;
+      if (dx * dx + dy * dy < 6 * 6) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (tooClose) continue;
+    seeds.push({ x: sx, y: sy });
+  }
+  // Fallback to uniform random if we couldn't seed any clusters (very dense paths).
+  const seedFallback = seeds.length === 0;
+
+  const halfW = MAP_WIDTH * 0.475;
+  const halfH = MAP_HEIGHT * 0.475;
+
   let nextId = firstId;
   let tries = 0;
-  while (trees.length < TREE_COUNT && tries < TREE_COUNT * 40) {
+  while (trees.length < TREE_COUNT && tries < TREE_COUNT * 60) {
     tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.95;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
+    let x: number;
+    let y: number;
+    if (seedFallback) {
+      x = (rng() - 0.5) * MAP_WIDTH * 0.95;
+      y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
+    } else {
+      const seed = seeds[Math.floor(rng() * seeds.length)];
+      x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, TREE_CLUSTER_SIGMA)));
+      y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, TREE_CLUSTER_SIGMA)));
+    }
     if (isOnLavaSurface(lava, x, y, TREE_FOOTPRINT)) continue;
     let blocked = false;
     for (const path of paths) {
@@ -114,7 +173,9 @@ const buildTrees = (
       id: nextId++,
       pos: { x, y },
       variant: Math.floor(rng() * TREE_VARIANTS),
-      scale: TREE_MIN_SCALE + rng() * (TREE_MAX_SCALE - TREE_MIN_SCALE),
+      // Triangular distribution (avg of two uniforms) biases toward mid-size,
+      // so saplings and elders are uncommon but visible.
+      scale: TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE),
       rot: rng() * Math.PI * 2,
     });
   }
@@ -146,7 +207,8 @@ const buildRocks = (
       const x = (rng() - 0.5) * MAP_WIDTH;
       const y = (rng() - 0.5) * MAP_HEIGHT;
       const rawVariant = Math.floor(rng() * spec.urls.length);
-      const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
+      // Same triangular bias as trees — small/large rocks are accents, not norm.
+      const scale = spec.minScale + ((rng() + rng()) / 2) * (spec.maxScale - spec.minScale);
       const rot = rng() * Math.PI * 2;
 
       if (isOnLavaSurface(lava, x, y, ROCK_FOOTPRINT * scale)) continue;

@@ -13,7 +13,15 @@ import { useGame } from "../store";
 // world state — they're pure flavor and never block placement or get
 // clicked.
 
-const COUNT_PER_LEVEL = 26;
+// Pre-tuned for the cluster algorithm below: ~14 props in 4–6 cluster pockets
+// reads as "natural arrangements" instead of evenly-spread scatter. Lower than
+// the old uniform-scatter count (was 26) because clusters concentrate visual
+// weight where they land.
+const COUNT_PER_LEVEL = 14;
+const CLUSTER_SEEDS = 5;
+// Standard deviation in world units for prop offset from a cluster seed.
+// Larger = looser cluster; smaller = tight pile.
+const CLUSTER_SIGMA = 1.6;
 // PATH_WIDTH widened to 2.8, so anything at half-width + 0.5 was clipping
 // the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
@@ -53,6 +61,68 @@ const distPointToSegSq = (
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 
+// Box–Muller normal sample: clustered offsets read as "huddled together"
+// instead of the gridlock you get from uniform random.
+const gaussian = (rng: () => number, sigma: number): number => {
+  const u = Math.max(rng(), 1e-9);
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
+};
+
+// Pick K cluster seed points well-distributed across the playable area and
+// well-clear of paths/blockers/lava. Each seed becomes the anchor for a
+// small huddle of props.
+const pickClusterSeeds = (
+  rng: () => number,
+  paths: Vec2[][],
+  blockers: { pos: Vec2; radius: number }[],
+  lava: LavaFeatures | null,
+  count: number,
+): Vec2[] => {
+  const seeds: Vec2[] = [];
+  const pathR2 = (PATH_CLEARANCE + 1.2) * (PATH_CLEARANCE + 1.2);
+  const seedMinDist = 6.5;
+  let tries = 0;
+  while (seeds.length < count && tries < count * 80) {
+    tries++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.85;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.85;
+    if (isOnLavaSurface(lava, x, y, 1.5)) continue;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const b of blockers) {
+      const dx = b.pos.x - x;
+      const dy = b.pos.y - y;
+      const r = b.radius + 1.0;
+      if (dx * dx + dy * dy < r * r) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+    for (const s of seeds) {
+      const dx = s.x - x;
+      const dy = s.y - y;
+      if (dx * dx + dy * dy < seedMinDist * seedMinDist) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+    seeds.push({ x, y });
+  }
+  return seeds;
+};
+
 const buildInstances = (
   biome: Biome,
   paths: Vec2[][],
@@ -66,11 +136,23 @@ const buildInstances = (
   const out: Instance[] = [];
   const pathR2 = PATH_CLEARANCE * PATH_CLEARANCE;
   const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
+  // Soft bounds so cluster halos don't poke past the visible playfield.
+  const halfW = MAP_WIDTH * 0.47;
+  const halfH = MAP_HEIGHT * 0.47;
+
+  // Cluster seeds + a per-cluster URL bias (each cluster prefers one or two
+  // prop variants — reads as "this is a grove of X" rather than a salad).
+  const seeds = pickClusterSeeds(rng, paths, blockers, lava, CLUSTER_SEEDS);
+  if (seeds.length === 0) return [];
+  const seedUrl = seeds.map(() => urls[Math.floor(rng() * urls.length)]);
+
   let tries = 0;
-  while (out.length < COUNT_PER_LEVEL && tries < COUNT_PER_LEVEL * 30) {
+  while (out.length < COUNT_PER_LEVEL && tries < COUNT_PER_LEVEL * 50) {
     tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.94;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.94;
+    const si = Math.floor(rng() * seeds.length);
+    const seed = seeds[si];
+    const x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, CLUSTER_SIGMA)));
+    const y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, CLUSTER_SIGMA)));
 
     if (isOnLavaSurface(lava, x, y, 0.5)) continue;
     let blocked = false;
@@ -105,10 +187,15 @@ const buildInstances = (
     }
     if (blocked) continue;
 
+    // 70% chance to use this cluster's preferred URL — gives each grove
+    // a clear identity without making it monotone.
+    const url = rng() < 0.7 ? seedUrl[si] : urls[Math.floor(rng() * urls.length)];
     out.push({
-      url: urls[Math.floor(rng() * urls.length)],
+      url,
       pos: { x, y },
-      scale: 0.85 + rng() * 0.45,
+      // Wider scale jitter (was 0.85–1.30) for more visual variety inside
+      // a single cluster — couple of small siblings and a hero.
+      scale: 0.7 + ((rng() + rng()) / 2) * 0.7,
       rotY: rng() * Math.PI * 2,
     });
   }
