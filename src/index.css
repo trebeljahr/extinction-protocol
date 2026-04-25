@@ -1192,8 +1192,9 @@
     font-size: var(--fs-lg);
   }
   .btn-secondary:hover {
-    background: var(--color-tint-blue);
-    color: var(--color-fg-secondary);
+    background: rgba(14, 20, 28, 0.72);
+    border-color: var(--color-blue);
+    color: #fff;
   }
 
   .btn-ghost {

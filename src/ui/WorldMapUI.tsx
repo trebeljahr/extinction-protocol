@@ -1,7 +1,10 @@
 import type React from "react";
+import { useState } from "react";
 import { LEVELS } from "../levels";
 import { getStars, isLevelUnlocked, totalStars } from "../progress";
 import { useGame } from "../store";
+import { MenuOverlay } from "./MenuOverlay";
+import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
 
 export const WorldMapUI = () => {
@@ -9,6 +12,7 @@ export const WorldMapUI = () => {
   const hoveredLevelId = useGame((s) => s.hoveredLevelId);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const hovered = LEVELS.find((l) => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;
@@ -33,18 +37,41 @@ export const WorldMapUI = () => {
         <button
           type="button"
           className="btn btn-ghost self-center pointer-events-auto"
-          onClick={() => setCompendiumOpen(true)}
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open menu"
+          title="Menu"
         >
-          Compendium
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost self-center pointer-events-auto"
-          onClick={() => setAchievementsOpen(true)}
-        >
-          Achievements
+          ☰ Menu
         </button>
       </div>
+
+      {menuOpen && (
+        <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
+          <SoundControls />
+          <div className="flex gap-2.5 justify-center flex-wrap">
+            <button
+              type="button"
+              className="btn btn-ghost btn--sm flex-1"
+              onClick={() => {
+                setMenuOpen(false);
+                setCompendiumOpen(true);
+              }}
+            >
+              Compendium
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn--sm flex-1"
+              onClick={() => {
+                setMenuOpen(false);
+                setAchievementsOpen(true);
+              }}
+            >
+              Achievements
+            </button>
+          </div>
+        </MenuOverlay>
+      )}
 
       {hovered && (
         <div className="absolute left-6 bottom-20 min-w-[280px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
