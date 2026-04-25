@@ -827,28 +827,6 @@
     color: #fff;
   }
 
-  /* Bottom bar */
-  .hud-bottom {
-    position: absolute;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 8px 14px;
-    font-size: 12px;
-    color: var(--color-fg-muted);
-    background: rgba(10, 16, 24, 0.6);
-    border: 1px solid rgba(120, 160, 200, 0.14);
-    border-radius: 999px;
-    backdrop-filter: blur(6px);
-  }
-
-  .hud-bottom .sep {
-    opacity: 0.4;
-  }
-
   /* Game-over overlay */
   .overlay {
     position: absolute;
@@ -1220,31 +1198,6 @@
     align-items: center;
   }
 
-  /* Level badge on HUD */
-  .level-badge {
-    background: rgba(10, 16, 24, 0.72);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 6px;
-    padding: 8px 14px;
-    backdrop-filter: blur(6px);
-  }
-  .level-badge-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: var(--color-blue);
-  }
-  .level-badge-name {
-    font-size: 15px;
-    font-weight: 700;
-    margin-top: 2px;
-    white-space: nowrap;
-  }
-
-  .hud-map-btn {
-    margin-left: auto;
-    align-self: center;
-  }
   .hud-top {
     align-items: stretch;
   }
@@ -1283,38 +1236,6 @@
   .hud-menu-btn:focus-visible {
     outline: 2px solid var(--color-blue);
     outline-offset: 2px;
-  }
-
-  .hud-menu-icon {
-    display: inline-flex;
-    flex-direction: column;
-    justify-content: space-between;
-    width: 18px;
-    height: 14px;
-  }
-  .hud-menu-icon > span {
-    display: block;
-    height: 2px;
-    width: 100%;
-    background: currentColor;
-    border-radius: 1px;
-  }
-
-  .hud-menu-label {
-    font-size: 14px;
-    text-transform: uppercase;
-  }
-
-  .hud-menu-key {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    padding: 2px 6px;
-    border: 1px solid rgba(159, 216, 255, 0.35);
-    border-radius: 4px;
-    color: var(--color-blue);
-    background: rgba(159, 216, 255, 0.08);
-    text-transform: uppercase;
   }
 
   @keyframes starPop {

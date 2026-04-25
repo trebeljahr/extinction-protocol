@@ -129,19 +129,24 @@ export const HUD = () => {
           />
         )}
         {levelName && (
-          <div className="level-badge">
-            <div className="level-badge-label">OUTPOST</div>
-            <div className="level-badge-name">{levelName}</div>
+          <div className="bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm">
+            <div className="text-[10px] font-bold tracking-wide text-blue">OUTPOST</div>
+            <div className="text-[15px] font-bold mt-0.5 whitespace-nowrap">{levelName}</div>
           </div>
         )}
         <button type="button" className="hud-menu-btn" onClick={togglePause} title="Menu (Esc)">
-          <span className="hud-menu-icon" aria-hidden>
+          <span
+            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
+            aria-hidden
+          >
             <span />
             <span />
             <span />
           </span>
-          <span className="hud-menu-label">Menu</span>
-          <span className="hud-menu-key">Esc</span>
+          <span className="text-sm uppercase">Menu</span>
+          <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
+            Esc
+          </span>
         </button>
       </div>
 

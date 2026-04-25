@@ -68,9 +68,9 @@ export const WorldMapUI = () => {
         </div>
       )}
 
-      <div className="hud-bottom">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2.5 items-center px-3.5 py-2 text-xs text-fg-muted bg-[rgba(10,16,24,0.6)] border border-[rgba(120,160,200,0.14)] rounded-pill backdrop-blur-sm">
         <span>Click an outpost to deploy</span>
-        <span className="sep">·</span>
+        <span className="opacity-40">·</span>
         <span>Clear a level with 20 lives for 3 stars</span>
       </div>
     </div>
