@@ -148,6 +148,7 @@ export const useAudioBridge = () => {
       unsub();
       unsubMusic();
       document.removeEventListener("pointerdown", onUiPointerDown);
+      document.removeEventListener("pointerover", onUiPointerOver);
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
     };
