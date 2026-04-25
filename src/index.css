@@ -1,3 +1,11 @@
+/* Display font: Rajdhani is a clean, slightly geometric sans-serif —
+   reads as "sci-fi UI" without going full chrome-and-rivets. We only
+   pull 500 / 600 / 700 because all uses are bold-ish headings; body
+   text stays on the system stack for readability and zero-cost render.
+   `display=swap` keeps first paint on the fallback while Rajdhani
+   loads. */
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap");
+
 /* Tailwind v4. The legacy hand-written CSS lives in @layer components
    (bottom of file) so utilities cascade above it. Preflight is left enabled
    — anywhere it conflicts with hand-written rules, the hand-written rule
@@ -66,11 +74,15 @@
   /* === Blur === */
   --blur-sm: 6px;
   --blur-md: 8px;
+
+  /* === Font families ============================================== */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Rajdhani", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 :root {
   color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
 
   /* === Type scale (custom CSS only; not exposed as Tailwind utilities) === */
@@ -81,7 +93,11 @@
   --fs-base: 13px;
   --fs-lg: 14px;
   --fs-xl: 15px;
-  --fs-2xl: 22px;
+  --fs-h3: 17px; /* tower-card swatch text, mid-density labels */
+  --fs-h2: 18px; /* section / panel titles */
+  --fs-2xl: 22px; /* modal h1 */
+  --fs-h1: 24px; /* full-screen overlay h1 */
+  --fs-display: 28px; /* hero / new-enemy / results title */
 
   /* === Spacing aliases (used by hand-written CSS rules below) === */
   --space-1: 4px;
@@ -94,6 +110,13 @@
   /* === Transition durations === */
   --t-fast: 0.08s;
   --t-base: 0.12s;
+
+  /* === Button paddings (width then height — match the (small/medium/
+     large) tier in .btn--sm / default / .btn--lg). Centralized so
+     compendium-tab / targeting-btn / etc. don't drift. === */
+  --btn-pad-sm: 6px 10px;
+  --btn-pad-md: 8px 14px;
+  --btn-pad-lg: 10px 20px;
 }
 
 /* Wrap all hand-written rules in the `components` layer so Tailwind's
@@ -156,14 +179,15 @@
   }
 
   .stat-label {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     opacity: 0.9;
   }
 
   .stat-value {
-    font-size: 22px;
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     margin-top: 2px;
@@ -192,7 +216,7 @@
   }
 
   .call-wave-sub {
-    font-size: 12px;
+    font-size: var(--fs-md);
     font-weight: 600;
     opacity: 0.7;
     margin-left: 4px;
@@ -266,7 +290,7 @@
   }
 
   .enemy-status {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     padding: 2px 6px;
@@ -336,7 +360,7 @@
     position: absolute;
     top: 2px;
     left: 4px;
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     line-height: 1;
     padding: 2px 4px;
@@ -360,7 +384,7 @@
     box-shadow: 0 0 0 1px var(--color-blue), 0 0 18px rgba(159, 216, 255, 0.25);
   }
   .tower-card.disabled {
-    cursor: default;
+    cursor: not-allowed;
     filter: grayscale(1) brightness(0.7);
   }
 
@@ -373,7 +397,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: var(--fs-lg);
     line-height: 1;
     border-radius: 50%;
     color: var(--color-pink);
@@ -424,12 +448,12 @@
   }
 
   .tower-name {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 600;
     letter-spacing: 0.02em;
   }
   .tower-dmg {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -439,12 +463,12 @@
     gap: 4px;
   }
   .tower-cost {
-    font-size: 12px;
+    font-size: var(--fs-md);
     font-weight: 700;
     color: var(--color-gold);
   }
   .tower-hot {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     opacity: 0.55;
   }
 
@@ -465,21 +489,22 @@
     min-width: 0;
   }
   .panel-name {
-    font-size: 15px;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
     font-weight: 700;
     display: flex;
     align-items: center;
     gap: 8px;
   }
   .panel-stats {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     color: var(--color-fg-muted);
     margin-top: 3px;
     letter-spacing: 0.02em;
   }
 
   .dmg-tag {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -521,13 +546,13 @@
   }
 
   .resist-name {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     opacity: 0.85;
   }
   .resist-val {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
@@ -544,10 +569,12 @@
   .btn-close {
     background: transparent;
     color: var(--color-fg-muted);
-    border: 1px solid rgba(120, 160, 200, 0.2);
+    border-color: var(--color-border);
     width: 28px;
     height: 28px;
-    font-size: 16px;
+    padding: 0;
+    font-size: var(--fs-lg);
+    line-height: 1;
   }
   .btn-close:hover {
     color: #fff;
@@ -565,7 +592,7 @@
     background: rgba(6, 10, 14, 0.4);
   }
   .targeting-label {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--color-blue);
@@ -579,14 +606,10 @@
   }
   .targeting-btn {
     padding: 5px 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface-faint);
     color: var(--color-fg-muted);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 5px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    cursor: pointer;
+    border-color: var(--color-border);
+    font-size: var(--fs-sm);
   }
   .targeting-btn:hover {
     border-color: rgba(180, 220, 255, 0.55);
@@ -606,7 +629,7 @@
     border-radius: 6px;
     background: rgba(255, 178, 102, 0.06);
     color: #ffd0a0;
-    font-size: 11px;
+    font-size: var(--fs-sm);
     line-height: 1.4;
     letter-spacing: 0.02em;
   }
@@ -623,7 +646,7 @@
     background: rgba(6, 10, 14, 0.4);
   }
   .branch-label {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--color-blue);
@@ -654,11 +677,11 @@
     opacity: 0.4;
   }
   .tier-name {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 700;
   }
   .tier-desc {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     color: var(--color-fg-muted);
     margin-top: 2px;
     line-height: 1.3;
@@ -679,11 +702,11 @@
     grid-template-columns: 44px 1fr auto 1fr;
     align-items: baseline;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-variant-numeric: tabular-nums;
   }
   .tier-preview-label {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--color-blue);
@@ -694,7 +717,7 @@
   }
   .tier-preview-arrow {
     color: #6a7684;
-    font-size: 10px;
+    font-size: var(--fs-xs);
   }
   .tier-preview-to {
     font-weight: 700;
@@ -709,16 +732,13 @@
 
   .btn-upgrade {
     width: 100%;
-    padding: 8px;
     background: var(--color-gold);
     color: #1a1200;
-    border: none;
     font-size: var(--fs-base);
   }
   .btn-upgrade:disabled {
     background: #4a4030;
     color: #8a7a50;
-    cursor: default;
   }
   .btn-upgrade:hover:not(:disabled) {
     background: #ffe08a;
@@ -737,7 +757,7 @@
   .branch-max {
     text-align: center;
     padding: 14px 6px;
-    font-size: 12px;
+    font-size: var(--fs-md);
     font-weight: 700;
     letter-spacing: 0.2em;
     color: var(--color-blue);
@@ -760,11 +780,9 @@
   }
   .btn-sell {
     width: 100%;
-    padding: 8px;
     background: transparent;
     color: var(--color-pink);
-    border: 1px solid rgba(255, 122, 154, 0.4);
-    font-size: var(--fs-md);
+    border-color: rgba(255, 122, 154, 0.4);
     letter-spacing: var(--tracking-mid);
     text-transform: uppercase;
   }
@@ -778,11 +796,9 @@
     gap: 8px;
   }
   .btn-sell-cancel {
-    padding: 8px;
     background: transparent;
     color: var(--color-fg-muted);
-    border: 1px solid rgba(120, 160, 200, 0.35);
-    font-size: var(--fs-md);
+    border-color: var(--color-border-strong);
     letter-spacing: var(--tracking-mid);
     text-transform: uppercase;
   }
@@ -794,6 +810,9 @@
   .btn-sell-confirm {
     background: rgba(255, 122, 154, 0.18);
     color: #ffc2d0;
+    border-color: rgba(255, 122, 154, 0.4);
+    letter-spacing: var(--tracking-mid);
+    text-transform: uppercase;
   }
   .btn-sell-confirm:hover {
     background: rgba(255, 122, 154, 0.3);
@@ -821,7 +840,8 @@
 
   .overlay-card h1 {
     margin: 0 0 16px;
-    font-size: 24px;
+    font-family: var(--font-display);
+    font-size: var(--fs-h1);
     font-weight: 700;
     letter-spacing: 0.02em;
   }
@@ -855,13 +875,14 @@
   }
   .compendium-header h1 {
     margin: 0;
-    font-size: 22px;
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
     font-weight: 700;
     letter-spacing: 0.04em;
   }
   .compendium-subtitle {
     margin-top: 4px;
-    font-size: 12px;
+    font-size: var(--fs-md);
     letter-spacing: 0.16em;
     color: var(--color-fg-dim);
     text-transform: uppercase;
@@ -878,17 +899,14 @@
     flex: 1;
     min-width: 110px;
     padding: 10px 10px 8px;
-    border-radius: 8px;
-    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: var(--radius-lg);
+    border-color: var(--color-border);
     background: rgba(8, 12, 18, 0.55);
     color: var(--color-fg-secondary);
-    cursor: pointer;
-    font-family: inherit;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    transition: border-color 0.12s, transform 0.08s;
   }
   .compendium-tab:hover:not(:disabled) {
     border-color: rgba(180, 220, 255, 0.55);
@@ -905,13 +923,13 @@
     filter: grayscale(0.5);
   }
   .compendium-tab-index {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.2em;
     color: var(--color-gold);
   }
   .compendium-tab-name {
-    font-size: 12px;
+    font-size: var(--fs-md);
     font-weight: 700;
     letter-spacing: 0.04em;
   }
@@ -964,13 +982,14 @@
     margin-bottom: 4px;
   }
   .compendium-detail-name {
-    font-size: 26px;
+    font-family: var(--font-display);
+    font-size: var(--fs-display);
     font-weight: 700;
     color: var(--color-fg);
     letter-spacing: 0.02em;
   }
   .compendium-detail-subtitle {
-    font-size: 11px;
+    font-size: var(--fs-sm);
     letter-spacing: 0.22em;
     color: var(--color-fg-dim);
     text-transform: uppercase;
@@ -978,7 +997,7 @@
   }
 
   .compendium-detail-desc {
-    font-size: 13px;
+    font-size: var(--fs-base);
     color: #c5cfda;
     line-height: 1.5;
     margin: 0;
@@ -1003,7 +1022,7 @@
     text-align: center;
   }
   .compendium-stats dt {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.16em;
     color: var(--color-fg-dim);
@@ -1012,14 +1031,15 @@
   }
   .compendium-stats dd {
     margin: 3px 0 0;
-    font-size: 18px;
+    font-family: var(--font-display);
+    font-size: var(--fs-h2);
     font-weight: 700;
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
 
   .compendium-resist-label {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.16em;
     color: var(--color-fg-dim);
@@ -1039,7 +1059,7 @@
     border-radius: 6px;
     border: 1px solid rgba(120, 160, 200, 0.16);
     background: rgba(255, 255, 255, 0.03);
-    font-size: 12px;
+    font-size: var(--fs-md);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--color-fg-secondary);
@@ -1059,12 +1079,12 @@
   }
   .compendium-chip-label {
     flex: 1;
-    font-size: 11px;
+    font-size: var(--fs-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .compendium-chip-val {
-    font-size: 13px;
+    font-size: var(--fs-base);
   }
   .compendium-chip-glyph {
     display: inline-grid;
@@ -1074,7 +1094,7 @@
     border-radius: 4px;
     background: rgba(159, 216, 255, 0.15);
     color: var(--color-blue);
-    font-size: 11px;
+    font-size: var(--fs-sm);
     font-weight: 700;
   }
 
@@ -1103,22 +1123,73 @@
       box-shadow var(--t-base), transform var(--t-fast);
   }
 
-  .btn {
-    background: var(--color-cyan);
-    color: #031018;
-    border: none;
-    padding: 10px 20px;
+  /* ── Button base ────────────────────────────────────────────────
+     All pill-shaped UI controls share this rule: same font, radius,
+     transition, cursor, focus ring scaffolding. Variants below only
+     declare what makes them different (color / bg / border / size).
+
+     Three padding sizes via the size modifier classes (--sm / default
+     md / --lg). Unsized buttons get the medium default. */
+  .btn,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-close,
+  .btn-upgrade,
+  .btn-sell,
+  .btn-sell-cancel,
+  .btn-sell-confirm,
+  .targeting-btn,
+  .compendium-tab,
+  .achievement-toast button,
+  .achievement-toast-dismiss-all {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: var(--fs-md);
+    letter-spacing: var(--tracking-tight);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    padding: var(--btn-pad-md, 8px 14px);
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background var(--t-base), border-color var(--t-base), color var(--t-base), transform
+      var(--t-fast);
+  }
+
+  .btn:disabled,
+  .btn-upgrade:disabled,
+  .btn-sell:disabled,
+  .targeting-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  /* Size modifiers — apply alongside the variant class for explicit
+     small / large pill heights. Default (no modifier) is medium. */
+  .btn--sm {
+    padding: var(--btn-pad-sm, 6px 10px);
+    font-size: var(--fs-sm);
+  }
+  .btn--lg {
+    padding: var(--btn-pad-lg, 10px 20px);
     font-size: var(--fs-lg);
   }
 
-  .btn:hover {
+  .btn {
+    background: var(--color-cyan);
+    color: #031018;
+    padding: var(--btn-pad-lg, 10px 20px);
+    font-size: var(--fs-lg);
+  }
+  .btn:hover:not(:disabled) {
     background: #5ce0ff;
   }
 
   .btn-secondary {
     background: transparent;
     color: var(--color-blue);
-    border: 1px solid rgba(159, 216, 255, 0.4);
+    border-color: rgba(159, 216, 255, 0.4);
+    padding: var(--btn-pad-lg, 10px 20px);
+    font-size: var(--fs-lg);
   }
   .btn-secondary:hover {
     background: var(--color-tint-blue);
@@ -1128,9 +1199,7 @@
   .btn-ghost {
     background: rgba(14, 20, 28, 0.72);
     color: var(--color-fg-secondary);
-    border: 1px solid var(--color-border-strong);
-    padding: 8px 14px;
-    font-size: var(--fs-md);
+    border-color: var(--color-border-strong);
   }
   .btn-ghost:hover {
     border-color: var(--color-blue);
@@ -1147,7 +1216,7 @@
   }
   .map-label {
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--fs-lg);
     font-weight: 700;
     color: #ffffff;
     background: rgba(10, 16, 24, 0.7);
@@ -1186,7 +1255,7 @@
     border-radius: 6px;
     color: var(--color-fg-secondary);
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--fs-lg);
     font-weight: 700;
     letter-spacing: 0.06em;
     cursor: pointer;
@@ -1294,7 +1363,7 @@
   }
 
   .achievement-toast-label {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-gold);
@@ -1302,14 +1371,14 @@
   }
 
   .achievement-toast-name {
-    font-size: 17px;
+    font-size: var(--fs-h3);
     font-weight: 700;
     letter-spacing: 0.02em;
     margin-bottom: 3px;
   }
 
   .achievement-toast-desc {
-    font-size: 12px;
+    font-size: var(--fs-md);
     color: var(--color-fg-muted);
     line-height: 1.35;
   }
@@ -1355,14 +1424,15 @@
 
   .achievements-header h1 {
     margin: 0;
-    font-size: 22px;
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
     font-weight: 700;
     letter-spacing: 0.04em;
   }
 
   .achievements-subtitle {
     margin-top: 4px;
-    font-size: 12px;
+    font-size: var(--fs-md);
     letter-spacing: 0.16em;
     color: var(--color-fg-dim);
     text-transform: uppercase;
@@ -1397,7 +1467,7 @@
   }
 
   .achievement-tile-status {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-fg-dim);
@@ -1420,26 +1490,26 @@
   }
 
   .achievement-tile-name {
-    font-size: 15px;
+    font-size: var(--fs-xl);
     font-weight: 700;
     color: var(--color-fg);
   }
 
   .achievement-tile-desc {
-    font-size: 12px;
+    font-size: var(--fs-md);
     color: #cfd8e0;
     line-height: 1.4;
   }
 
   .achievement-tile-hint {
     margin-top: auto;
-    font-size: 11px;
+    font-size: var(--fs-sm);
     color: #7f8c99;
     font-style: italic;
   }
 
   .achievement-tile-date {
-    font-size: 10px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.1em;
     color: #8a9bad;
     font-variant-numeric: tabular-nums;

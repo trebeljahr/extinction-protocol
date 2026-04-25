@@ -72,7 +72,7 @@ export const NewEnemyAlert = () => {
         <div className="self-center text-[10px] tracking-uber text-orange font-bold px-2.5 py-1 rounded-sm border border-[rgba(255,178,102,0.45)] bg-[rgba(255,178,102,0.08)] uppercase">
           NEW HOSTILE · DATABASE UPDATED
         </div>
-        <h1 className="mt-1 mb-0 text-center text-[28px] font-bold tracking-[0.02em] text-white">
+        <h1 className="mt-1 mb-0 text-center text-[28px] font-bold tracking-[0.02em] text-white font-display">
           {ENEMY_LABEL[kind]}
         </h1>
         <div className="text-center text-fg-muted text-xs tracking-[0.18em] uppercase -mt-0.5">
