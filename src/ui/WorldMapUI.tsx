@@ -1,8 +1,10 @@
 import type React from "react";
 import { useState } from "react";
+import { isDebug } from "../debug";
 import { LEVELS } from "../levels";
 import { getStars, isLevelUnlocked, totalStars } from "../progress";
 import { useGame } from "../store";
+import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
@@ -108,6 +110,8 @@ export const WorldMapUI = () => {
         <span className="opacity-40">·</span>
         <span>Clear a level with 20 lives for 3 stars</span>
       </div>
+
+      {isDebug && <DebugWorldMapPanel />}
     </div>
   );
 };

@@ -47,6 +47,7 @@ import {
   createTower,
   createWorld,
   emit,
+  spawnMovingEasterEgg,
   spawnParticles,
 } from "./sim/world";
 
@@ -268,6 +269,19 @@ type GameStore = {
   dismissNewEnemy: () => void;
 
   onEvent: (fn: (e: GameEvent) => void) => () => void;
+
+  // ── Debug actions (only invoked from the debug menu, gated by
+  //    isDebug from src/debug.ts). Live on the store rather than as
+  //    free functions so they share the same set/snapshot machinery
+  //    as the regular UI actions and trigger the same UI updates. ──
+  freeTowers: boolean;
+  debugAddGold: (n: number) => void;
+  debugSkipWave: () => void;
+  debugWinLevel: () => void;
+  debugSetFreeTowers: (on: boolean) => void;
+  debugTriggerEasterEgg: (defId: string) => void;
+  debugSetLevelStars: (levelId: number, stars: Stars) => void;
+  debugResetProgress: () => void;
 };
 
 const emptyInspect: InspectState = { id: null, kind: null, maxHp: null };
@@ -766,7 +780,10 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
     const cost = TOWER_COST[s.selectedKind];
-    if (w.gold < cost) {
+    // Debug "free towers" mode skips both the affordability check and
+    // the spend; lets a tester sanity-check matchups without grinding.
+    const free = s.freeTowers;
+    if (!free && w.gold < cost) {
       emit(w, { type: "place-failed", reason: "gold" });
       return;
     }
@@ -774,7 +791,7 @@ export const useGame = create<GameStore>((set, get) => ({
       emit(w, { type: "place-failed", reason: "spot" });
       return;
     }
-    w.gold -= cost;
+    if (!free) w.gold -= cost;
     createTower(w, s.selectedKind, pos);
     emit(w, { type: "tower-placed", towerKind: s.selectedKind });
     // Keep the currently-picked tower kind selected (so the player can
@@ -856,5 +873,107 @@ export const useGame = create<GameStore>((set, get) => ({
     return () => {
       set((state) => ({ eventListeners: state.eventListeners.filter((f) => f !== fn) }));
     };
+  },
+
+  // ── Debug actions ──────────────────────────────────────────────
+  // All only ever called from the debug menu (PauseMenu + WorldMapUI),
+  // which themselves only render under isDebug. Vite tree-shakes the
+  // call sites in production, leaving these as orphan dead code that
+  // gets minified away.
+  freeTowers: false,
+
+  debugAddGold: (n) => {
+    const s = get();
+    s.world.gold += n;
+    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugSkipWave: () => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+    // Clear pending spawns + any alive enemies so the current wave
+    // immediately resolves; the spawnerTick will then advance to the
+    // next wave on its normal schedule.
+    w.spawnQueue.length = 0;
+    for (const e of w.enemies) e.alive = false;
+    // If we're between waves, jump the timer.
+    w.nextWaveIn = 0;
+    w.midwaveTimer = 0;
+    set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugWinLevel: () => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running") return;
+    // Mirror the natural win path: clear all enemies + spawn queue,
+    // mark the run as won, and emit the game-over event so the
+    // results screen + progress recording fire normally.
+    w.spawnQueue.length = 0;
+    for (const e of w.enemies) e.alive = false;
+    w.wave = w.totalWaves;
+    w.waveActive = false;
+    w.status = "won";
+    emit(w, { type: "game-over", won: true });
+    set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugSetFreeTowers: (on) => {
+    set({ freeTowers: on });
+  },
+
+  debugTriggerEasterEgg: (defId) => {
+    const s = get();
+    const w = s.world;
+    const def = EASTER_EGG_BY_ID[defId];
+    if (!def) return;
+    if (def.motion) {
+      // Moving eggs (tumbleweed/rover): spawn one from a map edge —
+      // user can chase it down.
+      spawnMovingEasterEgg(w, defId);
+    } else {
+      // Static eggs: drop one near the map center so it's findable
+      // regardless of biome eligibility, and give it a fresh id.
+      w.easterEggs = [
+        ...w.easterEggs,
+        {
+          id: w.nextEntityId++,
+          defId,
+          pos: { x: 0, y: 0 },
+          rotY: Math.random() * Math.PI * 2,
+          clickCount: 0,
+          triggered: false,
+          vel: null,
+          despawnAt: null,
+          spin: 0,
+        },
+      ];
+    }
+    set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugSetLevelStars: (levelId, stars) => {
+    const s = get();
+    const next: ProgressData = {
+      ...s.progress,
+      starsByLevel: { ...s.progress.starsByLevel },
+    };
+    if (stars === 0) delete next.starsByLevel[levelId];
+    else next.starsByLevel[levelId] = stars;
+    saveProgress(next);
+    set({ progress: next });
+  },
+
+  debugResetProgress: () => {
+    const empty: ProgressData = {
+      version: 1,
+      starsByLevel: {},
+      encountered: {},
+      stats: { killsTotal: 0, winsTotal: 0 },
+      unlocked: {},
+    };
+    saveProgress(empty);
+    set({ progress: empty });
   },
 }));

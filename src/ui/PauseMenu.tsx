@@ -1,8 +1,10 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
+import { isDebug } from "../debug";
 import { getLevel } from "../levels";
 import { useGame } from "../store";
+import { DebugMenuSection } from "./DebugMenuSection";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 
@@ -60,6 +62,7 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeTitle="Resume (Esc)"
     >
       <SoundControls />
+      {isDebug && <DebugMenuSection />}
       <ActionsCol>
         <button
           type="button"
