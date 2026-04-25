@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_BASES, type Biome, TARGET_SIZE_BY_ROLE, classifyPropUrl } from "../biomes";
-import { type Lake, buildLavaFeatures, isInsideLavaLake } from "../lavaGeometry";
+import { type LavaFeatures, buildLavaFeatures, isOnLavaSurface } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
@@ -60,8 +60,12 @@ const distPointToSegSq = (
 
 // Try the four map corners in a shuffled order; pick the first whose
 // whole cluster footprint stays clear of every path segment AND every
-// lava lake (so the hero structure isn't sitting in molten rock).
-const pickBaseCenter = (rng: () => number, paths: Vec2[][], lakes: Lake[]): Vec2 | null => {
+// lava lake/river (so the hero structure isn't sitting in molten rock).
+const pickBaseCenter = (
+  rng: () => number,
+  paths: Vec2[][],
+  lava: LavaFeatures | null,
+): Vec2 | null => {
   const corners: Vec2[] = [
     { x: -MAP_WIDTH / 2 + BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
     { x: MAP_WIDTH / 2 - BASE_INSET_X, y: -MAP_HEIGHT / 2 + BASE_INSET_Y },
@@ -75,7 +79,7 @@ const pickBaseCenter = (rng: () => number, paths: Vec2[][], lakes: Lake[]): Vec2
   const minDist = CLUSTER_RADIUS + BASE_CLEAR_FROM_PATH;
   const minDist2 = minDist * minDist;
   for (const c of corners) {
-    if (isInsideLavaLake(lakes, c.x, c.y, CLUSTER_RADIUS)) continue;
+    if (isOnLavaSurface(lava, c.x, c.y, CLUSTER_RADIUS)) continue;
     let ok = true;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
@@ -101,8 +105,8 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
   const rng = mulberry32(levelId * 7919 + 131);
   if (rng() > BASE_CHANCE) return [];
 
-  const lakes = biome === "lava" ? buildLavaFeatures(paths, levelId).lakes : [];
-  const center = pickBaseCenter(rng, paths, lakes);
+  const lava = biome === "lava" ? buildLavaFeatures(paths, levelId) : null;
+  const center = pickBaseCenter(rng, paths, lava);
   if (!center) return [];
 
   const hero = recipe.hero[Math.floor(rng() * recipe.hero.length)];

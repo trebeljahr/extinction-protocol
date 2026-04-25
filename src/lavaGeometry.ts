@@ -309,11 +309,18 @@ export const sampleLavaSurface = (
   return sampleOnce(surface, rand);
 };
 
-// True if (x, y) is inside any lava lake's ellipse, padded outward by
-// `padding` world units. Used to keep environmental decorations from
-// spawning on top of the molten pools.
-export const isInsideLavaLake = (lakes: Lake[], x: number, y: number, padding = 0): boolean => {
-  for (const l of lakes) {
+// True if (x, y) lands on any molten lava surface (lake interior OR river
+// strip), padded outward by `padding` world units. Used to keep
+// environmental decorations off the molten parts of lava maps. Pass null
+// when the biome has no lava at all.
+export const isOnLavaSurface = (
+  features: LavaFeatures | null,
+  x: number,
+  y: number,
+  padding = 0,
+): boolean => {
+  if (!features) return false;
+  for (const l of features.lakes) {
     const dx = x - l.x;
     const dy = y - l.y;
     const c = Math.cos(-l.rot);
@@ -323,6 +330,14 @@ export const isInsideLavaLake = (lakes: Lake[], x: number, y: number, padding = 
     const rx = l.rx + padding;
     const ry = l.ry + padding;
     if ((lx * lx) / (rx * rx) + (ly * ly) / (ry * ry) <= 1) return true;
+  }
+  const riverHalf = RIVER_WIDTH / 2 + padding;
+  const r2 = riverHalf * riverHalf;
+  for (const river of features.rivers) {
+    const pts = river.points;
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (distPointToSegSq(x, y, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < r2) return true;
+    }
   }
   return false;
 };

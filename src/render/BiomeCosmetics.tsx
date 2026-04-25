@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_COSMETICS, type Biome, TARGET_SIZE_BY_ROLE, classifyPropUrl } from "../biomes";
-import { type Lake, buildLavaFeatures, isInsideLavaLake } from "../lavaGeometry";
+import { type LavaFeatures, buildLavaFeatures, isOnLavaSurface } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
@@ -58,7 +58,7 @@ const buildInstances = (
   paths: Vec2[][],
   levelId: number,
   blockers: { pos: Vec2; radius: number }[],
-  lakes: Lake[],
+  lava: LavaFeatures | null,
 ): Instance[] => {
   const urls = BIOME_COSMETICS[biome];
   if (urls.length === 0) return [];
@@ -72,7 +72,7 @@ const buildInstances = (
     const x = (rng() - 0.5) * MAP_WIDTH * 0.94;
     const y = (rng() - 0.5) * MAP_HEIGHT * 0.94;
 
-    if (isInsideLavaLake(lakes, x, y, 0.5)) continue;
+    if (isOnLavaSurface(lava, x, y, 0.5)) continue;
     let blocked = false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
@@ -207,8 +207,8 @@ export const BiomeCosmetics = () => {
       ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
       ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
-    const lakes = biome === "lava" ? buildLavaFeatures(paths, levelId).lakes : [];
-    const instances = buildInstances(biome, paths, levelId, blockers, lakes);
+    const lava = biome === "lava" ? buildLavaFeatures(paths, levelId) : null;
+    const instances = buildInstances(biome, paths, levelId, blockers, lava);
     const byUrl = new Map<string, Instance[]>();
     for (const inst of instances) {
       const list = byUrl.get(inst.url) ?? [];
