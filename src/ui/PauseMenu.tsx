@@ -36,11 +36,15 @@ export const PauseMenu = ({ onResume }: Props) => {
           Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
         </div>
         <ActionsRow>
-          <button type="button" className="btn" onClick={isRestart ? retry : goToWorldMap}>
-            {isRestart ? "Restart" : "Return"}
-          </button>
           <button type="button" className="btn btn-secondary" onClick={() => setConfirming(null)}>
             Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={isRestart ? retry : goToWorldMap}
+          >
+            {isRestart ? "Restart" : "Return"}
           </button>
         </ActionsRow>
       </MenuOverlay>
@@ -73,14 +77,14 @@ export const PauseMenu = ({ onResume }: Props) => {
         </button>
         <button
           type="button"
-          className="btn btn-ghost w-full"
+          className="btn btn-danger w-full"
           onClick={() => setConfirming("restart")}
         >
           Restart
         </button>
         <button
           type="button"
-          className="btn btn-ghost w-full"
+          className="btn btn-danger w-full"
           onClick={() => setConfirming("worldMap")}
         >
           Return to World Map

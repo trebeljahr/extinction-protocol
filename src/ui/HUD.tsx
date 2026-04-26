@@ -129,21 +129,27 @@ export const HUD = () => {
             <div className="text-[15px] font-bold mt-0.5 whitespace-nowrap">{levelName}</div>
           </div>
         )}
-        <button type="button" className="hud-menu-btn" onClick={togglePause} title="Menu (Esc)">
-          <span
-            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
-            aria-hidden
-          >
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="text-sm uppercase">Menu</span>
-          <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
-            Esc
-          </span>
-        </button>
       </div>
+
+      <button
+        type="button"
+        className="hud-menu-btn absolute top-4 right-4"
+        onClick={togglePause}
+        title="Menu (Esc)"
+      >
+        <span
+          className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
+          aria-hidden
+        >
+          <span />
+          <span />
+          <span />
+        </span>
+        <span className="text-sm uppercase">Menu</span>
+        <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
+          Esc
+        </span>
+      </button>
 
       <div className="tower-picker">
         {KINDS.map((kind) => {

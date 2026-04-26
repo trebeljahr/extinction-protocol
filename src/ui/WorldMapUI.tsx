@@ -36,22 +36,30 @@ export const WorldMapUI = () => {
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
         <button
           type="button"
-          className="btn btn-ghost self-center pointer-events-auto"
+          className="bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setMenuOpen(true)}
           aria-label="Open menu"
           title="Menu"
         >
-          ☰ Menu
+          <span
+            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
+            aria-hidden
+          >
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="text-sm font-bold tracking-wide uppercase">Menu</span>
         </button>
       </div>
 
       {menuOpen && (
         <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
           <SoundControls />
-          <div className="flex gap-2.5 justify-center flex-wrap">
+          <div className="flex flex-col gap-2">
             <button
               type="button"
-              className="btn btn-ghost btn--sm flex-1"
+              className="btn btn-ghost w-full"
               onClick={() => {
                 setMenuOpen(false);
                 setCompendiumOpen(true);
@@ -61,7 +69,7 @@ export const WorldMapUI = () => {
             </button>
             <button
               type="button"
-              className="btn btn-ghost btn--sm flex-1"
+              className="btn btn-ghost w-full"
               onClick={() => {
                 setMenuOpen(false);
                 setAchievementsOpen(true);

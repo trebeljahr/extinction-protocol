@@ -1230,6 +1230,20 @@
     color: #fff;
   }
 
+  /* Destructive action — faint red outline that brightens on hover.
+     Matches the visual idiom of the `Muted` toggle so progress-losing
+     actions read as a different lane from the cyan/blue safe actions. */
+  .btn-danger {
+    background: var(--color-tint-pink);
+    color: var(--color-pink);
+    border-color: rgba(255, 122, 154, 0.45);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(255, 122, 154, 0.18);
+    border-color: var(--color-pink);
+    color: #fff;
+  }
+
   /* Level node labels rendered via <Html>.
    The drei <Html> wrapper div sits on top of the canvas — if it catches
    pointer events, the 3D node underneath becomes unhoverable. Wrapping

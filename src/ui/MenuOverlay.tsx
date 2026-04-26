@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect } from "react";
 
 type Props = {
   title: string;
@@ -16,25 +17,50 @@ export const MenuOverlay = ({
   closeLabel = "Close",
   closeTitle,
   children,
-}: Props) => (
-  <div className="overlay">
-    <div className="overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left">
-      <button
-        type="button"
-        className="btn-close absolute top-3 right-3"
-        onClick={onClose}
-        title={closeTitle ?? closeLabel}
-        aria-label={closeLabel}
-      >
-        ✕
-      </button>
-      <h1 className="text-center mb-1">{title}</h1>
-      {subtitle && (
-        <div className="text-center text-xs tracking-[0.22em] uppercase text-fg-dim mb-[18px]">
-          {subtitle}
-        </div>
-      )}
-      {children}
+}: Props) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Capture-phase + stopImmediatePropagation: the HUD also listens on
+      // window for Escape→togglePause, which would fight this handler and
+      // re-pause the game on the same key event. Eat the event here so
+      // the modal owns Escape while it's open.
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+
+  return (
+    <div
+      className="overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left">
+        <button
+          type="button"
+          className="btn-close absolute top-3 right-3"
+          onClick={onClose}
+          title={closeTitle ?? closeLabel}
+          aria-label={closeLabel}
+        >
+          ✕
+        </button>
+        <h1 className="text-center mb-1">{title}</h1>
+        {subtitle && (
+          <div className="text-center text-xs tracking-[0.22em] uppercase text-fg-dim mb-[18px]">
+            {subtitle}
+          </div>
+        )}
+        {children}
+      </div>
     </div>
-  </div>
-);
+  );
+};
