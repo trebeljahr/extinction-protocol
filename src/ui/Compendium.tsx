@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { hasEncountered } from "../progress";
+import { ENEMY_DESCRIPTION, ENEMY_SUBTITLE } from "../sim/enemyText";
 import type { DamageType, EnemyKind } from "../sim/types";
 import {
   DAMAGE_TYPE_LABEL,
@@ -23,28 +24,6 @@ const ENEMY_ORDER: EnemyKind[] = [
   "titan",
 ];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
-
-const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
-  raptor: "Fast pack hunter. Low HP but keeps coming — electric chains melt entire groups.",
-  swarm: "Tiny and numerous. Only dangerous in crowds. Splash weapons clear them instantly.",
-  para: "Agile herbivore with no strong weaknesses. Pressure it with raw damage.",
-  allosaur:
-    "Apex predator. Balanced resistances — nothing special works, but nothing fails either.",
-  stego: "Plated back soaks kinetic hits. Crack them open with explosives.",
-  armored: "Juggernaut. Resists most damage; only electric and explosive make a dent.",
-  titan:
-    "Colossal. Shrugs off anything that isn't cold or brute bombardment. Slow, but every step costs lives.",
-};
-
-const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
-  raptor: "Pack hunter",
-  swarm: "Aerial swarm",
-  para: "Runner",
-  allosaur: "Apex predator",
-  stego: "Armored grazer",
-  armored: "Juggernaut",
-  titan: "Colossus",
-};
 
 export const Compendium = () => {
   const progress = useGame((s) => s.progress);

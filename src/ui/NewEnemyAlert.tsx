@@ -1,34 +1,13 @@
 import { useEffect } from "react";
 import { audio } from "../audio/AudioManager";
-import type { DamageType, EnemyKind } from "../sim/types";
+import { ENEMY_DESCRIPTION, ENEMY_SUBTITLE } from "../sim/enemyText";
+import type { DamageType } from "../sim/types";
 import { DAMAGE_TYPE_LABEL, ENEMY_LABEL, ENEMY_RESIST, ENEMY_STATS } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { EnemyPreview } from "./EnemyPreview";
 
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
-
-const SUBTITLE: Record<EnemyKind, string> = {
-  raptor: "Pack hunter",
-  swarm: "Aerial swarm",
-  para: "Runner",
-  allosaur: "Apex predator",
-  stego: "Armored grazer",
-  armored: "Juggernaut",
-  titan: "Colossus",
-};
-
-const DESCRIPTION: Record<EnemyKind, string> = {
-  raptor: "Fast pack hunter. Low HP but keeps coming — electric chains melt entire groups.",
-  swarm: "Tiny and numerous. Only dangerous in crowds. Splash weapons clear them instantly.",
-  para: "Agile herbivore with no strong weaknesses. Pressure it with raw damage.",
-  allosaur:
-    "Apex predator. Balanced resistances — nothing special works, but nothing fails either.",
-  stego: "Plated back soaks kinetic hits. Crack them open with explosives.",
-  armored: "Juggernaut. Resists most damage; only electric and explosive make a dent.",
-  titan:
-    "Colossal. Shrugs off anything that isn't cold or brute bombardment. Slow, but every step costs lives.",
-};
 
 export const NewEnemyAlert = () => {
   const queue = useGame((s) => s.newEnemyQueue);
@@ -76,13 +55,13 @@ export const NewEnemyAlert = () => {
           {ENEMY_LABEL[kind]}
         </h1>
         <div className="text-center text-fg-muted text-xs tracking-[0.18em] uppercase -mt-0.5">
-          {SUBTITLE[kind]}
+          {ENEMY_SUBTITLE[kind]}
         </div>
         <div className="w-[260px] h-[260px] self-center rounded-xl overflow-hidden border border-border bg-[#1b2a22]">
           <EnemyPreview kind={kind} size={260} />
         </div>
         <p className="mt-0.5 mb-0 text-[13px] leading-[1.55] text-[#cfd8e3] text-center">
-          {DESCRIPTION[kind]}
+          {ENEMY_DESCRIPTION[kind]}
         </p>
         <div className="grid grid-cols-4 gap-1.5 p-2 bg-[rgba(6,10,14,0.5)] border border-[rgba(120,160,200,0.14)] rounded-lg">
           <NewEnemyStat label="HP" value={stats.hp} />

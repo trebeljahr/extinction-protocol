@@ -31,6 +31,13 @@ export const advanceAlongPath = (
 
   while (remaining > 0 && seg < path.length - 1) {
     const segLen = segmentLength(path, seg);
+    // Coincident waypoints would divide-by-zero below and corrupt
+    // segmentT to NaN/Infinity. Step over them.
+    if (segLen <= 0) {
+      seg++;
+      t = 0;
+      continue;
+    }
     const metersLeftInSeg = segLen * (1 - t);
     if (remaining < metersLeftInSeg) {
       t += remaining / segLen;

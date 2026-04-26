@@ -1,5 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
@@ -37,6 +37,7 @@ export const Placement = () => {
   const range = selectedKind ? TOWER_STATS[selectedKind].range : 0;
 
   const geom = useMemo(() => new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT), []);
+  useEffect(() => () => geom.dispose(), [geom]);
 
   return (
     <group>
