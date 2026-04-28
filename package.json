@@ -4,6 +4,9 @@
   "packageManager": "pnpm@10.33.2",
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "vite",
@@ -28,7 +31,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.13",
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/cli": "^2.1.0",
     "@types/react": "^18.3.11",
