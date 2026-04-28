@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import type { Biome } from "../biomes";
 import type { GameEvent } from "../sim/types";
 import { useGame } from "../store";
-import { type MusicTrack, audio } from "./AudioManager";
+import { audio, type MusicTrack } from "./AudioManager";
 
 const biomeTrack = (biome: Biome): MusicTrack => `music-${biome}` as MusicTrack;
 

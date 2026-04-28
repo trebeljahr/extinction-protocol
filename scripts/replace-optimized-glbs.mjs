@@ -4,8 +4,8 @@
 // be regressions if blindly replaced.
 //
 // Usage: node scripts/replace-optimized-glbs.mjs [--dry-run]
-import { readdir, stat, copyFile, open } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { copyFile, open, readdir, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 const ROOT = "public/models";
 const dryRun = process.argv.includes("--dry-run");
@@ -25,7 +25,10 @@ const sourcePathFor = (transformed) => {
   // → .../<dir>/<name>.glb
   const optimizedDir = dirname(transformed);
   const grandparent = dirname(dirname(optimizedDir));
-  const name = transformed.split("/").pop().replace(/-transformed\.glb$/, ".glb");
+  const name = transformed
+    .split("/")
+    .pop()
+    .replace(/-transformed\.glb$/, ".glb");
   return join(grandparent, name);
 };
 
@@ -80,5 +83,7 @@ for (const t of transformed) {
 }
 
 const saved = bytesBefore - bytesAfter;
-console.log(`\n${replaced} replaced, ${skippedLarger} skipped (optimized was larger), ${skippedMissing} skipped (no source)`);
+console.log(
+  `\n${replaced} replaced, ${skippedLarger} skipped (optimized was larger), ${skippedMissing} skipped (no source)`,
+);
 console.log(`Saved: ${(saved / 1024 / 1024).toFixed(2)} MB`);

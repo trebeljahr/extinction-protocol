@@ -131,7 +131,7 @@ export class AudioManager {
   play(key: string, volumeScale = 1, cooldownMs = 50, maxDurationSec?: number) {
     if (!this.ctx || !this.sfxGain || this.muted) return;
     const sample = this.samples.get(key);
-    if (!sample || !sample.loaded || !sample.buffer) return;
+    if (!sample?.loaded || !sample.buffer) return;
     const now = performance.now();
     const last = this.lastPlayedAt.get(key) ?? 0;
     if (now - last < cooldownMs) return;

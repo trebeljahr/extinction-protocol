@@ -25,8 +25,8 @@
     <script type="module">
       // esm.sh resolves the GLTFLoader's bare `from 'three'` specifier; the unpkg URL does not.
       import * as THREE from "https://esm.sh/three@0.167.1";
-      import { GLTFLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/GLTFLoader.js";
       import { DRACOLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/DRACOLoader.js";
+      import { GLTFLoader } from "https://esm.sh/three@0.167.1/examples/jsm/loaders/GLTFLoader.js";
 
       const canvas = document.getElementById("c");
       // preserveDrawingBuffer keeps the rendered frame readable for later

@@ -37,7 +37,7 @@ for (const path of targets) {
     continue;
   }
   const version = buf.readUInt32LE(4);
-  const totalLen = buf.readUInt32LE(8);
+  const _totalLen = buf.readUInt32LE(8);
   const jsonChunkLen = buf.readUInt32LE(12);
   const jsonChunkType = buf.readUInt32LE(16);
   if (jsonChunkType !== JSON_CHUNK) {

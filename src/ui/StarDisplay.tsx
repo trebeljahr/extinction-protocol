@@ -34,7 +34,12 @@ const Star = ({
   filled,
   animate,
   delay,
-}: { size: number; filled: boolean; animate: boolean; delay: string }) => {
+}: {
+  size: number;
+  filled: boolean;
+  animate: boolean;
+  delay: string;
+}) => {
   const color = filled ? "#ffd66a" : "#2a3240";
   const stroke = filled ? "#ffe8a8" : "#3a4452";
   return (

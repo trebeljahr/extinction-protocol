@@ -15,15 +15,7 @@ const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number }> = {
 
 type Vec2 = { x: number; y: number };
 
-export const GhostTower = ({
-  kind,
-  pos,
-  ok,
-}: {
-  kind: TowerKind;
-  pos: Vec2;
-  ok: boolean;
-}) => {
+export const GhostTower = ({ kind, pos, ok }: { kind: TowerKind; pos: Vec2; ok: boolean }) => {
   const { url, targetSize } = TOWER_MODEL[kind];
   const { scene } = useGLTF(url);
 

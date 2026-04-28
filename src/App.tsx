@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
-import { Suspense, lazy, useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";

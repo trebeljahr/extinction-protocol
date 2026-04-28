@@ -49,6 +49,7 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
         if (parts.length === 0) return null;
         return { id: nanoid(), parts, minY: Number.isFinite(minY) ? minY : 0 };
       }),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
     scenes,
   );
 };
@@ -128,13 +129,7 @@ export const Trees = () => {
   );
 };
 
-const VariantGroup = ({
-  bucket,
-  source,
-}: {
-  bucket: Tree[];
-  source: VariantSource;
-}) => {
+const VariantGroup = ({ bucket, source }: { bucket: Tree[]; source: VariantSource }) => {
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {

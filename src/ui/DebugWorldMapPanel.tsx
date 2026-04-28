@@ -4,8 +4,8 @@
 // at the call site in WorldMapUI.
 import { useState } from "react";
 import { LEVELS } from "../levels";
-import { getStars } from "../progress";
 import type { Stars } from "../progress";
+import { getStars } from "../progress";
 import { useGame } from "../store";
 
 const STAR_OPTIONS: Stars[] = [0, 1, 2, 3];

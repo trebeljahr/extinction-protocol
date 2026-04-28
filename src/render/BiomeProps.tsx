@@ -6,9 +6,9 @@ import {
   BIOME_LAYERS,
   BIOME_TREE_URLS,
   type Biome,
-  TARGET_SIZE_BY_ROLE,
   biomeForPos,
   classifyPropUrl,
+  TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { LEVELS } from "../levels";
 

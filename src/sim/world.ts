@@ -1,6 +1,6 @@
 import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
 import { EASTER_EGG_DEFS } from "../easterEggs";
-import { type LavaFeatures, buildLavaFeatures, isOnLavaSurface } from "../lavaGeometry";
+import { buildLavaFeatures, isOnLavaSurface, type LavaFeatures } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
@@ -408,7 +408,7 @@ export const createWorld = (level: LevelConfig): World => {
 // the opposite edge. Straight-line traversal with a short life.
 export const spawnMovingEasterEgg = (world: World, defId: string) => {
   const def = EASTER_EGG_DEFS.find((d) => d.id === defId);
-  if (!def || !def.motion) return;
+  if (!def?.motion) return;
   if (world.easterEggs.some((e) => e.defId === defId)) return; // already present
   const rng = Math.random;
   // Pick a side (0: left, 1: right, 2: top, 3: bottom) and a perpendicular offset.

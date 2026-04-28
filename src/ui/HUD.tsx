@@ -210,7 +210,11 @@ const Stat = ({
   label,
   value,
   accentClass,
-}: { label: string; value: string | number; accentClass: string }) => (
+}: {
+  label: string;
+  value: string | number;
+  accentClass: string;
+}) => (
   <div className="stat">
     <div className={`stat-label ${accentClass}`}>{label}</div>
     <div className="stat-value">{value}</div>

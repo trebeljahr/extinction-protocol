@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { EnemyKind, TargetingMode, Tower } from "../sim/types";
 import {
-  STAT_LABEL,
-  UPGRADES,
   formatStat,
   nextUpgrade,
   previewUpgrade,
+  STAT_LABEL,
   sellRefund,
+  UPGRADES,
 } from "../sim/upgrades";
 import {
   DAMAGE_TYPE_COLOR,

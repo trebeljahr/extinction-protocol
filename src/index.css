@@ -200,13 +200,18 @@
     text-align: left;
     border-color: rgba(180, 255, 201, 0.45);
     pointer-events: auto;
-    transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s,
+      transform 0.08s;
     animation: call-wave-pulse 1.8s ease-in-out infinite;
   }
 
   .call-wave-btn:hover {
     border-color: var(--color-mint);
-    box-shadow: 0 0 0 1px var(--color-mint), 0 0 18px rgba(180, 255, 201, 0.3);
+    box-shadow:
+      0 0 0 1px var(--color-mint),
+      0 0 18px rgba(180, 255, 201, 0.3);
     transform: translateY(-1px);
     animation: none;
   }
@@ -225,7 +230,7 @@
   @keyframes call-wave-pulse {
     0%,
     100% {
-      box-shadow: 0 0 0 0 rgba(180, 255, 201, 0.0);
+      box-shadow: 0 0 0 0 rgba(180, 255, 201, 0);
     }
     50% {
       box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22);
@@ -336,7 +341,9 @@
     cursor: pointer;
     color: var(--color-fg);
     font-family: inherit;
-    transition: border-color 0.12s, transform 0.08s;
+    transition:
+      border-color 0.12s,
+      transform 0.08s;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -381,7 +388,9 @@
   }
   .tower-card.active {
     border-color: var(--color-blue);
-    box-shadow: 0 0 0 1px var(--color-blue), 0 0 18px rgba(159, 216, 255, 0.25);
+    box-shadow:
+      0 0 0 1px var(--color-blue),
+      0 0 18px rgba(159, 216, 255, 0.25);
   }
   .tower-card.disabled {
     cursor: not-allowed;
@@ -402,7 +411,9 @@
     border-radius: 50%;
     color: var(--color-pink);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition:
+      background 0.12s,
+      color 0.12s;
   }
   .card-cancel:hover {
     background: rgba(255, 122, 154, 0.2);
@@ -423,15 +434,15 @@
    instead of pushing the parent tall. */
   .tower-swatch > div,
   .tower-swatch > div > div {
-    position: absolute !important;
+    position: absolute;
     inset: 0;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
   }
   .tower-swatch canvas {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
   }
 
   .tower-swatch.kind-pulse {
@@ -624,7 +635,9 @@
     background: rgba(159, 216, 255, 0.18);
     border-color: var(--color-blue);
     color: #fff;
-    box-shadow: 0 0 0 1px var(--color-blue), 0 0 10px rgba(159, 216, 255, 0.2);
+    box-shadow:
+      0 0 0 1px var(--color-blue),
+      0 0 10px rgba(159, 216, 255, 0.2);
   }
 
   .targeting-hint {
@@ -920,7 +933,9 @@
   .compendium-tab.active {
     border-color: var(--color-blue);
     background: rgba(159, 216, 255, 0.12);
-    box-shadow: 0 0 0 1px var(--color-blue), 0 0 16px rgba(159, 216, 255, 0.18);
+    box-shadow:
+      0 0 0 1px var(--color-blue),
+      0 0 16px rgba(159, 216, 255, 0.18);
   }
   .compendium-tab.locked {
     opacity: 0.45;
@@ -961,8 +976,8 @@
     height: 100%;
   }
   .enemy-preview canvas {
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
     display: block;
   }
 
@@ -1124,8 +1139,12 @@
     font-weight: 700;
     letter-spacing: var(--tracking-tight);
     border-radius: var(--radius-md);
-    transition: background var(--t-base), border-color var(--t-base), color var(--t-base),
-      box-shadow var(--t-base), transform var(--t-fast);
+    transition:
+      background var(--t-base),
+      border-color var(--t-base),
+      color var(--t-base),
+      box-shadow var(--t-base),
+      transform var(--t-fast);
   }
 
   /* ── Button base ────────────────────────────────────────────────
@@ -1156,8 +1175,11 @@
     padding: var(--btn-pad-md, 8px 14px);
     cursor: pointer;
     pointer-events: auto;
-    transition: background var(--t-base), border-color var(--t-base), color var(--t-base), transform
-      var(--t-fast);
+    transition:
+      background var(--t-base),
+      border-color var(--t-base),
+      color var(--t-base),
+      transform var(--t-fast);
   }
 
   .btn:disabled,
@@ -1250,7 +1272,7 @@
    with .map-label-wrap kills pointer events on the whole subtree. */
   .map-label-wrap,
   .map-label-wrap > * {
-    pointer-events: none !important;
+    pointer-events: none;
   }
   .map-label {
     font-family: inherit;
@@ -1299,12 +1321,17 @@
     cursor: pointer;
     backdrop-filter: blur(6px);
     pointer-events: auto;
-    transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s,
+      transform 0.08s;
   }
   .hud-menu-btn:hover {
     border-color: var(--color-blue);
     color: #fff;
-    box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.4), 0 0 18px rgba(159, 216, 255, 0.18);
+    box-shadow:
+      0 0 0 1px rgba(159, 216, 255, 0.4),
+      0 0 18px rgba(159, 216, 255, 0.18);
     transform: translateY(-1px);
   }
   .hud-menu-btn:active {
@@ -1342,7 +1369,9 @@
 
   .new-enemy-card {
     background: rgba(18, 22, 30, 0.97);
-    box-shadow: 0 16px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 170, 110, 0.08);
+    box-shadow:
+      0 16px 60px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 170, 110, 0.08);
     animation: newEnemyPop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4);
   }
 
@@ -1391,13 +1420,17 @@
     font-family: inherit;
     cursor: pointer;
     backdrop-filter: blur(8px);
-    box-shadow: 0 0 0 1px rgba(255, 214, 106, 0.15), 0 4px 24px rgba(0, 0, 0, 0.4);
+    box-shadow:
+      0 0 0 1px rgba(255, 214, 106, 0.15),
+      0 4px 24px rgba(0, 0, 0, 0.4);
     animation: achievementToastIn 0.35s ease-out both;
   }
 
   .achievement-toast:hover {
     border-color: var(--color-gold);
-    box-shadow: 0 0 0 1px rgba(255, 214, 106, 0.4), 0 6px 28px rgba(255, 214, 106, 0.18);
+    box-shadow:
+      0 0 0 1px rgba(255, 214, 106, 0.4),
+      0 6px 28px rgba(255, 214, 106, 0.18);
   }
 
   .achievement-toast-label {

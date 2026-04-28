@@ -1,10 +1,11 @@
 import { create } from "zustand";
-import { checkAchievements } from "./achievements";
 import type { AchievementId } from "./achievements";
+import { checkAchievements } from "./achievements";
 import { EASTER_EGG_BY_ID } from "./easterEggs";
 import { PATH_WIDTH } from "./level";
-import { LEVELS, getLevel } from "./levels";
 import type { LevelConfig } from "./levels";
+import { getLevel, LEVELS } from "./levels";
+import type { ProgressData, Stars } from "./progress";
 import {
   getStars,
   isLevelUnlocked,
@@ -14,7 +15,6 @@ import {
   saveProgress,
   starsForLives,
 } from "./progress";
-import type { ProgressData, Stars } from "./progress";
 import { Engine } from "./sim/loop";
 import { segmentLength } from "./sim/path";
 import {
@@ -38,17 +38,17 @@ import type {
 import { applyUpgrade, sellTower } from "./sim/upgrades";
 import { distSq } from "./sim/vec2";
 import {
+  createTower,
+  createWorld,
+  emit,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
+  spawnMovingEasterEgg,
+  spawnParticles,
   TOWER_COST,
   TOWER_FOOTPRINT,
   TREE_FOOTPRINT,
   TREE_REMOVE_COST,
-  createTower,
-  createWorld,
-  emit,
-  spawnMovingEasterEgg,
-  spawnParticles,
 } from "./sim/world";
 
 export type Screen = "worldMap" | "playing" | "results";

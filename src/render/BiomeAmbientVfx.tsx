@@ -2,9 +2,9 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
-  type LavaFeatures,
   buildLavaFeatures,
   buildLavaSurface,
+  type LavaFeatures,
   sampleLavaSurface,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";

@@ -88,13 +88,7 @@ export const DebugMenuSection = () => {
   );
 };
 
-const DebugRow = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
+const DebugRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-center gap-2 my-1.5 flex-wrap">
     <span className="w-16 text-xs tracking-[0.06em] text-fg-muted">{label}</span>
     <div className="flex gap-1.5 flex-wrap flex-1">{children}</div>

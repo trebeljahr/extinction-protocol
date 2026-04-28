@@ -169,6 +169,8 @@ for (const path of targets) {
   out.writeUInt32LE(BIN_CHUNK, 20 + newJsonBytes.length + 4);
   paddedBin.copy(out, 20 + newJsonBytes.length + 8);
 
-  console.log(`${path}: ${buf.length} → ${out.length} bytes (saved ${totalSavings} bytes in textures)`);
+  console.log(
+    `${path}: ${buf.length} → ${out.length} bytes (saved ${totalSavings} bytes in textures)`,
+  );
   await writeFile(path, out);
 }

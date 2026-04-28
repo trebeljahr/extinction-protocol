@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
 import { useMemo } from "react";
 import {
+  buildLavaFeatures,
   LAVA_COLOR,
   LAVA_EMISSIVE,
   LAVA_EMISSIVE_INTENSITY,
-  buildLavaFeatures,
 } from "../lavaGeometry";
 import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";

@@ -17,7 +17,11 @@ const StaticTower = ({
   url,
   targetSize,
   rotY,
-}: { url: string; targetSize: number; rotY: number }) => {
+}: {
+  url: string;
+  targetSize: number;
+  rotY: number;
+}) => {
   const { scene } = useGLTF(url);
   const { invalidate } = useThree();
 
