@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "cliVersion": "0.1.6",
+  "scaffoldedAt": "2026-04-28T09:17:25.272Z",
+  "name": "extinction-protocol",
+  "domain": "protocol.trebeljahr.com",
+  "features": [],
+  "mlServices": [],
+  "s3Provider": "none",
+  "deployTarget": "existing",
+  "ports": {
+    "server": 3000,
+    "client": 3001
+  }
+}
