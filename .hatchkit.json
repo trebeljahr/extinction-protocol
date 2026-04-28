@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "cliVersion": "0.1.6",
-  "scaffoldedAt": "2026-04-28T09:17:25.272Z",
+  "cliVersion": "0.1.10",
+  "scaffoldedAt": "2026-04-28T10:30:03.794Z",
   "name": "extinction-protocol",
   "domain": "protocol.trebeljahr.com",
   "features": [],
@@ -11,5 +11,6 @@
   "ports": {
     "server": 3000,
     "client": 3001
-  }
+  },
+  "surfaces": "client-only"
 }
