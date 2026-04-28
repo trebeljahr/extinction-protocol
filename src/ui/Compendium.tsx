@@ -81,6 +81,7 @@ export const Compendium = () => {
                 type="button"
                 key={kind}
                 className={`compendium-tab ${selected === kind ? "active" : ""} ${seen ? "" : "locked"}`}
+                data-ui-sound="tab"
                 onClick={() => setSelected(kind)}
                 disabled={!seen}
                 title={seen ? ENEMY_LABEL[kind] : "Not yet encountered"}

@@ -13,6 +13,12 @@ export const Placement = () => {
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
   const selectedKind = useGame((s) => s.selectedKind);
+  // Subscribed so the placement plane re-renders (and re-runs the
+  // towerAtPos / canPlace getState() reads below) when towers or trees
+  // are added or removed. Without this, the plane only re-validated on
+  // gold/status/selectedKind/hover changes, which silently went stale.
+  useGame((s) => s.towerVersion);
+  useGame((s) => s.treeVersion);
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     setHover({ x: e.point.x, y: -e.point.z });
@@ -41,6 +47,9 @@ export const Placement = () => {
 
   return (
     <group>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: this is an
+          r3f canvas mesh, not a DOM element — pointer events are how
+          three.js exposes click/hover on 3D geometry. */}
       <mesh
         geometry={geom}
         rotation={[-Math.PI / 2, 0, 0]}

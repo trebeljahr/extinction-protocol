@@ -162,6 +162,7 @@ export const HUD = () => {
               type="button"
               key={kind}
               className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
+              data-ui-sound={active ? "close" : !affordable ? "error" : "select"}
               onClick={(e) => {
                 setSelectedKind(selectedKind === kind ? null : kind);
                 e.currentTarget.blur();

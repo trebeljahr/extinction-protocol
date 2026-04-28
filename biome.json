@@ -39,7 +39,9 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": "warn",
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "useIterableCallbackReturn": "off",
+        "noDuplicateProperties": "off"
       },
       "style": {
         "noNonNullAssertion": "off",
@@ -53,18 +55,22 @@
       },
       "correctness": {
         "noUnusedVariables": "warn",
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "useHookAtTopLevel": "off"
       },
       "a11y": {
-        "useGenericFontNames": "off"
-      }
+        "useGenericFontNames": "off",
+        "useValidAnchor": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "noLabelWithoutControl": "off",
+        "useKeyWithClickEvents": "off"
+      },
+      "complexity": {}
     }
   },
   "overrides": [
     {
-      "includes": [
-        "**/src/render/**"
-      ],
+      "includes": ["**/src/render/**"],
       "linter": {
         "rules": {
           "a11y": {

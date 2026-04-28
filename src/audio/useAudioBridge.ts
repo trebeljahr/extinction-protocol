@@ -51,42 +51,36 @@ export const useAudioBridge = () => {
       audio.crossfadeTo(pickTrack());
     });
 
-    // Generic UI feedback: play a click on every button press, with a few
-    // semantic overrides for tabs/closes. tower-card is a button too but
-    // its activation is also a tower-kind selection, so it gets the
-    // distinct "select" sample.
+    // Generic UI feedback: every button press plays a click. Buttons can
+    // override the sample with `data-ui-sound` (e.g. "close" for close
+    // buttons, "select" for the tower picker) — see `audio.ui` for the
+    // valid set. The attribute keeps the audio contract explicit at the
+    // source instead of inferred from class-name strings.
+    type UiSound = "click" | "tab" | "open" | "close" | "error" | "select";
+    const VALID_SOUNDS: ReadonlySet<UiSound> = new Set([
+      "click",
+      "tab",
+      "open",
+      "close",
+      "error",
+      "select",
+    ]);
     const onUiPointerDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const btn = target.closest("button") as HTMLButtonElement | null;
-      if (!btn) return;
-      if (btn.disabled) return;
-      const cls = btn.className ?? "";
-      if (cls.includes("tower-card")) {
-        if (cls.includes("active")) {
-          audio.ui("close");
-        } else if (cls.includes("disabled")) {
-          audio.ui("error");
-        } else {
-          audio.ui("select");
-        }
-        return;
-      }
-      if (cls.includes("compendium-tab") || cls.includes("targeting-btn")) {
-        audio.ui("tab");
-        return;
-      }
-      if (cls.includes("btn-close") || cls.includes("card-cancel")) {
-        audio.ui("close");
-        return;
-      }
-      audio.ui("click");
+      if (!btn || btn.disabled) return;
+      const attr = btn.dataset.uiSound as UiSound | undefined;
+      audio.ui(attr && VALID_SOUNDS.has(attr) ? attr : "click");
     };
     document.addEventListener("pointerdown", onUiPointerDown);
 
-    // Subtle hover tick on overlay/menu buttons. Scoped to the variants
-    // that show up in modal flows so we don't spam the audio channel
-    // when the user wags the mouse over the in-game tower bar.
+    // Subtle hover tick on overlay/menu buttons. Scoped to design-system
+    // variants used in modal flows so we don't spam the audio channel
+    // when the user wags the mouse over the in-game tower bar. These
+    // class names are stable (defined in index.css), so className matching
+    // is fine here — unlike the tower-card click routing above, they
+    // aren't mixed with Tailwind utilities that get reordered.
     const onUiPointerOver = (e: PointerEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;

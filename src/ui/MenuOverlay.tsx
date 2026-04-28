@@ -33,6 +33,9 @@ export const MenuOverlay = ({
   }, [onClose]);
 
   return (
+    /* biome-ignore lint/a11y/noStaticElementInteractions: intentional —
+       the backdrop is a click target for "click-outside-to-close". The
+       card inside is the interactive region with focusable controls. */
     <div
       className="overlay"
       role="presentation"
@@ -47,6 +50,7 @@ export const MenuOverlay = ({
         <button
           type="button"
           className="btn-close absolute top-3 right-3"
+          data-ui-sound="close"
           onClick={onClose}
           title={closeTitle ?? closeLabel}
           aria-label={closeLabel}
