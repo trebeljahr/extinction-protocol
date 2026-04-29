@@ -1,31 +1,19 @@
 # syntax=docker/dockerfile:1
 #
-# Server / fullstack image for extinction-protocol.
+# Static-site image for extinction-protocol.
 # Built by .github/workflows/deploy.yml, pushed to GHCR, pulled by
-# Coolify via docker-compose.yml. Uses dotenvx at runtime so the
-# committed encrypted .env.production decrypts only inside the
-# container (the private key comes from DOTENV_PRIVATE_KEY_PRODUCTION,
-# set on the Coolify app's env).
-ARG NODE_VERSION=22
-
-FROM node:${NODE_VERSION}-alpine AS deps
-WORKDIR /app
-COPY package.json pnpm-lock.yaml* ./
-RUN corepack enable && pnpm install --frozen-lockfile
+# Coolify via docker-compose.yml. nginx serves the built bundle —
+# no runtime Node, so dotenvx encryption isn't relevant here
+# (anything sensitive should never reach the browser bundle anyway).
+ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
-RUN corepack enable && pnpm build
+RUN pnpm build
 
-FROM node:${NODE_VERSION}-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
-COPY --from=build /app /app
-EXPOSE 3000
-# `dotenvx run` reads .env.production (encrypted, committed) and
-# decrypts in-process using DOTENV_PRIVATE_KEY_PRODUCTION before
-# spawning the actual server.
-CMD ["sh", "-c", "npx --yes @dotenvx/dotenvx run -- node dist/index.js"]
+FROM nginx:alpine AS runner
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
