@@ -4,6 +4,7 @@
  *
  *   npx tsx scripts/wave-optimal-path.ts 19
  *   npx tsx scripts/wave-optimal-path.ts 19 --safety=1.3
+ *   npx tsx scripts/wave-optimal-path.ts 19 --beam=8     # beam search
  *   npx tsx scripts/wave-optimal-path.ts                 # all levels, compact
  *
  * Why this exists:
@@ -15,15 +16,27 @@
  *   overspending on the wrong tower type.
  *
  * Model:
- *   For each wave, compute required_dps = totalHp / combatWindow × safety.
- *   Greedily pick the action (build X, or upgrade existing tower Y branch Z)
- *   with the best marginal DPS-per-gold against THIS wave's mix, until we
- *   hit the target or run out of gold. Towers persist; leftover gold rolls
- *   forward. Bounty + wave-clear bonus credited only on a full clear.
+ *   For each wave, compute required_dps = totalHp / combatWindow × safety,
+ *   per lane. Combat window is extended by slow-tower coverage (cryo's slow
+ *   factor, modulated by per-enemy slow resist). Greedily pick the action
+ *   (build kind K at placement-class P, or upgrade tower Y branch Z) with
+ *   the best deficit-reducing score per gold, until every lane meets its
+ *   reqDps or we run out of affordable actions. Towers persist; leftover
+ *   gold rolls forward. Bounty + wave-clear bonus credited only on full
+ *   clear of every lane with enemies.
  *
- *   Greedy is myopic — it can over-commit to tower types that fall off
- *   later (chain/mortar vs armored). The "lock-in" column surfaces this:
- *   it's the sunk cost you can't get back via 65%-refund sell.
+ *   Greedy is myopic — it picks the locally-best action, which can lose
+ *   to a portfolio that's worse this wave but better at wave N+3. Pass
+ *   --beam=K to enable beam search: at every wave, expand each beam node
+ *   into a greedy successor plus one (kind, placement) forced successor
+ *   per kind × placement-class, dedupe by portfolio, prune to top K by
+ *   (lowest totalSpent, highest gold). K=2 is enough to clear the levels
+ *   that defeat greedy at safety=1.2×; K=4–8 finds cheaper portfolios at
+ *   higher safety margins. Cost is roughly K × placement_classes × kinds
+ *   × greedy_cost — slow on 4+ path levels but tractable.
+ *
+ *   The "lock-in" column shows sunk cost you can't get back via 65%-refund
+ *   sell — useful for spotting greedy over-commits to falling-off kinds.
  */
 
 import { LEVELS } from "../src/levels";
@@ -47,7 +60,15 @@ import { enumeratePlacementClasses } from "./lib/coverage";
 type Tier = 0 | 1 | 2 | 3;
 type TowerConfig = TowerBaseStats & { kind: TowerKind; tierA: Tier; tierB: Tier; cost: number };
 
+// Memoized — kind/tier combos are bounded (6 × 4 × 4 = 96 distinct keys),
+// and buildConfig is called in tight inner loops by dpsPerLane and the
+// slow-factor calc. Without this, beam search spends ~70% of its time
+// rebuilding identical configs.
+const buildConfigCache = new Map<string, TowerConfig>();
 const buildConfig = (kind: TowerKind, tierA: Tier, tierB: Tier): TowerConfig => {
+  const key = `${kind}-${tierA}-${tierB}`;
+  const hit = buildConfigCache.get(key);
+  if (hit) return hit;
   const t = { ...TOWER_STATS[kind], upgrades: { a: 0, b: 0 } } as unknown as Tower;
   let cost = TOWER_COST[kind];
   const tree = UPGRADES[kind];
@@ -59,7 +80,7 @@ const buildConfig = (kind: TowerKind, tierA: Tier, tierB: Tier): TowerConfig => 
     tree.b.tiers[i].apply(t);
     cost += tree.b.tiers[i].cost;
   }
-  return {
+  const out: TowerConfig = {
     kind,
     tierA,
     tierB,
@@ -73,6 +94,8 @@ const buildConfig = (kind: TowerKind, tierA: Tier, tierB: Tier): TowerConfig => 
     slowDuration: t.slowDuration,
     cost,
   };
+  buildConfigCache.set(key, out);
+  return out;
 };
 
 const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number): number => {
@@ -402,6 +425,169 @@ const findBottleneckLane = (dps: number[], reqDps: number[]): number => {
   return worst;
 };
 
+// Run the prep-window greedy for ONE wave starting from `inState`. Returns
+// the post-prep state plus a WaveStep. Does NOT add bounty to gold — the
+// caller does that only on a clear, since beam search stages successors.
+//
+// `forceFirst` (optional) places a build of the given (kind, lanes) BEFORE
+// the greedy loop starts. Used by both compare-starters and beam search to
+// seed wave prep with a non-greedy first action.
+const prepAndClearWave = (
+  inState: SimState,
+  level: (typeof LEVELS)[number],
+  waveIdx: number,
+  perLaneByWave: WaveBreakdown[][],
+  pathLengths: number[],
+  safety: number,
+  lookahead: number,
+  placements: PlacementOptions,
+  forceFirst?: { kind: TowerKind; lanes: number[] },
+): { state: SimState; step: WaveStep } => {
+  const spec = level.waves[waveIdx];
+  const perLane = perLaneByWave[waveIdx];
+  const horizonEnd = Math.min(level.waves.length, waveIdx + lookahead);
+
+  let state = inState;
+  const towersBefore = state.towers.slice();
+  const dpsBefore = dpsPerLane(state.towers, perLane);
+  const goldIn = state.gold;
+
+  if (forceFirst) {
+    const cost = TOWER_COST[forceFirst.kind];
+    if (cost <= state.gold) {
+      state = applyAction(state, {
+        type: "build",
+        kind: forceFirst.kind,
+        cost,
+        lanes: forceFirst.lanes,
+      });
+    }
+  }
+
+  // Greedy loop: pick best marginal deficit-reducing DPS/gold across
+  // the lookahead horizon. reqDps recomputed each iteration since slow
+  // towers in the portfolio extend the combat window for slow-vulnerable
+  // enemies (raptor, swarm, allosaur, para — slow resist 0).
+  //
+  // Performance: the per-state values (dpsPerLane, reqDpsForState,
+  // wave-totalHp) are constant across all candidate actions in a single
+  // iteration of this loop. Compute them ONCE here, then iterate actions.
+  while (true) {
+    const reqDps = reqDpsForState(spec, waveIdx + 1, perLane, pathLengths, safety, state.towers);
+    const beforeDps = dpsPerLane(state.towers, perLane);
+    if (allLanesCleared(beforeDps, reqDps)) break;
+    const actions = enumerateActions(state, placements).filter((a) => a.cost <= state.gold);
+    if (actions.length === 0) break;
+
+    // Per-state precomputation across the horizon.
+    const horizonReqBefore: number[][] = [];
+    const horizonDpsBefore: number[][] = [];
+    const horizonWeights: number[] = [];
+    for (let j = waveIdx; j < horizonEnd; j++) {
+      const lw = perLaneByWave[j];
+      horizonReqBefore.push(
+        reqDpsForState(level.waves[j], j + 1, lw, pathLengths, safety, state.towers),
+      );
+      horizonDpsBefore.push(dpsPerLane(state.towers, lw));
+      horizonWeights.push(lw.reduce((s, p) => s + p.totalHp, 0));
+    }
+
+    let best: { action: Action; scorePerGold: number } | null = null;
+
+    for (const action of actions) {
+      const trial = applyAction(state, action);
+      const afterDps = dpsPerLane(trial.towers, perLane);
+      const reqDpsTrial = reqDpsForState(
+        spec,
+        waveIdx + 1,
+        perLane,
+        pathLengths,
+        safety,
+        trial.towers,
+      );
+
+      // Reject actions that don't strictly help close the deficit on the
+      // current wave (either by adding DPS or shrinking reqDps via slow).
+      let currentDeficitReduction = 0;
+      for (let k = 0; k < reqDps.length; k++) {
+        currentDeficitReduction +=
+          Math.max(0, reqDps[k] - beforeDps[k]) - Math.max(0, reqDpsTrial[k] - afterDps[k]);
+      }
+      if (currentDeficitReduction <= 0) continue;
+
+      // Score = HP-weighted average across horizon of (deficit reduction
+      // for current wave) + (raw per-lane DPS gain for future waves).
+      let weightedScore = 0;
+      let weightSum = 0;
+      for (let j = waveIdx; j < horizonEnd; j++) {
+        const idx = j - waveIdx;
+        const lw = perLaneByWave[j];
+        const lreqBefore = horizonReqBefore[idx];
+        const lreqAfter =
+          j === waveIdx
+            ? reqDpsTrial
+            : reqDpsForState(level.waves[j], j + 1, lw, pathLengths, safety, trial.towers);
+        const beforeJ = horizonDpsBefore[idx];
+        const afterJ = j === waveIdx ? afterDps : dpsPerLane(trial.towers, lw);
+
+        let val = 0;
+        if (j === waveIdx) {
+          for (let k = 0; k < lreqAfter.length; k++) {
+            val += Math.max(0, lreqBefore[k] - beforeJ[k]) - Math.max(0, lreqAfter[k] - afterJ[k]);
+          }
+        } else {
+          for (let k = 0; k < lreqAfter.length; k++) {
+            // Reward DPS gain AND reqDps reduction (slow effect).
+            val += Math.max(0, afterJ[k] - beforeJ[k]) + Math.max(0, lreqBefore[k] - lreqAfter[k]);
+          }
+        }
+        weightedScore += horizonWeights[idx] * Math.max(0, val);
+        weightSum += horizonWeights[idx];
+      }
+      const avgScore = weightSum > 0 ? weightedScore / weightSum : currentDeficitReduction;
+      const scorePerGold = avgScore / action.cost;
+      if (!best || scorePerGold > best.scorePerGold) {
+        best = { action, scorePerGold };
+      }
+    }
+    if (!best) break;
+    state = applyAction(state, best.action);
+  }
+
+  const dpsAfter = dpsPerLane(state.towers, perLane);
+  const reqDpsFinal = reqDpsForState(spec, waveIdx + 1, perLane, pathLengths, safety, state.towers);
+  const cleared = allLanesCleared(dpsAfter, reqDpsFinal);
+  const bounty = cleared ? waveBounty(spec) + (5 + waveIdx + 1) : 0;
+  const goldOut = state.gold + bounty;
+  const totalHp = perLane.reduce((s, w) => s + w.totalHp, 0);
+
+  const step: WaveStep = {
+    wave: waveIdx + 1,
+    archetype: spec.archetype ?? "—",
+    totalHp,
+    reqDpsByLane: reqDpsFinal,
+    goldIn,
+    dpsBeforeByLane: dpsBefore,
+    dpsAfterByLane: dpsAfter,
+    spentThisWave: goldIn - state.gold,
+    actionsDesc: summarizeActions(towersBefore, state.towers),
+    towersAfter: state.towers.slice(),
+    cleared,
+    bottleneckLane: findBottleneckLane(dpsAfter, reqDpsFinal),
+    bountyEarned: bounty,
+    goldOut,
+  };
+
+  return { state, step };
+};
+
+const initialState = (level: (typeof LEVELS)[number]): SimState => ({
+  gold: level.startGold,
+  towers: [],
+  spentByKind: emptySpentByKind(),
+  totalSpent: 0,
+});
+
 const simulate = (
   level: (typeof LEVELS)[number],
   safety: number,
@@ -412,150 +598,158 @@ const simulate = (
   const numPaths = level.paths.length;
   const pathLengths = level.paths.map(pathLength);
   const placements = computePlacementOptions(level.paths);
-
-  // Precompute per-lane wave breakdowns. reqDps is recomputed each iteration
-  // since slow towers in the portfolio extend combat windows (reduce reqDps).
   const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
 
-  let state: SimState = {
-    gold: level.startGold,
-    towers: [],
-    spentByKind: emptySpentByKind(),
-    totalSpent: 0,
-  };
+  let state = initialState(level);
   const history: WaveStep[] = [];
 
   for (let i = 0; i < level.waves.length; i++) {
-    const spec = level.waves[i];
-    const perLane = perLaneByWave[i];
-
-    const towersBefore = state.towers.slice();
-    const dpsBefore = dpsPerLane(state.towers, perLane);
-    const goldIn = state.gold;
-
-    const horizonEnd = Math.min(level.waves.length, i + lookahead);
-
-    // Optional starter override for compare-starters mode. Pick the first
-    // valid placement class — typically a single-lane commit on path 0.
-    if (i === 0 && forceFirstKind && state.towers.length === 0) {
-      const cost = TOWER_COST[forceFirstKind];
-      const lanes = placements[forceFirstKind][0] ?? [0];
-      if (cost <= state.gold) {
-        state = applyAction(state, { type: "build", kind: forceFirstKind, cost, lanes });
-      }
+    const force =
+      i === 0 && forceFirstKind
+        ? { kind: forceFirstKind, lanes: placements[forceFirstKind][0] ?? [0] }
+        : undefined;
+    const r = prepAndClearWave(
+      state,
+      level,
+      i,
+      perLaneByWave,
+      pathLengths,
+      safety,
+      lookahead,
+      placements,
+      force,
+    );
+    history.push(r.step);
+    if (!r.step.cleared) {
+      return { level, history, success: false, failedAt: i + 1, finalState: r.state };
     }
-
-    // Greedy loop: pick best marginal deficit-reducing DPS/gold across
-    // the lookahead horizon. reqDps recomputed each iteration since slow
-    // towers in the portfolio extend the combat window for slow-vulnerable
-    // enemies (raptor, swarm, allosaur, para — slow resist 0).
-    while (true) {
-      const reqDps = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, state.towers);
-      if (allLanesCleared(dpsPerLane(state.towers, perLane), reqDps)) break;
-      const actions = enumerateActions(state, placements).filter((a) => a.cost <= state.gold);
-      if (actions.length === 0) break;
-
-      let best: { action: Action; scorePerGold: number } | null = null;
-      const beforeDps = dpsPerLane(state.towers, perLane);
-
-      for (const action of actions) {
-        const trial = applyAction(state, action);
-        const afterDps = dpsPerLane(trial.towers, perLane);
-        const reqDpsTrial = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, trial.towers);
-
-        // Reject actions that don't strictly help close the deficit on the
-        // current wave (either by adding DPS or shrinking reqDps via slow).
-        let currentDeficitReduction = 0;
-        for (let k = 0; k < reqDps.length; k++) {
-          currentDeficitReduction +=
-            Math.max(0, reqDps[k] - beforeDps[k]) - Math.max(0, reqDpsTrial[k] - afterDps[k]);
-        }
-        if (currentDeficitReduction <= 0) continue;
-
-        // Score = HP-weighted average across horizon of (deficit reduction
-        // for current wave) + (raw per-lane DPS gain for future waves).
-        // Both reqDps values use the trial state so slow towers count.
-        let weightedScore = 0;
-        let weightSum = 0;
-        for (let j = i; j < horizonEnd; j++) {
-          const lw = perLaneByWave[j];
-          const lreqBefore = reqDpsForState(
-            level.waves[j],
-            j + 1,
-            lw,
-            pathLengths,
-            safety,
-            state.towers,
-          );
-          const lreqAfter = reqDpsForState(
-            level.waves[j],
-            j + 1,
-            lw,
-            pathLengths,
-            safety,
-            trial.towers,
-          );
-          const beforeJ = dpsPerLane(state.towers, lw);
-          const afterJ = dpsPerLane(trial.towers, lw);
-
-          let val = 0;
-          if (j === i) {
-            for (let k = 0; k < lreqAfter.length; k++) {
-              val +=
-                Math.max(0, lreqBefore[k] - beforeJ[k]) - Math.max(0, lreqAfter[k] - afterJ[k]);
-            }
-          } else {
-            for (let k = 0; k < lreqAfter.length; k++) {
-              // Reward DPS gain AND reqDps reduction (slow effect).
-              val +=
-                Math.max(0, afterJ[k] - beforeJ[k]) + Math.max(0, lreqBefore[k] - lreqAfter[k]);
-            }
-          }
-          const weight = lw.reduce((s, p) => s + p.totalHp, 0);
-          weightedScore += weight * Math.max(0, val);
-          weightSum += weight;
-        }
-        const avgScore = weightSum > 0 ? weightedScore / weightSum : currentDeficitReduction;
-        const scorePerGold = avgScore / action.cost;
-        if (!best || scorePerGold > best.scorePerGold) {
-          best = { action, scorePerGold };
-        }
-      }
-      if (!best) break;
-      state = applyAction(state, best.action);
-    }
-
-    const dpsAfter = dpsPerLane(state.towers, perLane);
-    const reqDpsFinal = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, state.towers);
-    const cleared = allLanesCleared(dpsAfter, reqDpsFinal);
-    const bounty = cleared ? waveBounty(spec) + (5 + i + 1) : 0;
-    const goldOut = state.gold + bounty;
-    const totalHp = perLane.reduce((s, w) => s + w.totalHp, 0);
-
-    history.push({
-      wave: i + 1,
-      archetype: spec.archetype ?? "—",
-      totalHp,
-      reqDpsByLane: reqDpsFinal,
-      goldIn,
-      dpsBeforeByLane: dpsBefore,
-      dpsAfterByLane: dpsAfter,
-      spentThisWave: goldIn - state.gold,
-      actionsDesc: summarizeActions(towersBefore, state.towers),
-      towersAfter: state.towers.slice(),
-      cleared,
-      bottleneckLane: findBottleneckLane(dpsAfter, reqDpsFinal),
-      bountyEarned: bounty,
-      goldOut,
-    });
-
-    if (!cleared) {
-      return { level, history, success: false, failedAt: i + 1, finalState: state };
-    }
-    state = { ...state, gold: state.gold + bounty };
+    state = { ...r.state, gold: r.state.gold + r.step.bountyEarned };
   }
 
   return { level, history, success: true, finalState: state };
+};
+
+// Beam search: at each wave, expand each beam node into a greedy successor
+// plus one forced (kind, placement) successor for every (tower kind, valid
+// placement class). Successors are deduped by portfolio signature and
+// pruned to top K by (lowest totalSpent ↑, highest gold ↓).
+//
+// This breaks greedy myopia: a (kind, placement) that's locally suboptimal
+// at wave 1 but pays off at wave 4 has a chance to survive in the beam
+// long enough to dominate when its payoff hits.
+const portfolioSignature = (towers: TowerInstance[]): string => {
+  const parts = towers.map((t) => `${t.kind}-${t.tierA}-${t.tierB}-${t.lanes.join("+")}`);
+  return parts.sort().join(",");
+};
+
+type BeamNode = { state: SimState; history: WaveStep[] };
+
+const simulateBeam = (
+  level: (typeof LEVELS)[number],
+  safety: number,
+  lookahead: number,
+  beamWidth: number,
+): SimResult => {
+  const hpScale = level.hpScale ?? 1;
+  const numPaths = level.paths.length;
+  const pathLengths = level.paths.map(pathLength);
+  const placements = computePlacementOptions(level.paths);
+  const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
+
+  let beam: BeamNode[] = [{ state: initialState(level), history: [] }];
+
+  for (let i = 0; i < level.waves.length; i++) {
+    const successors: BeamNode[] = [];
+
+    for (const node of beam) {
+      // Greedy variant — no forced first action.
+      const r = prepAndClearWave(
+        node.state,
+        level,
+        i,
+        perLaneByWave,
+        pathLengths,
+        safety,
+        lookahead,
+        placements,
+      );
+      if (r.step.cleared) {
+        successors.push({
+          state: { ...r.state, gold: r.state.gold + r.step.bountyEarned },
+          history: [...node.history, r.step],
+        });
+      }
+
+      // Forced (kind, placement) variants — one per (kind × valid placement).
+      for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
+        if (TOWER_COST[kind] > node.state.gold) continue;
+        for (const lanes of placements[kind]) {
+          const r2 = prepAndClearWave(
+            node.state,
+            level,
+            i,
+            perLaneByWave,
+            pathLengths,
+            safety,
+            lookahead,
+            placements,
+            { kind, lanes },
+          );
+          if (r2.step.cleared) {
+            successors.push({
+              state: { ...r2.state, gold: r2.state.gold + r2.step.bountyEarned },
+              history: [...node.history, r2.step],
+            });
+          }
+        }
+      }
+    }
+
+    if (successors.length === 0) {
+      // Every beam path failed this wave. Expand the most-promising failed
+      // path (greedy from the best beam node) so the report still shows what
+      // got close.
+      const best = beam[0];
+      const r = prepAndClearWave(
+        best.state,
+        level,
+        i,
+        perLaneByWave,
+        pathLengths,
+        safety,
+        lookahead,
+        placements,
+      );
+      return {
+        level,
+        history: [...best.history, r.step],
+        success: false,
+        failedAt: i + 1,
+        finalState: r.state,
+      };
+    }
+
+    // Dedupe by portfolio + spent (different portfolios that happened to
+    // share the same total spent might still differ in towers — sig keeps
+    // them separate).
+    const seen = new Set<string>();
+    const unique = successors.filter((n) => {
+      const sig = `${portfolioSignature(n.state.towers)}|${n.state.totalSpent}`;
+      if (seen.has(sig)) return false;
+      seen.add(sig);
+      return true;
+    });
+
+    unique.sort((a, b) => {
+      if (a.state.totalSpent !== b.state.totalSpent) return a.state.totalSpent - b.state.totalSpent;
+      return b.state.gold - a.state.gold;
+    });
+
+    beam = unique.slice(0, beamWidth);
+  }
+
+  const winner = beam[0];
+  return { level, history: winner.history, success: true, finalState: winner.state };
 };
 
 // ------- Output -------
@@ -833,6 +1027,8 @@ const safetyArg = args.find((a: string) => a.startsWith("--safety="));
 const safety = safetyArg ? Number(safetyArg.split("=")[1]) : 1.2;
 const lookaheadArg = args.find((a: string) => a.startsWith("--lookahead="));
 const lookahead = lookaheadArg ? Number(lookaheadArg.split("=")[1]) : 3;
+const beamArg = args.find((a: string) => a.startsWith("--beam="));
+const beamWidth = beamArg ? Number(beamArg.split("=")[1]) : 1;
 const verbose = args.includes("--verbose") || args.includes("-v");
 const compareMode = args.includes("--compare-starters");
 const chillMode = args.includes("--chill");
@@ -852,11 +1048,22 @@ if (!Number.isFinite(lookahead) || lookahead < 1) {
   console.error("Invalid --lookahead value (must be >= 1)");
   process.exit(1);
 }
+if (!Number.isFinite(beamWidth) || beamWidth < 1) {
+  console.error("Invalid --beam value (must be >= 1, use 1 for greedy)");
+  process.exit(1);
+}
 
 if (forceFirst && !(forceFirst in TOWER_STATS)) {
   console.error(`Unknown tower kind: ${forceFirst}. Valid: ${Object.keys(TOWER_STATS).join(", ")}`);
   process.exit(1);
 }
+
+// Beam search ignores forceFirst (it diversifies through its own forced
+// starters at every wave, not just wave 1).
+const runSim = (level: (typeof LEVELS)[number]): SimResult =>
+  beamWidth > 1
+    ? simulateBeam(level, safety, lookahead, beamWidth)
+    : simulate(level, safety, lookahead, forceFirst);
 
 if (chillMode) {
   chillAnalysis(safety, lookahead, marginMul, minStreak);
@@ -872,26 +1079,26 @@ if (levelArg) {
   if (compareMode) {
     compareStarters(idx, safety, lookahead);
   } else {
-    const result = simulate(LEVELS[idx], safety, lookahead, forceFirst);
+    const result = runSim(LEVELS[idx]);
     printLevel(idx, safety, lookahead, verbose, result);
   }
 } else {
+  const results = LEVELS.map((l) => runSim(l));
   for (let i = 0; i < LEVELS.length; i++) {
-    const result = simulate(LEVELS[i], safety, lookahead, forceFirst);
-    printLevel(i, safety, lookahead, verbose, result);
+    printLevel(i, safety, lookahead, verbose, results[i]);
   }
-  // Cross-level summary: where does min-cost play break?
+  // Cross-level summary: where does the chosen strategy break?
   console.log(`\n${C.bold}═══ Summary${C.reset}`);
   const failed: string[] = [];
-  for (let i = 0; i < LEVELS.length; i++) {
-    const r = simulate(LEVELS[i], safety, lookahead, forceFirst);
+  for (const r of results) {
     if (!r.success) failed.push(`L${r.level.id}W${r.failedAt}`);
   }
+  const modeLabel = beamWidth > 1 ? `beam=${beamWidth}` : "greedy";
   if (failed.length === 0) {
     console.log(
-      `${C.green}All ${LEVELS.length} levels clearable with greedy min-cost @ safety=${safety}×${C.reset}`,
+      `${C.green}All ${LEVELS.length} levels clearable with ${modeLabel} @ safety=${safety}×${C.reset}`,
     );
   } else {
-    console.log(`${C.red}Min-cost breaks at: ${failed.join(", ")}${C.reset}`);
+    console.log(`${C.red}${modeLabel} breaks at: ${failed.join(", ")}${C.reset}`);
   }
 }
