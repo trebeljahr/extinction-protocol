@@ -29,7 +29,14 @@ const BAND_BOUNDARIES: { upper: number; biome: Biome }[] = [
 // fallback color blends between adjacent biomes instead of stepping —
 // otherwise the discrete biomeForPos thresholds show as horizontal stripes
 // in the empty (no-level) corners of the map.
-const BAND_BLEND = 3.5;
+const BAND_BLEND = 6;
+
+// Constant baseline weight added to the IDW totals so even a vertex with
+// effectively-zero level contributions still blends smoothly toward the
+// band fallback. Without it the IDW result snaps from "single-level color"
+// to "band color" right at the w=0.001 cutoff, which reads as a sharp
+// step at the edge of the level cluster.
+const BASE_FALLBACK_WEIGHT = 0.18;
 
 // The world map is WORLD_W x WORLD_H centred at (0,0) in xy sim coords.
 // Render plane lies on the xz plane (y-up), so sim.y maps to world -z.
@@ -60,7 +67,10 @@ export const BiomeGround = ({
 
     const halfW = width / 2;
     const halfH = height / 2;
-    const sky = new THREE.Color(0.72, 0.816, 0.894); // #b8d0e4 — matches WorldMap BG
+    // Edge-fade target — matches the WorldMap BG so the rectangular plane
+    // boundary can't read as a seam. Was the bright sky tint #b8d0e4, but
+    // that bloomed when the corner of the plane was near the canvas edge.
+    const sky = new THREE.Color(0.227, 0.282, 0.345); // #3a4858 — matches WorldMap BG
 
     // Pre-resolve each band's ground color once — referenced inside the
     // hot per-vertex loop below.
@@ -70,74 +80,76 @@ export const BiomeGround = ({
     const fallback = new THREE.Color();
     const fallbackNext = new THREE.Color();
 
+    // Smoothstep blend of adjacent band colors as a function of sim Y, so
+    // the empty corners of the map read as a continuous biome gradient.
+    const computeSmoothBand = (sy: number, out: THREE.Color) => {
+      let bandIdx = BAND_BOUNDARIES.length - 1;
+      for (let b = 0; b < BAND_BOUNDARIES.length; b++) {
+        if (sy <= BAND_BOUNDARIES[b].upper) {
+          bandIdx = b;
+          break;
+        }
+      }
+      const upper = BAND_BOUNDARIES[bandIdx].upper;
+      const lower = bandIdx > 0 ? BAND_BOUNDARIES[bandIdx - 1].upper : Number.NEGATIVE_INFINITY;
+      const distToUpper = upper - sy;
+      const distToLower = sy - lower;
+      if (
+        distToUpper < BAND_BLEND &&
+        bandIdx + 1 < BAND_BOUNDARIES.length &&
+        Number.isFinite(upper)
+      ) {
+        const tn = 0.5 + (sy - upper) / (2 * BAND_BLEND);
+        const k = tn * tn * (3 - 2 * tn);
+        fallbackNext.copy(bandColors[bandIdx + 1]);
+        out.copy(bandColors[bandIdx]).lerp(fallbackNext, k);
+      } else if (distToLower < BAND_BLEND && bandIdx > 0 && Number.isFinite(lower)) {
+        const tn = 0.5 + (sy - lower) / (2 * BAND_BLEND);
+        const k = tn * tn * (3 - 2 * tn);
+        fallbackNext.copy(bandColors[bandIdx]);
+        out.copy(bandColors[bandIdx - 1]).lerp(fallbackNext, k);
+      } else {
+        out.copy(bandColors[bandIdx]);
+      }
+    };
+
     for (let i = 0; i < pos.count; i++) {
       const wx = pos.getX(i);
       const wz = pos.getZ(i);
       // sim-space y is -z in world
       const sy = -wz;
 
-      // inverse distance weighting, with power 2 and epsilon
-      let totalW = 0;
-      acc.setRGB(0, 0, 0);
+      // Smooth biome-band fallback for this Y, used as a constant baseline
+      // contribution to the IDW. Eliminates the hard discontinuity at the
+      // edge of every level node's gaussian (where the previous code
+      // snapped from "single-level IDW result" to "band fallback").
+      computeSmoothBand(sy, fallback);
+
+      let totalW = BASE_FALLBACK_WEIGHT;
+      acc.setRGB(
+        fallback.r * BASE_FALLBACK_WEIGHT,
+        fallback.g * BASE_FALLBACK_WEIGHT,
+        fallback.b * BASE_FALLBACK_WEIGHT,
+      );
       for (const n of nodes) {
         const dx = wx - n.x;
         const dy = sy - n.y;
         const d2 = dx * dx + dy * dy;
         // gaussian-ish falloff; exp(-d2 / (2*FALLOFF^2))
         const w = Math.exp(-d2 / (2 * FALLOFF * FALLOFF));
-        if (w < 0.001) continue;
+        if (w < 0.0005) continue;
         acc.r += n.color.r * w;
         acc.g += n.color.g * w;
         acc.b += n.color.b * w;
         totalW += w;
       }
-      if (totalW > 0) {
-        acc.r /= totalW;
-        acc.g /= totalW;
-        acc.b /= totalW;
-      } else {
-        // Far from every level node — fall back to the local biome-band's
-        // own ground color rather than the bright sky tint. The previous
-        // sky fallback was sampled at ~0.8 luminance, which the directional
-        // light pushed past the bloom threshold and produced a white halo
-        // at zoom-out + corner-pan. Adjacent bands smoothstep-blend across
-        // BAND_BLEND so the fallback never steps between biomes.
-        let bandIdx = BAND_BOUNDARIES.length - 1;
-        for (let b = 0; b < BAND_BOUNDARIES.length; b++) {
-          if (sy <= BAND_BOUNDARIES[b].upper) {
-            bandIdx = b;
-            break;
-          }
-        }
-        const upper = BAND_BOUNDARIES[bandIdx].upper;
-        const lower = bandIdx > 0 ? BAND_BOUNDARIES[bandIdx - 1].upper : Number.NEGATIVE_INFINITY;
-        const distToUpper = upper - sy; // ≥0 since sy ≤ upper
-        const distToLower = sy - lower; // ≥0 since sy > previous-upper
-        if (
-          distToUpper < BAND_BLEND &&
-          bandIdx + 1 < BAND_BOUNDARIES.length &&
-          Number.isFinite(upper)
-        ) {
-          // Approaching the upper boundary: blend toward next band up.
-          const tn = 0.5 + (sy - upper) / (2 * BAND_BLEND); // 0..0.5
-          const k = tn * tn * (3 - 2 * tn);
-          fallback.copy(bandColors[bandIdx]);
-          fallbackNext.copy(bandColors[bandIdx + 1]);
-          acc.copy(fallback).lerp(fallbackNext, k);
-        } else if (distToLower < BAND_BLEND && bandIdx > 0 && Number.isFinite(lower)) {
-          // Approaching the lower boundary: blend toward band below.
-          const tn = 0.5 + (sy - lower) / (2 * BAND_BLEND); // 0.5..1
-          const k = tn * tn * (3 - 2 * tn);
-          fallback.copy(bandColors[bandIdx - 1]);
-          fallbackNext.copy(bandColors[bandIdx]);
-          acc.copy(fallback).lerp(fallbackNext, k);
-        } else {
-          acc.copy(bandColors[bandIdx]);
-        }
-      }
+      acc.r /= totalW;
+      acc.g /= totalW;
+      acc.b /= totalW;
 
       // Edge-fade: within EDGE_FADE of the plane boundary, crossfade to
-      // the sky color so the plane edge can never read as a rectangular seam.
+      // the BG-matched dark tone so the rectangular plane edge can never
+      // read as a hard seam if it ever creeps into view.
       const edgeDistX = halfW - Math.abs(wx);
       const edgeDistZ = halfH - Math.abs(wz);
       const edgeDist = Math.min(edgeDistX, edgeDistZ);

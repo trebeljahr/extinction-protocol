@@ -14,11 +14,12 @@ import { MapRoute } from "./MapRoute";
 const CONTENT_W = 80;
 const CONTENT_H = 64;
 
-// Rendered ground — oversized so the fallback-coloured outer ring is
-// always off-screen at any valid pan/zoom combination. Bumped up with
-// content height so zoom-out never reveals the plane edge.
-const GROUND_W = 360;
-const GROUND_H = 260;
+// Rendered ground — oversized so the plane edge is always off-screen at
+// any valid pan/zoom combination. Bumped up with content height so the
+// south edge never appears, even on tall (portrait-ish) viewports where
+// the bottom ray reaches several hundred world units past the cluster.
+const GROUND_W = 1200;
+const GROUND_H = 1000;
 
 // How far the camera target can drift from origin before being clamped.
 // Tight enough that the user can't pan the biome cluster off-screen.
@@ -31,8 +32,13 @@ const PAN_LIMIT_Z = CONTENT_H / 2 - 8;
 const MIN_ZOOM = 16;
 const MAX_ZOOM = 42;
 
-const BG = "#b8d0e4";
-const FOG = "#c7dae8";
+// Sky/fog tone — kept dim enough that mipmap-bloom on the canvas edge
+// can't push it past the bloom threshold. Was #b8d0e4 / #c7dae8, but
+// those bloomed into a hard white halo when the camera revealed any
+// portion of the BG (e.g. a portrait viewport with the south plane
+// edge in view).
+const BG = "#3a4858";
+const FOG = "#4a5868";
 const HEMI_TOP = "#d6e6f4";
 const HEMI_BOTTOM = "#7a6848";
 
@@ -45,12 +51,19 @@ const ClampedControls = () => {
     const t = c.target;
     const cx = THREE.MathUtils.clamp(t.x, -PAN_LIMIT_X, PAN_LIMIT_X);
     const cz = THREE.MathUtils.clamp(t.z, -PAN_LIMIT_Z, PAN_LIMIT_Z);
+    // Lock the target to the ground plane. screenSpacePanning is off below
+    // so this should stay at 0 already, but defensive: any future control
+    // tweak that lets target.y drift would push the camera up/down and the
+    // bottom rays would miss the ground entirely, exposing BG.
     const dx = cx - t.x;
+    const dy = -t.y;
     const dz = cz - t.z;
-    if (dx !== 0 || dz !== 0) {
+    if (dx !== 0 || dy !== 0 || dz !== 0) {
       t.x = cx;
+      t.y = 0;
       t.z = cz;
       c.object.position.x += dx;
+      c.object.position.y += dy;
       c.object.position.z += dz;
     }
   });
@@ -70,7 +83,12 @@ const ClampedControls = () => {
       zoomSpeed={0.8}
       minZoom={MIN_ZOOM}
       maxZoom={MAX_ZOOM}
-      screenSpacePanning
+      // World-horizontal panning — drag-up/down maps to forward/back along
+      // the ground plane (no Y drift), so the camera height stays fixed at
+      // 30 and bottom rays always hit the ground. screenSpacePanning=true
+      // tilted the pan axis with the camera and let target.y drift, which
+      // pushed the camera below the plane on extreme drags and revealed BG.
+      screenSpacePanning={false}
     />
   );
 };
@@ -80,14 +98,17 @@ export const WorldMapScene = () => (
     <color attach="background" args={[BG]} />
     <fog attach="fog" args={[FOG, 80, 160]} />
 
-    <OrthographicCamera
-      makeDefault
-      position={[0, 30, 22]}
-      rotation={[-Math.PI / 2.6, 0, 0]}
-      zoom={18}
-      near={0.1}
-      far={200}
-    />
+    {/*
+      Camera position determines the look angle once OrbitControls takes
+      over (OrbitControls always re-orients the camera toward its target,
+      which overrides the `rotation` prop). The target sits at (0,0,0) and
+      the camera offset (0, 30, 11.36) gives forward = (0, -0.935, -0.354)
+      — i.e. ~21° below vertical. A shallower angle (the previous z=22)
+      caused the screen-space "up" vector to align too closely with world
+      +Y, so the bottom rays of tall (portrait-ish) canvases started below
+      the ground plane and revealed BG along the south horizon.
+    */}
+    <OrthographicCamera makeDefault position={[0, 30, 11.36]} zoom={18} near={0.1} far={200} />
 
     <ClampedControls />
 
