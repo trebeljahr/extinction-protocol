@@ -23,6 +23,10 @@ export type Enemy = {
   slowUntil: number;
   slowFactor: number;
   flashUntil: number;
+  // 0..1 visual frost level, accumulates while the enemy is slowed (only
+  // cryo applies slow today) and decays back to 0 once it's free. Drives
+  // the white-blue tint on the rendered enemy.
+  frost: number;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";

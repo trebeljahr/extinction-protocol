@@ -607,6 +607,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex =
     slowUntil: 0,
     slowFactor: 1,
     flashUntil: 0,
+    frost: 0,
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);

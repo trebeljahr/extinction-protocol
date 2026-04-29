@@ -10,6 +10,15 @@ export const updateEnemies = (world: World, dt: number) => {
       e.slowFactor = 1;
     }
 
+    // Frost accumulates while slowed (only cryo applies slow today) and
+    // decays back to 0 once free. The visual layer reads this to tint the
+    // model from base color toward white-blue as it builds up.
+    if (world.time < e.slowUntil) {
+      if (e.frost < 1) e.frost = Math.min(1, e.frost + dt * 0.7);
+    } else if (e.frost > 0) {
+      e.frost = Math.max(0, e.frost - dt * 0.35);
+    }
+
     const effectiveSpeed = e.speed * e.slowFactor;
     const path = world.paths[e.pathIndex];
     const adv = advanceAlongPath(path, e.segment, e.segmentT, effectiveSpeed * dt);

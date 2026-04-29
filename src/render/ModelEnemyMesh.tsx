@@ -16,6 +16,18 @@ type Props = {
   clip?: string;
 };
 
+// Frost tint target — pale ice blue. Enemies lerp from their base color
+// toward this as e.frost climbs from 0 → 1.
+const FROST_COLOR = new THREE.Color("#cfe6ff");
+const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
+
+const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
+  const c = mat.clone();
+  const std = c as THREE.MeshStandardMaterial;
+  if (std.color) std.userData.baseColor = std.color.clone();
+  return c;
+};
+
 type Item = {
   obj: THREE.Object3D;
   proxy: THREE.Mesh | null;
@@ -177,13 +189,15 @@ export const ModelEnemyMesh = ({
               m.castShadow = true;
               m.receiveShadow = true;
               // SkeletonUtils.clone shares material references across
-              // clones, so mutating .emissive for the hit-flash would
-              // light up every enemy of this kind. Give each clone its
-              // own material so flashes stay local.
+              // clones, so mutating .emissive for the hit-flash (and
+              // .color for the frost tint) would light up every enemy of
+              // this kind. Give each clone its own material, and capture
+              // the original base color in userData so the frost lerp can
+              // restore it each frame.
               if (Array.isArray(m.material)) {
-                m.material = m.material.map((mm) => mm.clone());
+                m.material = m.material.map((mm) => cloneAndCaptureBase(mm));
               } else if (m.material) {
-                m.material = (m.material as THREE.Material).clone();
+                m.material = cloneAndCaptureBase(m.material as THREE.Material);
               }
             }
           });
@@ -249,14 +263,30 @@ export const ModelEnemyMesh = ({
       item.obj.rotation.set(0, baseRotY + item.visYaw, 0);
 
       const flashing = world.time < e.flashUntil;
+      const frost = e.frost;
       item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
         const apply = (mm: THREE.MeshStandardMaterial) => {
+          // Frost lerp: restore base color each frame, then blend toward
+          // the ice tint by the current frost level. Skipping when frost
+          // is ~0 keeps the no-op fast path allocation-free.
+          const base = mm.userData.baseColor as THREE.Color | undefined;
+          if (base && mm.color) {
+            if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
+            else mm.color.copy(base);
+          }
           if (!mm.emissive) return;
-          if (flashing) mm.emissive.setRGB(1, 1, 1);
-          else mm.emissive.setRGB(0, 0, 0);
+          if (flashing) {
+            mm.emissive.setRGB(1, 1, 1);
+          } else if (frost > 0.05) {
+            // Cool inner glow when heavily frosted — sells the "frozen
+            // solid" read at high frost without a halo at low frost.
+            mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
+          } else {
+            mm.emissive.setRGB(0, 0, 0);
+          }
         };
         if (Array.isArray(mat)) mat.forEach(apply);
         else apply(mat as THREE.MeshStandardMaterial);
