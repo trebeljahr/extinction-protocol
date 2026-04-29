@@ -793,9 +793,9 @@ export const LEVELS: LevelConfig[] = [
     // Three parallel lanes with a 16-unit separation — no placement covers
     // all three at once, so the player has to commit to breadth early.
     paths: [p(-20, 8, 20, 8), p(-20, 0, 20, 0), p(-20, -8, 20, -8)],
-    startGold: 200,
+    startGold: 220,
     nodePos: { x: -21, y: 14 },
-    hpScale: 2.55,
+    hpScale: 2.35,
     waves: [
       split(
         "intro",
@@ -1136,9 +1136,9 @@ export const LEVELS: LevelConfig[] = [
       p(-20, -5, 20, -5),
       p(-20, -10, 20, -10),
     ],
-    startGold: 220,
+    startGold: 250,
     nodePos: { x: 24, y: 15 },
-    hpScale: 2.9,
+    hpScale: 2.65,
     waves: [
       split(
         "intro",

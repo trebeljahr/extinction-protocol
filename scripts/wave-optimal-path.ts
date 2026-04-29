@@ -32,7 +32,9 @@ import type { EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/typ
 import { UPGRADES } from "../src/sim/upgrades";
 import {
   ENEMY_RESIST,
+  ENEMY_SLOW_RESIST,
   ENEMY_STATS,
+  MIN_SLOW_FACTOR,
   TOWER_COST,
   TOWER_DAMAGE_TYPE,
   TOWER_STATS,
@@ -127,18 +129,67 @@ const analyzeWavePerLane = (spec: WaveSpec, hpScale: number, numPaths: number): 
 const waveBounty = (spec: WaveSpec): number =>
   spec.spawns.reduce((n, s) => n + ENEMY_STATS[s.kind].bounty * s.count, 0);
 
-const reqDpsPerLane = (
+// Mirrors src/sim/world.ts:applySlow — computes the effective slow factor
+// applied to a single enemy kind by a tower with the given base slowFactor.
+// MIN_SLOW_FACTOR caps the maximum slow effect.
+const effectiveSlowOnEnemy = (towerSlowFactor: number, enemyKind: EnemyKind): number => {
+  if (towerSlowFactor >= 1) return 1;
+  const resist = ENEMY_SLOW_RESIST[enemyKind];
+  const resisted = towerSlowFactor + (1 - towerSlowFactor) * resist;
+  return Math.max(MIN_SLOW_FACTOR, resisted);
+};
+
+// The slow factor applied to the slowest enemy kind on this lane — that
+// enemy bottlenecks combat-window length (longestPath / slowestSpeed).
+// We assume slow uptime is full when at least one slow-applying tower is
+// committed to the lane (cryo's slowDuration >= fireInterval, so a single
+// cryo can keep one or two lanes saturated).
+const slowFactorForLane = (
+  towers: TowerInstance[],
+  laneIdx: number,
+  perLaneWave: WaveBreakdown,
+): number => {
+  if (perLaneWave.totalEnemies === 0) return 1;
+
+  let slowestKind: EnemyKind | null = null;
+  let slowestSpeed = Number.POSITIVE_INFINITY;
+  for (const k of Object.keys(perLaneWave.counts) as EnemyKind[]) {
+    if ((perLaneWave.counts[k] ?? 0) === 0) continue;
+    const speed = ENEMY_STATS[k].speed;
+    if (speed < slowestSpeed) {
+      slowestSpeed = speed;
+      slowestKind = k;
+    }
+  }
+  if (!slowestKind) return 1;
+
+  let bestSlow = 1;
+  for (const t of towers) {
+    if (!t.lanes.includes(laneIdx)) continue;
+    const cfg = buildConfig(t.kind, t.tierA, t.tierB);
+    if (cfg.slowFactor >= 1) continue;
+    const eff = effectiveSlowOnEnemy(cfg.slowFactor, slowestKind);
+    if (eff < bestSlow) bestSlow = eff;
+  }
+  return bestSlow;
+};
+
+// reqDps depends on the current portfolio (slow towers extend the combat
+// window, lowering reqDps). This is recomputed each greedy iteration.
+const reqDpsForState = (
   spec: WaveSpec,
   waveNumber: number,
   perLane: WaveBreakdown[],
   pathLengths: number[],
   safety: number,
+  towers: TowerInstance[],
 ): number[] => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - waveNumber * 0.03);
   return perLane.map((w, i) => {
     if (w.totalEnemies === 0) return 0;
+    const slow = slowFactorForLane(towers, i, w);
     const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
-    const dur = spawnSpan + pathLengths[i] / w.slowestSpeed;
+    const dur = spawnSpan + pathLengths[i] / (w.slowestSpeed * slow);
     return (w.totalHp / dur) * safety;
   });
 };
@@ -362,11 +413,9 @@ const simulate = (
   const pathLengths = level.paths.map(pathLength);
   const placements = computePlacementOptions(level.paths);
 
-  // Precompute per-lane wave breakdowns + reqDps so lookahead is cheap.
+  // Precompute per-lane wave breakdowns. reqDps is recomputed each iteration
+  // since slow towers in the portfolio extend combat windows (reduce reqDps).
   const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
-  const reqDpsByWave = level.waves.map((w, idx) =>
-    reqDpsPerLane(w, idx + 1, perLaneByWave[idx], pathLengths, safety),
-  );
 
   let state: SimState = {
     gold: level.startGold,
@@ -379,7 +428,6 @@ const simulate = (
   for (let i = 0; i < level.waves.length; i++) {
     const spec = level.waves[i];
     const perLane = perLaneByWave[i];
-    const reqDps = reqDpsByWave[i];
 
     const towersBefore = state.towers.slice();
     const dpsBefore = dpsPerLane(state.towers, perLane);
@@ -398,8 +446,12 @@ const simulate = (
     }
 
     // Greedy loop: pick best marginal deficit-reducing DPS/gold across
-    // the lookahead horizon. Stop when every lane meets its reqDps.
-    while (!allLanesCleared(dpsPerLane(state.towers, perLane), reqDps)) {
+    // the lookahead horizon. reqDps recomputed each iteration since slow
+    // towers in the portfolio extend the combat window for slow-vulnerable
+    // enemies (raptor, swarm, allosaur, para — slow resist 0).
+    while (true) {
+      const reqDps = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, state.towers);
+      if (allLanesCleared(dpsPerLane(state.towers, perLane), reqDps)) break;
       const actions = enumerateActions(state, placements).filter((a) => a.cost <= state.gold);
       if (actions.length === 0) break;
 
@@ -409,35 +461,54 @@ const simulate = (
       for (const action of actions) {
         const trial = applyAction(state, action);
         const afterDps = dpsPerLane(trial.towers, perLane);
+        const reqDpsTrial = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, trial.towers);
 
-        // Reject actions that don't strictly help any lane in deficit.
+        // Reject actions that don't strictly help close the deficit on the
+        // current wave (either by adding DPS or shrinking reqDps via slow).
         let currentDeficitReduction = 0;
         for (let k = 0; k < reqDps.length; k++) {
           currentDeficitReduction +=
-            Math.max(0, reqDps[k] - beforeDps[k]) - Math.max(0, reqDps[k] - afterDps[k]);
+            Math.max(0, reqDps[k] - beforeDps[k]) - Math.max(0, reqDpsTrial[k] - afterDps[k]);
         }
         if (currentDeficitReduction <= 0) continue;
 
         // Score = HP-weighted average across horizon of (deficit reduction
         // for current wave) + (raw per-lane DPS gain for future waves).
-        // Deficit-reduction prioritizes the lane in trouble; raw gain on
-        // future waves rewards prep without requiring a deficit yet.
+        // Both reqDps values use the trial state so slow towers count.
         let weightedScore = 0;
         let weightSum = 0;
         for (let j = i; j < horizonEnd; j++) {
           const lw = perLaneByWave[j];
-          const lreq = reqDpsByWave[j];
+          const lreqBefore = reqDpsForState(
+            level.waves[j],
+            j + 1,
+            lw,
+            pathLengths,
+            safety,
+            state.towers,
+          );
+          const lreqAfter = reqDpsForState(
+            level.waves[j],
+            j + 1,
+            lw,
+            pathLengths,
+            safety,
+            trial.towers,
+          );
           const beforeJ = dpsPerLane(state.towers, lw);
           const afterJ = dpsPerLane(trial.towers, lw);
 
           let val = 0;
           if (j === i) {
-            for (let k = 0; k < lreq.length; k++) {
-              val += Math.max(0, lreq[k] - beforeJ[k]) - Math.max(0, lreq[k] - afterJ[k]);
+            for (let k = 0; k < lreqAfter.length; k++) {
+              val +=
+                Math.max(0, lreqBefore[k] - beforeJ[k]) - Math.max(0, lreqAfter[k] - afterJ[k]);
             }
           } else {
-            for (let k = 0; k < lreq.length; k++) {
-              val += Math.max(0, afterJ[k] - beforeJ[k]);
+            for (let k = 0; k < lreqAfter.length; k++) {
+              // Reward DPS gain AND reqDps reduction (slow effect).
+              val +=
+                Math.max(0, afterJ[k] - beforeJ[k]) + Math.max(0, lreqBefore[k] - lreqAfter[k]);
             }
           }
           const weight = lw.reduce((s, p) => s + p.totalHp, 0);
@@ -455,7 +526,8 @@ const simulate = (
     }
 
     const dpsAfter = dpsPerLane(state.towers, perLane);
-    const cleared = allLanesCleared(dpsAfter, reqDps);
+    const reqDpsFinal = reqDpsForState(spec, i + 1, perLane, pathLengths, safety, state.towers);
+    const cleared = allLanesCleared(dpsAfter, reqDpsFinal);
     const bounty = cleared ? waveBounty(spec) + (5 + i + 1) : 0;
     const goldOut = state.gold + bounty;
     const totalHp = perLane.reduce((s, w) => s + w.totalHp, 0);
@@ -464,7 +536,7 @@ const simulate = (
       wave: i + 1,
       archetype: spec.archetype ?? "—",
       totalHp,
-      reqDpsByLane: reqDps,
+      reqDpsByLane: reqDpsFinal,
       goldIn,
       dpsBeforeByLane: dpsBefore,
       dpsAfterByLane: dpsAfter,
@@ -472,7 +544,7 @@ const simulate = (
       actionsDesc: summarizeActions(towersBefore, state.towers),
       towersAfter: state.towers.slice(),
       cleared,
-      bottleneckLane: findBottleneckLane(dpsAfter, reqDps),
+      bottleneckLane: findBottleneckLane(dpsAfter, reqDpsFinal),
       bountyEarned: bounty,
       goldOut,
     });
