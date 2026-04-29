@@ -1,121 +1,90 @@
 # Extinction Protocol
 
-Single-player roguelite tower defense. Top-down 3D under orthographic camera. Built with React Three Fiber + TypeScript + Vite, wrapped with Tauri v2 for Steam.
+Single-player roguelite tower defense: deploy sci-fi turrets, hold collapsing outposts, and survive waves of prehistoric and bio-mech threats in a top-down 3D battlefield.
 
-See [DESIGN.md](DESIGN.md) for the full design document.
+## Current Game
 
-## Status
+- World-map campaign with 30 outposts across forest, snow, desert, wasteland, lava, and alien biomes.
+- Six tower types: Pulse Rifle, Chain Coil, Pyre, Hive Swarm, Mortar, and Cryo Emitter.
+- Seven enemy species with distinct speeds, health pools, rewards, damage, and resistances.
+- Per-level star progress, achievements, enemy compendium, audio/music, hit feedback, screenshake, and upgrade/sell/targeting controls.
+- Web build for development/deployment, plus a Tauri v2 desktop shell.
 
-**M2 complete.** Four tower kinds with distinct behaviors, four enemy kinds including swarm, a 2-branch × 3-tier upgrade tree per tower, audio wired to game events, hit feedback (flash, particles, explosions, screenshake), tower selection + sell, clean game-feel pass.
+Long-form design notes live in [DESIGN.md](DESIGN.md). Keep this README focused on setup, controls, and repository orientation.
 
 ## Prerequisites
 
-- Node.js 20+
-- (Optional, for desktop build) Rust toolchain + Tauri prerequisites — see <https://tauri.app/start/prerequisites/>
+- Node.js 24+
+- pnpm 10+
+- Rust toolchain and Tauri prerequisites for desktop builds: <https://tauri.app/start/prerequisites/>
 
-## Run (web)
+## Install
 
 ```bash
-npm install
-npm run dev
+pnpm install
+```
+
+## Run
+
+```bash
+pnpm dev
 ```
 
 Open <http://localhost:3286>.
 
+For the desktop shell:
+
+```bash
+pnpm tauri dev
+```
+
+## Build And Check
+
+```bash
+pnpm build         # type-check and build the web bundle
+pnpm tauri build   # build desktop bundles
+pnpm lint          # Biome lint
+pnpm check         # Biome check with fixes
+pnpm format        # format the repo
+```
+
 ## Controls
 
-- **1–4** — pick tower kind (Pulse / Chain / Cryo / Mortar)
-- **Click empty tile** — place selected tower
-- **Click a tower** — open upgrade/sell panel
-- **Space** — pause/resume
-- **R** — restart run
-- **M** — mute / unmute
+World map:
 
-## Towers
+- Click an unlocked outpost to deploy.
+- Open the menu for sound controls, achievements, and the compendium.
 
-| # | Name | Role | Cost |
-|---|------|------|------|
-| 1 | Pulse Rifle | Single-target DPS | 50g |
-| 2 | Chain Coil | Electric chain (3 bounces) | 90g |
-| 3 | Cryo Emitter | AoE slow + damage pulse | 75g |
-| 4 | Mortar | Slow arcing splash | 120g |
+Mission:
 
-Each tower has two upgrade branches with three tiers each. Gold is earned from kills and wave completion.
+- **1-6** - pick tower kind.
+- **Click valid ground** - place the selected tower.
+- **Click a tower** - open targeting, upgrade, and sell controls.
+- **Space** - start waves or call the next wave early.
+- **P** - pause or resume.
+- **Esc** - clear the current selection, close panels, or open/close the menu.
+- **R** - retry from the results screen.
 
-## Run (desktop, Tauri)
+## Project Layout
 
-```bash
-npm install
-npm run tauri dev
-```
-
-First run builds Rust dependencies; takes a few minutes. Subsequent runs are fast.
-
-## Build
-
-```bash
-npm run build         # web bundle
-npm run tauri build   # desktop (.app / .exe / .AppImage)
-```
-
-## Project layout
-
-```
+```text
 src/
-  main.tsx                   entry
-  App.tsx                    root component
-  store.ts                   Zustand world ref, UI snapshot, actions
-  level.ts                   starting level config (path, map)
-  vite-env.d.ts              vite client types
-  sim/                       headless simulation (no React, no Three.js)
-    types.ts                 all shared types
-    vec2.ts                  2D vector utilities
-    path.ts                  polyline utilities
-    world.ts                 world state + factories + events + shake
-    loop.ts                  fixed-timestep accumulator
-    spawner.ts               wave composition + lifecycle
-    enemies.ts               enemy movement + slow + leak
-    towers.ts                target acquisition + per-kind firing
-    projectiles.ts           projectile flight + direct/splash hit
-    effects.ts               beams + explosions + particles + shake decay
-    upgrades.ts              upgrade tree + apply/sell
-  render/                    R3F layer — reads sim, renders
-    Scene.tsx                Canvas + lights
-    CameraRig.tsx            ortho camera + screenshake offset
-    Ground.tsx
-    PathLine.tsx
-    EnemyMesh.tsx            instanced per-kind with hit flash + slow tint
-    TowerMesh.tsx            instanced per-kind with turret rotation + selection ring
-    ProjectileMesh.tsx       direct vs splash projectiles
-    Effects.tsx              particles, explosions, chain-lightning beams
-    Placement.tsx            hover preview + click-to-place-or-select
-    SimTicker.tsx            drives sim.step each frame
-  ui/
-    HUD.tsx                  stats, tower picker, help bar, game-over overlay
-    TowerPanel.tsx           selected-tower upgrade + sell UI
-  audio/
-    AudioManager.ts          WebAudio preloader + playback
-    useAudioBridge.ts        subscribes to sim events, plays SFX
+  App.tsx          React app shell and top-level screen routing
+  store.ts         Zustand state, actions, persistence bridge
+  levels/          campaign outposts, paths, waves, and starting gold
+  sim/             headless TypeScript gameplay simulation
+  render/          React Three Fiber scene and model/VFX rendering
+  ui/              HUD, menus, panels, compendium, results, world-map UI
+  audio/           WebAudio manager and game-event audio bridge
+  biomes.ts        biome styles and prop layers
+  progress.ts      local progress, stars, and encounter tracking
+  achievements.ts  achievement definitions and unlock checks
 public/
-  audio/                     curated SFX + music (copied from ../3d-assets/sounds/)
-src-tauri/                   Tauri v2 desktop shell
+  audio/           bundled SFX and music
+  models/          bundled GLB models and environment props
+scripts/           asset and wave-analysis utilities
+src-tauri/         Tauri v2 desktop wrapper
 ```
-
-## Architecture
-
-**Sim never imports from `render/`, `three`, or `react`. Render never mutates sim state.** This split is load-bearing — it's what lets us do deterministic replays, headless tests, and clean pause/resume later. Keep it clean.
-
-Sim runs at fixed 60 Hz. Render reads the world from a ref and renders at display rate. Game events (`shoot`, `impact`, `death`, `wave-start`, etc.) are pushed to a queue each tick and drained by the store into a subscriber list — audio is one subscriber.
-
-## Assets
-
-Audio is sourced from `../3d-assets/sounds/` (real MP3s, copied to `public/audio/`).
-
-Models:
-- `public/models/walker.glb` (allosaur enemy) — from `../3d-assets/models/glb/star_wars_at-st.glb`
-- `public/models/flyer.glb` (swarm enemy) — from `../3d-assets/models/glb/star_wars_x-wing.glb`
-
-Other enemies and all towers are primitives. Many named GLBs in `../3d-assets/` (including the dino pack and sci-fi turrets) are git-lfs pointer files and haven't been pulled — `../3d-assets/` is not itself a git repo, so `git lfs pull` can't run there. To add more real GLBs: drop them into `public/models/` and reference via `<ModelEnemyMesh>` in `render/Scene.tsx`.
 
 ## License
 
