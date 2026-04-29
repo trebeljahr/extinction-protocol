@@ -38,12 +38,29 @@ const BAND_BLEND = 6;
 // step at the edge of the level cluster.
 const BASE_FALLBACK_WEIGHT = 0.18;
 
+// Tiny per-vertex dither magnitude in linear color space. Breaks up the
+// otherwise-coherent banding the eye picks up between neighbouring biome
+// bands (especially around the bright snow strip) where 8-bit display
+// quantization makes a smooth gradient read as discrete steps.
+const COLOR_DITHER = 0.012;
+
+// Deterministic hash → [0, 1). Used to seed the per-vertex dither so it
+// stays stable across reloads and doesn't shimmer on re-render.
+const hash01 = (x: number, y: number) => {
+  const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return s - Math.floor(s);
+};
+
 // The world map is WORLD_W x WORLD_H centred at (0,0) in xy sim coords.
 // Render plane lies on the xz plane (y-up), so sim.y maps to world -z.
+// Default segments bumped from 160 → 280 so each band-blend zone covers
+// several vertices instead of ~1 — the eye reads the underlying mesh
+// triangulation as visible banding when there's only one sample per
+// transition zone.
 export const BiomeGround = ({
   width,
   height,
-  segments = 160,
+  segments = 280,
 }: {
   width: number;
   height: number;
@@ -162,9 +179,15 @@ export const BiomeGround = ({
         acc.b = acc.b * k + sky.b * (1 - k);
       }
 
-      colors[i * 3] = acc.r;
-      colors[i * 3 + 1] = acc.g;
-      colors[i * 3 + 2] = acc.b;
+      // Per-vertex dither — three independent ±COLOR_DITHER offsets keyed
+      // off vertex position. Breaks the banding the eye picks up where
+      // adjacent triangles fall on the same gradient ramp.
+      const d1 = (hash01(wx * 1.7, wz * 2.3) - 0.5) * COLOR_DITHER;
+      const d2 = (hash01(wx * 3.1 + 5, wz * 1.3 + 7) - 0.5) * COLOR_DITHER;
+      const d3 = (hash01(wx * 2.5 + 11, wz * 3.7 + 13) - 0.5) * COLOR_DITHER;
+      colors[i * 3] = Math.max(0, acc.r + d1);
+      colors[i * 3 + 1] = Math.max(0, acc.g + d2);
+      colors[i * 3 + 2] = Math.max(0, acc.b + d3);
     }
 
     geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
