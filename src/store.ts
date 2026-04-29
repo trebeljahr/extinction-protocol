@@ -891,7 +891,9 @@ export const useGame = create<GameStore>((set, get) => ({
   debugSkipWave: () => {
     const s = get();
     const w = s.world;
-    if (w.status !== "running") return;
+    // Allow paused too — the buttons live in the pause menu, which only
+    // mounts while paused; auto-resume below so the skip is visible.
+    if (w.status !== "running" && w.status !== "paused") return;
     // Clear pending spawns + any alive enemies so the current wave
     // immediately resolves; the spawnerTick will then advance to the
     // next wave on its normal schedule.
@@ -900,13 +902,14 @@ export const useGame = create<GameStore>((set, get) => ({
     // If we're between waves, jump the timer.
     w.nextWaveIn = 0;
     w.midwaveTimer = 0;
+    if (w.status === "paused") w.status = "running";
     set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
   debugWinLevel: () => {
     const s = get();
     const w = s.world;
-    if (w.status !== "running") return;
+    if (w.status !== "running" && w.status !== "paused") return;
     // Mirror the natural win path: clear all enemies + spawn queue,
     // mark the run as won, and emit the game-over event so the
     // results screen + progress recording fire normally.
@@ -961,8 +964,15 @@ export const useGame = create<GameStore>((set, get) => ({
     };
     if (stars === 0) delete next.starsByLevel[levelId];
     else next.starsByLevel[levelId] = stars;
-    saveProgress(next);
-    set({ progress: next });
+    // Re-run checks so progress-only achievements (campaign, perfect_run)
+    // unlock when stars cross their thresholds via this debug path.
+    const res = checkAchievements(next, s.world, null);
+    saveProgress(res.progress);
+    const newToasts = res.unlocked.map((id) => ({ id, key: nextToastKey++ }));
+    set({
+      progress: res.progress,
+      achievementToasts: [...s.achievementToasts, ...newToasts],
+    });
   },
 
   debugResetProgress: () => {

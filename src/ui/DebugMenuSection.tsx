@@ -13,14 +13,11 @@ const GOLD_BUMPS = [100, 500, 1000, 5000];
 
 export const DebugMenuSection = () => {
   const freeTowers = useGame((s) => s.freeTowers);
-  const status = useGame((s) => s.ui.status);
   const debugAddGold = useGame((s) => s.debugAddGold);
   const debugSkipWave = useGame((s) => s.debugSkipWave);
   const debugWinLevel = useGame((s) => s.debugWinLevel);
   const debugSetFreeTowers = useGame((s) => s.debugSetFreeTowers);
   const debugTriggerEasterEgg = useGame((s) => s.debugTriggerEasterEgg);
-
-  const running = status === "running";
 
   return (
     <section className="bg-[rgba(255,214,106,0.05)] border border-[rgba(255,214,106,0.25)] rounded-lg pt-3.5 px-4 pb-3 mb-5">
@@ -29,20 +26,10 @@ export const DebugMenuSection = () => {
       </div>
 
       <DebugRow label="Wave">
-        <button
-          type="button"
-          className="btn btn-ghost btn--sm"
-          onClick={debugSkipWave}
-          disabled={!running}
-        >
+        <button type="button" className="btn btn-ghost btn--sm" onClick={debugSkipWave}>
           Skip wave
         </button>
-        <button
-          type="button"
-          className="btn btn-ghost btn--sm"
-          onClick={debugWinLevel}
-          disabled={!running}
-        >
+        <button type="button" className="btn btn-ghost btn--sm" onClick={debugWinLevel}>
           Win level
         </button>
       </DebugRow>
