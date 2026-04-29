@@ -38,7 +38,7 @@ import {
   TOWER_STATS,
   type TowerBaseStats,
 } from "../src/sim/world";
-import { coverageFraction, pathCoverage } from "./lib/coverage";
+import { enumeratePlacementClasses } from "./lib/coverage";
 
 // ------- Tower config (same shape as wave-feasibility.ts) -------
 
@@ -87,7 +87,12 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
   return 1;
 };
 
-// ------- Wave modeling -------
+// ------- Wave modeling (per-lane) -------
+//
+// A wave is decomposed into one WaveBreakdown per path index. Towers are
+// committed to a specific lane, so DPS is tracked per-lane. Clearance
+// requires every lane with enemies to meet its own reqDPS — no averaging
+// across lanes.
 
 type WaveBreakdown = {
   totalHp: number;
@@ -96,42 +101,50 @@ type WaveBreakdown = {
   slowestSpeed: number;
 };
 
-const analyzeWave = (spec: WaveSpec, hpScale: number): WaveBreakdown => {
+const analyzeWavePerLane = (spec: WaveSpec, hpScale: number, numPaths: number): WaveBreakdown[] => {
   const hpMul = (spec.hpMul ?? 1) * hpScale;
-  const counts: Partial<Record<EnemyKind, number>> = {};
-  let totalHp = 0;
-  let totalEnemies = 0;
-  let slowestSpeed = Number.POSITIVE_INFINITY;
+  const perLane: WaveBreakdown[] = Array.from({ length: numPaths }, () => ({
+    totalHp: 0,
+    counts: {},
+    totalEnemies: 0,
+    slowestSpeed: Number.POSITIVE_INFINITY,
+  }));
   for (const s of spec.spawns) {
     const stats = ENEMY_STATS[s.kind];
-    counts[s.kind] = (counts[s.kind] ?? 0) + s.count;
-    totalHp += stats.hp * hpMul * s.count;
-    totalEnemies += s.count;
-    if (stats.speed < slowestSpeed) slowestSpeed = stats.speed;
+    const pi = Math.min(numPaths - 1, Math.max(0, s.pathIndex ?? 0));
+    const w = perLane[pi];
+    w.counts[s.kind] = (w.counts[s.kind] ?? 0) + s.count;
+    w.totalHp += stats.hp * hpMul * s.count;
+    w.totalEnemies += s.count;
+    if (stats.speed < w.slowestSpeed) w.slowestSpeed = stats.speed;
   }
-  return {
-    totalHp,
-    counts,
-    totalEnemies,
-    slowestSpeed: Number.isFinite(slowestSpeed) ? slowestSpeed : 1,
-  };
+  for (const w of perLane) {
+    if (!Number.isFinite(w.slowestSpeed)) w.slowestSpeed = 1;
+  }
+  return perLane;
 };
 
 const waveBounty = (spec: WaveSpec): number =>
   spec.spawns.reduce((n, s) => n + ENEMY_STATS[s.kind].bounty * s.count, 0);
 
-const combatWindow = (
+const reqDpsPerLane = (
   spec: WaveSpec,
   waveNumber: number,
-  w: WaveBreakdown,
-  longestPath: number,
-): number => {
+  perLane: WaveBreakdown[],
+  pathLengths: number[],
+  safety: number,
+): number[] => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - waveNumber * 0.03);
-  const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
-  return spawnSpan + longestPath / w.slowestSpeed;
+  return perLane.map((w, i) => {
+    if (w.totalEnemies === 0) return 0;
+    const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
+    const dur = spawnSpan + pathLengths[i] / w.slowestSpeed;
+    return (w.totalHp / dur) * safety;
+  });
 };
 
 const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number => {
+  if (wave.totalEnemies === 0) return 0;
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
   let weightedResist = 0;
   let totalHp = 0;
@@ -148,10 +161,15 @@ const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number =>
 };
 
 // ------- Simulation state -------
+//
+// Each tower commits to a placement class — the sorted list of path
+// indices it covers from its placement spot. A tower covering multiple
+// active lanes splits its DPS evenly across them (time-share model:
+// can only fire at one lane at a time when multiple lanes have enemies).
 
-type TowerInstance = { kind: TowerKind; tierA: Tier; tierB: Tier };
+type TowerInstance = { kind: TowerKind; tierA: Tier; tierB: Tier; lanes: number[] };
 
-type BuildAction = { type: "build"; kind: TowerKind; cost: number };
+type BuildAction = { type: "build"; kind: TowerKind; cost: number; lanes: number[] };
 type UpgradeAction = {
   type: "upgrade";
   towerIdx: number;
@@ -174,10 +192,22 @@ const emptySpentByKind = (): Record<TowerKind, number> =>
     number
   >;
 
-const enumerateActions = (state: SimState): Action[] => {
+type PlacementOptions = Record<TowerKind, number[][]>;
+
+const computePlacementOptions = (paths: Vec2[][]): PlacementOptions => {
+  const out = {} as PlacementOptions;
+  for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
+    out[kind] = enumeratePlacementClasses(paths, TOWER_STATS[kind].range);
+  }
+  return out;
+};
+
+const enumerateActions = (state: SimState, placements: PlacementOptions): Action[] => {
   const out: Action[] = [];
   for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
-    out.push({ type: "build", kind, cost: TOWER_COST[kind] });
+    for (const lanes of placements[kind]) {
+      out.push({ type: "build", kind, cost: TOWER_COST[kind], lanes });
+    }
   }
   for (let i = 0; i < state.towers.length; i++) {
     const t = state.towers[i];
@@ -208,7 +238,7 @@ const applyAction = (state: SimState, action: Action): SimState => {
   const spentByKind = { ...state.spentByKind };
   let kind: TowerKind;
   if (action.type === "build") {
-    towers.push({ kind: action.kind, tierA: 0, tierB: 0 });
+    towers.push({ kind: action.kind, tierA: 0, tierB: 0, lanes: action.lanes });
     kind = action.kind;
   } else {
     const t = towers[action.towerIdx];
@@ -227,33 +257,37 @@ const applyAction = (state: SimState, action: Action): SimState => {
   };
 };
 
-const totalEffectiveDps = (
-  towers: TowerInstance[],
-  wave: WaveBreakdown,
-  paths: Vec2[][],
-): number => {
-  if (towers.length === 0) return 0;
-  // Per-path-coverage depends on range — group towers by kind for the
-  // coverage calc, then sum each group's effective DPS.
-  let sum = 0;
-  const grouped = new Map<TowerKind, TowerInstance[]>();
+/**
+ * Per-lane DPS contribution. A tower covering multiple active lanes
+ * splits its effective DPS evenly across them — the time-share approx.
+ * A tower's covered lanes that have no enemies this wave are ignored
+ * (the tower fires at lanes that have targets).
+ *
+ * Damage type and resists are evaluated per lane (the tower's damage
+ * type is fixed, but the lane it's hitting determines which enemies
+ * resist what).
+ */
+const dpsPerLane = (towers: TowerInstance[], perLane: WaveBreakdown[]): number[] => {
+  const out: number[] = perLane.map(() => 0);
+  if (towers.length === 0) return out;
+
   for (const t of towers) {
-    const arr = grouped.get(t.kind) ?? [];
-    arr.push(t);
-    grouped.set(t.kind, arr);
-  }
-  for (const [kind, group] of grouped) {
-    let perKindDps = 0;
-    for (const t of group) {
-      perKindDps += effectiveDpsForConfig(buildConfig(t.kind, t.tierA, t.tierB), wave);
+    const cfg = buildConfig(t.kind, t.tierA, t.tierB);
+    const active = t.lanes.filter((l) => l < perLane.length && perLane[l].totalEnemies > 0);
+    if (active.length === 0) continue;
+    const split = 1 / active.length;
+    for (const laneIdx of active) {
+      out[laneIdx] += effectiveDpsForConfig(cfg, perLane[laneIdx]) * split;
     }
-    // Use the kind's base range for coverage — simpler than tracking
-    // per-instance ranges when upgrades vary.
-    const covPer = pathCoverage(paths, TOWER_STATS[kind].range);
-    const covFrac = coverageFraction(group.length, covPer, paths.length);
-    sum += perKindDps * covFrac;
   }
-  return sum;
+  return out;
+};
+
+const allLanesCleared = (dps: number[], reqDps: number[]): boolean => {
+  for (let i = 0; i < dps.length; i++) {
+    if (reqDps[i] > 0 && dps[i] < reqDps[i]) return false;
+  }
+  return true;
 };
 
 // ------- Simulation -------
@@ -262,15 +296,15 @@ type WaveStep = {
   wave: number;
   archetype: string;
   totalHp: number;
-  durationSec: number;
-  reqDps: number;
+  reqDpsByLane: number[];
   goldIn: number;
-  dpsBefore: number;
-  dpsAfter: number;
+  dpsBeforeByLane: number[];
+  dpsAfterByLane: number[];
   spentThisWave: number;
   actionsDesc: string;
   towersAfter: TowerInstance[];
   cleared: boolean;
+  bottleneckLane: number; // worst lane (largest deficit / req ratio) for display
   bountyEarned: number;
   goldOut: number;
 };
@@ -283,7 +317,11 @@ type SimResult = {
   finalState: SimState;
 };
 
-const formatTower = (t: TowerInstance) => `${t.kind}[${t.tierA}/${t.tierB}]`;
+const formatLanes = (lanes: number[]): string =>
+  lanes.length === 1 ? `L${lanes[0]}` : `L${lanes.join("+")}`;
+
+const formatTower = (t: TowerInstance) =>
+  `${t.kind}[${t.tierA}/${t.tierB}]@${formatLanes(t.lanes)}`;
 
 const summarizeActions = (before: TowerInstance[], after: TowerInstance[]): string => {
   const parts: string[] = [];
@@ -291,10 +329,26 @@ const summarizeActions = (before: TowerInstance[], after: TowerInstance[]): stri
     if (i >= before.length) {
       parts.push(`+${formatTower(after[i])}`);
     } else if (before[i].tierA !== after[i].tierA || before[i].tierB !== after[i].tierB) {
-      parts.push(`↑${after[i].kind}→${after[i].tierA}/${after[i].tierB}`);
+      parts.push(
+        `↑${after[i].kind}→${after[i].tierA}/${after[i].tierB}@${formatLanes(after[i].lanes)}`,
+      );
     }
   }
   return parts.join(", ") || "—";
+};
+
+const findBottleneckLane = (dps: number[], reqDps: number[]): number => {
+  let worst = 0;
+  let worstRatio = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < dps.length; i++) {
+    if (reqDps[i] === 0) continue;
+    const r = dps[i] / reqDps[i];
+    if (r < worstRatio) {
+      worstRatio = r;
+      worst = i;
+    }
+  }
+  return worst;
 };
 
 const simulate = (
@@ -304,10 +358,15 @@ const simulate = (
   forceFirstKind?: TowerKind,
 ): SimResult => {
   const hpScale = level.hpScale ?? 1;
-  const longestPath = Math.max(...level.paths.map(pathLength));
+  const numPaths = level.paths.length;
+  const pathLengths = level.paths.map(pathLength);
+  const placements = computePlacementOptions(level.paths);
 
-  // Precompute wave breakdowns so lookahead is cheap
-  const waveBreakdowns = level.waves.map((w) => analyzeWave(w, hpScale));
+  // Precompute per-lane wave breakdowns + reqDps so lookahead is cheap.
+  const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
+  const reqDpsByWave = level.waves.map((w, idx) =>
+    reqDpsPerLane(w, idx + 1, perLaneByWave[idx], pathLengths, safety),
+  );
 
   let state: SimState = {
     gold: level.startGold,
@@ -319,81 +378,101 @@ const simulate = (
 
   for (let i = 0; i < level.waves.length; i++) {
     const spec = level.waves[i];
-    const wave = waveBreakdowns[i];
-    const dur = combatWindow(spec, i + 1, wave, longestPath);
-    const reqDps = (wave.totalHp / dur) * safety;
+    const perLane = perLaneByWave[i];
+    const reqDps = reqDpsByWave[i];
 
     const towersBefore = state.towers.slice();
-    const dpsBefore = totalEffectiveDps(state.towers, wave, level.paths);
+    const dpsBefore = dpsPerLane(state.towers, perLane);
     const goldIn = state.gold;
 
-    // Lookahead slice — this wave + next (lookahead-1), weighted by
-    // how tight each wave is (hp/duration). A lookahead of 1 is pure
-    // myopic; higher values discourage over-fitting to the current wave.
     const horizonEnd = Math.min(level.waves.length, i + lookahead);
 
-    // On the very first wave, optionally force the first BUILD action to
-    // a specific tower kind (for comparing starter strategies).
+    // Optional starter override for compare-starters mode. Pick the first
+    // valid placement class — typically a single-lane commit on path 0.
     if (i === 0 && forceFirstKind && state.towers.length === 0) {
       const cost = TOWER_COST[forceFirstKind];
+      const lanes = placements[forceFirstKind][0] ?? [0];
       if (cost <= state.gold) {
-        state = applyAction(state, { type: "build", kind: forceFirstKind, cost });
+        state = applyAction(state, { type: "build", kind: forceFirstKind, cost, lanes });
       }
     }
 
-    // Greedy loop: pick best marginal DPS/gold against the weighted horizon
-    while (totalEffectiveDps(state.towers, wave, level.paths) < reqDps) {
-      const actions = enumerateActions(state).filter((a) => a.cost <= state.gold);
+    // Greedy loop: pick best marginal deficit-reducing DPS/gold across
+    // the lookahead horizon. Stop when every lane meets its reqDps.
+    while (!allLanesCleared(dpsPerLane(state.towers, perLane), reqDps)) {
+      const actions = enumerateActions(state, placements).filter((a) => a.cost <= state.gold);
       if (actions.length === 0) break;
 
-      let best: { action: Action; currentGain: number; scorePerGold: number } | null = null;
+      let best: { action: Action; scorePerGold: number } | null = null;
+      const beforeDps = dpsPerLane(state.towers, perLane);
+
       for (const action of actions) {
         const trial = applyAction(state, action);
-        const currentGain =
-          totalEffectiveDps(trial.towers, wave, level.paths) -
-          totalEffectiveDps(state.towers, wave, level.paths);
-        if (currentGain <= 0) continue;
+        const afterDps = dpsPerLane(trial.towers, perLane);
 
-        // Score = weighted average of DPS-gain across current + horizon waves
-        let weightedGain = 0;
+        // Reject actions that don't strictly help any lane in deficit.
+        let currentDeficitReduction = 0;
+        for (let k = 0; k < reqDps.length; k++) {
+          currentDeficitReduction +=
+            Math.max(0, reqDps[k] - beforeDps[k]) - Math.max(0, reqDps[k] - afterDps[k]);
+        }
+        if (currentDeficitReduction <= 0) continue;
+
+        // Score = HP-weighted average across horizon of (deficit reduction
+        // for current wave) + (raw per-lane DPS gain for future waves).
+        // Deficit-reduction prioritizes the lane in trouble; raw gain on
+        // future waves rewards prep without requiring a deficit yet.
+        let weightedScore = 0;
         let weightSum = 0;
         for (let j = i; j < horizonEnd; j++) {
-          const w = waveBreakdowns[j];
-          const weight = w.totalHp; // tighter waves (more HP) count more
-          const gain =
-            totalEffectiveDps(trial.towers, w, level.paths) -
-            totalEffectiveDps(state.towers, w, level.paths);
-          weightedGain += weight * Math.max(0, gain);
+          const lw = perLaneByWave[j];
+          const lreq = reqDpsByWave[j];
+          const beforeJ = dpsPerLane(state.towers, lw);
+          const afterJ = dpsPerLane(trial.towers, lw);
+
+          let val = 0;
+          if (j === i) {
+            for (let k = 0; k < lreq.length; k++) {
+              val += Math.max(0, lreq[k] - beforeJ[k]) - Math.max(0, lreq[k] - afterJ[k]);
+            }
+          } else {
+            for (let k = 0; k < lreq.length; k++) {
+              val += Math.max(0, afterJ[k] - beforeJ[k]);
+            }
+          }
+          const weight = lw.reduce((s, p) => s + p.totalHp, 0);
+          weightedScore += weight * Math.max(0, val);
           weightSum += weight;
         }
-        const avgGain = weightSum > 0 ? weightedGain / weightSum : currentGain;
-        const scorePerGold = avgGain / action.cost;
+        const avgScore = weightSum > 0 ? weightedScore / weightSum : currentDeficitReduction;
+        const scorePerGold = avgScore / action.cost;
         if (!best || scorePerGold > best.scorePerGold) {
-          best = { action, currentGain, scorePerGold };
+          best = { action, scorePerGold };
         }
       }
       if (!best) break;
       state = applyAction(state, best.action);
     }
 
-    const dpsAfter = totalEffectiveDps(state.towers, wave, level.paths);
-    const cleared = dpsAfter >= reqDps;
+    const dpsAfter = dpsPerLane(state.towers, perLane);
+    const cleared = allLanesCleared(dpsAfter, reqDps);
     const bounty = cleared ? waveBounty(spec) + (5 + i + 1) : 0;
     const goldOut = state.gold + bounty;
+    const totalHp = perLane.reduce((s, w) => s + w.totalHp, 0);
 
     history.push({
       wave: i + 1,
       archetype: spec.archetype ?? "—",
-      totalHp: wave.totalHp,
-      durationSec: dur,
-      reqDps,
+      totalHp,
+      reqDpsByLane: reqDps,
       goldIn,
-      dpsBefore,
-      dpsAfter,
+      dpsBeforeByLane: dpsBefore,
+      dpsAfterByLane: dpsAfter,
       spentThisWave: goldIn - state.gold,
       actionsDesc: summarizeActions(towersBefore, state.towers),
       towersAfter: state.towers.slice(),
       cleared,
+      bottleneckLane: findBottleneckLane(dpsAfter, reqDps),
       bountyEarned: bounty,
       goldOut,
     });
@@ -425,12 +504,15 @@ const pad = (s: string | number, n: number) => String(s).padStart(n);
 const padR = (s: string | number, n: number) => String(s).padEnd(n);
 
 const portfolioString = (towers: TowerInstance[]): string => {
-  const byKind: Partial<Record<TowerKind, number>> = {};
-  for (const t of towers) byKind[t.kind] = (byKind[t.kind] ?? 0) + 1;
-  return Object.entries(byKind)
-    .map(([k, n]) => `${n}×${k}`)
-    .join(", ");
+  const byKey = new Map<string, number>();
+  for (const t of towers) {
+    const key = `${t.kind}@${formatLanes(t.lanes)}`;
+    byKey.set(key, (byKey.get(key) ?? 0) + 1);
+  }
+  return [...byKey.entries()].map(([k, n]) => `${n}×${k}`).join(", ");
 };
+
+const formatLaneVec = (v: number[]): string => v.map((n) => fmt(n, 0)).join("/");
 
 /**
  * "Chill analysis" — after the forward-sim has built a functional portfolio,
@@ -459,10 +541,17 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
     const r = simulate(level, safety, lookahead);
     if (!r.success) continue;
 
-    // Identify "true chill" waves: spent=0 AND dpsBefore > reqDps × marginMul
-    const chill = r.history.map(
-      (h) => h.spentThisWave === 0 && h.dpsBefore >= h.reqDps * marginMul,
-    );
+    // Identify "true chill" waves: spent=0 AND every lane's dpsBefore is
+    // above its reqDps × marginMul (so even the bottleneck lane is comfy).
+    const chill = r.history.map((h) => {
+      if (h.spentThisWave !== 0) return false;
+      for (let k = 0; k < h.reqDpsByLane.length; k++) {
+        const req = h.reqDpsByLane[k];
+        if (req === 0) continue;
+        if (h.dpsBeforeByLane[k] < req * marginMul) return false;
+      }
+      return true;
+    });
 
     // Find consecutive runs of chill=true
     let longest = 0;
@@ -477,13 +566,22 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
       while (j < chill.length && chill[j]) j++;
       const len = j - i0;
       if (len >= minStreak) {
-        const segWaves = r.history.slice(i0, j).map((h) => ({
-          wave: h.wave,
-          arch: h.archetype,
-          dpsBefore: h.dpsBefore,
-          reqDps: h.reqDps,
-          margin: h.reqDps > 0 ? h.dpsBefore / h.reqDps : Number.POSITIVE_INFINITY,
-        }));
+        const segWaves = r.history.slice(i0, j).map((h) => {
+          // Bottleneck-lane margin = worst (lowest dpsBefore/reqDps ratio)
+          let worstMargin = Number.POSITIVE_INFINITY;
+          for (let k = 0; k < h.reqDpsByLane.length; k++) {
+            if (h.reqDpsByLane[k] === 0) continue;
+            const m = h.dpsBeforeByLane[k] / h.reqDpsByLane[k];
+            if (m < worstMargin) worstMargin = m;
+          }
+          return {
+            wave: h.wave,
+            arch: h.archetype,
+            dpsBefore: h.dpsBeforeByLane[h.bottleneckLane] ?? 0,
+            reqDps: h.reqDpsByLane[h.bottleneckLane] ?? 0,
+            margin: Number.isFinite(worstMargin) ? worstMargin : Number.POSITIVE_INFINITY,
+          };
+        });
         allStreaks.push({
           level,
           startWave: r.history[i0].wave,
@@ -593,17 +691,30 @@ const printLevel = (
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name}${C.reset}` +
       `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
-      ` ${C.dim}startGold=${level.startGold}, safety=${safety}×${C.reset}`,
+      ` ${C.dim}startGold=${level.startGold}, safety=${safety}×, paths=${level.paths.length}${C.reset}`,
   );
   console.log(
-    `${C.dim}${pad("W", 3)} ${padR("arch", 7)} ${pad("reqDPS", 7)} ${pad("before", 7)} ${pad("after", 7)} ${pad("spent", 6)} ${pad("goldOut", 7)}  actions${C.reset}`,
+    `${C.dim}DPS columns are per-lane (L0/L1/...). A lane with no enemies shows 0.${C.reset}`,
+  );
+  const laneColW = Math.max(11, level.paths.length * 4 + (level.paths.length - 1) + 2);
+  console.log(
+    `${C.dim}${pad("W", 3)} ${padR("arch", 7)} ${padR("reqDPS", laneColW)} ${padR("before", laneColW)} ${padR("after", laneColW)} ${pad("spent", 6)} ${pad("goldOut", 7)}  actions${C.reset}`,
   );
 
   for (const s of history) {
     const tight = s.goldOut < 50 ? C.red : s.goldOut < 200 ? C.yellow : "";
     const hitMark = s.cleared ? "" : `${C.red} ✗${C.reset}`;
+    // Color each lane DPS red if below its req
+    const colorLanes = (vals: number[]): string =>
+      vals
+        .map((v, k) => {
+          const req = s.reqDpsByLane[k];
+          if (req === 0) return C.dim + fmt(v, 0) + C.reset;
+          return v < req ? C.red + fmt(v, 0) + C.reset : fmt(v, 0);
+        })
+        .join("/");
     console.log(
-      `${pad(s.wave, 3)} ${padR(s.archetype, 7)} ${pad(fmt(s.reqDps, 0), 7)} ${pad(fmt(s.dpsBefore, 0), 7)} ${pad(fmt(s.dpsAfter, 0), 7)} ` +
+      `${pad(s.wave, 3)} ${padR(s.archetype, 7)} ${padR(formatLaneVec(s.reqDpsByLane), laneColW)} ${padR(colorLanes(s.dpsBeforeByLane), laneColW + 8)} ${padR(colorLanes(s.dpsAfterByLane), laneColW + 8)} ` +
         `${pad(s.spentThisWave, 6)} ${tight}${pad(s.goldOut, 7)}${tight ? C.reset : ""}  ${s.actionsDesc}${hitMark}`,
     );
     if (verbose) {

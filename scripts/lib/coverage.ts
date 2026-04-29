@@ -86,3 +86,44 @@ export const coverageFraction = (
   if (numTowers === 0) return 0;
   return Math.min(1, (numTowers * coveragePerTower) / numPaths);
 };
+
+/**
+ * Enumerate the set of distinct path-coverage subsets a tower of the
+ * given range can achieve from some valid placement. Each entry is a
+ * sorted list of path indices covered by at least one valid placement.
+ *
+ * Used by the per-lane simulator: each tower commits to one placement
+ * class (e.g. {0,1} = covers lanes 0 and 1) and splits its DPS across
+ * the active lanes in that class.
+ *
+ * Samples on a 1-unit grid; rejects placements inside a path corridor.
+ * Returns at minimum [[0]] for single-path levels.
+ */
+export const enumeratePlacementClasses = (paths: Vec2[][], range: number): number[][] => {
+  if (paths.length <= 1) return [[0]];
+  const halfW = MAP_WIDTH / 2;
+  const halfH = MAP_HEIGHT / 2;
+  const found = new Set<string>();
+
+  for (let x = -halfW; x <= halfW; x += 1) {
+    for (let y = -halfH; y <= halfH; y += 1) {
+      const p = { x, y };
+      let nearestPath = Number.POSITIVE_INFINITY;
+      for (const path of paths) {
+        const d = distPointToPath(p, path);
+        if (d < nearestPath) nearestPath = d;
+      }
+      if (nearestPath < MIN_PATH_DIST) continue;
+
+      const covered: number[] = [];
+      for (let i = 0; i < paths.length; i++) {
+        if (distPointToPath(p, paths[i]) <= range) covered.push(i);
+      }
+      if (covered.length === 0) continue;
+      found.add(covered.join(","));
+    }
+  }
+
+  if (found.size === 0) return [[0]];
+  return [...found].map((s) => s.split(",").map(Number)).sort((a, b) => a.length - b.length);
+};

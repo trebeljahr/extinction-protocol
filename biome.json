@@ -90,7 +90,6 @@
         "noBannedTypes": "off",
         "noCommaOperator": "off",
         "noArguments": "off",
-        "noUselessElse": "off",
         "noStaticOnlyClass": "off"
       },
       "security": {}
@@ -98,9 +97,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "**/src/render/**"
-      ],
+      "includes": ["**/src/render/**"],
       "linter": {
         "rules": {
           "a11y": {
