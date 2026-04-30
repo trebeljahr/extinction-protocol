@@ -3,7 +3,12 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_BASES, type Biome, classifyPropUrl, TARGET_SIZE_BY_ROLE } from "../biomes";
-import { buildLavaFeatures, isOnLavaSurface, type LavaFeatures } from "../lavaGeometry";
+import {
+  buildLavaFeatures,
+  hasFlowFeatures,
+  isOnLavaSurface,
+  type LavaFeatures,
+} from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
@@ -105,7 +110,7 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
   const rng = mulberry32(levelId * 7919 + 131);
   if (rng() > BASE_CHANCE) return [];
 
-  const lava = biome === "lava" ? buildLavaFeatures(paths, levelId) : null;
+  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId) : null;
   const center = pickBaseCenter(rng, paths, lava);
   if (!center) return [];
 

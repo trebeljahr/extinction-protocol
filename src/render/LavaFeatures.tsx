@@ -1,7 +1,11 @@
 import { nanoid } from "nanoid";
 import { useMemo } from "react";
 import {
+  ALIEN_GOO_COLOR,
+  ALIEN_GOO_EMISSIVE,
+  ALIEN_GOO_EMISSIVE_INTENSITY,
   buildLavaFeatures,
+  hasFlowFeatures,
   LAVA_COLOR,
   LAVA_EMISSIVE,
   LAVA_EMISSIVE_INTENSITY,
@@ -10,8 +14,36 @@ import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 
-const BRIDGE_DECK = "#2e1a10";
-const BRIDGE_TRIM = "#7a3a1e";
+// Lava bridges are scorched timber. Alien bridges are darker stone-on-violet
+// to match the goo palette underneath.
+const LAVA_BRIDGE_DECK = "#2e1a10";
+const LAVA_BRIDGE_TRIM = "#7a3a1e";
+const ALIEN_BRIDGE_DECK = "#1f1230";
+const ALIEN_BRIDGE_TRIM = "#4a2a70";
+
+type FlowPalette = {
+  fluidColor: string;
+  fluidEmissive: string;
+  fluidIntensity: number;
+  bridgeDeck: string;
+  bridgeTrim: string;
+};
+
+const LAVA_PALETTE: FlowPalette = {
+  fluidColor: LAVA_COLOR,
+  fluidEmissive: LAVA_EMISSIVE,
+  fluidIntensity: LAVA_EMISSIVE_INTENSITY,
+  bridgeDeck: LAVA_BRIDGE_DECK,
+  bridgeTrim: LAVA_BRIDGE_TRIM,
+};
+
+const ALIEN_PALETTE: FlowPalette = {
+  fluidColor: ALIEN_GOO_COLOR,
+  fluidEmissive: ALIEN_GOO_EMISSIVE,
+  fluidIntensity: ALIEN_GOO_EMISSIVE_INTENSITY,
+  bridgeDeck: ALIEN_BRIDGE_DECK,
+  bridgeTrim: ALIEN_BRIDGE_TRIM,
+};
 
 export const LavaFeatures = () => {
   const biome = useGame((s) => s.world.biome);
@@ -19,7 +51,7 @@ export const LavaFeatures = () => {
   const levelId = useGame((s) => s.world.levelId);
 
   const decorated = useMemo(() => {
-    if (biome !== "lava") return null;
+    if (!hasFlowFeatures(biome)) return null;
     const features = buildLavaFeatures(paths, levelId);
     return {
       rivers: features.rivers.map((r) => ({ ...r, id: nanoid() })),
@@ -30,12 +62,13 @@ export const LavaFeatures = () => {
 
   if (!decorated) return null;
 
+  const palette = biome === "alien" ? ALIEN_PALETTE : LAVA_PALETTE;
   const bridgeWidth = PATH_WIDTH + 0.4;
 
   return (
     <group>
       {decorated.rivers.map((river) => (
-        <RiverMesh key={river.id} points={river.points} width={river.width} />
+        <RiverMesh key={river.id} points={river.points} width={river.width} palette={palette} />
       ))}
       {decorated.lakes.map((l) => (
         <mesh
@@ -47,9 +80,9 @@ export const LavaFeatures = () => {
         >
           <circleGeometry args={[1, 28]} />
           <meshStandardMaterial
-            color={LAVA_COLOR}
-            emissive={LAVA_EMISSIVE}
-            emissiveIntensity={LAVA_EMISSIVE_INTENSITY}
+            color={palette.fluidColor}
+            emissive={palette.fluidEmissive}
+            emissiveIntensity={palette.fluidIntensity}
             roughness={0.85}
             toneMapped={false}
           />
@@ -59,15 +92,15 @@ export const LavaFeatures = () => {
         <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]} rotation={[0, b.rotY, 0]}>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[b.length, 0.18, bridgeWidth]} />
-            <meshStandardMaterial color={BRIDGE_DECK} roughness={1} />
+            <meshStandardMaterial color={palette.bridgeDeck} roughness={1} />
           </mesh>
           <mesh position={[0, 0.18, bridgeWidth / 2 - 0.06]} castShadow>
             <boxGeometry args={[b.length, 0.22, 0.12]} />
-            <meshStandardMaterial color={BRIDGE_TRIM} roughness={1} />
+            <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
           </mesh>
           <mesh position={[0, 0.18, -(bridgeWidth / 2 - 0.06)]} castShadow>
             <boxGeometry args={[b.length, 0.22, 0.12]} />
-            <meshStandardMaterial color={BRIDGE_TRIM} roughness={1} />
+            <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
           </mesh>
         </group>
       ))}
@@ -75,7 +108,15 @@ export const LavaFeatures = () => {
   );
 };
 
-const RiverMesh = ({ points, width }: { points: Vec2[]; width: number }) => {
+const RiverMesh = ({
+  points,
+  width,
+  palette,
+}: {
+  points: Vec2[];
+  width: number;
+  palette: FlowPalette;
+}) => {
   const segs = useMemo(() => {
     const out: { id: string; pos: [number, number, number]; rotY: number; length: number }[] = [];
     for (let i = 0; i < points.length - 1; i++) {
@@ -106,9 +147,9 @@ const RiverMesh = ({ points, width }: { points: Vec2[]; width: number }) => {
         <mesh key={s.id} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
           <planeGeometry args={[s.length, width]} />
           <meshStandardMaterial
-            color={LAVA_COLOR}
-            emissive={LAVA_EMISSIVE}
-            emissiveIntensity={LAVA_EMISSIVE_INTENSITY}
+            color={palette.fluidColor}
+            emissive={palette.fluidEmissive}
+            emissiveIntensity={palette.fluidIntensity}
             roughness={0.85}
             toneMapped={false}
           />
@@ -118,9 +159,9 @@ const RiverMesh = ({ points, width }: { points: Vec2[]; width: number }) => {
         <mesh key={j.id} position={j.pos} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[width / 2, 16]} />
           <meshStandardMaterial
-            color={LAVA_COLOR}
-            emissive={LAVA_EMISSIVE}
-            emissiveIntensity={LAVA_EMISSIVE_INTENSITY}
+            color={palette.fluidColor}
+            emissive={palette.fluidEmissive}
+            emissiveIntensity={palette.fluidIntensity}
             roughness={0.85}
             toneMapped={false}
           />

@@ -4,10 +4,21 @@ import type { Vec2 } from "./sim/types";
 export const LAVA_COLOR = "#ff6a1c";
 export const LAVA_EMISSIVE = "#ff5010";
 export const LAVA_EMISSIVE_INTENSITY = 1.6;
+// Alien biome reuses the same molten-flow geometry but with a muted violet
+// goo palette and a much weaker glow — the goo reads as material, not as a
+// neon ribbon, so it doesn't compete with the path.
+export const ALIEN_GOO_COLOR = "#4a2870";
+export const ALIEN_GOO_EMISSIVE = "#7a3aa0";
+export const ALIEN_GOO_EMISSIVE_INTENSITY = 0.45;
 export const RIVER_WIDTH = 2.2;
 // Tributaries are visibly thinner so the main river still reads as the main
 // river. Roughly 0.55× width, capped to keep the molten band readable.
 export const TRIBUTARY_WIDTH = 1.25;
+
+// Biomes that have molten-flow features (rivers + lakes + bridges over the
+// path). Used everywhere a feature gate is needed so we don't litter the
+// codebase with `biome === "lava" || biome === "alien"` chains.
+export const hasFlowFeatures = (biome: string): boolean => biome === "lava" || biome === "alien";
 
 export type River = { points: Vec2[]; width: number };
 export type Lake = { x: number; y: number; rx: number; ry: number; rot: number };

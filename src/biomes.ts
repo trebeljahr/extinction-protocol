@@ -113,15 +113,21 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
   // Cool-toned and eerie, pushing into out-of-this-world territory.
   alien: {
     groundColor: "#3a2060",
-    pathColor: "#6cffd6",
+    // Path is the walkable strip — kept a muted violet–stone tone so it reads
+    // as ground, not as a neon-cyan ribbon. The "alien-ness" comes from goo
+    // rivers/lakes (see lavaGeometry generalised for alien biome) and the
+    // Ultimate Space Kit vegetation, not from a glowing path.
+    pathColor: "#5a4880",
     sceneBg: "#2a1545",
     fogColor: "#5a3a90",
     fogNear: 40,
     fogFar: 90,
     hemiTop: "#b0a0ff",
     hemiBottom: "#2a1550",
-    startRing: "#6cffd6",
-    endRing: "#ff66cc",
+    // Subdued rings — same pale violet as the path, just slightly lifted to
+    // mark spawn/objective without screaming.
+    startRing: "#9a7fff",
+    endRing: "#ffb0e8",
   },
 };
 
@@ -329,11 +335,14 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
     "/models/biomes/wasteland/Tree3.glb",
     "/models/biomes/wasteland/Tree4.glb",
   ],
+  // Quaternius Ultimate Space Kit — actual alien vegetation, not the
+  // wasteland skeletons we used as a stand-in. Picked four shapes that read
+  // as silhouettes from above (Spikes, Swirl, Blob, Spiral).
   alien: [
-    "/models/biomes/wasteland/Tree1.glb",
-    "/models/biomes/wasteland/Tree3.glb",
-    "/models/biomes/wasteland/Tree4.glb",
-    "/models/biomes/wasteland/Tree2.glb",
+    "/models/biomes/alien/Tree_Spikes_1.gltf",
+    "/models/biomes/alien/Tree_Swirl_1.gltf",
+    "/models/biomes/alien/Tree_Blob_1.gltf",
+    "/models/biomes/alien/Tree_Spiral_1.gltf",
   ],
 };
 
@@ -374,10 +383,12 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/scifi/machine_barrelLarge.glb",
   ],
   alien: [
-    "/models/landmarks/wasteland/Crystal1.glb",
-    "/models/scifi/rock_crystalsLargeA.glb",
+    "/models/biomes/alien/Bush_1.gltf",
+    "/models/biomes/alien/Bush_2.gltf",
+    "/models/biomes/alien/Plant_1.gltf",
+    "/models/biomes/alien/Plant_2.gltf",
+    "/models/biomes/alien/Tree_Light_1.gltf",
     "/models/scifi/meteor_detailed.glb",
-    "/models/scifi/satelliteDish.glb",
   ],
 };
 

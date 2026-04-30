@@ -3,7 +3,12 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_COSMETICS, type Biome, classifyPropUrl, TARGET_SIZE_BY_ROLE } from "../biomes";
-import { buildLavaFeatures, isOnLavaSurface, type LavaFeatures } from "../lavaGeometry";
+import {
+  buildLavaFeatures,
+  hasFlowFeatures,
+  isOnLavaSurface,
+  type LavaFeatures,
+} from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
@@ -294,7 +299,7 @@ export const BiomeCosmetics = () => {
       ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
       ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
-    const lava = biome === "lava" ? buildLavaFeatures(paths, levelId) : null;
+    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId) : null;
     const instances = buildInstances(biome, paths, levelId, blockers, lava);
     const byUrl = new Map<string, Instance[]>();
     for (const inst of instances) {

@@ -1,6 +1,11 @@
 import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
 import { EASTER_EGG_DEFS } from "../easterEggs";
-import { buildLavaFeatures, isOnLavaSurface, type LavaFeatures } from "../lavaGeometry";
+import {
+  buildLavaFeatures,
+  hasFlowFeatures,
+  isOnLavaSurface,
+  type LavaFeatures,
+} from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { samplePath } from "./path";
@@ -347,8 +352,9 @@ export const createWorld = (level: LevelConfig): World => {
   const biome = biomeForPos(level.nodePos);
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
-  // non-lava biomes so isOnLavaSurface short-circuits.
-  const lava = biome === "lava" ? buildLavaFeatures(level.paths, level.id) : null;
+  // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
+  // share the same flow geometry — see hasFlowFeatures.
+  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(level.paths, level.id) : null;
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1, lava);
   const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees, lava);
   const { eggs, nextId } = buildEasterEggs(
