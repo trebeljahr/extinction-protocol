@@ -510,6 +510,13 @@ export const SHIELD_REGEN_RATE = 0.25;
 export const HEAL_AURA_RANGE = 3.5;
 export const HEAL_AURA_RATE = 3;
 
+// Regen chip tuning — slow passive self-heal. Pauses briefly on damage
+// so the player's sustained DPS isn't "wasted" — it just isn't as
+// efficient as a single burst. Tuned slower than the heal aura because
+// regen comes for free; healers have to dedicate a slot.
+export const REGEN_RATE = 1.5;
+export const REGEN_DAMAGE_PAUSE = 1.5;
+
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
   pulse: "kinetic",
   chain: "electric",
@@ -571,6 +578,7 @@ export const FIERCE_DAMAGE_MUL = 1.4;
 // vanilla bounty without any single chip dominating.
 export const SHIELDED_BOUNTY_MUL = 1.3;
 export const HEAL_AURA_BOUNTY_MUL = 1.4;
+export const REGEN_BOUNTY_MUL = 1.3;
 export const ELITE_BOUNTY_MUL = 1.4;
 export const FIERCE_BOUNTY_MUL = 1.3;
 
@@ -646,6 +654,10 @@ export const applyDamage = (
   const mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
   enemy.hp -= dmg * mul;
   enemy.flashUntil = world.time + 0.08;
+  // Regen chip self-heal pauses on every damage tick, so a continuous
+  // stream of small hits stalls regen indefinitely. Brief pause window
+  // means a brief lull lets it tick back up.
+  if (enemy.regen) enemy.regenPausedUntil = world.time + REGEN_DAMAGE_PAUSE;
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
@@ -672,6 +684,7 @@ export type SpawnOptions = {
   pathIndex?: number;
   shielded?: boolean;
   healAura?: boolean;
+  regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
 };
@@ -682,6 +695,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     pathIndex = 0,
     shielded = false,
     healAura = false,
+    regen = false,
     elite = false,
     fierce = false,
   } = opts;
@@ -696,6 +710,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   let bountyMul = 1;
   if (shielded) bountyMul *= SHIELDED_BOUNTY_MUL;
   if (healAura) bountyMul *= HEAL_AURA_BOUNTY_MUL;
+  if (regen) bountyMul *= REGEN_BOUNTY_MUL;
   if (elite) bountyMul *= ELITE_BOUNTY_MUL;
   if (fierce) bountyMul *= FIERCE_BOUNTY_MUL;
   const bounty = Math.ceil(base.bounty * bountyMul);
@@ -730,8 +745,10 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     maxShield,
     shieldBrokenAt: 0,
     healAura,
+    regen,
     elite,
     fierce,
+    regenPausedUntil: 0,
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);

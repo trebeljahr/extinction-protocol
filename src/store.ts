@@ -88,6 +88,7 @@ type UiSnapshot = {
   inspectedEnemyShield: number | null;
   inspectedEnemyMaxShield: number;
   inspectedEnemyHealAura: boolean;
+  inspectedEnemyRegen: boolean;
   inspectedEnemyElite: boolean;
   inspectedEnemyFierce: boolean;
 };
@@ -103,6 +104,7 @@ const snapshot = (
   let shield: number | null = null;
   let maxShield = 0;
   let healAura = false;
+  let regen = false;
   let elite = false;
   let fierce = false;
   if (inspect.id !== null) {
@@ -113,6 +115,7 @@ const snapshot = (
       shield = e.shield;
       maxShield = e.maxShield;
       healAura = e.healAura;
+      regen = e.regen;
       elite = e.elite;
       fierce = e.fierce;
     }
@@ -139,6 +142,7 @@ const snapshot = (
     inspectedEnemyShield: shield,
     inspectedEnemyMaxShield: maxShield,
     inspectedEnemyHealAura: healAura,
+    inspectedEnemyRegen: regen,
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
   };
@@ -166,6 +170,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyShield === b.inspectedEnemyShield &&
   a.inspectedEnemyMaxShield === b.inspectedEnemyMaxShield &&
   a.inspectedEnemyHealAura === b.inspectedEnemyHealAura &&
+  a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
   a.inspectedEnemyElite === b.inspectedEnemyElite &&
   a.inspectedEnemyFierce === b.inspectedEnemyFierce;
 

@@ -11,6 +11,8 @@ import {
   FIERCE_DAMAGE_MUL,
   HEAL_AURA_RANGE,
   HEAL_AURA_RATE,
+  REGEN_DAMAGE_PAUSE,
+  REGEN_RATE,
 } from "../sim/world";
 import { useGame } from "../store";
 
@@ -45,6 +47,13 @@ const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
     border: "rgba(126,255,138,0.5)",
     title: `Healer — pulses ${HEAL_AURA_RATE} HP/sec to allies within ${HEAL_AURA_RANGE.toFixed(1)}u`,
   },
+  regen: {
+    name: "Regen",
+    color: "#bbffc8",
+    bg: "rgba(187,255,200,0.10)",
+    border: "rgba(187,255,200,0.5)",
+    title: `Regen — heals ${REGEN_RATE} HP/sec, paused for ${REGEN_DAMAGE_PAUSE.toFixed(1)}s after damage`,
+  },
   elite: {
     name: "Elite",
     color: "#ffb030",
@@ -69,6 +78,7 @@ export const EnemyPanel = () => {
   const shield = useGame((s) => s.ui.inspectedEnemyShield);
   const maxShield = useGame((s) => s.ui.inspectedEnemyMaxShield);
   const healAura = useGame((s) => s.ui.inspectedEnemyHealAura);
+  const regen = useGame((s) => s.ui.inspectedEnemyRegen);
   const elite = useGame((s) => s.ui.inspectedEnemyElite);
   const fierce = useGame((s) => s.ui.inspectedEnemyFierce);
 
@@ -96,6 +106,7 @@ export const EnemyPanel = () => {
   const activeChips: EnemyChip[] = [];
   if (maxShield > 0) activeChips.push("shielded");
   if (healAura) activeChips.push("healAura");
+  if (regen) activeChips.push("regen");
   if (elite) activeChips.push("elite");
   if (fierce) activeChips.push("fierce");
 
@@ -199,7 +210,7 @@ export const EnemyPanel = () => {
         })}
       </div>
 
-      {(slowResist > 0 || healAura) && (
+      {(slowResist > 0 || healAura || regen) && (
         <div className="grid grid-cols-4 auto-rows-fr gap-1 mb-3">
           {slowResist > 0 && (
             <ResistChip
@@ -217,6 +228,15 @@ export const EnemyPanel = () => {
               nameColor="#7eff8a"
               name="Heal aura"
               value={`${HEAL_AURA_RANGE.toFixed(1)}u`}
+            />
+          )}
+          {regen && (
+            <ResistChip
+              state="good"
+              title={`Self-regen: ${REGEN_RATE} HP/sec, pauses ${REGEN_DAMAGE_PAUSE.toFixed(1)}s after damage`}
+              nameColor="#bbffc8"
+              name="Self regen"
+              value={`+${REGEN_RATE}/s`}
             />
           )}
         </div>

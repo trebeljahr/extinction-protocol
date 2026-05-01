@@ -59,6 +59,7 @@ type RosterEntry = {
   pathIndex: number;
   shielded: boolean;
   healAura: boolean;
+  regen: boolean;
   elite: boolean;
   fierce: boolean;
 };
@@ -69,10 +70,11 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
     const pathIndex = s.pathIndex ?? 0;
     const shielded = s.shielded ?? false;
     const healAura = s.healAura ?? false;
+    const regen = s.regen ?? false;
     const elite = s.elite ?? false;
     const fierce = s.fierce ?? false;
     for (let i = 0; i < s.count; i++) {
-      out.push({ kind: s.kind, pathIndex, shielded, healAura, elite, fierce });
+      out.push({ kind: s.kind, pathIndex, shielded, healAura, regen, elite, fierce });
     }
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
@@ -117,6 +119,7 @@ const startWave = (world: World) => {
       pathIndex: entry.pathIndex,
       shielded: entry.shielded,
       healAura: entry.healAura,
+      regen: entry.regen,
       elite: entry.elite,
       fierce: entry.fierce,
     });
@@ -179,6 +182,7 @@ export const spawnerTick = (world: World, dt: number) => {
       pathIndex: req.pathIndex,
       shielded: req.shielded,
       healAura: req.healAura,
+      regen: req.regen,
       elite: req.elite,
       fierce: req.fierce,
     });

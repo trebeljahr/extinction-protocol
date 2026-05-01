@@ -3,6 +3,7 @@ import { distSq } from "./vec2";
 import {
   HEAL_AURA_RANGE,
   HEAL_AURA_RATE,
+  REGEN_RATE,
   SHIELD_REGEN_DELAY,
   SHIELD_REGEN_RATE,
   spawnParticles,
@@ -26,6 +27,17 @@ export const updateDefensive = (world: World, dt: number) => {
       e.shield = e.maxShield;
       e.shieldBrokenAt = 0;
     }
+  }
+
+  // Regen chip — passive self-heal, paused briefly after every damage
+  // tick. Runs before the heal aura loop so a regen + heal-aura combo
+  // stacks naturally (both add HP on the same tick).
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    if (!e.regen) continue;
+    if (e.hp >= e.maxHp) continue;
+    if (world.time < e.regenPausedUntil) continue;
+    e.hp = Math.min(e.maxHp, e.hp + REGEN_RATE * dt);
   }
 
   // Healers — any enemy carrying the healAura chip ticks HP into nearby

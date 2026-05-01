@@ -19,6 +19,7 @@ import { ModelTowerMesh } from "./ModelTowerMesh";
 import { PathLine } from "./PathLine";
 import { Placement } from "./Placement";
 import { ProjectileMesh } from "./ProjectileMesh";
+import { RegenBadges } from "./RegenBadges";
 import { Rocks } from "./Rocks";
 import { SelectionRing } from "./SelectionRing";
 import { ShaderPrewarm } from "./ShaderPrewarm";
@@ -86,6 +87,7 @@ export const PlayScene = () => {
       <ShieldBubbles />
       <HealAuras />
       <FierceHalos />
+      <RegenBadges />
 
       <TowerVfx />
       <HealthBars />

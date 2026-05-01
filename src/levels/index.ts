@@ -41,6 +41,7 @@ const SPAWN_ORDER: EnemyKind[] = [
 type SpawnFlags = {
   shielded?: boolean;
   healAura?: boolean;
+  regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
 };
@@ -52,6 +53,7 @@ const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemyS
     pathIndex,
     ...(flags.shielded ? { shielded: true } : {}),
     ...(flags.healAura ? { healAura: true } : {}),
+    ...(flags.regen ? { regen: true } : {}),
     ...(flags.elite ? { elite: true } : {}),
     ...(flags.fierce ? { fierce: true } : {}),
   }));
@@ -568,6 +570,16 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 20, swarm: 14, allosaur: 6, stego: 2 }),
       rush(80, 16),
       heavy({ armored: 8, stego: 4, allosaur: 4 }),
+      // Regen debut: a small group of regen stegos. Slow self-heal so
+      // chip-damage towers (cryo cold tick, hive drones, flame DoT)
+      // can't whittle from a distance — sustained burst is required.
+      // Pause-on-damage means a bursty pulse rifle wins; a slow mortar
+      // gives them time to recover between shots.
+      {
+        archetype: "trickle",
+        spacing: 1.6,
+        spawns: [...toSpawns({ stego: 4 }, 0, { regen: true })],
+      },
       echelon([{ raptor: 22, swarm: 18 }, { allosaur: 8, stego: 4 }, { armored: 4 }]),
       // Shielded healing paras behind raptor cover — both chips on the
       // same enemy. Shield blunts focus fire, aura props the cover up.
@@ -584,7 +596,17 @@ export const LEVELS: LevelConfig[] = [
       },
       chaos({ raptor: 20, swarm: 26, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
       rush(125, 26),
-      heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
+      // Regen armored — the brick-that-heals. Anything not bursting
+      // hard enough to keep regen paused gives them HP back. Ideal
+      // place to teach "burst > sustain on this target."
+      {
+        archetype: "heavy",
+        spacing: 1.0,
+        spawns: [
+          ...toSpawns({ armored: 4 }, 0, { regen: true }),
+          ...toSpawns({ stego: 5, allosaur: 5, titan: 1 }),
+        ],
+      },
       // Shielded armored escort plus shielded healing paras — break an
       // armored shield, watch a healer top it right back up.
       {
@@ -654,16 +676,18 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
         ],
       },
-      // Finale: elite + fierce armored leads (jade-blue + red halo +
-      // hits hard), plus an elite stego, plus a chaos pack underneath.
-      // Three chip combinations on screen at once — boss-feel without
-      // inventing a boss class.
+      // Finale: elite + fierce armored leads (chrome-blue + red halo +
+      // hits hard), plus an elite + regen stego, plus a chaos pack
+      // underneath. Four chip combinations on screen at once — boss-feel
+      // without inventing a boss class. Regen + elite stego is the
+      // hardest single target: between the resist flatten and the
+      // self-heal, a slow tower drip just won't kill it.
       {
         archetype: "chaos",
         spacing: 0.3,
         spawns: [
           ...toSpawns({ armored: 2 }, 0, { elite: true, fierce: true }),
-          ...toSpawns({ stego: 2 }, 0, { elite: true }),
+          ...toSpawns({ stego: 2 }, 0, { elite: true, regen: true }),
           ...toSpawns({
             raptor: 30,
             swarm: 38,

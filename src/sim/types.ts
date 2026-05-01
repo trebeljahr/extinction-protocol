@@ -12,11 +12,14 @@ export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored" | 
 // - healAura: pulses HP/sec to nearby allies. Healers can't heal each
 //             other so a stack of healers isn't immortal.
 //             Visual: green pulsing ring on the ground.
+// - regen:    passive self-heal, paused briefly after taking damage so
+//             sustained DPS still works.
+//             Visual: floating mint-green "+" above the model.
 // - elite:    flattens damage-resist spread toward 1× and adds slow
 //             resistance. Visual: model material tint shifts to a
 //             distinct elite color per kind.
-// - fierce:   +30% damage. Visual: red glowing halo around the body.
-export type EnemyChip = "shielded" | "healAura" | "elite" | "fierce";
+// - fierce:   +40% damage. Visual: red glowing halo around the body.
+export type EnemyChip = "shielded" | "healAura" | "regen" | "elite" | "fierce";
 
 export type Enemy = {
   id: EntityId;
@@ -50,8 +53,13 @@ export type Enemy = {
   // Composable chip flags — any combination layers on any kind. See
   // EnemyChip docstring for visual/behavior summary.
   healAura: boolean;
+  regen: boolean;
   elite: boolean;
   fierce: boolean;
+  // Set whenever a regen-chipped enemy takes damage. Self-heal pauses
+  // until world.time crosses this stamp — keeps sustained DPS effective
+  // and prevents the "ticked-by-a-feather" stalemate.
+  regenPausedUntil: number;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -166,6 +174,7 @@ export type SpawnRequest = {
   pathIndex: number;
   shielded?: boolean;
   healAura?: boolean;
+  regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
 };
@@ -178,6 +187,7 @@ export type EnemySpec = {
   // See EnemyChip type for behavior + visual summary.
   shielded?: boolean;
   healAura?: boolean;
+  regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
 };
