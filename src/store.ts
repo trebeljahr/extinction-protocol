@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { AchievementId } from "./achievements";
 import { checkAchievements } from "./achievements";
 import { EASTER_EGG_BY_ID } from "./easterEggs";
-import { PATH_WIDTH } from "./level";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
 import type { ProgressData, Stars } from "./progress";
@@ -717,6 +717,28 @@ export const useGame = create<GameStore>((set, get) => ({
     const updates: Partial<GameStore> = {};
     if (egg.clickCount >= def.clickThreshold && !egg.triggered) {
       egg.triggered = true;
+      // Click-roll eggs (the barrel) topple toward the closest map edge
+      // and despawn once they leave. Heading aims at the nearest edge so
+      // the barrel always rolls *off* the playfield rather than veering
+      // back toward a wall.
+      if (def.clickRoll) {
+        const distLeft = egg.pos.x + MAP_WIDTH / 2;
+        const distRight = MAP_WIDTH / 2 - egg.pos.x;
+        const distBottom = egg.pos.y + MAP_HEIGHT / 2;
+        const distTop = MAP_HEIGHT / 2 - egg.pos.y;
+        const minDist = Math.min(distLeft, distRight, distBottom, distTop);
+        let dx = 0;
+        let dy = 0;
+        if (minDist === distLeft) dx = -1;
+        else if (minDist === distRight) dx = 1;
+        else if (minDist === distBottom) dy = -1;
+        else dy = 1;
+        const speed = def.clickRoll.speed;
+        egg.vel = { x: dx * speed, y: dy * speed };
+        egg.rotY = Math.atan2(dx, dy);
+        egg.spin = def.clickRoll.spinRate;
+        egg.despawnAt = w.time + def.clickRoll.lifetime;
+      }
       const unlock = tryUnlockEasterEgg(s.progress, def.achievement);
       if (unlock) {
         saveProgress(unlock.progress);
@@ -980,6 +1002,7 @@ export const useGame = create<GameStore>((set, get) => ({
           vel: null,
           despawnAt: null,
           spin: 0,
+          rollPitch: 0,
         },
       ];
     }

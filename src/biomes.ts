@@ -195,7 +195,12 @@ const desertLayers = (): BiomeLayer[] => [
 const snowLayers = (): BiomeLayer[] => [
   {
     seed: 9001,
-    urls: ["/models/biomes/snow/Bush1.glb", "/models/biomes/snow/Bush2.glb"],
+    // The Quaternius "snow bush" assets render as solid-white layered discs
+    // — indistinguishable from the snow rocks at top-down camera distance,
+    // so the level reads as a sea of identical white blobs. Swapped for the
+    // forest bush set: small green shrubs poking through snow give the
+    // ground a second silhouette and read as boreal vegetation.
+    urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
     count: 60,
     clearance: PATH_WIDTH / 2 + 0.7,
     minScale: 0.7,

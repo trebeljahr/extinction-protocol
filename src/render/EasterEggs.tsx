@@ -72,6 +72,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const clickEasterEgg = useGame((s) => s.clickEasterEgg);
   const [hovered, setHovered] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
+  const innerRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
   const { clone, scale, minY } = useMemo(() => buildInstance(scene, def), [scene, def]);
@@ -114,6 +115,11 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     if (!groupRef.current || !egg.vel) return; // static eggs stay put
     groupRef.current.position.set(egg.pos.x, 0, -egg.pos.y);
     groupRef.current.rotation.y = egg.rotY;
+    // Forward end-over-end pitch is applied to the inner wrapper around
+    // its local X axis, which after the outer Y heading rotation is
+    // perpendicular to the direction of travel — so the model tumbles
+    // along its heading instead of pivoting in place. Drives the barrel.
+    if (innerRef.current) innerRef.current.rotation.x = egg.rollPitch;
   });
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
@@ -136,7 +142,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
         setHovered(false);
       }}
     >
-      <group position={[0, yModel, 0]} scale={scale}>
+      <group ref={innerRef} position={[0, yModel, 0]} scale={scale}>
         <primitive object={clone} />
       </group>
       <mesh position={[0, hitY, 0]}>

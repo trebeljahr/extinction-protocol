@@ -1,5 +1,5 @@
 import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
-import { EASTER_EGG_DEFS } from "../easterEggs";
+import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "../easterEggs";
 import {
   buildLavaFeatures,
   hasFlowFeatures,
@@ -325,6 +325,7 @@ const buildEasterEggs = (
       vel: null,
       despawnAt: null,
       spin: 0,
+      rollPitch: 0,
     };
     return { eggs: [egg], nextId: firstId + 1 };
   }
@@ -446,6 +447,7 @@ export const spawnMovingEasterEgg = (world: World, defId: string) => {
     vel: { x: dir.x * speed, y: dir.y * speed },
     despawnAt: world.time + def.motion.lifetime,
     spin: def.motion.spinRate ?? 0,
+    rollPitch: 0,
   };
   // Use immutable append so React selectors see a new ref and rerender.
   world.easterEggs = [...world.easterEggs, egg];
@@ -470,7 +472,15 @@ export const updateEasterEggs = (world: World, dt: number) => {
       if (!egg.vel) return true;
       egg.pos.x += egg.vel.x * dt;
       egg.pos.y += egg.vel.y * dt;
-      egg.rotY += egg.spin * dt;
+      const def = EASTER_EGG_BY_ID[egg.defId];
+      // Tumble-mode eggs (barrel) keep their launch heading and accumulate
+      // spin into rollPitch so they somersault forward instead of pivoting
+      // around their vertical axis like a tumbleweed.
+      if (def?.clickRoll?.tumble) {
+        egg.rollPitch += egg.spin * dt;
+      } else {
+        egg.rotY += egg.spin * dt;
+      }
       if (egg.despawnAt !== null && world.time >= egg.despawnAt) return false;
       return true;
     });

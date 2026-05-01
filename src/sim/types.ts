@@ -282,10 +282,17 @@ export type EasterEgg = {
   rotY: number;
   clickCount: number;
   triggered: boolean;
-  // Set for moving eggs (tumbleweed, rover). Static eggs leave these null.
+  // Set for moving eggs (tumbleweed, rover) and for static eggs once the
+  // player triggers their clickRoll motion (the barrel). Static eggs leave
+  // these null until that happens.
   vel: Vec2 | null;
   despawnAt: number | null; // world.time deadline for motion eggs
   spin: number; // radians/sec for visual rotation
+  // End-over-end forward tumble (radians). Applied perpendicular to the
+  // heading (rotY) so the egg rolls in its direction of travel rather than
+  // pivoting on its base. Driven by spin when the egg is in clickRoll
+  // tumble mode (currently only the barrel). 0 for everything else.
+  rollPitch: number;
 };
 
 export type EasterEggScheduleEntry = {
