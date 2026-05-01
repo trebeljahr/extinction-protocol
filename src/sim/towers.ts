@@ -4,6 +4,7 @@ import {
   applyDamage,
   applySlow,
   createBeam,
+  createCryoWave,
   createProjectile,
   emit,
   spawnParticles,
@@ -71,8 +72,8 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
 };
 
 // Cryo damage/slow application — gated by cooldown so DPS stays tunable.
-// Per-enemy hit particles intentionally absent: the radial mist (below)
-// carries the visual, and a tiny per-enemy puff just added clutter.
+// Per-enemy hit particles intentionally absent: the freeze rings (below)
+// carry the visual, and a tiny per-enemy puff just added clutter.
 const applyCryoFreeze = (world: World, t: Tower): boolean => {
   const rangeSq = t.range * t.range;
   let hit = false;
@@ -98,34 +99,23 @@ const enemyInRange = (world: World, t: Tower): boolean => {
   return false;
 };
 
-// Continuous radial cryo mist — mirrors the flame stream's layered design
-// (core / mid / outer) but at much lower density and going out in every
-// direction. Particles decay via `vel *= 1 - 2*dt` per tick so we pick
-// initial speeds the same way the flame stream does, scaled by t.range
-// so the mist edge lines up with the slow aura.
-const cryoReachFactor = (life: number) => 0.5 * (1 - Math.exp(-2 * life));
-const spawnCryoMist = (world: World, t: Tower) => {
-  const reach = Math.max(0.5, t.range);
-  const speedRange = (life: number, frac: number, jitter = 0.22): [number, number] => {
-    const mid = (reach * frac) / cryoReachFactor(life);
-    return [mid * (1 - jitter), mid * (1 + jitter)];
-  };
-  const coreLife = 0.35;
-  const midLife = 0.55;
-  const wispLife = 0.85;
-  // No baseDir → spawnParticles spreads uniformly across 2π (radial).
-  // Inner cold core — 1 fast white-cyan particle.
-  spawnParticles(world, t.pos, 1, "#e8f7ff", speedRange(coreLife, 0.55), coreLife);
-  // Mid ice mist — 2 ice-blue particles filling the aura.
-  spawnParticles(world, t.pos, 2, "#a8dcff", speedRange(midLife, 0.85), midLife);
-  // Outer wisp — 1 deep-blue trailer that drifts to the aura edge.
-  spawnParticles(world, t.pos, 1, "#6ea8d6", speedRange(wispLife, 1.0), wispLife);
+// Steady freezing-wave cadence — a fresh ring leaves the tower roughly
+// every CRYO_WAVE_PERIOD seconds while a target's in range. Each ring
+// expands at constant speed out to t.range over CRYO_WAVE_LIFE, so two
+// to three are in flight at once → reads as continuous concentric ripples
+// instead of discrete pulses.
+const CRYO_WAVE_LIFE = 1.1;
+const CRYO_WAVE_PERIOD_TICKS = 22; // ≈ 0.367 s @ 60Hz
+const spawnCryoWave = (world: World, t: Tower) => {
+  createCryoWave(world, t.pos, t.range, CRYO_WAVE_LIFE);
 };
 
-// Single bright snowflake spark on each freeze tick — sparing artistic
-// punctuation so the freeze pulse has a beat, distinct from the steady mist.
-const spawnFrostbloom = (world: World, t: Tower) => {
-  spawnParticles(world, t.pos, 1, "#ffffff", [0.5, 1.1], 1.1);
+// Sharper accent ring on each freeze tick — same wave system, shorter
+// life and slight overshoot so it reads as a brighter pulse leading the
+// steady cadence.
+const CRYO_PULSE_LIFE = 0.55;
+const spawnFrostPulse = (world: World, t: Tower) => {
+  createCryoWave(world, t.pos, t.range * 1.05, CRYO_PULSE_LIFE);
 };
 
 const fireMortar = (world: World, t: Tower, target: Enemy) => {
@@ -259,18 +249,19 @@ export const updateTowers = (world: World, dt: number) => {
     t.cooldown = Math.max(0, t.cooldown - dt);
 
     if (t.kind === "cryo") {
-      // Mirror the flame pattern: emit visible mist while a target's in
-      // range, gate damage/slow by cooldown. Throttled to ~20Hz (every 3
-      // ticks at 60Hz) so the radial mist stays a thin shimmer instead of
-      // a smoke machine — flame's 60Hz cone density was the wrong target
-      // for an ambient aura.
+      // Damage/slow is cooldown-gated; the visual is a steady cadence of
+      // expanding rings ("freezing waves") that emanate from the tower
+      // while any enemy is in range. A sharper pulse ring fires on each
+      // freeze tick so the beat reads against the ambient cadence.
       const inRange = enemyInRange(world, t);
-      if (inRange && world.tickCount % 3 === 0) spawnCryoMist(world, t);
+      if (inRange && world.tickCount % CRYO_WAVE_PERIOD_TICKS === 0) {
+        spawnCryoWave(world, t);
+      }
       if (inRange && t.cooldown === 0) {
         const didHit = applyCryoFreeze(world, t);
         if (didHit) {
           t.cooldown = 1 / t.fireRate;
-          spawnFrostbloom(world, t);
+          spawnFrostPulse(world, t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
       }
