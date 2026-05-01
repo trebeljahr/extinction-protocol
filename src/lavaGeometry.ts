@@ -4,12 +4,13 @@ import type { Vec2 } from "./sim/types";
 export const LAVA_COLOR = "#ff6a1c";
 export const LAVA_EMISSIVE = "#ff5010";
 export const LAVA_EMISSIVE_INTENSITY = 1.6;
-// Alien biome reuses the same molten-flow geometry but with a muted violet
-// goo palette and a much weaker glow — the goo reads as material, not as a
-// neon ribbon, so it doesn't compete with the path.
-export const ALIEN_GOO_COLOR = "#4a2870";
-export const ALIEN_GOO_EMISSIVE = "#7a3aa0";
-export const ALIEN_GOO_EMISSIVE_INTENSITY = 0.45;
+// Alien biome reuses the same molten-flow geometry. Neon-cyan goo — same
+// hue the path used to be — so the rivers actually read as bright veins
+// across the violet ground. Emissive intensity is lifted so they glow
+// without disappearing into the dark scene background.
+export const ALIEN_GOO_COLOR = "#6cffd6";
+export const ALIEN_GOO_EMISSIVE = "#aafff0";
+export const ALIEN_GOO_EMISSIVE_INTENSITY = 1.2;
 export const RIVER_WIDTH = 2.2;
 // Tributaries are visibly thinner so the main river still reads as the main
 // river. Roughly 0.55× width, capped to keep the molten band readable.

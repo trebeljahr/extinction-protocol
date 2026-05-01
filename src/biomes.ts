@@ -162,6 +162,20 @@ const forestLayers = (): BiomeLayer[] => [
   },
 ];
 
+// Dead-tree props read as "tree-sized" silhouettes; promoted from cosmetic
+// to a blocking layer so the player can clear them and they don't sit in
+// build slots permanently.
+const DEAD_TREE_LAYER = (url: string, count: number, seed: number): BiomeLayer => ({
+  seed,
+  urls: [url],
+  count,
+  clearance: PATH_WIDTH / 2 + 1.3,
+  minScale: 0.7,
+  maxScale: 1.15,
+  castShadow: true,
+  blocks: true,
+});
+
 const desertLayers = (): BiomeLayer[] => [
   {
     seed: 9001,
@@ -190,6 +204,7 @@ const desertLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
+  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151),
 ];
 
 const snowLayers = (): BiomeLayer[] => [
@@ -239,10 +254,13 @@ const wastelandLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 8, 5151),
 ];
 
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
-// slightly larger, reading as volcanic boulders and slag heaps.
+// slightly larger, reading as volcanic boulders and slag heaps. Adds a
+// blue-crystal accent layer (same shards used in alien levels) — the
+// crystal pop against the dark volcanic ground reads as cooled gem veins.
 const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -260,10 +278,23 @@ const lavaLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
+  {
+    seed: 7878,
+    urls: ["/models/landmarks/wasteland/Crystal1.glb", "/models/scifi/rock_crystalsLargeA.glb"],
+    count: 18,
+    clearance: PATH_WIDTH / 2 + 0.8,
+    minScale: 0.45,
+    maxScale: 1.0,
+    castShadow: true,
+    blocks: true,
+  },
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 6, 5151),
 ];
 
 // Alien leans on the Quaternius crystal shards + wasteland rock skeletons.
-// Feels like a violet dust plain peppered with gem outcroppings.
+// Feels like a violet dust plain peppered with gem outcroppings. Tree_Light
+// is promoted from cosmetic to a blocking layer so it acts as a removable
+// obstacle rather than non-interactive scenery.
 const alienLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -289,6 +320,7 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
+  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151),
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
@@ -355,9 +387,9 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 // Only Quaternius-style organic assets and Kenney space-kit sci-fi props
 // belong here — man-made wooden props (Barrel, Chest) were swapped for
 // sci-fi machine/satellite variants so non-nature biomes read as post-
-// human tech, not woodwork. The low-poly blue crystal shards are back
-// as small cosmetic sparkle for snow + wasteland; they sit next to the
-// Quaternius rocks at cosmetic scale so they don't dominate.
+// human tech, not woodwork. NOTHING tree-sized in this list — anything
+// that reads as a placement-blocker silhouette (DeadTree, Tree_Light,
+// Crystal1) lives in BIOME_LAYERS with `blocks: true` so it's removable.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/Mushroom.glb",
@@ -367,24 +399,17 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
   desert: [
     "/models/landmarks/desert/Skull.glb",
     "/models/scifi/machine_wireless.glb",
-    "/models/landmarks/desert/DeadTree.glb",
     "/models/scifi/satelliteDish.glb",
   ],
-  // Crystal1 reads as a rock to players but doesn't block placement — pulled
-  // so the biome doesn't advertise invalid tiles. Leaving snow cosmetics
-  // empty rather than back-filling with an unrelated prop.
   snow: [],
   wasteland: [
     "/models/landmarks/wasteland/Skull.glb",
-    "/models/landmarks/wasteland/DeadTree.glb",
-    "/models/landmarks/wasteland/Crystal1.glb",
     "/models/scifi/machine_generator.glb",
     "/models/scifi/meteor_detailed.glb",
   ],
   lava: [
     "/models/landmarks/wasteland/Skull.glb",
     "/models/scifi/meteor_detailed.glb",
-    "/models/landmarks/wasteland/DeadTree.glb",
     "/models/scifi/machine_barrelLarge.glb",
   ],
   alien: [
@@ -392,7 +417,6 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/biomes/alien/Bush_2.gltf",
     "/models/biomes/alien/Plant_1.gltf",
     "/models/biomes/alien/Plant_2.gltf",
-    "/models/biomes/alien/Tree_Light_1.gltf",
     "/models/scifi/meteor_detailed.glb",
   ],
 };

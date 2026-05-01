@@ -4,6 +4,7 @@ import * as THREE from "three";
 import {
   buildLavaFeatures,
   buildLavaSurface,
+  hasFlowFeatures,
   type LavaFeatures,
   sampleLavaSurface,
 } from "../lavaGeometry";
@@ -32,14 +33,14 @@ type P = {
   brightness: number;
 };
 
-type LavaSpawn = { surface: ReturnType<typeof buildLavaSurface>; features: LavaFeatures };
+type FlowSpawn = { surface: ReturnType<typeof buildLavaSurface>; features: LavaFeatures };
 
-const freshLavaEmber = (p: P, lava: LavaSpawn | null) => {
+const freshLavaEmber = (p: P, flow: FlowSpawn | null) => {
   // 35% sparks (bright, snappy, tiny), 65% embers (slower, larger, dimmer)
   const isSpark = Math.random() < 0.35;
   p.kind = isSpark ? "spark" : "ember";
 
-  const sample = lava ? sampleLavaSurface(lava.surface, lava.features.bridges, Math.random) : null;
+  const sample = flow ? sampleLavaSurface(flow.surface, flow.features.bridges, Math.random) : null;
   if (sample) {
     p.x = sample.x;
     p.z = -sample.y;
@@ -68,10 +69,18 @@ const freshLavaEmber = (p: P, lava: LavaSpawn | null) => {
   p.life = p.maxLife;
 };
 
-const freshAlienSpore = (p: P) => {
+const freshAlienSpore = (p: P, flow: FlowSpawn | null) => {
   p.kind = "alien";
-  p.x = (Math.random() * 2 - 1) * (MAP_WIDTH / 2 - 1);
-  p.z = (Math.random() * 2 - 1) * (MAP_HEIGHT / 2 - 1);
+  // Spores rise off the goo rivers/lakes — sampling the flow surface keeps
+  // them tethered to the visible feature instead of fogging the whole map.
+  const sample = flow ? sampleLavaSurface(flow.surface, flow.features.bridges, Math.random) : null;
+  if (sample) {
+    p.x = sample.x;
+    p.z = -sample.y;
+  } else {
+    p.x = (Math.random() * 2 - 1) * (MAP_WIDTH / 2 - 1);
+    p.z = (Math.random() * 2 - 1) * (MAP_HEIGHT / 2 - 1);
+  }
   p.y = 0.2 + Math.random() * 3;
   p.vy = 0.15 + Math.random() * 0.3;
   p.drift = (Math.random() * 2 - 1) * 0.6;
@@ -99,8 +108,10 @@ export const BiomeAmbientVfx = () => {
   const color = useMemo(() => new THREE.Color(), []);
   const baseColorTmp = useMemo(() => new THREE.Color(), []);
 
-  const lavaSpawn = useMemo<LavaSpawn | null>(() => {
-    if (biome !== "lava") return null;
+  // Built for both lava and alien — both biomes use the same flow geometry,
+  // and now both spawn ambient particles along the rivers/lakes only.
+  const flowSpawn = useMemo<FlowSpawn | null>(() => {
+    if (!hasFlowFeatures(biome)) return null;
     const features = buildLavaFeatures(paths, levelId);
     return { features, surface: buildLavaSurface(features) };
   }, [biome, paths, levelId]);
@@ -142,8 +153,8 @@ export const BiomeAmbientVfx = () => {
     let i = 0;
     for (const p of pool) {
       if (p.life <= 0) {
-        if (isLava) freshLavaEmber(p, lavaSpawn);
-        else freshAlienSpore(p);
+        if (isLava) freshLavaEmber(p, flowSpawn);
+        else freshAlienSpore(p, flowSpawn);
       }
       p.life -= dt;
       p.y += p.vy * dt;
