@@ -241,6 +241,11 @@ type GameStore = {
   selectedKind: TowerKind | null;
   selectedTreeId: number | null;
   selectedRockId: number | null;
+  // Hive drone-assignment cursor: when set, the next tower click goes
+  // to the drone slot identified here instead of selecting that tower.
+  // Cleared by completing the assignment, clicking the same hive,
+  // canceling, or selling/deselecting the hive.
+  assigningDroneSlot: { hiveId: number; droneIdx: number } | null;
   towerVersion: number;
   treeVersion: number;
   inspectedEnemy: InspectState;
@@ -282,6 +287,16 @@ type GameStore = {
   sellSelected: () => void;
   setTargetingMode: (mode: TargetingMode) => void;
   callWaveEarly: () => void;
+
+  // Hive drone assignment flow:
+  //  - beginDroneAssignment: arms the cursor for the given drone slot
+  //  - assignDroneToTower:   completes assignment to a specific tower
+  //  - clearDroneAssignment: unassigns the slot back to idle
+  //  - cancelDroneAssignment: drops the cursor without changes
+  beginDroneAssignment: (hiveId: number, droneIdx: number) => void;
+  assignDroneToTower: (towerId: number) => void;
+  clearDroneAssignment: (hiveId: number, droneIdx: number) => void;
+  cancelDroneAssignment: () => void;
 
   selectTree: (id: number) => void;
   clearSelectedTree: () => void;
@@ -351,6 +366,7 @@ export const useGame = create<GameStore>((set, get) => ({
   selectedKind: null,
   selectedTreeId: null,
   selectedRockId: null,
+  assigningDroneSlot: null,
   eventListeners: [],
 
   screen: "worldMap",
@@ -539,6 +555,9 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: nextTree,
       selectedRockId: nextRock,
       inspectedEnemy: nextInspect,
+      // Picking up a tower-to-place implicitly cancels any in-flight
+      // drone assignment — the user is doing something else now.
+      assigningDroneSlot: kind !== null ? null : s.assigningDroneSlot,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
@@ -780,6 +799,13 @@ export const useGame = create<GameStore>((set, get) => ({
 
     const hit = towerAt(w, pos);
     if (hit) {
+      // Drone-assignment cursor wins over normal selection: if the
+      // player clicked a tower while armed for assignment, route the
+      // click into the assignment action instead of switching selection.
+      if (s.assigningDroneSlot) {
+        get().assignDroneToTower(hit.id);
+        return;
+      }
       w.selectedTowerId = hit.id;
       set({
         selectedKind: null,
@@ -788,6 +814,13 @@ export const useGame = create<GameStore>((set, get) => ({
         inspectedEnemy: emptyInspect,
         ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
       });
+      return;
+    }
+
+    // Empty-ground click cancels an in-flight drone assignment so the
+    // cursor doesn't get stuck if the player thinks better of it.
+    if (s.assigningDroneSlot) {
+      set({ assigningDroneSlot: null });
       return;
     }
 
@@ -857,6 +890,14 @@ export const useGame = create<GameStore>((set, get) => ({
   selectTower: (id) => {
     const s = get();
     const { world, towerVersion, treeVersion } = s;
+    // If switching to a non-hive tower (or closing the panel), drop any
+    // in-flight drone-assignment cursor — it belonged to the previously
+    // selected hive.
+    const nextHive = id !== null ? world.towerById.get(id) : null;
+    const keepAssigning =
+      s.assigningDroneSlot !== null &&
+      nextHive?.kind === "hive" &&
+      nextHive.id === s.assigningDroneSlot.hiveId;
     world.selectedTowerId = id;
     const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = id !== null ? null : s.selectedTreeId;
@@ -866,6 +907,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: nextTree,
       selectedRockId: nextRock,
       inspectedEnemy: nextInspect,
+      assigningDroneSlot: keepAssigning ? s.assigningDroneSlot : null,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
@@ -918,6 +960,68 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!simCallWaveEarly(s.world)) return;
     emit(s.world, { type: "wave-called-early" });
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  beginDroneAssignment: (hiveId, droneIdx) => {
+    const s = get();
+    const hive = s.world.towerById.get(hiveId);
+    if (!hive || hive.kind !== "hive") return;
+    if (droneIdx < 0 || droneIdx >= hive.droneCount) return;
+    set({ assigningDroneSlot: { hiveId, droneIdx } });
+  },
+
+  assignDroneToTower: (towerId) => {
+    const s = get();
+    const slot = s.assigningDroneSlot;
+    if (!slot) return;
+    const hive = s.world.towerById.get(slot.hiveId);
+    if (!hive || hive.kind !== "hive") {
+      set({ assigningDroneSlot: null });
+      return;
+    }
+    const target = s.world.towerById.get(towerId);
+    // Refuse self-assignment + hive-to-hive — both would be no-ops sim
+    // side, but the visual "the drone went home to nothing" is worse
+    // than just rejecting.
+    if (!target || target.kind === "hive") {
+      set({ assigningDroneSlot: null });
+      return;
+    }
+    hive.droneAssignments[slot.droneIdx] = towerId;
+    const newVersion = s.towerVersion + 1;
+    // Drone assignments aren't tick-driven sim events, so the
+    // achievement check loop in tick() never sees them. Run a check
+    // here so full_service can unlock the moment the last slot is
+    // wired up — without making the player kill an enemy first.
+    const ach = checkAchievements(s.progress, s.world, null);
+    const newToasts = ach.unlocked.map((id) => ({ id, key: nextToastKey++ }));
+    if (ach.unlocked.length > 0) saveProgress(ach.progress);
+    set({
+      assigningDroneSlot: null,
+      towerVersion: newVersion,
+      progress: ach.unlocked.length > 0 ? ach.progress : s.progress,
+      achievementToasts:
+        newToasts.length > 0 ? [...s.achievementToasts, ...newToasts] : s.achievementToasts,
+      ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
+
+  clearDroneAssignment: (hiveId, droneIdx) => {
+    const s = get();
+    const hive = s.world.towerById.get(hiveId);
+    if (!hive || hive.kind !== "hive") return;
+    if (droneIdx < 0 || droneIdx >= hive.droneCount) return;
+    if (hive.droneAssignments[droneIdx] === null) return;
+    hive.droneAssignments[droneIdx] = null;
+    const newVersion = s.towerVersion + 1;
+    set({
+      towerVersion: newVersion,
+      ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
+
+  cancelDroneAssignment: () => {
+    set({ assigningDroneSlot: null });
   },
 
   onEvent: (fn) => {

@@ -18,6 +18,7 @@ export type AchievementId =
   | "master_engineer"
   | "campaign"
   | "perfect_run"
+  | "full_service"
   | "tree_hugger"
   | "diamond_in_the_rough"
   | "whispering_skull"
@@ -133,6 +134,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "Perfect Run",
     desc: "Earn three stars on every mission.",
     hint: "Max rating everywhere.",
+  },
+  {
+    id: "full_service",
+    name: "Full Service",
+    desc: "Have every tower on the map serviced by a Hive drone.",
+    hint: "Every non-hive tower needs at least one drone assigned.",
   },
   {
     id: "tree_hugger",
@@ -343,6 +350,22 @@ const satisfies = (id: AchievementId, p: ProgressData, w: World, ev: GameEvent |
       return LEVELS.every((l) => getStars(p, l.id) >= 1);
     case "perfect_run":
       return LEVELS.every((l) => getStars(p, l.id) >= 3);
+    case "full_service": {
+      // Need at least one non-hive tower (otherwise the trivial empty
+      // case would award immediately) AND every non-hive tower must
+      // have at least one hive drone currently assigned to it.
+      const nonHive = w.towers.filter((t) => t.kind !== "hive");
+      if (nonHive.length === 0) return false;
+      const serviced = new Set<number>();
+      for (const h of w.towers) {
+        if (h.kind !== "hive") continue;
+        for (let i = 0; i < h.droneCount; i++) {
+          const id = h.droneAssignments[i];
+          if (id !== null && id !== undefined) serviced.add(id);
+        }
+      }
+      return nonHive.every((t) => serviced.has(t.id));
+    }
     case "tree_hugger":
     case "diamond_in_the_rough":
     case "whispering_skull":

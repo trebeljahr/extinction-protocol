@@ -830,13 +830,15 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
     slowFactor: 1,
     slowDuration: 0,
   },
-  // Hive — per-drone stats; the tower has HIVE_DRONE_COUNT (3) drones
-  // orbiting it, each firing from its own offset position. `range` here
-  // is each drone's individual search range, not the hive's.
+  // Hive — pure support tower. `damage` and `fireRate` are unused (UI
+  // hides them); the relevant numbers are HIVE_BASE_DRONES + the
+  // serviceBuff fraction set in createTower / upgrades. Range is what
+  // shows as the tower's selection ring but doesn't gate anything sim-
+  // side: drones can fly to any tower on the map.
   hive: {
-    range: 5.5,
-    damage: 5,
-    fireRate: 2.5,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
     splashRadius: 0,
     chainCount: 0,
     chainFalloff: 1,
@@ -844,6 +846,14 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
     slowDuration: 0,
   },
 };
+
+// Hive support tuning. Drone count grows with Path A upgrades up to a
+// hard cap so the assignment array can be statically sized.
+export const HIVE_BASE_DRONES = 3;
+export const HIVE_MAX_DRONES = 6;
+// Default fire-rate buff each assigned drone confers to its target.
+// Path B upgrades scale this — see upgrades.ts.
+export const HIVE_BASE_SERVICE_BUFF = 0.3;
 
 export const TOWER_COST: Record<TowerKind, number> = {
   pulse: 50,
@@ -885,10 +895,13 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     chainFalloff: stats.chainFalloff,
     slowFactor: stats.slowFactor,
     slowDuration: stats.slowDuration,
-    droneTargetIds: kind === "hive" ? [null, null, null] : [],
-    pierceShield: false,
-    prioritizeHealer: false,
-    eliteDamageBonus: 1,
+    // Hive support — drone count caps at HIVE_MAX_DRONES so assignment
+    // arrays stay fixed-size; only the first `droneCount` entries are
+    // active. Non-hive towers get zero/empty defaults.
+    droneCount: kind === "hive" ? HIVE_BASE_DRONES : 0,
+    droneAssignments: kind === "hive" ? new Array<number | null>(HIVE_MAX_DRONES).fill(null) : [],
+    serviceBuff: kind === "hive" ? HIVE_BASE_SERVICE_BUFF : 0,
+    serviceFireRateBonus: 0,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);

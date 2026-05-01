@@ -3,18 +3,13 @@ import { useFrame } from "@react-three/fiber";
 import { nanoid } from "nanoid";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import {
-  HIVE_DRONE_COUNT,
-  HIVE_ORBIT_HEIGHT,
-  hiveDroneAngle,
-  hiveDronePosition,
-} from "../sim/towers";
+import { HIVE_ORBIT_HEIGHT, hiveDroneAngle, hiveDronePosition } from "../sim/towers";
 import { useGame } from "../store";
 
 // One instanced mesh renders every drone of every hive tower on the
-// field. Each drone bobs a little, orbits the hive, and yaws toward
-// whichever enemy it's firing at. Sim-side logic in towers.ts already
-// owns target selection + firing — this is purely visuals.
+// field. Each drone bobs a little and orbits either its hive (when
+// idle) or the tower it's been assigned to service. Sim-side logic in
+// towers.ts owns the assignment table — this is purely visuals.
 //
 // The drone mesh has multiple sub-primitives (Quaternius Enemy Flying),
 // so we walk the GLB and stand up a separate InstancedMesh per primitive,
@@ -66,25 +61,18 @@ export const HiveDrones = () => {
   useFrame(() => {
     if (!source) return;
     const { world } = useGame.getState();
-    const { time, enemyById } = world;
+    const { time } = world;
 
     let count = 0;
     for (const t of world.towers) {
       if (t.kind !== "hive") continue;
-      if (count + HIVE_DRONE_COUNT > MAX_DRONES) break;
+      if (count + t.droneCount > MAX_DRONES) break;
 
-      for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
-        const pos = hiveDronePosition(t, time, d);
-        // Sim caches the nearest target per drone in tower.droneTargetIds.
-        // Render just looks it up — no per-frame O(drones × enemies) scan.
-        let yaw = hiveDroneAngle(t, time, d) + Math.PI / 2;
-        const tid = t.droneTargetIds[d];
-        if (tid !== null) {
-          const target = enemyById.get(tid);
-          if (target?.alive) {
-            yaw = Math.atan2(target.pos.x - pos.x, -(target.pos.y - pos.y));
-          }
-        }
+      for (let d = 0; d < t.droneCount; d++) {
+        const pos = hiveDronePosition(t, world, time, d);
+        // Tangent yaw — drones face the direction they're flying around
+        // their orbit center, so the visual reads as "circling."
+        const yaw = hiveDroneAngle(t, time, d) + Math.PI / 2;
 
         const bob = Math.sin(time * BOB_SPEED + t.id + d * 1.3) * BOB_AMP;
         dummy.position.set(pos.x, HIVE_ORBIT_HEIGHT + bob, -pos.y);

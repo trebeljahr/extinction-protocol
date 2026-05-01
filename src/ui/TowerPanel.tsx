@@ -18,6 +18,7 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
+import { HiveDronePanel } from "./HiveDronePanel";
 
 const ENEMY_ORDER: EnemyKind[] = [
   "raptor",
@@ -46,6 +47,61 @@ export const TowerPanel = () => {
   const tower = useGame.getState().world.towerById.get(selectedId);
   if (!tower) return null;
 
+  // Hive is pure support — its damage / damage-type / resist columns
+  // are meaningless. Branch above and skip the offensive widgets so the
+  // panel reads as "what does this tower do for the others."
+  if (tower.kind === "hive") {
+    return (
+      <div className="tower-panel">
+        <div className="panel-header">
+          <div className={`tower-swatch kind-${tower.kind}`} />
+          <div className="panel-title">
+            <div className="panel-name">
+              {TOWER_LABEL[tower.kind]}
+              <span
+                className="dmg-tag"
+                style={{ color: "#bbffc8", borderColor: "#bbffc8" }}
+                title="Support tower — boosts other towers' fire rate"
+              >
+                SUPPORT
+              </span>
+            </div>
+            <div className="panel-stats">
+              DRONES {tower.droneCount} · BUFF +{Math.round(tower.serviceBuff * 100)}%/drone
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-close"
+            data-ui-sound="close"
+            onClick={() => useGame.getState().selectTower(null)}
+            aria-label="close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="text-[11px] leading-snug text-fg-muted mb-3 px-2 py-2 rounded-[5px] border border-border-faint bg-surface-faint">
+          Each drone flies to a tower you assign and adds{" "}
+          <span style={{ color: "#bbffc8" }}>
+            +{Math.round(tower.serviceBuff * 100)}% fire rate
+          </span>{" "}
+          while servicing it. Multiple drones on one tower stack. Click "Pick" on a slot below, then
+          click any tower on the map to assign.
+        </div>
+
+        <HiveDronePanel hive={tower} />
+
+        <div className="branches">
+          <BranchView tower={tower} branchId="a" gold={gold} />
+          <BranchView tower={tower} branchId="b" gold={gold} />
+        </div>
+
+        <SellFooter tower={tower} />
+      </div>
+    );
+  }
+
   const damageType = TOWER_DAMAGE_TYPE[tower.kind];
 
   return (
@@ -72,6 +128,15 @@ export const TowerPanel = () => {
             {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
             {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
             {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}
+            {tower.serviceFireRateBonus > 0 && (
+              <>
+                {" "}
+                ·{" "}
+                <span style={{ color: "#bbffc8" }}>
+                  SUPPORT +{Math.round(tower.serviceFireRateBonus * 100)}%
+                </span>
+              </>
+            )}
           </div>
         </div>
         <button

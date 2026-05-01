@@ -89,16 +89,22 @@ export type Tower = {
   chainFalloff: number;
   slowFactor: number;
   slowDuration: number;
-  // Hive-only — sim writes one target id per drone each tick so the
-  // renderer doesn't have to scan enemies again.
-  droneTargetIds: (EntityId | null)[];
-  // Hive A2 upgrade — drones bypass shields entirely.
-  pierceShield: boolean;
-  // Hive B2 upgrade — drones prefer healers (any enemy with healAura).
-  prioritizeHealer: boolean;
-  // Hive B3 upgrade — multiplier applied to damage when target carries
-  // the `elite` chip. 1 = no bonus, 1.3 = +30%.
-  eliteDamageBonus: number;
+  // Hive-only — number of drones owned by this hive (3 base, scales
+  // with Path A upgrades). Always equals droneAssignments.length while
+  // valid, but kept as a separate field so resizing the array is a
+  // single store action.
+  droneCount: number;
+  // Hive-only — index = drone index. Value = the tower id this drone
+  // is currently servicing (provides fire-rate buff), or null when
+  // idle. Idle drones orbit the hive itself.
+  droneAssignments: (EntityId | null)[];
+  // Hive-only — fractional fire-rate buff each assigned drone confers
+  // to its target tower. 0.3 = +30%. Scales with Path B upgrades.
+  serviceBuff: number;
+  // Non-hive — sum of serviceBuff contributions from every drone
+  // currently servicing this tower. Recomputed each tick at the start
+  // of updateTowers; effective fire rate = fireRate * (1 + this).
+  serviceFireRateBonus: number;
 };
 
 export type Tree = {

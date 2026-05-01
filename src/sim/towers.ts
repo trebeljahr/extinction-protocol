@@ -7,8 +7,15 @@ import {
   createCryoWave,
   createProjectile,
   emit,
+  HIVE_MAX_DRONES,
   spawnParticles,
 } from "./world";
+
+// Effective fire rate factors in any service buff currently applied to
+// the tower by hive drones. We compute it on demand instead of caching
+// because the bonus is recomputed at the top of every tick — caching
+// would just add a state field that has to stay in sync.
+const effectiveFireRate = (t: Tower): number => t.fireRate * (1 + t.serviceFireRateBonus);
 
 const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
@@ -240,8 +247,34 @@ const enemyInSplash = (world: World, spot: Vec2, splashRadius: number): boolean 
 };
 
 export const updateTowers = (world: World, dt: number) => {
+  // Recompute service buffs first. Each non-hive tower's
+  // serviceFireRateBonus is the sum of every assigned drone's buff that
+  // currently points at it. Reset on every tick so a re-assignment or
+  // sold tower drops the buff on the very next frame, not after a
+  // delayed fade.
+  for (const t of world.towers) t.serviceFireRateBonus = 0;
+  for (const h of world.towers) {
+    if (h.kind !== "hive") continue;
+    for (let d = 0; d < h.droneCount; d++) {
+      const targetId = h.droneAssignments[d];
+      if (targetId === null || targetId === undefined) continue;
+      const target = world.towerById.get(targetId);
+      // Drop stale assignments — the target may have been sold. Both
+      // fields cleared here so the renderer + UI agree on idle state.
+      if (!target || target.kind === "hive") {
+        h.droneAssignments[d] = null;
+        continue;
+      }
+      target.serviceFireRateBonus += h.serviceBuff;
+    }
+  }
+
   for (const t of world.towers) {
     t.cooldown = Math.max(0, t.cooldown - dt);
+
+    // Hive is pure support — no targeting, no firing. Service bonuses
+    // were already accumulated on each target tower above.
+    if (t.kind === "hive") continue;
 
     if (t.kind === "cryo") {
       // Damage/slow is cooldown-gated; the visual is a steady cadence of
@@ -256,7 +289,11 @@ export const updateTowers = (world: World, dt: number) => {
       if (inRange && t.cooldown === 0) {
         const didHit = applyCryoFreeze(world, t);
         if (didHit) {
-          t.cooldown = 1 / t.fireRate;
+          // Effective fire rate so the per-freeze cadence picks up any
+          // hive service buff. Cryo's wave-spawn cadence stays decoupled
+          // from fireRate (see CRYO_WAVE_PERIOD_TICKS) — only the damage
+          // tick is gated.
+          t.cooldown = 1 / effectiveFireRate(t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
       }
@@ -272,7 +309,7 @@ export const updateTowers = (world: World, dt: number) => {
         const inRange = distSq(t.targetSpot, t.pos) <= t.range * t.range;
         if (inRange && enemyInSplash(world, t.targetSpot, t.splashRadius)) {
           fireMortarAtSpot(world, t, t.targetSpot);
-          t.cooldown = 1 / t.fireRate;
+          t.cooldown = 1 / effectiveFireRate(t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
       }
@@ -293,48 +330,7 @@ export const updateTowers = (world: World, dt: number) => {
         spawnFlameStream(world, t, target);
         if (t.cooldown === 0) {
           fireFlameDamage(world, t, target);
-          t.cooldown = 1 / t.fireRate;
-          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
-        }
-      }
-      continue;
-    }
-
-    // Hive — each drone independently finds its own target from its own
-    // orbit position and fires a small direct shot. Volleys are shared by
-    // the tower cooldown so the per-drone `fireRate` stat is honest; the
-    // interleaved visual comes from the orbit rotation, not the firing.
-    //
-    // Target selection runs every tick (not just at fire time) so the
-    // renderer can read tower.droneTargetIds + world.enemyById and skip
-    // its own per-frame O(drones × enemies) scan.
-    if (t.kind === "hive") {
-      const ids = t.droneTargetIds;
-      for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
-        const dp = hiveDronePosition(t, world.time, d);
-        ids[d] = findTargetNearPos(world, dp, t)?.id ?? null;
-      }
-      if (t.cooldown === 0) {
-        let anyHit = false;
-        for (let d = 0; d < HIVE_DRONE_COUNT; d++) {
-          const tid = ids[d];
-          if (tid === null) continue;
-          const droneTarget = world.enemyById.get(tid);
-          if (!droneTarget?.alive) continue;
-          const dp = hiveDronePosition(t, world.time, d);
-          anyHit = true;
-          // Shred upgrade: per-drone +30% vs elites. Computed at fire
-          // time rather than as a generic applyDamage parameter so the
-          // bonus stays scoped to the hive tower line.
-          const dmg =
-            t.eliteDamageBonus > 1 && droneTarget.elite ? t.damage * t.eliteDamageBonus : t.damage;
-          const proj = createProjectile(world, "direct", "kinetic", dp, droneTarget, dmg);
-          // Shield-piercer rounds (A2) — bypass shields entirely. Read
-          // by applyDamage in projectiles.ts.
-          if (t.pierceShield) proj.pierceShield = true;
-        }
-        if (anyHit) {
-          t.cooldown = 1 / t.fireRate;
+          t.cooldown = 1 / effectiveFireRate(t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
       }
@@ -345,64 +341,57 @@ export const updateTowers = (world: World, dt: number) => {
       if (t.kind === "pulse") firePulse(world, t, target);
       else if (t.kind === "chain") fireChain(world, t, target);
       else if (t.kind === "mortar") fireMortar(world, t, target);
-      t.cooldown = 1 / t.fireRate;
+      t.cooldown = 1 / effectiveFireRate(t);
       emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
     }
   }
 };
 
-// --- Hive drones ------------------------------------------------------
+// --- Hive support drones ----------------------------------------------
 //
-// Three drones orbit each hive tower at a fixed radius and height. Each
-// drone finds its OWN target (nearest live enemy within `tower.range`
-// measured from the drone's world position) and fires from there, so the
-// hive behaves like three tiny independent turrets whose spots happen to
-// drift around the anchor.
+// Drones orbit either the hive (when idle) or their assigned tower
+// (when servicing). Their visible position is purely cosmetic — the
+// service buff itself is recomputed at the top of updateTowers from
+// each hive's droneAssignments array, so the renderer can lag the
+// physical orbit without affecting damage timing.
+//
+// Orbit phase is a function of (hive.id, droneIdx) so the same drone
+// keeps a consistent angle even as the orbit center swaps between hive
+// and serviced tower — looks like the drone "flies over" rather than
+// teleporting, even with snap-to-center positioning.
 
-export const HIVE_DRONE_COUNT = 3;
 export const HIVE_ORBIT_RADIUS = 1.55;
 export const HIVE_ORBIT_HEIGHT = 1.1;
 const HIVE_ORBIT_SPEED = 0.55; // rad/s
 
+// Phase angle uses a fixed denominator (HIVE_MAX_DRONES) so adding
+// drones via Path A doesn't reshuffle the existing drones' orbits —
+// the new drone slots in at its own index without disrupting the
+// already-flying ones.
 export const hiveDroneAngle = (tower: Tower, time: number, droneIdx: number): number =>
-  tower.id * 0.37 + (droneIdx * (2 * Math.PI)) / HIVE_DRONE_COUNT + time * HIVE_ORBIT_SPEED;
+  tower.id * 0.37 + (droneIdx * (2 * Math.PI)) / HIVE_MAX_DRONES + time * HIVE_ORBIT_SPEED;
 
-export const hiveDronePosition = (tower: Tower, time: number, droneIdx: number): Vec2 => {
-  const a = hiveDroneAngle(tower, time, droneIdx);
-  return {
-    x: tower.pos.x + Math.cos(a) * HIVE_ORBIT_RADIUS,
-    y: tower.pos.y + Math.sin(a) * HIVE_ORBIT_RADIUS,
-  };
+// Returns the orbit center for a drone — the assigned tower's position
+// when serviced, otherwise the hive's own position. Renderer + tooling
+// both call this so the visual + sim agree on where the drone "is."
+export const hiveDroneOrbitCenter = (hive: Tower, world: World, droneIdx: number): Vec2 => {
+  const targetId = hive.droneAssignments[droneIdx];
+  if (targetId === null || targetId === undefined) return hive.pos;
+  const target = world.towerById.get(targetId);
+  if (!target || target.kind === "hive") return hive.pos;
+  return target.pos;
 };
 
-const findTargetNearPos = (world: World, pos: Vec2, tower: Tower): Enemy | null => {
-  const r2 = tower.range * tower.range;
-  let best: Enemy | null = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-  let bestIsHealer = false;
-  // Sentinel mode (B2 upgrade): healers (anything with the healAura
-  // chip) are always preferred over anything else in range, regardless
-  // of distance. Within the healer pool we still pick the nearest. With
-  // no healer in range, falls back to nearest-of-anything.
-  for (const e of world.enemies) {
-    if (!e.alive) continue;
-    const d2 = distSq(e.pos, pos);
-    if (d2 > r2) continue;
-    const isHealer = e.healAura;
-    if (tower.prioritizeHealer) {
-      if (bestIsHealer && !isHealer) continue;
-      if (isHealer && !bestIsHealer) {
-        best = e;
-        bestScore = d2;
-        bestIsHealer = true;
-        continue;
-      }
-    }
-    if (d2 < bestScore) {
-      best = e;
-      bestScore = d2;
-      bestIsHealer = isHealer;
-    }
-  }
-  return best;
+export const hiveDronePosition = (
+  hive: Tower,
+  world: World,
+  time: number,
+  droneIdx: number,
+): Vec2 => {
+  const center = hiveDroneOrbitCenter(hive, world, droneIdx);
+  const a = hiveDroneAngle(hive, time, droneIdx);
+  return {
+    x: center.x + Math.cos(a) * HIVE_ORBIT_RADIUS,
+    y: center.y + Math.sin(a) * HIVE_ORBIT_RADIUS,
+  };
 };

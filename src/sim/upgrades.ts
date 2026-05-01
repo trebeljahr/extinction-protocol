@@ -329,65 +329,65 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
       ],
     },
   },
+  // Hive Swarm — pure support tower. Drones fly to assigned towers and
+  // grant them a fire-rate buff. Path A = more drones (3 → 4 → 5 → 6),
+  // Path B = stronger per-drone buff. Neither path adds damage; there's
+  // nothing to damage with.
   hive: {
     a: {
-      label: "Rotors",
+      label: "Drone Bay",
       tiers: [
         {
-          name: "Overclock",
-          desc: "+30% drone fire rate",
-          cost: 70,
+          name: "Spare Drone",
+          desc: "+1 drone (4 total)",
+          cost: 90,
           apply: (t) => {
-            t.fireRate *= 1.3;
+            t.droneCount = Math.min(6, t.droneCount + 1);
           },
         },
         {
-          name: "Shield-piercer",
-          desc: "Drones bypass shields, +10% damage",
-          cost: 140,
+          name: "Twin Bay",
+          desc: "+1 drone (5 total)",
+          cost: 160,
           apply: (t) => {
-            t.pierceShield = true;
-            t.damage *= 1.1;
+            t.droneCount = Math.min(6, t.droneCount + 1);
           },
         },
         {
-          name: "Ion Engines",
-          desc: "+40% fire rate, +0.6 range",
-          cost: 230,
+          name: "Full Squadron",
+          desc: "+1 drone (6 total)",
+          cost: 260,
           apply: (t) => {
-            t.fireRate *= 1.4;
-            t.range += 0.6;
+            t.droneCount = Math.min(6, t.droneCount + 1);
           },
         },
       ],
     },
     b: {
-      label: "Sting",
+      label: "Service Link",
       tiers: [
         {
-          name: "Barbed",
-          desc: "+45% drone damage",
-          cost: 60,
+          name: "Tuned Coils",
+          desc: "+15% service buff (45% total)",
+          cost: 80,
           apply: (t) => {
-            t.damage *= 1.45;
+            t.serviceBuff += 0.15;
           },
         },
         {
-          name: "Sentinel",
-          desc: "Drones prioritize healers, +20% damage",
-          cost: 120,
+          name: "Boosted Link",
+          desc: "+15% service buff (60% total)",
+          cost: 150,
           apply: (t) => {
-            t.prioritizeHealer = true;
-            t.damage *= 1.2;
+            t.serviceBuff += 0.15;
           },
         },
         {
-          name: "Shred",
-          desc: "+30% damage, +30% vs elites",
-          cost: 210,
+          name: "Overdrive",
+          desc: "+20% service buff (80% total)",
+          cost: 240,
           apply: (t) => {
-            t.damage *= 1.3;
-            t.eliteDamageBonus = 1.3;
+            t.serviceBuff += 0.2;
           },
         },
       ],
