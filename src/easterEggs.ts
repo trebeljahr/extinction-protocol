@@ -129,13 +129,13 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     id: "cabin",
     achievement: "cabin_smoke",
     biomes: ["snow"],
-    // Cabin.glb is the same broken mesh as forest/House.glb — both are the
-    // Atlas_Pirate.png "Environment_House2" mesh, which renders as half a
-    // pirate-ship hull. Tent.glb is the only intact shelter in the snow
-    // folder and reads correctly as a small wilderness outpost; smoke
-    // rising from a tent works the same way for the achievement.
-    model: "/models/landmarks/snow/Tent.glb",
-    targetSize: 2.5,
+    // Cabin.glb was the broken Atlas_Pirate.png "Environment_House2" mesh
+    // (same as forest/House.glb) — half a sunken pirate-ship hull. Replaced
+    // with kenney/hexagon-kit's building-cabin: a log cabin with a peaked
+    // roof on a small stone-tile base, which reads cleanly under the top-
+    // down camera as a wilderness shelter sitting on a rocky outcrop.
+    model: "/models/landmarks/snow/Cabin.glb",
+    targetSize: 2.6,
     clickThreshold: 1,
     effect: {
       particleColor: "#e2e8ee",

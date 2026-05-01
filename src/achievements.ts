@@ -186,7 +186,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "cabin_smoke",
     name: "Home Fires",
-    desc: "Make smoke rise from a snow shelter.",
+    desc: "Make smoke rise from a snow cabin.",
     hint: "Someone might still live there.",
     secrecy: "hint",
   },
