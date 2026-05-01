@@ -1262,33 +1262,30 @@
     color: #fff;
   }
 
-  /* Destructive action — faint red outline that brightens on hover.
-     Matches the visual idiom of the `Muted` toggle so progress-losing
-     actions read as a different lane from the cyan/blue safe actions. */
+  /* Destructive action — pink fill that intensifies on hover. Hover
+     keeps the pink text (no white-out) so the colour identity stays
+     stable through the press. */
   .btn-danger {
     background: var(--color-tint-pink);
     color: var(--color-pink);
     border-color: rgba(255, 122, 154, 0.45);
   }
   .btn-danger:hover:not(:disabled) {
-    background: rgba(255, 122, 154, 0.18);
+    background: rgba(255, 122, 154, 0.26);
     border-color: var(--color-pink);
-    color: #fff;
   }
 
-  /* Cautionary action — gray outline that warms toward orange on hover.
-     A middle lane between the cyan/blue safe buttons and the pink
-     destructive ones, used when an action loses progress but is less
-     final than (e.g.) returning to the world map. */
+  /* Cautionary action — same idiom as btn-danger but in amber, used
+     when the action loses progress but isn't as final as the destructive
+     pink lane (e.g. restarting a level vs. abandoning it). */
   .btn-warn {
-    background: transparent;
-    color: var(--color-fg-muted);
-    border-color: rgba(168, 180, 194, 0.4);
+    background: rgba(255, 178, 102, 0.12);
+    color: var(--color-orange);
+    border-color: rgba(255, 178, 102, 0.45);
   }
   .btn-warn:hover:not(:disabled) {
-    background: rgba(255, 178, 102, 0.1);
+    background: rgba(255, 178, 102, 0.24);
     border-color: var(--color-orange);
-    color: #fff;
   }
 
   /* Level node labels rendered via <Html>.
