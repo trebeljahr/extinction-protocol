@@ -16,6 +16,7 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
+    "check:enemy-text": "tsx scripts/check-enemy-text.ts",
     "prepare": "husky"
   },
   "dependencies": {

@@ -17,7 +17,7 @@ export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
   allosaur: "Apex predator. Balanced resistances — nothing crushes it, but nothing fails either.",
   stego: "Plated hide shrugs off kinetic and explosive. Electric cracks the plates.",
   armored:
-    "Juggernaut. Hardened against shock and blast. Kinetic is the only thing that gets through reliably. Heavy slow resistance.",
+    "Juggernaut. Hardened against shock and blast — no clear weakness, kinetic and cold both creep through. Heavy slow resistance leaves cryo without its slow.",
   titan:
     "Colossus. Resists nearly everything except cold. Heavy slow resistance — every step costs lives.",
 };

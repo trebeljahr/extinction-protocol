@@ -1,3 +1,4 @@
+import { ENEMY_DESCRIPTION } from "../sim/enemyText";
 import type { DamageType, EnemyChip } from "../sim/types";
 import {
   DAMAGE_TYPE_COLOR,
@@ -17,17 +18,6 @@ import {
 import { useGame } from "../store";
 
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
-
-const ENEMY_DESC: Record<string, string> = {
-  raptor: "Fast, lightly armored. Weak to shock.",
-  swarm: "Tiny, fragile, dangerous in numbers. Shock and AoE shred entire packs.",
-  para: "Agile runner. No real weakness — just out-DPS it.",
-  allosaur: "Balanced bruiser. No exploitable weakness.",
-  stego: "Armored back plates. Shrugs off kinetic and explosive — shock cracks them.",
-  armored:
-    "Juggernaut. Hardened against shock and blast. Kinetic gets through best. Heavy slow resistance.",
-  titan: "Colossus. Only cold meaningfully damages it. Heavy slow resistance.",
-};
 
 // Chip metadata — color + short tooltip. Layout reads consistently
 // across the panel so combos read at a glance ("Shielded Elite Stego").
@@ -121,7 +111,7 @@ export const EnemyPanel = () => {
               {alive ? "ALIVE" : "KILLED"}
             </span>
           </div>
-          <div className="panel-stats">{ENEMY_DESC[kind]}</div>
+          <div className="panel-stats">{ENEMY_DESCRIPTION[kind]}</div>
         </div>
         <button
           type="button"
