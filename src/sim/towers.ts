@@ -117,7 +117,7 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
 // Flamethrower — burns everything inside a forward cone. Damage is small
 // but applied frequently so it reads as DoT on anything lingering in the
 // stream.
-const FLAME_HALF_CONE = Math.PI / 4; // 45° → 90° total spread
+const FLAME_HALF_CONE = Math.PI / 5; // 36° → 72° total spread
 const FLAME_COS_HALF = Math.cos(FLAME_HALF_CONE);
 
 const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
@@ -209,7 +209,11 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   );
   // Outer red wash + trailing embers — sized so axial embers land right at
   // the damage-cone edge (range), so the visible wall matches what burns.
-  spawnParticles(world, nozzle, 6, "#ff5a30", speedRange(redLife, 1.0), redLife, dir, Math.PI / 4);
+  // Count + cone tuned down vs. the centerline layers because the additive
+  // blending stacks the wash on bright biome surfaces (lit snow albedo runs
+  // ~1.7-1.9 in linear and already blooms) and a thick wash piled the whole
+  // cone into white over the underlying scene.
+  spawnParticles(world, nozzle, 4, "#ff5a30", speedRange(redLife, 1.0), redLife, dir, Math.PI / 5);
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
