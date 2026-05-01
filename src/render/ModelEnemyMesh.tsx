@@ -294,7 +294,10 @@ export const ModelEnemyMesh = ({
           }
           if (!mm.emissive) return;
           if (flashing) {
-            mm.emissive.setRGB(1, 1, 1);
+            // Warm-tinted, dimmed flash instead of pure white at full
+            // intensity — reads as "got hit" without the harsh clinical
+            // pop the (1,1,1) version had against varied dino base colors.
+            mm.emissive.setRGB(0.7, 0.6, 0.5);
           } else if (frost > 0.05) {
             // Cool inner glow when heavily frosted — sells the "frozen
             // solid" read at high frost without a halo at low frost.
