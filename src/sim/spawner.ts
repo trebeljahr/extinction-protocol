@@ -9,6 +9,10 @@ export const WAVE_ARCHETYPE_LABEL: Record<WaveArchetype, string> = {
   swarm: "Swarm rush",
   heavy: "Armored push",
   chaos: "Chaos",
+  vanguard: "Vanguard",
+  echelon: "Echelon",
+  trickle: "Trickle",
+  convoy: "Convoy",
 };
 
 export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
@@ -17,7 +21,13 @@ export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
   swarm: "favors AoE towers",
   heavy: "favors single-target",
   chaos: "bring everything",
+  vanguard: "elites lead, swarm trails",
+  echelon: "tiered escalation in order",
+  trickle: "long sparse spacing",
+  convoy: "tank flanked by escorts",
 };
+
+const ORDERED_ARCHETYPES = new Set<WaveArchetype>(["swarm", "vanguard", "echelon", "convoy"]);
 
 const inferArchetype = (spec: WaveSpec): WaveArchetype => {
   const counts: Partial<Record<EnemyKind, number>> = {};
@@ -53,7 +63,7 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
     for (let i = 0; i < s.count; i++) out.push({ kind: s.kind, pathIndex });
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
-  if (archetype === "swarm") return out;
+  if (ORDERED_ARCHETYPES.has(archetype)) return out;
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];

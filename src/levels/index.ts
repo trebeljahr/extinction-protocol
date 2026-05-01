@@ -81,6 +81,57 @@ const split = (
   spawns: groups.flatMap(([pi, c]) => toSpawns(c, pi)),
 });
 
+// Vanguard: 1-3 elites lead, then a trailing swarm/mixed group. Order
+// preserved (elites first), so the player decides whether to focus the
+// elite or save burst for the trail.
+const vanguard = (
+  lead: EnemyCounts,
+  trail: EnemyCounts,
+  spacing = 0.55,
+  pathIndex = 0,
+): WaveSpec => ({
+  archetype: "vanguard",
+  spacing,
+  spawns: [...toSpawns(lead, pathIndex), ...toSpawns(trail, pathIndex)],
+});
+
+// Echelon: tiered escalation in fixed order — pass tiers small→large. The
+// roster is preserved so each tier hits the lane before the next arrives,
+// pressuring the player to adapt targeting modes mid-wave.
+const echelon = (tiers: EnemyCounts[], spacing = 0.45, pathIndex = 0): WaveSpec => ({
+  archetype: "echelon",
+  spacing,
+  spawns: tiers.flatMap((c) => toSpawns(c, pathIndex)),
+});
+
+// Trickle: wide spacing, fewer-but-tougher singles. Tests sustained DPS
+// efficiency rather than peak burst — long, slow, grinding.
+const trickle = (c: EnemyCounts, spacing = 1.6, pathIndex = 0): WaveSpec => ({
+  archetype: "trickle",
+  spacing,
+  spawns: toSpawns(c, pathIndex),
+});
+
+// Convoy: escorts → tank → escorts. The tank is sandwiched, so it's hard
+// to focus without letting the trailing escorts through. Counts the
+// escort split so half lead, half trail.
+const convoy = (
+  escortKind: EnemyKind,
+  escortCount: number,
+  tankKind: EnemyKind,
+  tankCount = 1,
+  spacing = 0.5,
+  pathIndex = 0,
+): WaveSpec => ({
+  archetype: "convoy",
+  spacing,
+  spawns: [
+    { kind: escortKind, count: Math.ceil(escortCount / 2), pathIndex },
+    { kind: tankKind, count: tankCount, pathIndex },
+    { kind: escortKind, count: Math.floor(escortCount / 2), pathIndex },
+  ],
+});
+
 export const LEVELS: LevelConfig[] = [
   {
     id: 1,
@@ -412,7 +463,7 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       mixed({ raptor: 18, swarm: 14, allosaur: 5 }),
       rush(75, 14),
-      mixed({ raptor: 22, swarm: 16, allosaur: 6, stego: 3 }),
+      vanguard({ stego: 2, allosaur: 4 }, { raptor: 22, swarm: 18 }),
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
       chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }),
       rush(120, 26),
@@ -435,7 +486,7 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 20, swarm: 14, allosaur: 6, stego: 2 }),
       rush(80, 16),
       heavy({ armored: 8, stego: 4, allosaur: 4 }),
-      mixed({ raptor: 24, swarm: 18, allosaur: 9, stego: 5, armored: 2 }),
+      echelon([{ raptor: 22, swarm: 18 }, { allosaur: 8, stego: 4 }, { armored: 4 }]),
       chaos({ raptor: 20, swarm: 26, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
       rush(125, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
@@ -577,7 +628,7 @@ export const LEVELS: LevelConfig[] = [
       chaos({ raptor: 22, swarm: 28, allosaur: 8, stego: 4, armored: 2 }),
       rush(105, 22),
       heavy({ armored: 14, stego: 7, allosaur: 6, titan: 1 }),
-      mixed({ raptor: 28, swarm: 24, allosaur: 10, stego: 6 }),
+      trickle({ stego: 6, armored: 4, allosaur: 8 }),
       chaos({ raptor: 24, swarm: 32, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
       heavy({ armored: 18, stego: 9, allosaur: 7, titan: 2 }),
       rush(120, 28),
@@ -598,7 +649,7 @@ export const LEVELS: LevelConfig[] = [
       intro(22, 18),
       mixed({ raptor: 24, swarm: 18, allosaur: 7, stego: 3 }),
       rush(100, 22),
-      heavy({ armored: 12, stego: 6, allosaur: 5 }),
+      convoy("allosaur", 14, "armored", 6),
       mixed({ raptor: 28, swarm: 24, allosaur: 10, stego: 6 }),
       chaos({ raptor: 24, swarm: 32, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
       rush(120, 28),

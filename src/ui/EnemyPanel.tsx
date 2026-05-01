@@ -12,12 +12,13 @@ const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosi
 
 const ENEMY_DESC: Record<string, string> = {
   raptor: "Fast, lightly armored. Weak to shock.",
-  swarm: "Tiny, fast, fragile. Comes in huge numbers — built for AoE.",
+  swarm: "Tiny, fragile, dangerous in numbers. Shock and AoE shred entire packs.",
+  para: "Agile runner. No real weakness — just out-DPS it.",
   allosaur: "Balanced bruiser. No exploitable weakness.",
-  stego:
-    "Armored back plates. Shrugs off kinetic; cracks under explosives. Partially resists chill.",
+  stego: "Armored back plates. Shrugs off kinetic and explosive — shock cracks them.",
   armored:
-    "Juggernaut. Hardened against blast and shock. Heavy momentum shrugs off chill — only kinetic reliably hurts.",
+    "Juggernaut. Hardened against shock and blast. Kinetic gets through best. Heavy slow resistance.",
+  titan: "Colossus. Only cold meaningfully damages it. Heavy slow resistance.",
 };
 
 export const EnemyPanel = () => {

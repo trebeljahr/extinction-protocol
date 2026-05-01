@@ -11,13 +11,13 @@ export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
 };
 
 export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
-  raptor: "Fast pack hunter. Low HP but keeps coming — electric chains melt entire groups.",
-  swarm: "Tiny and numerous. Only dangerous in crowds. Splash weapons clear them instantly.",
-  para: "Agile herbivore with no strong weaknesses. Pressure it with raw damage.",
-  allosaur:
-    "Apex predator. Balanced resistances — nothing special works, but nothing fails either.",
-  stego: "Plated back soaks kinetic hits. Crack them open with explosives.",
-  armored: "Juggernaut. Resists most damage; only electric and explosive make a dent.",
+  raptor: "Fast pack hunter. Low HP but keeps coming — electric chains chew through them.",
+  swarm: "Tiny and fragile, but never alone. Electric arcs and AoE shred entire packs.",
+  para: "Agile runner with no real weakness. Out-DPS it before it slips through.",
+  allosaur: "Apex predator. Balanced resistances — nothing crushes it, but nothing fails either.",
+  stego: "Plated hide shrugs off kinetic and explosive. Electric cracks the plates.",
+  armored:
+    "Juggernaut. Hardened against shock and blast. Kinetic is the only thing that gets through reliably. Heavy slow resistance.",
   titan:
-    "Colossal. Shrugs off anything that isn't cold or brute bombardment. Slow, but every step costs lives.",
+    "Colossus. Resists nearly everything except cold. Heavy slow resistance — every step costs lives.",
 };

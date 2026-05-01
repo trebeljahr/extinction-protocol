@@ -138,7 +138,16 @@ export type EnemySpec = {
   pathIndex?: number;
 };
 
-export type WaveArchetype = "intro" | "mixed" | "swarm" | "heavy" | "chaos";
+export type WaveArchetype =
+  | "intro"
+  | "mixed"
+  | "swarm"
+  | "heavy"
+  | "chaos"
+  | "vanguard"
+  | "echelon"
+  | "trickle"
+  | "convoy";
 
 export type WaveSpec = {
   spawns: EnemySpec[];
