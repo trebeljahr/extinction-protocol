@@ -1262,9 +1262,9 @@
     color: #fff;
   }
 
-  /* Destructive action — pink fill that intensifies on hover. Hover
-     keeps the pink text (no white-out) so the colour identity stays
-     stable through the press. */
+  /* Destructive action — pink fill that intensifies on hover. Text
+     brightens in the same hue (no white-out) so the colour identity
+     stays stable through the press. */
   .btn-danger {
     background: var(--color-tint-pink);
     color: var(--color-pink);
@@ -1273,6 +1273,7 @@
   .btn-danger:hover:not(:disabled) {
     background: rgba(255, 122, 154, 0.26);
     border-color: var(--color-pink);
+    color: color-mix(in srgb, var(--color-pink), white 30%);
   }
 
   /* Cautionary action — same idiom as btn-danger but in amber, used
@@ -1286,6 +1287,7 @@
   .btn-warn:hover:not(:disabled) {
     background: rgba(255, 178, 102, 0.24);
     border-color: var(--color-orange);
+    color: color-mix(in srgb, var(--color-orange), white 30%);
   }
 
   /* Level node labels rendered via <Html>.
