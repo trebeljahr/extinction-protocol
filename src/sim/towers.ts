@@ -181,27 +181,25 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   const redLife = 0.7;
 
   // Hot inner jet — narrowish, fast, short-lived; reaches ~70% down the cone.
-  // Both the count and color are tuned conservatively because additive
-  // blending stacks these on top of the orange/red layers and the centerline
-  // otherwise reads as a blown-out white-hot core.
+  // One particle per tick is enough — the per-particle brightness boost
+  // (Effects.tsx) ramps newly-spawned particles to ~2.2× and overlapping
+  // tick spawns already pile a visible hot core on the centerline.
   spawnParticles(
     world,
     nozzle,
-    2,
+    1,
     "#ffae50",
     speedRange(yellowLife, 0.7),
     yellowLife,
     dir,
     Math.PI / 10,
   );
-  // Mid orange flames — main flame body, fills most of the cone. Fewer
-  // particles than before so the center axis (where this layer overlaps the
-  // inner jet) doesn't pile up brightness. Cone kept just inside the
-  // damage cone so the body stays visibly contained.
+  // Mid orange flames — main flame body, fills most of the cone. Cone kept
+  // just inside the damage cone so the body stays visibly contained.
   spawnParticles(
     world,
     nozzle,
-    6,
+    4,
     "#ffa040",
     speedRange(orangeLife, 0.9),
     orangeLife,
@@ -210,11 +208,11 @@ const spawnFlameStream = (world: World, t: Tower, target: Enemy) => {
   );
   // Outer red wash + trailing embers — sized so axial embers land right at
   // the damage-cone edge (range), so the visible wall matches what burns.
-  // Count + cone tuned down vs. the centerline layers because the additive
-  // blending stacks the wash on bright biome surfaces (lit snow albedo runs
-  // ~1.7-1.9 in linear and already blooms) and a thick wash piled the whole
-  // cone into white over the underlying scene.
-  spawnParticles(world, nozzle, 4, "#ff5a30", speedRange(redLife, 1.0), redLife, dir, Math.PI / 6);
+  // Counts intentionally thin: the particle material is additive +
+  // toneMapped:false, so each layer adds linearly to the framebuffer and
+  // a dense stream paints the cone white over bright biome surfaces (lit
+  // snow albedo already runs ~1.7-1.9 in linear and blooms on its own).
+  spawnParticles(world, nozzle, 2, "#e8492a", speedRange(redLife, 1.0), redLife, dir, Math.PI / 6);
 };
 
 const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
