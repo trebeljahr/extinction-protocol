@@ -80,7 +80,7 @@ export const PauseMenu = ({ onResume }: Props) => {
         </button>
         <button
           type="button"
-          className="btn btn-danger w-full"
+          className="btn btn-warn w-full"
           onClick={() => setConfirming("restart")}
         >
           Restart

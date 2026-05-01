@@ -845,6 +845,15 @@
     place-items: center;
     background: rgba(8, 12, 18, 0.7);
     pointer-events: auto;
+    /* Reset cursor in case body inherited a `pointer` from a 3D hover
+       handler (Trees / Rocks / LevelNode) that was active when the modal
+       opened — without this the entire overlay shows a clickable cursor. */
+    cursor: default;
+  }
+  /* MenuOverlay flags itself with role="presentation" since the backdrop
+     is a click-to-close target; pointer cursor signals that affordance. */
+  .overlay[role="presentation"] {
+    cursor: pointer;
   }
 
   .overlay-card {
@@ -854,6 +863,7 @@
     padding: 28px 36px;
     text-align: center;
     min-width: 320px;
+    cursor: default;
   }
 
   .overlay-card h1 {
@@ -1263,6 +1273,21 @@
   .btn-danger:hover:not(:disabled) {
     background: rgba(255, 122, 154, 0.18);
     border-color: var(--color-pink);
+    color: #fff;
+  }
+
+  /* Cautionary action — gray outline that warms toward orange on hover.
+     A middle lane between the cyan/blue safe buttons and the pink
+     destructive ones, used when an action loses progress but is less
+     final than (e.g.) returning to the world map. */
+  .btn-warn {
+    background: transparent;
+    color: var(--color-fg-muted);
+    border-color: rgba(168, 180, 194, 0.4);
+  }
+  .btn-warn:hover:not(:disabled) {
+    background: rgba(255, 178, 102, 0.1);
+    border-color: var(--color-orange);
     color: #fff;
   }
 
