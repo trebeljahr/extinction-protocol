@@ -487,7 +487,30 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   armored: { kind: "armored", hp: 300, maxHp: 300, speed: 1.1, bounty: 22, damage: 1 },
   para: { kind: "para", hp: 45, maxHp: 45, speed: 1.8, bounty: 5, damage: 2 },
   titan: { kind: "titan", hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
+  medic: { kind: "medic", hp: 80, maxHp: 80, speed: 1.0, bounty: 6, damage: 1 },
 };
+
+// Per-kind shield pool used when a spec marks an enemy as shielded.
+// Swarm units are too small to support a visible bubble — they always
+// run unshielded regardless of spec flags.
+export const SHIELD_BY_KIND: Record<EnemyKind, number> = {
+  raptor: 10,
+  allosaur: 35,
+  stego: 80,
+  swarm: 0,
+  armored: 120,
+  para: 25,
+  titan: 400,
+  medic: 60,
+};
+
+export const SHIELD_REGEN_DELAY = 4;
+// Fraction of maxShield restored per second once regen kicks in.
+export const SHIELD_REGEN_RATE = 0.25;
+
+// Healer tuning — see updateMedicHeal in defensive.ts.
+export const MEDIC_HEAL_RANGE = 3.5;
+export const MEDIC_HEAL_RATE = 3;
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
   pulse: "kinetic",
@@ -520,6 +543,10 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
   titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
+  // Glass-cannon support unit. Flat 1× across the board so the only thing
+  // protecting it is range + healers stacking — no exploitable resist
+  // window to dodge focus-fire.
+  medic: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
 };
 
 export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
@@ -530,7 +557,19 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
   armored: 0.75,
   para: 0,
   titan: 0.5,
+  medic: 0,
 };
+
+// Elite tuning — applied at spawn, derived in applyDamage / applySlow.
+export const ELITE_HP_MUL = 1.5;
+export const ELITE_DAMAGE_MUL = 1.3;
+export const ELITE_BOUNTY_MUL = 1.5;
+export const ELITE_SLOW_RESIST_BONUS = 0.2;
+export const ELITE_SLOW_RESIST_CAP = 0.95;
+// Resist multipliers shift toward 1.0 by this fraction (smaller spread,
+// no easy weakness to exploit).
+export const ELITE_RESIST_FLATTEN = 0.1;
+export const ELITE_SCALE_MUL = 1.1;
 
 export const MIN_SLOW_FACTOR = 0.25;
 
@@ -542,6 +581,10 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   stego: { url: "/models/Stegosaurus.glb", targetSize: 1.9 },
   armored: { url: "/models/Triceratops.glb", targetSize: 2.0 },
   titan: { url: "/models/Apatosaurus.glb", targetSize: 11.0, clip: "Walk" },
+  // Reuse the parasaur model at compact size — the green aura ring is the
+  // main read for "this one heals," and the smaller silhouette + lack of
+  // crested head separates it visually from the para variant up close.
+  medic: { url: "/models/Parasaurolophus.glb", targetSize: 1.3 },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
@@ -552,6 +595,7 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
   armored: "Triceratops",
   para: "Parasaur",
   titan: "Apatosaur",
+  medic: "Medic",
 };
 
 export const applyDamage = (
@@ -561,10 +605,34 @@ export const applyDamage = (
   type: DamageType,
   deathColor = "#c44848",
   deathParticles = 8,
+  pierceShield = false,
 ) => {
   if (!enemy.alive) return;
-  const mul = ENEMY_RESIST[enemy.kind][type];
-  enemy.hp -= amount * mul;
+  let dmg = amount;
+
+  // Shields absorb damage flat (ignoring damage type) before HP, unless
+  // the source flagged itself as shield-piercing (hive A2 upgrade). The
+  // resist multiplier only applies to the leftover dealt to HP, so a
+  // shielded raptor still takes proper electric scaling once cracked.
+  if (!pierceShield && enemy.shield > 0) {
+    const absorbed = Math.min(enemy.shield, dmg);
+    enemy.shield -= absorbed;
+    dmg -= absorbed;
+    enemy.flashUntil = world.time + 0.08;
+    if (enemy.shield <= 0) {
+      enemy.shield = 0;
+      enemy.shieldBrokenAt = world.time;
+      // Visible "break" pop — light blue energy burst around the enemy.
+      spawnParticles(world, enemy.pos, 12, "#7fc8ff", [3, 6], 0.45);
+    }
+    if (dmg <= 0) return;
+  }
+
+  const baseMul = ENEMY_RESIST[enemy.kind][type];
+  // Elites flatten the resist spread toward 1.0 — fewer hard counters,
+  // fewer free wins. Stego elites still resist kinetic, just less.
+  const mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+  enemy.hp -= dmg * mul;
   enemy.flashUntil = world.time + 0.08;
   if (enemy.hp <= 0) {
     enemy.alive = false;
@@ -585,13 +653,34 @@ const LATERAL_OFFSET_BY_KIND: Record<EnemyKind, number> = {
   stego: PATH_WIDTH * 0.2,
   armored: PATH_WIDTH * 0.2,
   titan: PATH_WIDTH * 0.08,
+  medic: PATH_WIDTH * 0.3,
 };
 
-export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex = 0): Enemy => {
+export type SpawnOptions = {
+  hpMul?: number;
+  pathIndex?: number;
+  shielded?: boolean;
+  elite?: boolean;
+};
+
+export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {}): Enemy => {
+  const { hpMul = 1, pathIndex = 0, shielded = false, elite = false } = opts;
   const base = ENEMY_STATS[kind];
   const path = world.paths[pathIndex] ?? world.paths[0];
   const start = path[0];
-  const hp = Math.ceil(base.hp * hpMul);
+  let maxHp = Math.ceil(base.hp * hpMul);
+  let damage = base.damage;
+  let bounty = base.bounty;
+  if (elite) {
+    maxHp = Math.ceil(maxHp * ELITE_HP_MUL);
+    damage = Math.ceil(damage * ELITE_DAMAGE_MUL);
+    bounty = Math.ceil(bounty * ELITE_BOUNTY_MUL);
+  }
+  // Shield pool is fixed by kind (not scaled by hpMul) — that way the
+  // tutorial-feel of cracking a raptor's 10-pt bubble doesn't erode at
+  // late levels where hpMul is high.
+  const baseShield = SHIELD_BY_KIND[kind] ?? 0;
+  const maxShield = shielded && baseShield > 0 ? baseShield : 0;
   // Bias away from zero so enemies actually spread — pure uniform often
   // clusters near 0 visually when there are only a handful on screen.
   const range = LATERAL_OFFSET_BY_KIND[kind];
@@ -604,16 +693,20 @@ export const spawnEnemy = (world: World, kind: EnemyKind, hpMul = 1, pathIndex =
     segment: 0,
     segmentT: 0,
     lateralOffset,
-    hp,
-    maxHp: hp,
+    hp: maxHp,
+    maxHp,
     speed: base.speed,
-    bounty: base.bounty,
-    damage: base.damage,
+    bounty,
+    damage,
     alive: true,
     slowUntil: 0,
     slowFactor: 1,
     flashUntil: 0,
     frost: 0,
+    shield: maxShield,
+    maxShield,
+    shieldBrokenAt: 0,
+    elite,
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);
@@ -741,6 +834,9 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     slowFactor: stats.slowFactor,
     slowDuration: stats.slowDuration,
     droneTargetIds: kind === "hive" ? [null, null, null] : [],
+    pierceShield: false,
+    prioritizeMedic: false,
+    eliteDamageBonus: 1,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);
@@ -771,6 +867,7 @@ export const createProjectile = (
     speed,
     splashRadius,
     alive: true,
+    pierceShield: false,
   };
   world.projectiles.push(p);
   return p;
@@ -863,7 +960,10 @@ export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
   samplePath(world.paths[enemy.pathIndex], enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
-  const resist = ENEMY_SLOW_RESIST[enemy.kind];
+  const baseResist = ENEMY_SLOW_RESIST[enemy.kind];
+  const resist = enemy.elite
+    ? Math.min(ELITE_SLOW_RESIST_CAP, baseResist + ELITE_SLOW_RESIST_BONUS)
+    : baseResist;
   const resisted = factor + (1 - factor) * resist;
   const eff = Math.max(MIN_SLOW_FACTOR, resisted);
   if (eff >= 1) return;

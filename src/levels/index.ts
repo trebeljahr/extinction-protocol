@@ -26,6 +26,7 @@ type EnemyCounts = {
   stego?: number;
   armored?: number;
   titan?: number;
+  medic?: number;
 };
 
 const SPAWN_ORDER: EnemyKind[] = [
@@ -36,10 +37,19 @@ const SPAWN_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
+  "medic",
 ];
 
-const toSpawns = (c: EnemyCounts, pathIndex = 0): EnemySpec[] =>
-  SPAWN_ORDER.filter((k) => (c[k] ?? 0) > 0).map((k) => ({ kind: k, count: c[k]!, pathIndex }));
+type SpawnFlags = { shielded?: boolean; elite?: boolean };
+
+const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemySpec[] =>
+  SPAWN_ORDER.filter((k) => (c[k] ?? 0) > 0).map((k) => ({
+    kind: k,
+    count: c[k]!,
+    pathIndex,
+    ...(flags.shielded ? { shielded: true } : {}),
+    ...(flags.elite ? { elite: true } : {}),
+  }));
 
 const intro = (raptor: number, swarm = 0, pathIndex = 0): WaveSpec => ({
   archetype: "intro",
@@ -81,20 +91,6 @@ const split = (
   spawns: groups.flatMap(([pi, c]) => toSpawns(c, pi)),
 });
 
-// Vanguard: 1-3 elites lead, then a trailing swarm/mixed group. Order
-// preserved (elites first), so the player decides whether to focus the
-// elite or save burst for the trail.
-const vanguard = (
-  lead: EnemyCounts,
-  trail: EnemyCounts,
-  spacing = 0.55,
-  pathIndex = 0,
-): WaveSpec => ({
-  archetype: "vanguard",
-  spacing,
-  spawns: [...toSpawns(lead, pathIndex), ...toSpawns(trail, pathIndex)],
-});
-
 // Echelon: tiered escalation in fixed order — pass tiers small→large. The
 // roster is preserved so each tier hits the lane before the next arrives,
 // pressuring the player to adapt targeting modes mid-wave.
@@ -129,6 +125,37 @@ const convoy = (
     { kind: escortKind, count: Math.ceil(escortCount / 2), pathIndex },
     { kind: tankKind, count: tankCount, pathIndex },
     { kind: escortKind, count: Math.floor(escortCount / 2), pathIndex },
+  ],
+});
+
+// Shielded variant of `mixed` — every enemy in the group spawns with
+// its kind's shield pool. Good for teaching: shield breaks → kill.
+const shielded = (
+  c: EnemyCounts,
+  spacing = 0.55,
+  pathIndex = 0,
+  archetype: WaveArchetype = "mixed",
+): WaveSpec => ({
+  archetype,
+  spacing,
+  spawns: toSpawns(c, pathIndex, { shielded: true }),
+});
+
+// Mixed wave with two groups: shielded and unshielded portions. Authored
+// per-group so spec readers can see the intent rather than counting
+// shielded flags individually.
+const partShielded = (
+  shielded: EnemyCounts,
+  unshielded: EnemyCounts,
+  spacing = 0.5,
+  pathIndex = 0,
+  archetype: WaveArchetype = "mixed",
+): WaveSpec => ({
+  archetype,
+  spacing,
+  spawns: [
+    ...toSpawns(shielded, pathIndex, { shielded: true }),
+    ...toSpawns(unshielded, pathIndex),
   ],
 });
 
@@ -362,13 +389,17 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       intro(16, 12),
       mixed({ raptor: 18, swarm: 14, allosaur: 5, stego: 2 }),
+      // First taste of shields: a small raptor shielded pack. The 10pt
+      // bubble breaks fast — the lesson is "shield first, body second."
+      shielded({ raptor: 12 }, 0.55),
       rush(80, 14),
+      // Shielded raptors mixed into a regular pack so the player has to
+      // notice mid-wave which targets are still buffered.
+      partShielded({ raptor: 8 }, { raptor: 14, swarm: 16, allosaur: 5 }, 0.5),
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
-      mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 4, armored: 2 }),
       rush(120, 24),
+      mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 4, armored: 2 }),
       heavy({ armored: 12, stego: 7, allosaur: 5 }),
-      chaos({ raptor: 20, swarm: 28, allosaur: 9, stego: 6, armored: 5, titan: 1 }),
-      heavy({ armored: 14, stego: 7, allosaur: 6 }),
       chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 7, titan: 2 }),
     ],
   },
@@ -392,7 +423,17 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 12, swarm: 8, allosaur: 3 }],
       ),
       split("swarm", 0.1, [0, { swarm: 50 }], [1, { swarm: 50 }]),
-      split("heavy", 0.9, [0, { armored: 5, stego: 2 }], [1, { armored: 5, stego: 2 }]),
+      // First armored shields: focus-fire pressure on a tank that
+      // already eats kinetic only. Splash bounces off the bubble — the
+      // wave teaches that DoT and chip damage are the answer.
+      {
+        archetype: "heavy",
+        spacing: 0.9,
+        spawns: [
+          ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
+          ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
+        ],
+      },
       split(
         "mixed",
         0.5,
@@ -406,12 +447,18 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 12, swarm: 14, allosaur: 4, stego: 2, armored: 1 }],
       ),
       split("swarm", 0.09, [0, { swarm: 55 }], [1, { swarm: 55, raptor: 10 }]),
-      split(
-        "heavy",
-        0.85,
-        [0, { armored: 7, stego: 3, allosaur: 3 }],
-        [1, { armored: 7, stego: 3, allosaur: 3 }],
-      ),
+      // Shielded armored convoy on both lanes — the punctuation wave for
+      // L12. Each shielded armored is effectively a 420hp brick.
+      {
+        archetype: "heavy",
+        spacing: 0.85,
+        spawns: [
+          ...toSpawns({ armored: 6, stego: 2 }, 0, { shielded: true }),
+          ...toSpawns({ allosaur: 3 }, 0),
+          ...toSpawns({ armored: 6, stego: 2 }, 1, { shielded: true }),
+          ...toSpawns({ allosaur: 3 }, 1),
+        ],
+      },
       split(
         "chaos",
         0.28,
@@ -463,13 +510,42 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       mixed({ raptor: 18, swarm: 14, allosaur: 5 }),
       rush(75, 14),
-      vanguard({ stego: 2, allosaur: 4 }, { raptor: 22, swarm: 18 }),
+      // First medic encounter: 3 medics escorted by a small swarm so the
+      // priority decision is visible — burn the medics or watch the
+      // pack heal. Convoy archetype keeps the medics sandwiched.
+      {
+        archetype: "convoy",
+        spacing: 0.55,
+        spawns: [
+          { kind: "raptor", count: 6, pathIndex: 0 },
+          { kind: "medic", count: 3, pathIndex: 0 },
+          { kind: "raptor", count: 6, pathIndex: 0 },
+        ],
+      },
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
+      // Medic-supported armored push — the heal aura turns 4 armored into
+      // a chip war if the medics aren't picked off.
+      {
+        archetype: "heavy",
+        spacing: 0.9,
+        spawns: [
+          ...toSpawns({ armored: 4, stego: 3, allosaur: 3 }),
+          { kind: "medic", count: 2, pathIndex: 0 },
+        ],
+      },
       chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }),
       rush(120, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
-      mixed({ raptor: 26, swarm: 22, allosaur: 12, stego: 7, armored: 4 }),
-      chaos({ raptor: 22, swarm: 28, allosaur: 10, stego: 7, armored: 5, titan: 1 }),
+      // Medics riding with a chaos pack — the heal trickle keeps swarm
+      // stragglers alive long enough to break through.
+      {
+        archetype: "chaos",
+        spacing: 0.3,
+        spawns: [
+          ...toSpawns({ raptor: 22, swarm: 24, allosaur: 9, stego: 5, armored: 3 }),
+          { kind: "medic", count: 3, pathIndex: 0 },
+        ],
+      },
       heavy({ armored: 16, stego: 8, allosaur: 6, titan: 2 }),
       chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 8, armored: 7, titan: 2 }),
     ],
@@ -487,10 +563,32 @@ export const LEVELS: LevelConfig[] = [
       rush(80, 16),
       heavy({ armored: 8, stego: 4, allosaur: 4 }),
       echelon([{ raptor: 22, swarm: 18 }, { allosaur: 8, stego: 4 }, { armored: 4 }]),
+      // Shielded medics behind raptor cover — the shield blunts focus
+      // fire, the heal aura props the cover up. Hive's sentinel
+      // upgrade carves through this wave; nothing else really does.
+      {
+        archetype: "convoy",
+        spacing: 0.5,
+        spawns: [
+          { kind: "raptor", count: 8, pathIndex: 0 },
+          { kind: "medic", count: 3, pathIndex: 0, shielded: true },
+          { kind: "raptor", count: 8, pathIndex: 0 },
+        ],
+      },
       chaos({ raptor: 20, swarm: 26, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
       rush(125, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
-      mixed({ raptor: 28, swarm: 22, allosaur: 12, stego: 7, armored: 3 }),
+      // Shielded medic + shielded armored escort. Priority puzzle: break
+      // an armored shield only to have a medic top it back up.
+      {
+        archetype: "heavy",
+        spacing: 0.85,
+        spawns: [
+          ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
+          { kind: "medic", count: 2, pathIndex: 0, shielded: true },
+          ...toSpawns({ allosaur: 5 }),
+        ],
+      },
       heavy({ armored: 16, stego: 9, allosaur: 6, titan: 2 }),
       chaos({ raptor: 30, swarm: 40, allosaur: 12, stego: 7, armored: 6, titan: 2 }),
     ],
@@ -509,12 +607,57 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 24, swarm: 20, para: 6, allosaur: 7, stego: 4 }),
       chaos({ raptor: 20, swarm: 26, para: 5, allosaur: 8, stego: 5, armored: 3 }),
       rush(130, 28),
-      heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
+      // Elite debut: a single elite stego leads, plain pack trails.
+      // 1.5× HP + flattened resists + 1.1× scale + ELITE badge — the
+      // first time the player sees one mid-pack the silhouette pops.
+      {
+        archetype: "vanguard",
+        spacing: 0.55,
+        spawns: [
+          ...toSpawns({ stego: 1 }, 0, { elite: true }),
+          ...toSpawns({ raptor: 18, allosaur: 6, stego: 4 }),
+        ],
+      },
       mixed({ raptor: 28, swarm: 24, para: 8, allosaur: 12, stego: 7, armored: 3 }),
-      chaos({ raptor: 24, swarm: 30, allosaur: 11, stego: 6, armored: 4, titan: 1 }),
+      // Elite armored breach — two of them. Flattened resists mean
+      // explosive stops being free; you need raw kinetic and uptime.
+      {
+        archetype: "heavy",
+        spacing: 0.9,
+        spawns: [
+          ...toSpawns({ armored: 2 }, 0, { elite: true }),
+          ...toSpawns({ stego: 5, allosaur: 6, titan: 1 }),
+        ],
+      },
       heavy({ armored: 16, stego: 9, allosaur: 7, titan: 2 }),
-      chaos({ raptor: 30, swarm: 40, allosaur: 12, stego: 8, armored: 7, titan: 2 }),
-      chaos({ raptor: 36, swarm: 48, para: 12, allosaur: 16, stego: 10, armored: 9, titan: 4 }),
+      // Mixed-defense penultimate: shielded medics + plain push. Tests
+      // whether the player can sustain anti-shield + anti-heal at once.
+      {
+        archetype: "chaos",
+        spacing: 0.3,
+        spawns: [
+          { kind: "medic", count: 3, pathIndex: 0, shielded: true },
+          ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
+        ],
+      },
+      // Finale: elite armored + elite stego in a chaos finale. Boss-feel
+      // without inventing a boss class — the elite tag does the work.
+      {
+        archetype: "chaos",
+        spacing: 0.3,
+        spawns: [
+          ...toSpawns({ armored: 2, stego: 2 }, 0, { elite: true }),
+          ...toSpawns({
+            raptor: 30,
+            swarm: 38,
+            para: 10,
+            allosaur: 12,
+            stego: 6,
+            armored: 5,
+            titan: 3,
+          }),
+        ],
+      },
     ],
   },
   {

@@ -280,7 +280,7 @@ export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.f
   ACHIEVEMENTS.map((a) => [a.id, a]),
 ) as Record<AchievementId, AchievementDef>;
 
-export const TOTAL_ENEMY_KINDS = 7;
+export const TOTAL_ENEMY_KINDS = 8;
 
 const ALL_TOWER_KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
 const ALL_ENEMY_KINDS: EnemyKind[] = [
@@ -291,6 +291,7 @@ const ALL_ENEMY_KINDS: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
+  "medic",
 ];
 
 export const isAchievementUnlocked = (p: ProgressData, id: AchievementId): boolean =>

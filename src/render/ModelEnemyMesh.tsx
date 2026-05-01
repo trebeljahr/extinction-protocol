@@ -20,6 +20,11 @@ type Props = {
 // toward this as e.frost climbs from 0 → 1.
 const FROST_COLOR = new THREE.Color("#cfe6ff");
 const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
+// Elite tint target — warm red/orange. Subtle weight (~30%) so the
+// silhouette still reads as the underlying species.
+const ELITE_TINT = new THREE.Color("#ff6a3a");
+const ELITE_TINT_AMOUNT = 0.3;
+const ELITE_SCALE_MUL = 1.1;
 
 const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
   const c = mat.clone();
@@ -246,6 +251,11 @@ export const ModelEnemyMesh = ({
       }
 
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
+      // Elite scale is a multiplier on top of the kind's normalized scale
+      // — applied each frame so per-clone state stays simple. Reused
+      // pooled clones get the right scale automatically.
+      const eliteScale = e.elite ? ELITE_SCALE_MUL : 1;
+      item.obj.scale.setScalar(normalizedScale * eliteScale);
       item.obj.position.set(
         item.visX - centerXZ.x,
         yOffset - scaledMinY + bobY,
@@ -264,17 +274,20 @@ export const ModelEnemyMesh = ({
 
       const flashing = world.time < e.flashUntil;
       const frost = e.frost;
+      const elite = e.elite;
       item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
         const apply = (mm: THREE.MeshStandardMaterial) => {
-          // Frost lerp: restore base color each frame, then blend toward
-          // the ice tint by the current frost level. Skipping when frost
-          // is ~0 keeps the no-op fast path allocation-free.
+          // Restore base color each frame, then layer on tints in order
+          // of priority: frost first (locks the cold read), then elite
+          // (warm red wash) when not heavily frosted. Skipping when both
+          // are 0 keeps the no-op fast path allocation-free.
           const base = mm.userData.baseColor as THREE.Color | undefined;
           if (base && mm.color) {
             if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
+            else if (elite) mm.color.copy(base).lerp(ELITE_TINT, ELITE_TINT_AMOUNT);
             else mm.color.copy(base);
           }
           if (!mm.emissive) return;
@@ -284,6 +297,10 @@ export const ModelEnemyMesh = ({
             // Cool inner glow when heavily frosted — sells the "frozen
             // solid" read at high frost without a halo at low frost.
             mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
+          } else if (elite) {
+            // Faint warm rim — emissive only, no exposure compensation.
+            // Reads as "this one's mean" without bloom-y overdrive.
+            mm.emissive.copy(ELITE_TINT).multiplyScalar(0.18);
           } else {
             mm.emissive.setRGB(0, 0, 0);
           }
@@ -350,3 +367,4 @@ useGLTF.preload("/models/Stegosaurus.glb");
 useGLTF.preload("/models/Triceratops.glb");
 useGLTF.preload("/models/Parasaurolophus.glb");
 useGLTF.preload("/models/Apatosaurus.glb");
+// Medic reuses Parasaurolophus.glb at smaller size — no extra preload.

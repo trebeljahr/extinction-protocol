@@ -22,6 +22,7 @@ const ENEMY_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
+  "medic",
 ];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
 

@@ -85,6 +85,9 @@ type UiSnapshot = {
   inspectedEnemyHp: number | null;
   inspectedEnemyMaxHp: number | null;
   inspectedEnemyAlive: boolean;
+  inspectedEnemyShield: number | null;
+  inspectedEnemyMaxShield: number;
+  inspectedEnemyElite: boolean;
 };
 
 const snapshot = (
@@ -95,11 +98,17 @@ const snapshot = (
 ): UiSnapshot => {
   let hp: number | null = null;
   let alive = false;
+  let shield: number | null = null;
+  let maxShield = 0;
+  let elite = false;
   if (inspect.id !== null) {
     const e = w.enemyById.get(inspect.id);
     if (e?.alive) {
       hp = e.hp;
       alive = true;
+      shield = e.shield;
+      maxShield = e.maxShield;
+      elite = e.elite;
     }
   }
   return {
@@ -121,6 +130,9 @@ const snapshot = (
     inspectedEnemyHp: hp,
     inspectedEnemyMaxHp: inspect.maxHp,
     inspectedEnemyAlive: alive,
+    inspectedEnemyShield: shield,
+    inspectedEnemyMaxShield: maxShield,
+    inspectedEnemyElite: elite,
   };
 };
 
@@ -142,7 +154,10 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyKind === b.inspectedEnemyKind &&
   a.inspectedEnemyHp === b.inspectedEnemyHp &&
   a.inspectedEnemyMaxHp === b.inspectedEnemyMaxHp &&
-  a.inspectedEnemyAlive === b.inspectedEnemyAlive;
+  a.inspectedEnemyAlive === b.inspectedEnemyAlive &&
+  a.inspectedEnemyShield === b.inspectedEnemyShield &&
+  a.inspectedEnemyMaxShield === b.inspectedEnemyMaxShield &&
+  a.inspectedEnemyElite === b.inspectedEnemyElite;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;

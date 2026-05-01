@@ -2,7 +2,15 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored" | "para" | "titan";
+export type EnemyKind =
+  | "raptor"
+  | "allosaur"
+  | "stego"
+  | "swarm"
+  | "armored"
+  | "para"
+  | "titan"
+  | "medic";
 
 export type Enemy = {
   id: EntityId;
@@ -27,6 +35,16 @@ export type Enemy = {
   // cryo applies slow today) and decays back to 0 once it's free. Drives
   // the white-blue tint on the rendered enemy.
   frost: number;
+  // Defensive layer absorbed before HP. 0 when not a shielded variant or
+  // currently broken. Regen kicks in 4s after a full break.
+  shield: number;
+  maxShield: number;
+  // world.time when shield last hit 0; 0 if intact or never had one.
+  shieldBrokenAt: number;
+  // Spawn-time variant flag — bumps HP/damage/bounty, narrows resist
+  // spread, and adds slow resistance. Shows as a red-tinted, slightly
+  // larger model with an ELITE badge.
+  elite: boolean;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -59,6 +77,13 @@ export type Tower = {
   // Hive-only — sim writes one target id per drone each tick so the
   // renderer doesn't have to scan enemies again.
   droneTargetIds: (EntityId | null)[];
+  // Hive A2 upgrade — drones bypass shields entirely.
+  pierceShield: boolean;
+  // Hive B2 upgrade — drones prefer medic targets in range.
+  prioritizeMedic: boolean;
+  // Hive B3 upgrade — multiplier applied to damage when target is elite.
+  // 1 = no bonus, 1.3 = +30%.
+  eliteDamageBonus: number;
 };
 
 export type Tree = {
@@ -91,6 +116,8 @@ export type Projectile = {
   speed: number;
   splashRadius: number;
   alive: boolean;
+  // Set by hive shield-piercer rounds — applyDamage skips shield drain.
+  pierceShield: boolean;
 };
 
 export type Beam = {
@@ -130,12 +157,20 @@ export type SpawnRequest = {
   at: number;
   hpMul: number;
   pathIndex: number;
+  shielded?: boolean;
+  elite?: boolean;
 };
 
 export type EnemySpec = {
   kind: EnemyKind;
   count: number;
   pathIndex?: number;
+  // Apply the shielded variant — adds a kind-specific shield pool that
+  // absorbs damage before HP and regenerates 4s after breaking.
+  shielded?: boolean;
+  // Apply the elite variant — bumps HP/damage/bounty, narrows resist
+  // spread toward 1×, and adds slow resistance. Visual badge + tint.
+  elite?: boolean;
 };
 
 export type WaveArchetype =

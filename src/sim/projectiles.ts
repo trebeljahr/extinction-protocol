@@ -16,7 +16,7 @@ const applyHit = (world: World, p: Projectile) => {
     for (const e of world.enemies) {
       if (!e.alive) continue;
       if (distSq(e.pos, p.pos) <= rSq) {
-        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10);
+        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10, p.pierceShield);
         e.flashUntil = world.time + 0.1;
       }
     }
@@ -24,7 +24,7 @@ const applyHit = (world: World, p: Projectile) => {
     const target = p.targetId !== null ? world.enemyById.get(p.targetId) : null;
     if (target?.alive) {
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
-      applyDamage(world, target, p.damage, p.damageType);
+      applyDamage(world, target, p.damage, p.damageType, "#c44848", 8, p.pierceShield);
     }
   }
 };

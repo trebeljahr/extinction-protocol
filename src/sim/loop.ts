@@ -1,3 +1,4 @@
+import { updateDefensive } from "./defensive";
 import {
   updateBeams,
   updateCryoWaves,
@@ -49,6 +50,7 @@ export class Engine {
     world.tickCount += 1;
     spawnerTick(world, TICK_DT);
     updateEnemies(world, TICK_DT);
+    updateDefensive(world, TICK_DT);
     updateTowers(world, TICK_DT);
     updateProjectiles(world, TICK_DT);
     updateBeams(world);

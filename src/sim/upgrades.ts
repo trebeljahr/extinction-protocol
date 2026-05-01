@@ -342,11 +342,12 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
           },
         },
         {
-          name: "Twin Thrusters",
-          desc: "+30% fire rate",
+          name: "Shield-piercer",
+          desc: "Drones bypass shields, +10% damage",
           cost: 140,
           apply: (t) => {
-            t.fireRate *= 1.3;
+            t.pierceShield = true;
+            t.damage *= 1.1;
           },
         },
         {
@@ -372,20 +373,21 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
           },
         },
         {
-          name: "Razor Wing",
-          desc: "+55% damage",
+          name: "Sentinel",
+          desc: "Drones prioritize medics, +20% damage",
           cost: 120,
           apply: (t) => {
-            t.damage *= 1.55;
+            t.prioritizeMedic = true;
+            t.damage *= 1.2;
           },
         },
         {
-          name: "Apex Queen",
-          desc: "+65% damage, +0.8 range",
+          name: "Shred",
+          desc: "+30% damage, +30% vs elites",
           cost: 210,
           apply: (t) => {
-            t.damage *= 1.65;
-            t.range += 0.8;
+            t.damage *= 1.3;
+            t.eliteDamageBonus = 1.3;
           },
         },
       ],

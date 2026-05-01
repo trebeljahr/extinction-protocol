@@ -8,10 +8,12 @@ import { BiomeCosmetics } from "./BiomeCosmetics";
 import { CameraRig } from "./CameraRig";
 import { EasterEggs } from "./EasterEggs";
 import { Effects } from "./Effects";
+import { EliteBadges } from "./EliteBadges";
 import { Ground } from "./Ground";
 import { HealthBars } from "./HealthBars";
 import { HiveDrones } from "./HiveDrones";
 import { LavaFeatures } from "./LavaFeatures";
+import { MedicAuras } from "./MedicAuras";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { PathLine } from "./PathLine";
@@ -20,6 +22,7 @@ import { ProjectileMesh } from "./ProjectileMesh";
 import { Rocks } from "./Rocks";
 import { SelectionRing } from "./SelectionRing";
 import { ShaderPrewarm } from "./ShaderPrewarm";
+import { ShieldBubbles } from "./ShieldBubbles";
 import { SimTicker } from "./SimTicker";
 import { SpotTargetMarker } from "./SpotTargetMarker";
 import { TowerVfx } from "./TowerVfx";
@@ -72,6 +75,7 @@ export const PlayScene = () => {
       <ModelEnemyMesh kind="stego" url="/models/Stegosaurus.glb" targetSize={1.9} />
       <ModelEnemyMesh kind="armored" url="/models/Triceratops.glb" targetSize={2.0} />
       <ModelEnemyMesh kind="titan" url="/models/Apatosaurus.glb" targetSize={11.0} clip="Walk" />
+      <ModelEnemyMesh kind="medic" url="/models/Parasaurolophus.glb" targetSize={1.3} />
 
       <ModelTowerMesh kind="pulse" url="/models/tower_pulse.glb" targetSize={1.6} />
       <ModelTowerMesh kind="chain" url="/models/turrets/Lighting Turret.glb" targetSize={1.8} />
@@ -80,6 +84,9 @@ export const PlayScene = () => {
       <ModelTowerMesh kind="flame" url="/models/turrets/Flamethrower Turret.glb" targetSize={1.7} />
       <ModelTowerMesh kind="hive" url="/models/turrets/Hive Turret.glb" targetSize={1.8} />
       <HiveDrones />
+      <ShieldBubbles />
+      <MedicAuras />
+      <EliteBadges />
 
       <TowerVfx />
       <HealthBars />

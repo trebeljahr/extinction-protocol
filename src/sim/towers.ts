@@ -337,7 +337,15 @@ export const updateTowers = (world: World, dt: number) => {
           if (!droneTarget?.alive) continue;
           const dp = hiveDronePosition(t, world.time, d);
           anyHit = true;
-          createProjectile(world, "direct", "kinetic", dp, droneTarget, t.damage);
+          // Shred upgrade: per-drone +30% vs elites. Computed at fire
+          // time rather than as a generic applyDamage parameter so the
+          // bonus stays scoped to the hive tower line.
+          const dmg =
+            t.eliteDamageBonus > 1 && droneTarget.elite ? t.damage * t.eliteDamageBonus : t.damage;
+          const proj = createProjectile(world, "direct", "kinetic", dp, droneTarget, dmg);
+          // Shield-piercer rounds (A2) — bypass shields entirely. Read
+          // by applyDamage in projectiles.ts.
+          if (t.pierceShield) proj.pierceShield = true;
         }
         if (anyHit) {
           t.cooldown = 1 / t.fireRate;
@@ -385,16 +393,29 @@ const findTargetNearPos = (world: World, pos: Vec2, tower: Tower): Enemy | null 
   const r2 = tower.range * tower.range;
   let best: Enemy | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
+  let bestIsMedic = false;
+  // Sentinel mode (B2 upgrade): medics are always preferred over
+  // anything else in range, regardless of distance. Within the medic
+  // pool we still pick the nearest. With no medic in range, falls back
+  // to nearest-of-anything.
   for (const e of world.enemies) {
     if (!e.alive) continue;
     const d2 = distSq(e.pos, pos);
     if (d2 > r2) continue;
-    // Nearest-to-drone targeting. Drones are small and reactive — they
-    // should pepper whatever's next to them, not share the tower-level
-    // targeting mode (which is keyed off the hive anchor).
+    const isMedic = e.kind === "medic";
+    if (tower.prioritizeMedic) {
+      if (bestIsMedic && !isMedic) continue;
+      if (isMedic && !bestIsMedic) {
+        best = e;
+        bestScore = d2;
+        bestIsMedic = true;
+        continue;
+      }
+    }
     if (d2 < bestScore) {
       best = e;
       bestScore = d2;
+      bestIsMedic = isMedic;
     }
   }
   return best;
