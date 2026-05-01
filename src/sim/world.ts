@@ -532,7 +532,7 @@ export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
   chain: "electric",
   cryo: "cold",
   mortar: "explosive",
-  flame: "explosive",
+  flame: "flame",
   hive: "kinetic",
 };
 
@@ -541,6 +541,7 @@ export const DAMAGE_TYPE_LABEL: Record<DamageType, string> = {
   electric: "Electric",
   cold: "Cold",
   explosive: "Explosive",
+  flame: "Flame",
 };
 
 export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
@@ -548,16 +549,21 @@ export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
   electric: "#c48cff",
   cold: "#aaf0ff",
   explosive: "#ffb266",
+  flame: "#ff5a3a",
 };
 
+// Flame is its own damage type so per-spawn `resists` chips can target
+// it without also blocking mortar's explosive output. Default flame
+// resist per kind mirrors the original explosive value so the split is
+// balance-neutral until a wave's resist chip overrides it.
 export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
-  raptor: { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8 },
-  allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
-  stego: { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6 },
-  swarm: { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7 },
-  armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
-  para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
-  titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
+  raptor: { kinetic: 1.0, electric: 1.5, cold: 0.6, explosive: 0.8, flame: 0.8 },
+  allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0, flame: 1.0 },
+  stego: { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6, flame: 0.6 },
+  swarm: { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7, flame: 1.7 },
+  armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4, flame: 0.4 },
+  para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9, flame: 0.9 },
+  titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35, flame: 0.35 },
 };
 
 export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
@@ -627,6 +633,16 @@ export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
   titan: "#ffd24a", // burnished gold — legendary colossus
 };
 
+// Tier-3 anti-modifier hit options carried by tower fire paths into
+// applyDamage. Defaults are inert — only towers that have purchased the
+// matching T3 upgrade populate them.
+export type HitOptions = {
+  shieldDamageMul?: number; // Mortar T3: extra damage to shields specifically
+  armorPierce?: boolean; // Pulse T3: clamp resist-chip multipliers to ≥1
+  resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
+  regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
+};
+
 export const applyDamage = (
   world: World,
   enemy: Enemy,
@@ -635,18 +651,24 @@ export const applyDamage = (
   deathColor = "#c44848",
   deathParticles = 8,
   pierceShield = false,
+  hitOpts?: HitOptions,
 ) => {
   if (!enemy.alive) return;
   let dmg = amount;
 
   // Shields absorb damage flat (ignoring damage type) before HP, unless
-  // the source flagged itself as shield-piercing (hive A2 upgrade). The
-  // resist multiplier only applies to the leftover dealt to HP, so a
-  // shielded raptor still takes proper electric scaling once cracked.
+  // the source flagged itself as shield-piercing. The resist multiplier
+  // only applies to the leftover dealt to HP, so a shielded raptor still
+  // takes proper electric scaling once cracked.
   if (!pierceShield && enemy.shield > 0) {
-    const absorbed = Math.min(enemy.shield, dmg);
+    // Mortar T3 (Singularity) amplifies shield damage 2×.
+    const shieldMul = hitOpts?.shieldDamageMul ?? 1;
+    const shieldDmg = dmg * shieldMul;
+    const absorbed = Math.min(enemy.shield, shieldDmg);
     enemy.shield -= absorbed;
-    dmg -= absorbed;
+    // Convert shield-attributed damage back to "raw" units so HP bleed
+    // isn't double-counted by the multiplier.
+    dmg -= absorbed / shieldMul;
     enemy.flashUntil = world.time + 0.08;
     if (enemy.shield <= 0) {
       enemy.shield = 0;
@@ -661,13 +683,28 @@ export const applyDamage = (
   // Elite chip flattens the resist spread toward 1.0 — fewer hard
   // counters, fewer free wins. A stego with the elite chip still
   // resists kinetic, just less.
-  const mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+  let mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+  // Resists chip — per-spawn multiplier on the damage type. Pulse T3
+  // (Annihilator) clamps modifier-induced resists below 1 to 1, undoing
+  // adaptation entirely for kinetic hits.
+  const rawExtra = enemy.extraResists[type] ?? 1;
+  const extraMul = hitOpts?.armorPierce && rawExtra < 1 ? 1 : rawExtra;
+  mul *= extraMul;
   enemy.hp -= dmg * mul;
   enemy.flashUntil = world.time + 0.08;
-  // Regen chip self-heal pauses on every damage tick, so a continuous
-  // stream of small hits stalls regen indefinitely. Brief pause window
-  // means a brief lull lets it tick back up.
-  if (enemy.regen) enemy.regenPausedUntil = world.time + REGEN_DAMAGE_PAUSE;
+  // Regen chip self-heal pauses on every damage tick. Pyre T3 extends
+  // the pause window further per hit; without T3 the default
+  // REGEN_DAMAGE_PAUSE applies.
+  if (enemy.regen) {
+    const pause = Math.max(REGEN_DAMAGE_PAUSE, hitOpts?.regenSuppressOnHit ?? 0);
+    enemy.regenPausedUntil = Math.max(enemy.regenPausedUntil, world.time + pause);
+  }
+  // Chain T3 (Arc Furnace) gradually undoes the resist-chip adaptation:
+  // each hit pulls extraResists[type] toward 1. Stops being chill when
+  // the modifier no longer pulls effective resist below 1.
+  if (hitOpts?.resistStrip && hitOpts.resistStrip > 0 && rawExtra < 1) {
+    enemy.extraResists[type] = Math.min(1, rawExtra + hitOpts.resistStrip);
+  }
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
@@ -697,6 +734,9 @@ export type SpawnOptions = {
   regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
+  // Per-damage-type adaptation — values < 1 reduce damage taken,
+  // values > 1 increase. Stacks on top of base resists and elite-flatten.
+  resists?: Partial<Record<DamageType, number>>;
 };
 
 export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {}): Enemy => {
@@ -708,6 +748,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     regen = false,
     elite = false,
     fierce = false,
+    resists,
   } = opts;
   const base = ENEMY_STATS[kind];
   const path = world.paths[pathIndex] ?? world.paths[0];
@@ -759,6 +800,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     elite,
     fierce,
     regenPausedUntil: 0,
+    extraResists: resists ? { ...resists } : {},
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);
@@ -902,6 +944,14 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     droneAssignments: kind === "hive" ? new Array<number | null>(HIVE_MAX_DRONES).fill(null) : [],
     serviceBuff: kind === "hive" ? HIVE_BASE_SERVICE_BUFF : 0,
     serviceFireRateBonus: 0,
+    // T3 anti-modifier flags — defaults are inert; specific tier-3
+    // upgrades flip these in `upgrades.ts` so the projectile/hit path
+    // can crack through `resists` chip adaptation.
+    shieldDamageMul: 1,
+    armorPierce: false,
+    resistStrip: 0,
+    regenSuppressOnHit: 0,
+    freezeBlocksRegen: false,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);
@@ -918,6 +968,8 @@ export const createProjectile = (
   damage: number,
   splashRadius = 0,
   speed = 22,
+  pierceShield = false,
+  hitOpts?: HitOptions,
 ): Projectile => {
   const targetId = "id" in target ? target.id : null;
   const targetPos = "pos" in target ? { ...target.pos } : { x: target.x, y: target.y };
@@ -932,7 +984,11 @@ export const createProjectile = (
     speed,
     splashRadius,
     alive: true,
-    pierceShield: false,
+    pierceShield,
+    shieldDamageMul: hitOpts?.shieldDamageMul ?? 1,
+    armorPierce: hitOpts?.armorPierce ?? false,
+    resistStrip: hitOpts?.resistStrip ?? 0,
+    regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
   };
   world.projectiles.push(p);
   return p;

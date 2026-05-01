@@ -60,11 +60,18 @@ export type Enemy = {
   // until world.time crosses this stamp — keeps sustained DPS effective
   // and prevents the "ticked-by-a-feather" stalemate.
   regenPausedUntil: number;
+  // Damage-type adaptation layered via the `resists` chip on EnemySpec.
+  // Per-spawn multiplier on top of the base ENEMY_RESIST table — value 0
+  // = full immunity to that damage type, 0.4 = 60% reduction, 1.5 = +50%
+  // damage taken (vulnerability). Empty = no adaptation. Distinct from
+  // the `elite` chip (which flattens base resists toward 1.0); resists
+  // is per-damage-type and per-spawn.
+  extraResists: Partial<Record<DamageType, number>>;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
 
-export type DamageType = "kinetic" | "electric" | "cold" | "explosive";
+export type DamageType = "kinetic" | "electric" | "cold" | "explosive" | "flame";
 
 export type TowerUpgrades = { a: number; b: number };
 
@@ -105,6 +112,14 @@ export type Tower = {
   // currently servicing this tower. Recomputed each tick at the start
   // of updateTowers; effective fire rate = fireRate * (1 + this).
   serviceFireRateBonus: number;
+  // T3 anti-modifier abilities. Default to inert; specific tier-3
+  // upgrades flip these on so the tower starts cracking the
+  // damage-type adaptations layered onto enemies via the `resists` chip.
+  shieldDamageMul: number; // Mortar T3: 2× damage to shields specifically
+  armorPierce: boolean; // Pulse T3: clamp resist-chip multipliers to ≥1
+  resistStrip: number; // Chain T3: strips own-type resist toward 1 per hit
+  regenSuppressOnHit: number; // Pyre T3: extends regenPausedUntil after hit
+  freezeBlocksRegen: boolean; // Cryo T3: regen paused while slowed
 };
 
 export type Tree = {
@@ -139,6 +154,12 @@ export type Projectile = {
   alive: boolean;
   // Set by hive shield-piercer rounds — applyDamage skips shield drain.
   pierceShield: boolean;
+  // Tower-derived T3 anti-modifier flags carried by the projectile so
+  // impact knows which adaptation-busters to apply. Defaults are inert.
+  shieldDamageMul: number;
+  armorPierce: boolean;
+  resistStrip: number;
+  regenSuppressOnHit: number;
 };
 
 export type Beam = {
@@ -183,6 +204,10 @@ export type SpawnRequest = {
   regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
+  // Per-damage-type adaptation. e.g. { flame: 0 } = full flame immunity
+  // for that spawn, { electric: 0.4 } = 60% electric resist on top of
+  // base. Layered on the chip system as a sixth orthogonal modifier.
+  resists?: Partial<Record<DamageType, number>>;
 };
 
 export type EnemySpec = {
@@ -196,6 +221,10 @@ export type EnemySpec = {
   regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
+  // Per-damage-type resist multiplier (e.g. { flame: 0 } = immune,
+  // { electric: 0.4 } = 60% reduction). Stacks on top of base resists
+  // and the elite-flatten effect, before T3 anti-modifier upgrades fire.
+  resists?: Partial<Record<DamageType, number>>;
 };
 
 export type WaveArchetype =

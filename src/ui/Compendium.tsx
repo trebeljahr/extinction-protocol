@@ -23,7 +23,7 @@ const ENEMY_ORDER: EnemyKind[] = [
   "armored",
   "titan",
 ];
-const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
+const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
 export const Compendium = () => {
   const progress = useGame((s) => s.progress);

@@ -6,6 +6,13 @@ const HIT_RADIUS = 0.5;
 
 const applyHit = (world: World, p: Projectile) => {
   emit(world, { type: "impact", pos: p.pos });
+  // Carry T3 anti-modifier flags from the firing tower into applyDamage.
+  const hitOpts = {
+    shieldDamageMul: p.shieldDamageMul,
+    armorPierce: p.armorPierce,
+    resistStrip: p.resistStrip,
+    regenSuppressOnHit: p.regenSuppressOnHit,
+  };
 
   if (p.kind === "splash") {
     createExplosion(world, p.pos, p.splashRadius, 0.35);
@@ -16,7 +23,7 @@ const applyHit = (world: World, p: Projectile) => {
     for (const e of world.enemies) {
       if (!e.alive) continue;
       if (distSq(e.pos, p.pos) <= rSq) {
-        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10, p.pierceShield);
+        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10, p.pierceShield, hitOpts);
         e.flashUntil = world.time + 0.1;
       }
     }
@@ -24,7 +31,7 @@ const applyHit = (world: World, p: Projectile) => {
     const target = p.targetId !== null ? world.enemyById.get(p.targetId) : null;
     if (target?.alive) {
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
-      applyDamage(world, target, p.damage, p.damageType, "#c44848", 8, p.pierceShield);
+      applyDamage(world, target, p.damage, p.damageType, "#c44848", 8, p.pierceShield, hitOpts);
     }
   }
 };

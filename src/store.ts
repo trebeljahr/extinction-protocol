@@ -24,6 +24,7 @@ import {
   callWaveEarly as simCallWaveEarly,
 } from "./sim/spawner";
 import type {
+  DamageType,
   EnemyKind,
   GameEvent,
   Rock,
@@ -91,6 +92,9 @@ type UiSnapshot = {
   inspectedEnemyRegen: boolean;
   inspectedEnemyElite: boolean;
   inspectedEnemyFierce: boolean;
+  // Resists chip — per-damage-type adaptation multipliers. Empty when
+  // the inspected enemy has no resist chip applied.
+  inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
 };
 
 const snapshot = (
@@ -107,6 +111,7 @@ const snapshot = (
   let regen = false;
   let elite = false;
   let fierce = false;
+  let extraResists: Partial<Record<DamageType, number>> = {};
   if (inspect.id !== null) {
     const e = w.enemyById.get(inspect.id);
     if (e?.alive) {
@@ -118,6 +123,7 @@ const snapshot = (
       regen = e.regen;
       elite = e.elite;
       fierce = e.fierce;
+      extraResists = e.extraResists;
     }
   }
   return {
@@ -145,6 +151,7 @@ const snapshot = (
     inspectedEnemyRegen: regen,
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
+    inspectedEnemyExtraResists: extraResists,
   };
 };
 

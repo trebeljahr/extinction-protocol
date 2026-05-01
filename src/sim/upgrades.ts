@@ -40,10 +40,14 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Annihilator",
-          desc: "+90% damage",
+          desc: "+90% damage, armor pierce",
           cost: 95,
           apply: (t) => {
             t.damage *= 1.9;
+            // Armor pierce — modifier-induced resists below 1.0 get
+            // clamped to 1.0 for kinetic hits, undoing flame-immune-style
+            // adaptation on raptors / armored hit by Pulse.
+            t.armorPierce = true;
           },
         },
       ],
@@ -132,10 +136,14 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Arc Furnace",
-          desc: "+85% damage",
+          desc: "+85% damage; strips electric resist per hit",
           cost: 165,
           apply: (t) => {
             t.damage *= 1.85;
+            // Each chain hit pulls modifier-induced electric resist
+            // 10% closer to 1.0 — over ~10 hits, full electric immunity
+            // is undone on a single target.
+            t.resistStrip = 0.1;
           },
         },
       ],
@@ -164,11 +172,15 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Cryo Lock",
-          desc: "Crawl + long chill",
+          desc: "Crawl + long chill; frozen enemies can't regen",
           cost: 150,
           apply: (t) => {
             t.slowFactor = 0.12;
             t.slowDuration = 2.3;
+            // Regen-chip self-heal pauses for the full slow duration on
+            // any enemy in range — combos with Pyre T3 / Hive aura as
+            // a third regen-suppression option.
+            t.freezeBlocksRegen = true;
           },
         },
       ],
@@ -256,11 +268,15 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Singularity",
-          desc: "+95% damage, +10% fire rate",
+          desc: "+95% damage, +10% fire rate, 2× damage to shields",
           cost: 210,
           apply: (t) => {
             t.damage *= 1.95;
             t.fireRate *= 1.1;
+            // Mortar's T3 cracks shielded enemies fast — compounds with
+            // Hive aura (×2 shield mul) for 4× shield damage when both
+            // are committed to the lane.
+            t.shieldDamageMul = 2;
           },
         },
       ],
@@ -288,11 +304,16 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Napalm",
-          desc: "+80% damage, +0.6 range",
+          desc: "+80% damage, +0.6 range; suppresses regen for 1.5s/hit",
           cost: 160,
           apply: (t) => {
             t.damage *= 1.8;
             t.range += 0.6;
+            // Pyre's T3 turns a regen tank into a regen-locked target —
+            // each hit extends the damage-pause window beyond the
+            // default 1.5s, so flame's high tick rate keeps regen off
+            // continuously.
+            t.regenSuppressOnHit = 1.5;
           },
         },
       ],

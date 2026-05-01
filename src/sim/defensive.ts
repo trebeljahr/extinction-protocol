@@ -31,7 +31,9 @@ export const updateDefensive = (world: World, dt: number) => {
 
   // Regen chip — passive self-heal, paused briefly after every damage
   // tick. Runs before the heal aura loop so a regen + heal-aura combo
-  // stacks naturally (both add HP on the same tick).
+  // stacks naturally (both add HP on the same tick). Cryo T3 freeze-lock
+  // and Pyre T3 napalm pause are the per-tower suppression options that
+  // can keep a regen enemy from healing through sustained DPS.
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (!e.regen) continue;

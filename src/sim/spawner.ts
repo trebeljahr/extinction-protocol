@@ -1,4 +1,4 @@
-import type { EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
+import type { DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
 import { emit, spawnEnemy } from "./world";
 
 export type { WaveArchetype };
@@ -62,6 +62,7 @@ type RosterEntry = {
   regen: boolean;
   elite: boolean;
   fierce: boolean;
+  resists?: Partial<Record<DamageType, number>>;
 };
 
 const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
@@ -74,7 +75,16 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
     const elite = s.elite ?? false;
     const fierce = s.fierce ?? false;
     for (let i = 0; i < s.count; i++) {
-      out.push({ kind: s.kind, pathIndex, shielded, healAura, regen, elite, fierce });
+      out.push({
+        kind: s.kind,
+        pathIndex,
+        shielded,
+        healAura,
+        regen,
+        elite,
+        fierce,
+        resists: s.resists,
+      });
     }
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
@@ -122,6 +132,7 @@ const startWave = (world: World) => {
       regen: entry.regen,
       elite: entry.elite,
       fierce: entry.fierce,
+      resists: entry.resists,
     });
   }
   emit(world, { type: "wave-start", wave: world.wave });
@@ -185,6 +196,7 @@ export const spawnerTick = (world: World, dt: number) => {
       regen: req.regen,
       elite: req.elite,
       fierce: req.fierce,
+      resists: req.resists,
     });
   }
 

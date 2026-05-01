@@ -40,8 +40,28 @@ const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   return best;
 };
 
+// Pull T3 anti-modifier hit options off a tower for the projectile/
+// applyDamage calls. Inert defaults — only T3 upgrades populate them.
+const towerHitOpts = (t: Tower) => ({
+  shieldDamageMul: t.shieldDamageMul,
+  armorPierce: t.armorPierce,
+  resistStrip: t.resistStrip,
+  regenSuppressOnHit: t.regenSuppressOnHit,
+});
+
 const firePulse = (world: World, t: Tower, target: Enemy) => {
-  createProjectile(world, "direct", "kinetic", t.pos, target, t.damage);
+  createProjectile(
+    world,
+    "direct",
+    "kinetic",
+    t.pos,
+    target,
+    t.damage,
+    0,
+    22,
+    false,
+    towerHitOpts(t),
+  );
 };
 
 const fireChain = (world: World, t: Tower, primary: Enemy) => {
@@ -72,8 +92,9 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
   const points = [t.pos, ...hit.map((e) => e.pos)];
   createBeam(world, points, "#9fd8ff", 0.1);
 
+  const opts = towerHitOpts(t);
   for (const e of hit) {
-    applyDamage(world, e, damage, "electric");
+    applyDamage(world, e, damage, "electric", undefined, undefined, false, opts);
     damage = Math.max(1, damage * t.chainFalloff);
   }
 };
@@ -89,8 +110,13 @@ const applyCryoFreeze = (world: World, t: Tower): boolean => {
     if (distSq(e.pos, t.pos) > rangeSq) continue;
     hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
+    // Cryo T3 (Cryo Lock) — push regen pause out to end-of-slow so the
+    // enemy can't tick HP back up while frozen.
+    if (t.freezeBlocksRegen && e.regen) {
+      e.regenPausedUntil = Math.max(e.regenPausedUntil, e.slowUntil);
+    }
     e.flashUntil = world.time + 0.06;
-    if (t.damage > 0) applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6);
+    if (t.damage > 0) applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6, false, towerHitOpts(t));
   }
   return hit;
 };
@@ -118,7 +144,18 @@ const spawnCryoWave = (world: World, t: Tower) => {
 };
 
 const fireMortar = (world: World, t: Tower, target: Enemy) => {
-  createProjectile(world, "splash", "explosive", t.pos, target.pos, t.damage, t.splashRadius, 14);
+  createProjectile(
+    world,
+    "splash",
+    "explosive",
+    t.pos,
+    target.pos,
+    t.damage,
+    t.splashRadius,
+    14,
+    false,
+    towerHitOpts(t),
+  );
 };
 
 // Flamethrower — burns everything inside a forward cone. Damage is small
@@ -148,7 +185,7 @@ const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
     // right at the cone boundary and gets dropped due to FP noise).
     if (e !== target && dot < FLAME_COS_HALF) continue;
     hit = true;
-    applyDamage(world, e, t.damage, "explosive", "#ffb54a", 3);
+    applyDamage(world, e, t.damage, "flame", "#ffb54a", 3, false, towerHitOpts(t));
   }
   return hit;
 };
@@ -232,6 +269,8 @@ const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
     t.damage,
     t.splashRadius,
     14,
+    false,
+    towerHitOpts(t),
   );
 };
 

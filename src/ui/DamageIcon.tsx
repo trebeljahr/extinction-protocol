@@ -17,9 +17,27 @@ export const DamageIcon = ({ type, size = 16, title, color }: Props) => {
       {type === "electric" && <ElectricPath fill={fill} />}
       {type === "cold" && <ColdPath fill={fill} />}
       {type === "explosive" && <ExplosivePath fill={fill} />}
+      {type === "flame" && <FlamePath fill={fill} />}
     </svg>
   );
 };
+
+const FlamePath = ({ fill }: { fill: string }) => (
+  <g>
+    <path
+      d="M12 2.5 C 9 7, 5 9, 6 14 C 6.4 18, 9 21.5, 12 21.5 C 15 21.5, 17.6 18, 18 14 C 19 9, 15 7, 12 2.5 Z"
+      fill={fill}
+      stroke={fill}
+      strokeWidth="0.5"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 8 C 10.5 11, 9 12.5, 9.6 15.5 C 10 18, 11 19.5, 12 19.5 C 13 19.5, 14 18, 14.4 15.5 C 15 12.5, 13.5 11, 12 8 Z"
+      fill="#fff"
+      opacity={0.55}
+    />
+  </g>
+);
 
 const KineticPath = ({ fill }: { fill: string }) => (
   <g>

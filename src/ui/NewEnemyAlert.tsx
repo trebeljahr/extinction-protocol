@@ -7,7 +7,7 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { EnemyPreview } from "./EnemyPreview";
 
-const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
+const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
 export const NewEnemyAlert = () => {
   const queue = useGame((s) => s.newEnemyQueue);

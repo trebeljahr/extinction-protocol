@@ -17,7 +17,7 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 
-const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive"];
+const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
 // Chip metadata — color + short tooltip. Layout reads consistently
 // across the panel so combos read at a glance ("Shielded Elite Stego").
@@ -71,6 +71,7 @@ export const EnemyPanel = () => {
   const regen = useGame((s) => s.ui.inspectedEnemyRegen);
   const elite = useGame((s) => s.ui.inspectedEnemyElite);
   const fierce = useGame((s) => s.ui.inspectedEnemyFierce);
+  const extraResists = useGame((s) => s.ui.inspectedEnemyExtraResists);
 
   if (kind === null) return null;
 
@@ -78,16 +79,19 @@ export const EnemyPanel = () => {
   const shieldPct =
     shield !== null && maxShield > 0 ? Math.max(0, Math.min(1, shield / maxShield)) : 0;
   const baseResist = ENEMY_RESIST[kind];
-  // Elite chip flattens the resist spread toward 1×, mirroring
-  // applyDamage so chips reflect the real damage taken in-flight.
-  const resist = elite
-    ? (Object.fromEntries(
-        DAMAGE_TYPE_ORDER.map((t) => [
-          t,
-          baseResist[t] + (1 - baseResist[t]) * ELITE_RESIST_FLATTEN,
-        ]),
-      ) as Record<DamageType, number>)
-    : baseResist;
+  // Elite chip flattens the resist spread toward 1×, then the resists
+  // chip multiplies on top. Mirrors applyDamage so the panel reflects
+  // the real damage taken in-flight.
+  const resist = Object.fromEntries(
+    DAMAGE_TYPE_ORDER.map((t) => {
+      const eliteMul = elite
+        ? baseResist[t] + (1 - baseResist[t]) * ELITE_RESIST_FLATTEN
+        : baseResist[t];
+      const extra = extraResists[t] ?? 1;
+      return [t, eliteMul * extra];
+    }),
+  ) as Record<DamageType, number>;
+  const hasAdaptation = Object.keys(extraResists).length > 0;
   const baseSlowResist = ENEMY_SLOW_RESIST[kind];
   const slowResist = elite
     ? Math.min(ELITE_SLOW_RESIST_CAP, baseSlowResist + ELITE_SLOW_RESIST_BONUS)
@@ -124,7 +128,7 @@ export const EnemyPanel = () => {
         </button>
       </div>
 
-      {activeChips.length > 0 && (
+      {(activeChips.length > 0 || hasAdaptation) && (
         <div className="flex flex-wrap gap-1 mb-2">
           {activeChips.map((c) => {
             const info = CHIP_INFO[c];
@@ -139,6 +143,19 @@ export const EnemyPanel = () => {
               </span>
             );
           })}
+          {hasAdaptation && (
+            <span
+              className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
+              style={{
+                color: "#ffb266",
+                borderColor: "rgba(255,178,102,0.5)",
+                background: "rgba(255,178,102,0.10)",
+              }}
+              title="Adapted — evolved resistance to specific damage types. Diversify your portfolio."
+            >
+              Adapted
+            </span>
+          )}
         </div>
       )}
 
@@ -182,19 +199,29 @@ export const EnemyPanel = () => {
       <div className="text-[11px] font-bold tracking-wide text-fg-muted uppercase mb-1.5">
         Damage taken
       </div>
-      <div className="grid grid-cols-4 auto-rows-fr gap-1 mb-3">
+      <div className="grid grid-cols-5 auto-rows-fr gap-1 mb-3">
         {DAMAGE_TYPE_ORDER.map((type) => {
           const mul = resist[type];
+          const adapted = (extraResists[type] ?? 1) !== 1;
           const pct = Math.round((mul - 1) * 100);
+          let value: string;
+          if (mul === 0) value = "0×";
+          else if (pct > 0) value = `+${pct}%`;
+          else if (pct < 0) value = `${pct}%`;
+          else value = "·";
           const state: "good" | "bad" | "neutral" = pct > 0 ? "bad" : pct < 0 ? "good" : "neutral";
+          const titleParts = [`${DAMAGE_TYPE_LABEL[type]}: ${mul.toFixed(2)}×`];
+          if (elite) titleParts.push("(elite)");
+          if (adapted) titleParts.push("(adapted)");
           return (
             <ResistChip
               key={type}
               state={state}
-              title={`${DAMAGE_TYPE_LABEL[type]}: ${mul.toFixed(2)}×${elite ? " (elite)" : ""}`}
+              adapted={adapted}
+              title={titleParts.join(" ")}
               nameColor={DAMAGE_TYPE_COLOR[type]}
               name={DAMAGE_TYPE_LABEL[type]}
-              value={pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}
+              value={value}
             />
           );
         })}
@@ -248,19 +275,23 @@ const CHIP_VAL_COLOR: Record<"good" | "bad" | "neutral", string> = {
 
 const ResistChip = ({
   state,
+  adapted,
   title,
   nameColor,
   name,
   value,
 }: {
   state: "good" | "bad" | "neutral";
+  adapted?: boolean;
   title: string;
   nameColor: string;
   name: string;
   value: string;
 }) => (
   <div
-    className={`flex flex-col items-center px-1 py-[5px] rounded-[5px] leading-tight border ${CHIP_BG[state]}`}
+    className={`flex flex-col items-center px-1 py-[5px] rounded-[5px] leading-tight border ${CHIP_BG[state]} ${
+      adapted ? "ring-1 ring-[rgba(255,178,102,0.55)]" : ""
+    }`}
     title={title}
   >
     <span className="text-[9px] font-bold tracking-tight opacity-85" style={{ color: nameColor }}>

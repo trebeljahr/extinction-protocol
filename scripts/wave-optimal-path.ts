@@ -41,13 +41,15 @@
 
 import { LEVELS } from "../src/levels";
 import { pathLength } from "../src/sim/path";
-import type { EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
+import type { DamageType, EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
+  ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
   ENEMY_STATS,
   MIN_SLOW_FACTOR,
+  SHIELD_BY_KIND,
   TOWER_COST,
   TOWER_DAMAGE_TYPE,
   TOWER_STATS,
@@ -58,7 +60,19 @@ import { enumeratePlacementClasses } from "./lib/coverage";
 // ------- Tower config (same shape as wave-feasibility.ts) -------
 
 type Tier = 0 | 1 | 2 | 3;
-type TowerConfig = TowerBaseStats & { kind: TowerKind; tierA: Tier; tierB: Tier; cost: number };
+type TowerConfig = TowerBaseStats & {
+  kind: TowerKind;
+  tierA: Tier;
+  tierB: Tier;
+  cost: number;
+  // T3 anti-modifier abilities — defaults inert; specific T3 upgrades
+  // turn them on so the simulator picks T3 for adaptive-wave reasons.
+  shieldDamageMul: number;
+  armorPierce: boolean;
+  resistStrip: number;
+  regenSuppressOnHit: number;
+  freezeBlocksRegen: boolean;
+};
 
 // Memoized — kind/tier combos are bounded (6 × 4 × 4 = 96 distinct keys),
 // and buildConfig is called in tight inner loops by dpsPerLane and the
@@ -93,6 +107,11 @@ const buildConfig = (kind: TowerKind, tierA: Tier, tierB: Tier): TowerConfig => 
     slowFactor: t.slowFactor,
     slowDuration: t.slowDuration,
     cost,
+    shieldDamageMul: t.shieldDamageMul ?? 1,
+    armorPierce: t.armorPierce ?? false,
+    resistStrip: t.resistStrip ?? 0,
+    regenSuppressOnHit: t.regenSuppressOnHit ?? 0,
+    freezeBlocksRegen: t.freezeBlocksRegen ?? false,
   };
   buildConfigCache.set(key, out);
   return out;
@@ -119,9 +138,25 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
 // requires every lane with enemies to meet its own reqDPS — no averaging
 // across lanes.
 
+// A "group" is an enemy sub-population sharing kind + chip flags. Chips
+// (shielded/regen/resists) override base behaviour per-spawn, so the
+// resist calc must happen at the group level not just by kind.
+type EnemyGroup = {
+  kind: EnemyKind;
+  count: number;
+  hp: number; // total HP for this group (per-enemy hp × count, post hpMul)
+  shielded: boolean; // applies SHIELD_BY_KIND[kind] to each enemy
+  regen: boolean;
+  elite: boolean;
+  extraResists: Partial<Record<DamageType, number>>; // resists chip
+};
+
 type WaveBreakdown = {
   totalHp: number;
+  totalShield: number; // sum of per-enemy SHIELD_BY_KIND × count, lane-wide
+  hasRegen: boolean; // any group on this lane carries the regen chip
   counts: Partial<Record<EnemyKind, number>>;
+  groups: EnemyGroup[];
   totalEnemies: number;
   slowestSpeed: number;
 };
@@ -130,7 +165,10 @@ const analyzeWavePerLane = (spec: WaveSpec, hpScale: number, numPaths: number): 
   const hpMul = (spec.hpMul ?? 1) * hpScale;
   const perLane: WaveBreakdown[] = Array.from({ length: numPaths }, () => ({
     totalHp: 0,
+    totalShield: 0,
+    hasRegen: false,
     counts: {},
+    groups: [],
     totalEnemies: 0,
     slowestSpeed: Number.POSITIVE_INFINITY,
   }));
@@ -138,9 +176,22 @@ const analyzeWavePerLane = (spec: WaveSpec, hpScale: number, numPaths: number): 
     const stats = ENEMY_STATS[s.kind];
     const pi = Math.min(numPaths - 1, Math.max(0, s.pathIndex ?? 0));
     const w = perLane[pi];
+    const groupHp = stats.hp * hpMul * s.count;
+    const shieldPer = s.shielded ? (SHIELD_BY_KIND[s.kind] ?? 0) : 0;
     w.counts[s.kind] = (w.counts[s.kind] ?? 0) + s.count;
-    w.totalHp += stats.hp * hpMul * s.count;
+    w.totalHp += groupHp;
+    w.totalShield += shieldPer * s.count;
     w.totalEnemies += s.count;
+    if (s.regen) w.hasRegen = true;
+    w.groups.push({
+      kind: s.kind,
+      count: s.count,
+      hp: groupHp,
+      shielded: !!s.shielded,
+      regen: !!s.regen,
+      elite: !!s.elite,
+      extraResists: s.resists ?? {},
+    });
     if (stats.speed < w.slowestSpeed) w.slowestSpeed = stats.speed;
   }
   for (const w of perLane) {
@@ -197,8 +248,39 @@ const slowFactorForLane = (
   return bestSlow;
 };
 
+// Mortar T3 (Singularity) doubles shield damage. Highest-tier mortar in
+// the lane wins — no compounding across multiple shield-pierce towers.
+const shieldMulForLane = (towers: TowerInstance[], laneIdx: number): number => {
+  let best = 1;
+  for (const t of towers) {
+    if (!t.lanes.includes(laneIdx)) continue;
+    const cfg = buildConfig(t.kind, t.tierA, t.tierB);
+    if (cfg.shieldDamageMul > best) best = cfg.shieldDamageMul;
+  }
+  return best;
+};
+
+// Pyre T3 napalm and Cryo T3 freeze-lock fully suppress regen in this
+// model — both extend the regen pause indefinitely while a tower with
+// the upgrade keeps hitting the lane.
+const regenEffectivenessForLane = (towers: TowerInstance[], laneIdx: number): number => {
+  for (const t of towers) {
+    if (!t.lanes.includes(laneIdx)) continue;
+    const cfg = buildConfig(t.kind, t.tierA, t.tierB);
+    if (cfg.regenSuppressOnHit > 0) return 0;
+    if (cfg.freezeBlocksRegen) return 0;
+  }
+  return 1;
+};
+
 // reqDps depends on the current portfolio (slow towers extend the combat
 // window, lowering reqDps). This is recomputed each greedy iteration.
+//
+// Modifier accounting:
+//  - shielded chip (totalShield): folded into effective HP. Mortar T3 /
+//    Hive aura halve or further reduce its contribution via shieldMul.
+//  - regen chip (hasRegen): adds a continuous HP-restoration term scaled
+//    by regen effectiveness (Pyre T3 / Cryo T3 / Hive aura suppress it).
 const reqDpsForState = (
   spec: WaveSpec,
   waveNumber: number,
@@ -213,7 +295,19 @@ const reqDpsForState = (
     const slow = slowFactorForLane(towers, i, w);
     const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
     const dur = spawnSpan + pathLengths[i] / (w.slowestSpeed * slow);
-    return (w.totalHp / dur) * safety;
+    const shieldMul = shieldMulForLane(towers, i);
+    const regenEff = regenEffectivenessForLane(towers, i);
+    const effectiveHp = w.totalHp + w.totalShield / shieldMul;
+    // Regen chip pulls REGEN_RATE = 1.5 HP/s/regen-enemy on average. Use a
+    // conservative midpoint estimate (half of regen HP recovers) since
+    // damage-pause partially neutralises continuous regen.
+    let regenHpPerSec = 0;
+    if (w.hasRegen) {
+      let regenCount = 0;
+      for (const g of w.groups) if (g.regen) regenCount += g.count;
+      regenHpPerSec = regenCount * 1.5 * regenEff * 0.5;
+    }
+    return (effectiveHp / dur + regenHpPerSec) * safety;
   });
 };
 
@@ -222,12 +316,22 @@ const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number =>
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
   let weightedResist = 0;
   let totalHp = 0;
-  for (const k of Object.keys(wave.counts) as EnemyKind[]) {
-    const count = wave.counts[k] ?? 0;
-    if (!count) continue;
-    const hp = ENEMY_STATS[k].hp * count;
-    weightedResist += ENEMY_RESIST[k][dmgType] * hp;
-    totalHp += hp;
+  // Iterate groups so per-spawn `resists` chip + `elite` chip override
+  // base resist on the right population. Weighting by group HP keeps a
+  // 12-of-20 flame-immune swarm correctly dropping flame's effective DPS.
+  for (const g of wave.groups) {
+    const baseMul = ENEMY_RESIST[g.kind][dmgType];
+    // Elite flatten — same formula as applyDamage.
+    const eliteMul = g.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+    let extra = g.extraResists[dmgType] ?? 1;
+    // Pulse T3 (Annihilator): clamp adaptation-induced resists ≥1 for the
+    // tower's own damage type. Adapted enemies stop dodging armour pierce.
+    if (cfg.armorPierce && extra < 1) extra = 1;
+    // Chain T3 (Arc Furnace): per-hit strip pulls extraResist toward 1
+    // over the combat window. Conservative midpoint approximation.
+    else if (cfg.resistStrip > 0 && extra < 1) extra = (extra + 1) / 2;
+    weightedResist += eliteMul * extra * g.hp;
+    totalHp += g.hp;
   }
   const avgResist = totalHp > 0 ? weightedResist / totalHp : 1;
   const aoe = aoeMultiplier(cfg.kind, cfg, Math.min(wave.totalEnemies, 10));
