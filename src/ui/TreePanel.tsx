@@ -1,6 +1,6 @@
-import { Center, useGLTF } from "@react-three/drei";
+import { Bounds, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { BIOME_LAYERS, BIOME_STYLE, BIOME_TREE_URLS } from "../biomes";
 import { ROCK_REMOVE_COST, TREE_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
@@ -105,9 +105,12 @@ export const TreePanel = () => {
           <ambientLight intensity={0.7} color={style.hemiTop} />
           <directionalLight position={[4, 6, 3]} intensity={1.4} color="#fff4dc" />
           <hemisphereLight args={[style.hemiTop, style.hemiBottom, 0.7]} />
-          <Center>
-            <StaticModel url={selection.url} />
-          </Center>
+          {/* `key` remounts Bounds so it re-fits when a different obstacle is picked — Bounds doesn't observe child changes. */}
+          <Suspense fallback={null}>
+            <Bounds key={selection.url} fit clip observe margin={1.15}>
+              <StaticModel url={selection.url} />
+            </Bounds>
+          </Suspense>
         </Canvas>
       </div>
 
