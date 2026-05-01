@@ -101,11 +101,11 @@ const enemyInRange = (world: World, t: Tower): boolean => {
 
 // Steady freezing-wave cadence — a fresh ring leaves the tower roughly
 // every CRYO_WAVE_PERIOD seconds while a target's in range. Tuned for a
-// calm, rhythmic beat: ~1.1 s between waves with each wave living 1.6 s
-// means at most one or two are in flight at once, with a clear gap as the
-// older one fades. Decoupled from fireRate so the rhythm stays steady.
-const CRYO_WAVE_LIFE = 1.6;
-const CRYO_WAVE_PERIOD_TICKS = 66; // ≈ 1.1 s @ 60Hz
+// rhythmic beat: 0.8 s between waves with each wave living 1.2 s means
+// roughly two are in flight at once with a clear gap as the older one
+// fades. Decoupled from fireRate so the rhythm stays steady.
+const CRYO_WAVE_LIFE = 1.2;
+const CRYO_WAVE_PERIOD_TICKS = 48; // 0.8 s @ 60Hz
 const spawnCryoWave = (world: World, t: Tower) => {
   createCryoWave(world, t.pos, t.range, CRYO_WAVE_LIFE);
 };
