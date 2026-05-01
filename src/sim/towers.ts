@@ -100,22 +100,14 @@ const enemyInRange = (world: World, t: Tower): boolean => {
 };
 
 // Steady freezing-wave cadence — a fresh ring leaves the tower roughly
-// every CRYO_WAVE_PERIOD seconds while a target's in range. Each ring
-// expands at constant speed out to t.range over CRYO_WAVE_LIFE, so two
-// to three are in flight at once → reads as continuous concentric ripples
-// instead of discrete pulses.
-const CRYO_WAVE_LIFE = 1.1;
-const CRYO_WAVE_PERIOD_TICKS = 22; // ≈ 0.367 s @ 60Hz
+// every CRYO_WAVE_PERIOD seconds while a target's in range. Tuned for a
+// calm, rhythmic beat: ~1.1 s between waves with each wave living 1.6 s
+// means at most one or two are in flight at once, with a clear gap as the
+// older one fades. Decoupled from fireRate so the rhythm stays steady.
+const CRYO_WAVE_LIFE = 1.6;
+const CRYO_WAVE_PERIOD_TICKS = 66; // ≈ 1.1 s @ 60Hz
 const spawnCryoWave = (world: World, t: Tower) => {
   createCryoWave(world, t.pos, t.range, CRYO_WAVE_LIFE);
-};
-
-// Sharper accent ring on each freeze tick — same wave system, shorter
-// life and slight overshoot so it reads as a brighter pulse leading the
-// steady cadence.
-const CRYO_PULSE_LIFE = 0.55;
-const spawnFrostPulse = (world: World, t: Tower) => {
-  createCryoWave(world, t.pos, t.range * 1.05, CRYO_PULSE_LIFE);
 };
 
 const fireMortar = (world: World, t: Tower, target: Enemy) => {
@@ -251,8 +243,9 @@ export const updateTowers = (world: World, dt: number) => {
     if (t.kind === "cryo") {
       // Damage/slow is cooldown-gated; the visual is a steady cadence of
       // expanding rings ("freezing waves") that emanate from the tower
-      // while any enemy is in range. A sharper pulse ring fires on each
-      // freeze tick so the beat reads against the ambient cadence.
+      // while any enemy is in range. The cadence is intentionally
+      // decoupled from fireRate — extra rings on each freeze tick made
+      // the rhythm feel frantic.
       const inRange = enemyInRange(world, t);
       if (inRange && world.tickCount % CRYO_WAVE_PERIOD_TICKS === 0) {
         spawnCryoWave(world, t);
@@ -261,7 +254,6 @@ export const updateTowers = (world: World, dt: number) => {
         const didHit = applyCryoFreeze(world, t);
         if (didHit) {
           t.cooldown = 1 / t.fireRate;
-          spawnFrostPulse(world, t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
       }
