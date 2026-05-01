@@ -384,29 +384,29 @@ const findTargetNearPos = (world: World, pos: Vec2, tower: Tower): Enemy | null 
   const r2 = tower.range * tower.range;
   let best: Enemy | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
-  let bestIsMedic = false;
-  // Sentinel mode (B2 upgrade): medics are always preferred over
-  // anything else in range, regardless of distance. Within the medic
-  // pool we still pick the nearest. With no medic in range, falls back
-  // to nearest-of-anything.
+  let bestIsHealer = false;
+  // Sentinel mode (B2 upgrade): healers (anything with the healAura
+  // chip) are always preferred over anything else in range, regardless
+  // of distance. Within the healer pool we still pick the nearest. With
+  // no healer in range, falls back to nearest-of-anything.
   for (const e of world.enemies) {
     if (!e.alive) continue;
     const d2 = distSq(e.pos, pos);
     if (d2 > r2) continue;
-    const isMedic = e.kind === "medic";
-    if (tower.prioritizeMedic) {
-      if (bestIsMedic && !isMedic) continue;
-      if (isMedic && !bestIsMedic) {
+    const isHealer = e.healAura;
+    if (tower.prioritizeHealer) {
+      if (bestIsHealer && !isHealer) continue;
+      if (isHealer && !bestIsHealer) {
         best = e;
         bestScore = d2;
-        bestIsMedic = true;
+        bestIsHealer = true;
         continue;
       }
     }
     if (d2 < bestScore) {
       best = e;
       bestScore = d2;
-      bestIsMedic = isMedic;
+      bestIsHealer = isHealer;
     }
   }
   return best;

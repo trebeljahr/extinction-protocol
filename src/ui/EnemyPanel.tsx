@@ -1,4 +1,4 @@
-import type { DamageType } from "../sim/types";
+import type { DamageType, EnemyChip } from "../sim/types";
 import {
   DAMAGE_TYPE_COLOR,
   DAMAGE_TYPE_LABEL,
@@ -8,8 +8,9 @@ import {
   ENEMY_LABEL,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
-  MEDIC_HEAL_RANGE,
-  MEDIC_HEAL_RATE,
+  FIERCE_DAMAGE_MUL,
+  HEAL_AURA_RANGE,
+  HEAL_AURA_RATE,
 } from "../sim/world";
 import { useGame } from "../store";
 
@@ -24,8 +25,40 @@ const ENEMY_DESC: Record<string, string> = {
   armored:
     "Juggernaut. Hardened against shock and blast. Kinetic gets through best. Heavy slow resistance.",
   titan: "Colossus. Only cold meaningfully damages it. Heavy slow resistance.",
-  medic:
-    "Glass-cannon support. Heals nearby allies in a wide aura — kill the medic first or its escort never dies.",
+};
+
+// Chip metadata — color + short tooltip. Layout reads consistently
+// across the panel so combos read at a glance ("Shielded Elite Stego").
+type ChipInfo = { name: string; color: string; bg: string; border: string; title: string };
+const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
+  shielded: {
+    name: "Shielded",
+    color: "#7fc8ff",
+    bg: "rgba(127,200,255,0.10)",
+    border: "rgba(127,200,255,0.5)",
+    title: "Shielded — energy bubble absorbs damage before HP, regens 4s after a full break",
+  },
+  healAura: {
+    name: "Healer",
+    color: "#7eff8a",
+    bg: "rgba(126,255,138,0.10)",
+    border: "rgba(126,255,138,0.5)",
+    title: `Healer — pulses ${HEAL_AURA_RATE} HP/sec to allies within ${HEAL_AURA_RANGE.toFixed(1)}u`,
+  },
+  elite: {
+    name: "Elite",
+    color: "#ffb030",
+    bg: "rgba(255,176,48,0.10)",
+    border: "rgba(255,176,48,0.5)",
+    title: `Elite — resist spread flattened by ${Math.round(ELITE_RESIST_FLATTEN * 100)}%, +${Math.round(ELITE_SLOW_RESIST_BONUS * 100)}% slow resist`,
+  },
+  fierce: {
+    name: "Fierce",
+    color: "#ff5a3a",
+    bg: "rgba(255,90,58,0.12)",
+    border: "rgba(255,90,58,0.5)",
+    title: `Fierce — deals ${Math.round((FIERCE_DAMAGE_MUL - 1) * 100)}% more damage on contact`,
+  },
 };
 
 export const EnemyPanel = () => {
@@ -35,7 +68,9 @@ export const EnemyPanel = () => {
   const alive = useGame((s) => s.ui.inspectedEnemyAlive);
   const shield = useGame((s) => s.ui.inspectedEnemyShield);
   const maxShield = useGame((s) => s.ui.inspectedEnemyMaxShield);
+  const healAura = useGame((s) => s.ui.inspectedEnemyHealAura);
   const elite = useGame((s) => s.ui.inspectedEnemyElite);
+  const fierce = useGame((s) => s.ui.inspectedEnemyFierce);
 
   if (kind === null) return null;
 
@@ -43,8 +78,8 @@ export const EnemyPanel = () => {
   const shieldPct =
     shield !== null && maxShield > 0 ? Math.max(0, Math.min(1, shield / maxShield)) : 0;
   const baseResist = ENEMY_RESIST[kind];
-  // Elites flatten the resist spread toward 1×, mirroring applyDamage so
-  // chips reflect the real damage taken in-flight.
+  // Elite chip flattens the resist spread toward 1×, mirroring
+  // applyDamage so chips reflect the real damage taken in-flight.
   const resist = elite
     ? (Object.fromEntries(
         DAMAGE_TYPE_ORDER.map((t) => [
@@ -57,7 +92,12 @@ export const EnemyPanel = () => {
   const slowResist = elite
     ? Math.min(ELITE_SLOW_RESIST_CAP, baseSlowResist + ELITE_SLOW_RESIST_BONUS)
     : baseSlowResist;
-  const title = elite ? `Elite ${ENEMY_LABEL[kind]}` : ENEMY_LABEL[kind];
+
+  const activeChips: EnemyChip[] = [];
+  if (maxShield > 0) activeChips.push("shielded");
+  if (healAura) activeChips.push("healAura");
+  if (elite) activeChips.push("elite");
+  if (fierce) activeChips.push("fierce");
 
   return (
     <div className="enemy-panel">
@@ -65,16 +105,7 @@ export const EnemyPanel = () => {
         <div className={`enemy-swatch kind-${kind}`} />
         <div className="panel-title">
           <div className="panel-name">
-            {title}
-            {elite && (
-              <span
-                className="enemy-status"
-                style={{ color: "#ff6a3a", borderColor: "#ff6a3a" }}
-                title="Elite variant — tougher, more well-rounded, harder to slow"
-              >
-                ELITE
-              </span>
-            )}
+            {ENEMY_LABEL[kind]}
             <span className={`enemy-status ${alive ? "alive" : "dead"}`}>
               {alive ? "ALIVE" : "KILLED"}
             </span>
@@ -91,6 +122,24 @@ export const EnemyPanel = () => {
           ×
         </button>
       </div>
+
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {activeChips.map((c) => {
+            const info = CHIP_INFO[c];
+            return (
+              <span
+                key={c}
+                className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
+                style={{ color: info.color, borderColor: info.border, background: info.bg }}
+                title={info.title}
+              >
+                {info.name}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {alive && maxShield > 0 && (
         <div className="mb-2">
@@ -150,24 +199,24 @@ export const EnemyPanel = () => {
         })}
       </div>
 
-      {(slowResist > 0 || kind === "medic") && (
+      {(slowResist > 0 || healAura) && (
         <div className="grid grid-cols-4 auto-rows-fr gap-1 mb-3">
           {slowResist > 0 && (
             <ResistChip
               state="good"
-              title={`Chill resistance: ${Math.round(slowResist * 100)}%${elite ? " (elite +20%)" : ""}`}
+              title={`Chill resistance: ${Math.round(slowResist * 100)}%${elite ? ` (+${Math.round(ELITE_SLOW_RESIST_BONUS * 100)}% elite)` : ""}`}
               nameColor={DAMAGE_TYPE_COLOR.cold}
               name="Chill resist"
               value={`${Math.round(slowResist * 100)}%`}
             />
           )}
-          {kind === "medic" && (
+          {healAura && (
             <ResistChip
               state="good"
-              title={`Heal aura: ${MEDIC_HEAL_RATE} HP/sec within ${MEDIC_HEAL_RANGE.toFixed(1)}u`}
+              title={`Heal aura: ${HEAL_AURA_RATE} HP/sec within ${HEAL_AURA_RANGE.toFixed(1)}u`}
               nameColor="#7eff8a"
               name="Heal aura"
-              value={`${MEDIC_HEAL_RANGE.toFixed(1)}u`}
+              value={`${HEAL_AURA_RANGE.toFixed(1)}u`}
             />
           )}
         </div>

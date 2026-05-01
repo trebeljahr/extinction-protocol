@@ -2,15 +2,21 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind =
-  | "raptor"
-  | "allosaur"
-  | "stego"
-  | "swarm"
-  | "armored"
-  | "para"
-  | "titan"
-  | "medic";
+export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored" | "para" | "titan";
+
+// Composable per-enemy buffs — any combination can be layered on any
+// kind. See `chipBountyMul` in world.ts for the per-chip bounty scaling.
+//
+// - shielded: kind-specific energy shield, regens 4s after break.
+//             Visual: blue energy bubble.
+// - healAura: pulses HP/sec to nearby allies. Healers can't heal each
+//             other so a stack of healers isn't immortal.
+//             Visual: green pulsing ring on the ground.
+// - elite:    flattens damage-resist spread toward 1× and adds slow
+//             resistance. Visual: model material tint shifts to a
+//             distinct elite color per kind.
+// - fierce:   +30% damage. Visual: red glowing halo around the body.
+export type EnemyChip = "shielded" | "healAura" | "elite" | "fierce";
 
 export type Enemy = {
   id: EntityId;
@@ -35,16 +41,17 @@ export type Enemy = {
   // cryo applies slow today) and decays back to 0 once it's free. Drives
   // the white-blue tint on the rendered enemy.
   frost: number;
-  // Defensive layer absorbed before HP. 0 when not a shielded variant or
+  // Defensive layer absorbed before HP. 0 when not shielded or
   // currently broken. Regen kicks in 4s after a full break.
   shield: number;
   maxShield: number;
   // world.time when shield last hit 0; 0 if intact or never had one.
   shieldBrokenAt: number;
-  // Spawn-time variant flag — bumps HP/damage/bounty, narrows resist
-  // spread, and adds slow resistance. Shows as a red-tinted, slightly
-  // larger model with an ELITE badge.
+  // Composable chip flags — any combination layers on any kind. See
+  // EnemyChip docstring for visual/behavior summary.
+  healAura: boolean;
   elite: boolean;
+  fierce: boolean;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -79,10 +86,10 @@ export type Tower = {
   droneTargetIds: (EntityId | null)[];
   // Hive A2 upgrade — drones bypass shields entirely.
   pierceShield: boolean;
-  // Hive B2 upgrade — drones prefer medic targets in range.
-  prioritizeMedic: boolean;
-  // Hive B3 upgrade — multiplier applied to damage when target is elite.
-  // 1 = no bonus, 1.3 = +30%.
+  // Hive B2 upgrade — drones prefer healers (any enemy with healAura).
+  prioritizeHealer: boolean;
+  // Hive B3 upgrade — multiplier applied to damage when target carries
+  // the `elite` chip. 1 = no bonus, 1.3 = +30%.
   eliteDamageBonus: number;
 };
 
@@ -158,19 +165,21 @@ export type SpawnRequest = {
   hpMul: number;
   pathIndex: number;
   shielded?: boolean;
+  healAura?: boolean;
   elite?: boolean;
+  fierce?: boolean;
 };
 
 export type EnemySpec = {
   kind: EnemyKind;
   count: number;
   pathIndex?: number;
-  // Apply the shielded variant — adds a kind-specific shield pool that
-  // absorbs damage before HP and regenerates 4s after breaking.
+  // Composable chips — any combination of these can be set per group.
+  // See EnemyChip type for behavior + visual summary.
   shielded?: boolean;
-  // Apply the elite variant — bumps HP/damage/bounty, narrows resist
-  // spread toward 1×, and adds slow resistance. Visual badge + tint.
+  healAura?: boolean;
   elite?: boolean;
+  fierce?: boolean;
 };
 
 export type WaveArchetype =

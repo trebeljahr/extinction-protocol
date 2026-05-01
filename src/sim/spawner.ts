@@ -58,7 +58,9 @@ type RosterEntry = {
   kind: EnemyKind;
   pathIndex: number;
   shielded: boolean;
+  healAura: boolean;
   elite: boolean;
+  fierce: boolean;
 };
 
 const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
@@ -66,8 +68,12 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
   for (const s of spec.spawns) {
     const pathIndex = s.pathIndex ?? 0;
     const shielded = s.shielded ?? false;
+    const healAura = s.healAura ?? false;
     const elite = s.elite ?? false;
-    for (let i = 0; i < s.count; i++) out.push({ kind: s.kind, pathIndex, shielded, elite });
+    const fierce = s.fierce ?? false;
+    for (let i = 0; i < s.count; i++) {
+      out.push({ kind: s.kind, pathIndex, shielded, healAura, elite, fierce });
+    }
   }
   const archetype = spec.archetype ?? inferArchetype(spec);
   if (ORDERED_ARCHETYPES.has(archetype)) return out;
@@ -110,7 +116,9 @@ const startWave = (world: World) => {
       hpMul,
       pathIndex: entry.pathIndex,
       shielded: entry.shielded,
+      healAura: entry.healAura,
       elite: entry.elite,
+      fierce: entry.fierce,
     });
   }
   emit(world, { type: "wave-start", wave: world.wave });
@@ -170,7 +178,9 @@ export const spawnerTick = (world: World, dt: number) => {
       hpMul: req.hpMul,
       pathIndex: req.pathIndex,
       shielded: req.shielded,
+      healAura: req.healAura,
       elite: req.elite,
+      fierce: req.fierce,
     });
   }
 

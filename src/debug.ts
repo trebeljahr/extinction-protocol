@@ -28,3 +28,14 @@ export const isDebug: boolean = import.meta.env.DEV === true && readDebugParam()
 if (isDebug && typeof document !== "undefined") {
   document.body.setAttribute("data-debug", "true");
 }
+
+// In debug mode, expose the Zustand store on window so quick console
+// repros (or preview eval) can drive level selection without clicking
+// through the world map. Production builds dead-code this since
+// `isDebug` is gated on `import.meta.env.DEV`.
+if (isDebug && typeof window !== "undefined") {
+  // Lazy require to avoid a circular import at module init time.
+  import("./store").then(({ useGame }) => {
+    (window as unknown as { __game: unknown }).__game = useGame;
+  });
+}

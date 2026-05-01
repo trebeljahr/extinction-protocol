@@ -1,16 +1,16 @@
 import type { World } from "./types";
 import { distSq } from "./vec2";
 import {
-  MEDIC_HEAL_RANGE,
-  MEDIC_HEAL_RATE,
+  HEAL_AURA_RANGE,
+  HEAL_AURA_RATE,
   SHIELD_REGEN_DELAY,
   SHIELD_REGEN_RATE,
   spawnParticles,
 } from "./world";
 
-// Shield regen + medic heal-aura tick. Both are continuous defensive
-// effects that consume the same enemy list, so colocating them avoids a
-// second pass through `world.enemies` per tick.
+// Shield regen + heal-aura tick. Both are continuous defensive effects
+// keyed off chip flags rather than enemy kind, so any combination of
+// kind + chips produces the right behavior.
 
 export const updateDefensive = (world: World, dt: number) => {
   for (const e of world.enemies) {
@@ -28,22 +28,22 @@ export const updateDefensive = (world: World, dt: number) => {
     }
   }
 
-  // Healers — find each medic and tick HP for nearby allies. Quadratic
-  // in (medics × enemies), but medic counts stay small (handfuls per
-  // wave) so the total cost is fine vs. building a spatial index.
-  const r2 = MEDIC_HEAL_RANGE * MEDIC_HEAL_RANGE;
+  // Healers — any enemy carrying the healAura chip ticks HP into nearby
+  // allies. Quadratic in (healers × enemies) but healer counts stay
+  // small so the total cost is fine vs. building a spatial index.
+  // Healers don't heal each other, which keeps healer-stacks from being
+  // immortal — players can still focus a stack down individually.
+  const r2 = HEAL_AURA_RANGE * HEAL_AURA_RANGE;
   for (const m of world.enemies) {
     if (!m.alive) continue;
-    if (m.kind !== "medic") continue;
+    if (!m.healAura) continue;
     for (const e of world.enemies) {
       if (!e.alive) continue;
       if (e === m) continue;
-      // Medics don't heal each other — keeps healer-stacks from being
-      // immortal. Players still need to focus medics down individually.
-      if (e.kind === "medic") continue;
+      if (e.healAura) continue;
       if (e.hp >= e.maxHp) continue;
       if (distSq(e.pos, m.pos) > r2) continue;
-      e.hp = Math.min(e.maxHp, e.hp + MEDIC_HEAL_RATE * dt);
+      e.hp = Math.min(e.maxHp, e.hp + HEAL_AURA_RATE * dt);
       // Sparse green spark on healed allies — every ~20 ticks per ally
       // so the ambient sparkle reads without flooding the particle pool.
       if (Math.random() < 0.05) {

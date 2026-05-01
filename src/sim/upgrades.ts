@@ -374,10 +374,10 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Sentinel",
-          desc: "Drones prioritize medics, +20% damage",
+          desc: "Drones prioritize healers, +20% damage",
           cost: 120,
           apply: (t) => {
-            t.prioritizeMedic = true;
+            t.prioritizeHealer = true;
             t.damage *= 1.2;
           },
         },

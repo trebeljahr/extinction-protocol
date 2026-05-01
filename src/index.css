@@ -293,9 +293,6 @@
   .enemy-swatch.kind-titan {
     background: linear-gradient(135deg, #2a1e14 40%, #6a4e30);
   }
-  .enemy-swatch.kind-medic {
-    background: linear-gradient(135deg, #1d3a2a 40%, #5be09a);
-  }
 
   .enemy-status {
     font-size: var(--fs-2xs);

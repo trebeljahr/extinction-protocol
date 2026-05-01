@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { EnemyKind } from "../sim/types";
+import { ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
 
 type Props = {
@@ -20,11 +21,13 @@ type Props = {
 // toward this as e.frost climbs from 0 → 1.
 const FROST_COLOR = new THREE.Color("#cfe6ff");
 const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
-// Elite tint target — warm red/orange. Subtle weight (~30%) so the
-// silhouette still reads as the underlying species.
-const ELITE_TINT = new THREE.Color("#ff6a3a");
-const ELITE_TINT_AMOUNT = 0.3;
-const ELITE_SCALE_MUL = 1.1;
+// Elite chip blends the kind's per-species elite color into the
+// material color and adds a matching emissive rim. Strong enough that
+// elite raptors look noticeably crimson, elite armored shimmer with a
+// chrome-blue cast, etc. Per-kind colors live in world.ts so wave
+// authoring + UI can share them.
+const ELITE_TINT_AMOUNT = 0.55;
+const ELITE_EMISSIVE_AMOUNT = 0.35;
 
 const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
   const c = mat.clone();
@@ -81,6 +84,9 @@ export const ModelEnemyMesh = ({
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, Item>>(new Map());
+  // Stable per-kind elite color — built once and reused for the body
+  // lerp every frame so we don't allocate THREE.Color in the inner loop.
+  const eliteTint = useMemo(() => new THREE.Color(ELITE_TINT_BY_KIND[kind]), [kind]);
   // Free list of skinned clones from dead-but-recyclable enemies. Reusing
   // is significantly cheaper than another `cloneSkinned + AnimationMixer`,
   // which matters for swarms.
@@ -251,11 +257,6 @@ export const ModelEnemyMesh = ({
       }
 
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
-      // Elite scale is a multiplier on top of the kind's normalized scale
-      // — applied each frame so per-clone state stays simple. Reused
-      // pooled clones get the right scale automatically.
-      const eliteScale = e.elite ? ELITE_SCALE_MUL : 1;
-      item.obj.scale.setScalar(normalizedScale * eliteScale);
       item.obj.position.set(
         item.visX - centerXZ.x,
         yOffset - scaledMinY + bobY,
@@ -281,13 +282,14 @@ export const ModelEnemyMesh = ({
         const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
         const apply = (mm: THREE.MeshStandardMaterial) => {
           // Restore base color each frame, then layer on tints in order
-          // of priority: frost first (locks the cold read), then elite
-          // (warm red wash) when not heavily frosted. Skipping when both
+          // of priority: frost wins outright (the "frozen solid" read
+          // shouldn't fight with elite), otherwise elite shifts the
+          // material toward the kind-specific tint. Skipping when both
           // are 0 keeps the no-op fast path allocation-free.
           const base = mm.userData.baseColor as THREE.Color | undefined;
           if (base && mm.color) {
             if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
-            else if (elite) mm.color.copy(base).lerp(ELITE_TINT, ELITE_TINT_AMOUNT);
+            else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
             else mm.color.copy(base);
           }
           if (!mm.emissive) return;
@@ -298,9 +300,9 @@ export const ModelEnemyMesh = ({
             // solid" read at high frost without a halo at low frost.
             mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
           } else if (elite) {
-            // Faint warm rim — emissive only, no exposure compensation.
-            // Reads as "this one's mean" without bloom-y overdrive.
-            mm.emissive.copy(ELITE_TINT).multiplyScalar(0.18);
+            // Inner rim glow in the kind's elite color — sells the
+            // tint as a metallic / energized look rather than a dye job.
+            mm.emissive.copy(eliteTint).multiplyScalar(ELITE_EMISSIVE_AMOUNT);
           } else {
             mm.emissive.setRGB(0, 0, 0);
           }
@@ -367,4 +369,3 @@ useGLTF.preload("/models/Stegosaurus.glb");
 useGLTF.preload("/models/Triceratops.glb");
 useGLTF.preload("/models/Parasaurolophus.glb");
 useGLTF.preload("/models/Apatosaurus.glb");
-// Medic reuses Parasaurolophus.glb at smaller size — no extra preload.

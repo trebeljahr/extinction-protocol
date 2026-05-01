@@ -8,7 +8,6 @@ export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
   stego: "Armored grazer",
   armored: "Juggernaut",
   titan: "Colossus",
-  medic: "Field healer",
 };
 
 export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
@@ -21,6 +20,4 @@ export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
     "Juggernaut. Hardened against shock and blast. Kinetic is the only thing that gets through reliably. Heavy slow resistance.",
   titan:
     "Colossus. Resists nearly everything except cold. Heavy slow resistance — every step costs lives.",
-  medic:
-    "Field healer. Pulses 3 HP/sec to nearby allies in a 3.5u aura. Squishy on its own — kill it first or its escort never dies.",
 };

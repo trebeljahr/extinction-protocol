@@ -487,7 +487,6 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   armored: { kind: "armored", hp: 300, maxHp: 300, speed: 1.1, bounty: 22, damage: 1 },
   para: { kind: "para", hp: 45, maxHp: 45, speed: 1.8, bounty: 5, damage: 2 },
   titan: { kind: "titan", hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
-  medic: { kind: "medic", hp: 80, maxHp: 80, speed: 1.0, bounty: 6, damage: 1 },
 };
 
 // Per-kind shield pool used when a spec marks an enemy as shielded.
@@ -501,16 +500,15 @@ export const SHIELD_BY_KIND: Record<EnemyKind, number> = {
   armored: 120,
   para: 25,
   titan: 400,
-  medic: 60,
 };
 
 export const SHIELD_REGEN_DELAY = 4;
 // Fraction of maxShield restored per second once regen kicks in.
 export const SHIELD_REGEN_RATE = 0.25;
 
-// Healer tuning — see updateMedicHeal in defensive.ts.
-export const MEDIC_HEAL_RANGE = 3.5;
-export const MEDIC_HEAL_RATE = 3;
+// Healer chip tuning — read by updateDefensive.
+export const HEAL_AURA_RANGE = 3.5;
+export const HEAL_AURA_RATE = 3;
 
 export const TOWER_DAMAGE_TYPE: Record<TowerKind, DamageType> = {
   pulse: "kinetic",
@@ -543,10 +541,6 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4 },
   para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9 },
   titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35 },
-  // Glass-cannon support unit. Flat 1× across the board so the only thing
-  // protecting it is range + healers stacking — no exploitable resist
-  // window to dodge focus-fire.
-  medic: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0 },
 };
 
 export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
@@ -557,19 +551,28 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
   armored: 0.75,
   para: 0,
   titan: 0.5,
-  medic: 0,
 };
 
-// Elite tuning — applied at spawn, derived in applyDamage / applySlow.
-export const ELITE_HP_MUL = 1.5;
-export const ELITE_DAMAGE_MUL = 1.3;
-export const ELITE_BOUNTY_MUL = 1.5;
-export const ELITE_SLOW_RESIST_BONUS = 0.2;
+// Per-chip stat multipliers — applied at spawn (HP/damage/bounty) or
+// derived per-tick (resist flatten, slow resist). Chips compose: a
+// raptor with both `elite` and `fierce` gets the resist flatten and
+// the damage bump and the bounty stacks multiplicatively.
+//
+// Elite chip — slows the kill but doesn't make the enemy hit harder.
+export const ELITE_RESIST_FLATTEN = 0.15;
+export const ELITE_SLOW_RESIST_BONUS = 0.25;
 export const ELITE_SLOW_RESIST_CAP = 0.95;
-// Resist multipliers shift toward 1.0 by this fraction (smaller spread,
-// no easy weakness to exploit).
-export const ELITE_RESIST_FLATTEN = 0.1;
-export const ELITE_SCALE_MUL = 1.1;
+
+// Fierce chip — purely offensive bump.
+export const FIERCE_DAMAGE_MUL = 1.4;
+
+// Bounty multipliers per active chip. Stack multiplicatively at spawn
+// time, so an elite-shielded-fierce raptor pays out roughly 2× its
+// vanilla bounty without any single chip dominating.
+export const SHIELDED_BOUNTY_MUL = 1.3;
+export const HEAL_AURA_BOUNTY_MUL = 1.4;
+export const ELITE_BOUNTY_MUL = 1.4;
+export const FIERCE_BOUNTY_MUL = 1.3;
 
 export const MIN_SLOW_FACTOR = 0.25;
 
@@ -581,10 +584,6 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   stego: { url: "/models/Stegosaurus.glb", targetSize: 1.9 },
   armored: { url: "/models/Triceratops.glb", targetSize: 2.0 },
   titan: { url: "/models/Apatosaurus.glb", targetSize: 11.0, clip: "Walk" },
-  // Reuse the parasaur model at compact size — the green aura ring is the
-  // main read for "this one heals," and the smaller silhouette + lack of
-  // crested head separates it visually from the para variant up close.
-  medic: { url: "/models/Parasaurolophus.glb", targetSize: 1.3 },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
@@ -595,7 +594,19 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
   armored: "Triceratops",
   para: "Parasaur",
   titan: "Apatosaur",
-  medic: "Medic",
+};
+
+// Per-kind elite material tint — a distinct palette per species so the
+// elite chip reads as "this kind, but the dangerous variant" rather
+// than a uniform red wash. Read by ModelEnemyMesh.
+export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
+  raptor: "#ff3a30", // bright crimson — predator pack alpha
+  swarm: "#ff8a3a", // burnt orange — angrier wasp tone
+  para: "#a25aff", // royal purple — runner with shimmering crest
+  allosaur: "#ffb030", // gold — apex-of-apex
+  stego: "#3affb0", // jade — carved jade plates
+  armored: "#5ad6ff", // glacial blue — chrome-plated tank
+  titan: "#ffd24a", // burnished gold — legendary colossus
 };
 
 export const applyDamage = (
@@ -629,8 +640,9 @@ export const applyDamage = (
   }
 
   const baseMul = ENEMY_RESIST[enemy.kind][type];
-  // Elites flatten the resist spread toward 1.0 — fewer hard counters,
-  // fewer free wins. Stego elites still resist kinetic, just less.
+  // Elite chip flattens the resist spread toward 1.0 — fewer hard
+  // counters, fewer free wins. A stego with the elite chip still
+  // resists kinetic, just less.
   const mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
   enemy.hp -= dmg * mul;
   enemy.flashUntil = world.time + 0.08;
@@ -653,29 +665,40 @@ const LATERAL_OFFSET_BY_KIND: Record<EnemyKind, number> = {
   stego: PATH_WIDTH * 0.2,
   armored: PATH_WIDTH * 0.2,
   titan: PATH_WIDTH * 0.08,
-  medic: PATH_WIDTH * 0.3,
 };
 
 export type SpawnOptions = {
   hpMul?: number;
   pathIndex?: number;
   shielded?: boolean;
+  healAura?: boolean;
   elite?: boolean;
+  fierce?: boolean;
 };
 
 export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {}): Enemy => {
-  const { hpMul = 1, pathIndex = 0, shielded = false, elite = false } = opts;
+  const {
+    hpMul = 1,
+    pathIndex = 0,
+    shielded = false,
+    healAura = false,
+    elite = false,
+    fierce = false,
+  } = opts;
   const base = ENEMY_STATS[kind];
   const path = world.paths[pathIndex] ?? world.paths[0];
   const start = path[0];
-  let maxHp = Math.ceil(base.hp * hpMul);
-  let damage = base.damage;
-  let bounty = base.bounty;
-  if (elite) {
-    maxHp = Math.ceil(maxHp * ELITE_HP_MUL);
-    damage = Math.ceil(damage * ELITE_DAMAGE_MUL);
-    bounty = Math.ceil(bounty * ELITE_BOUNTY_MUL);
-  }
+  const maxHp = Math.ceil(base.hp * hpMul);
+  // Damage bump comes from `fierce` — elite is purely a defensive chip.
+  const damage = fierce ? Math.ceil(base.damage * FIERCE_DAMAGE_MUL) : base.damage;
+  // Bounty stacks multiplicatively per active chip so combos pay out
+  // proportionally to the threat — never extra-flat from one big chip.
+  let bountyMul = 1;
+  if (shielded) bountyMul *= SHIELDED_BOUNTY_MUL;
+  if (healAura) bountyMul *= HEAL_AURA_BOUNTY_MUL;
+  if (elite) bountyMul *= ELITE_BOUNTY_MUL;
+  if (fierce) bountyMul *= FIERCE_BOUNTY_MUL;
+  const bounty = Math.ceil(base.bounty * bountyMul);
   // Shield pool is fixed by kind (not scaled by hpMul) — that way the
   // tutorial-feel of cracking a raptor's 10-pt bubble doesn't erode at
   // late levels where hpMul is high.
@@ -706,7 +729,9 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     shield: maxShield,
     maxShield,
     shieldBrokenAt: 0,
+    healAura,
     elite,
+    fierce,
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);
@@ -835,7 +860,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     slowDuration: stats.slowDuration,
     droneTargetIds: kind === "hive" ? [null, null, null] : [],
     pierceShield: false,
-    prioritizeMedic: false,
+    prioritizeHealer: false,
     eliteDamageBonus: 1,
   };
   world.towers.push(tower);

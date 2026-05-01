@@ -87,7 +87,9 @@ type UiSnapshot = {
   inspectedEnemyAlive: boolean;
   inspectedEnemyShield: number | null;
   inspectedEnemyMaxShield: number;
+  inspectedEnemyHealAura: boolean;
   inspectedEnemyElite: boolean;
+  inspectedEnemyFierce: boolean;
 };
 
 const snapshot = (
@@ -100,7 +102,9 @@ const snapshot = (
   let alive = false;
   let shield: number | null = null;
   let maxShield = 0;
+  let healAura = false;
   let elite = false;
+  let fierce = false;
   if (inspect.id !== null) {
     const e = w.enemyById.get(inspect.id);
     if (e?.alive) {
@@ -108,7 +112,9 @@ const snapshot = (
       alive = true;
       shield = e.shield;
       maxShield = e.maxShield;
+      healAura = e.healAura;
       elite = e.elite;
+      fierce = e.fierce;
     }
   }
   return {
@@ -132,7 +138,9 @@ const snapshot = (
     inspectedEnemyAlive: alive,
     inspectedEnemyShield: shield,
     inspectedEnemyMaxShield: maxShield,
+    inspectedEnemyHealAura: healAura,
     inspectedEnemyElite: elite,
+    inspectedEnemyFierce: fierce,
   };
 };
 
@@ -157,7 +165,9 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyAlive === b.inspectedEnemyAlive &&
   a.inspectedEnemyShield === b.inspectedEnemyShield &&
   a.inspectedEnemyMaxShield === b.inspectedEnemyMaxShield &&
-  a.inspectedEnemyElite === b.inspectedEnemyElite;
+  a.inspectedEnemyHealAura === b.inspectedEnemyHealAura &&
+  a.inspectedEnemyElite === b.inspectedEnemyElite &&
+  a.inspectedEnemyFierce === b.inspectedEnemyFierce;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;

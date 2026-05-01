@@ -1,16 +1,18 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { MEDIC_HEAL_RANGE } from "../sim/world";
+import { HEAL_AURA_RANGE } from "../sim/world";
 import { useGame } from "../store";
 
-const MAX_MEDICS = 32;
-// Two layers per medic: a faint disc for area read, and a brighter ring
-// at the edge so the heal radius is unambiguous. Ring + disc are managed
-// as separate instanced meshes — one draw call each regardless of count.
+const MAX_HEALERS = 64;
+// Two layers per healer: a faint disc for area read, and a brighter
+// ring at the edge so the heal radius is unambiguous. Ring + disc are
+// managed as separate instanced meshes — one draw call each regardless
+// of count. Renders for any enemy carrying the healAura chip, not a
+// specific kind.
 const AURA_COLOR = new THREE.Color("#7eff8a");
 
-export const MedicAuras = () => {
+export const HealAuras = () => {
   const discRef = useRef<THREE.InstancedMesh>(null);
   const ringRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -26,14 +28,14 @@ export const MedicAuras = () => {
     let hi = 0;
     for (const e of world.enemies) {
       if (!e.alive) continue;
-      if (e.kind !== "medic") continue;
-      if (hi >= MAX_MEDICS) break;
+      if (!e.healAura) continue;
+      if (hi >= MAX_HEALERS) break;
 
       // Pulse the aura radius slightly so it reads as "active healing,"
-      // not a static debuff field. Phase per-medic so stacked medics
+      // not a static debuff field. Phase per-healer so stacked healers
       // don't pulse in lockstep.
       const pulse = 1 + Math.sin(time * 1.6 + e.id * 0.7) * 0.05;
-      const r = MEDIC_HEAL_RANGE * pulse;
+      const r = HEAL_AURA_RANGE * pulse;
       dummy.position.set(e.pos.x, 0.03, -e.pos.y);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
       dummy.scale.set(r, r, 1);
@@ -57,7 +59,7 @@ export const MedicAuras = () => {
 
   return (
     <group>
-      <instancedMesh ref={discRef} args={[undefined, undefined, MAX_MEDICS]}>
+      <instancedMesh ref={discRef} args={[undefined, undefined, MAX_HEALERS]}>
         <circleGeometry args={[1, 48]} />
         <meshBasicMaterial
           color="white"
@@ -68,7 +70,7 @@ export const MedicAuras = () => {
           toneMapped={false}
         />
       </instancedMesh>
-      <instancedMesh ref={ringRef} args={[undefined, undefined, MAX_MEDICS]}>
+      <instancedMesh ref={ringRef} args={[undefined, undefined, MAX_HEALERS]}>
         <ringGeometry args={[0.94, 1.0, 64]} />
         <meshBasicMaterial
           color="white"

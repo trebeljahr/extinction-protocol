@@ -26,7 +26,6 @@ type EnemyCounts = {
   stego?: number;
   armored?: number;
   titan?: number;
-  medic?: number;
 };
 
 const SPAWN_ORDER: EnemyKind[] = [
@@ -37,10 +36,14 @@ const SPAWN_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
-  "medic",
 ];
 
-type SpawnFlags = { shielded?: boolean; elite?: boolean };
+type SpawnFlags = {
+  shielded?: boolean;
+  healAura?: boolean;
+  elite?: boolean;
+  fierce?: boolean;
+};
 
 const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemySpec[] =>
   SPAWN_ORDER.filter((k) => (c[k] ?? 0) > 0).map((k) => ({
@@ -48,7 +51,9 @@ const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemyS
     count: c[k]!,
     pathIndex,
     ...(flags.shielded ? { shielded: true } : {}),
+    ...(flags.healAura ? { healAura: true } : {}),
     ...(flags.elite ? { elite: true } : {}),
+    ...(flags.fierce ? { fierce: true } : {}),
   }));
 
 const intro = (raptor: number, swarm = 0, pathIndex = 0): WaveSpec => ({
@@ -510,40 +515,41 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       mixed({ raptor: 18, swarm: 14, allosaur: 5 }),
       rush(75, 14),
-      // First medic encounter: 3 medics escorted by a small swarm so the
-      // priority decision is visible — burn the medics or watch the
-      // pack heal. Convoy archetype keeps the medics sandwiched.
+      // First healing encounter: 3 paras with the healAura chip,
+      // escorted by raptors. Paras are fast — sentinel-mode hive or
+      // strong single-target burst is the answer. Convoy archetype
+      // keeps the healers sandwiched.
       {
         archetype: "convoy",
         spacing: 0.55,
         spawns: [
           { kind: "raptor", count: 6, pathIndex: 0 },
-          { kind: "medic", count: 3, pathIndex: 0 },
+          ...toSpawns({ para: 3 }, 0, { healAura: true }),
           { kind: "raptor", count: 6, pathIndex: 0 },
         ],
       },
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
-      // Medic-supported armored push — the heal aura turns 4 armored into
-      // a chip war if the medics aren't picked off.
+      // Healing-supported armored push — the aura turns 4 armored into
+      // a chip war if the healers aren't picked off.
       {
         archetype: "heavy",
         spacing: 0.9,
         spawns: [
           ...toSpawns({ armored: 4, stego: 3, allosaur: 3 }),
-          { kind: "medic", count: 2, pathIndex: 0 },
+          ...toSpawns({ para: 2 }, 0, { healAura: true }),
         ],
       },
       chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }),
       rush(120, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
-      // Medics riding with a chaos pack — the heal trickle keeps swarm
-      // stragglers alive long enough to break through.
+      // Healing paras mixed into a chaos pack — the heal trickle keeps
+      // swarm stragglers alive long enough to break through.
       {
         archetype: "chaos",
         spacing: 0.3,
         spawns: [
           ...toSpawns({ raptor: 22, swarm: 24, allosaur: 9, stego: 5, armored: 3 }),
-          { kind: "medic", count: 3, pathIndex: 0 },
+          ...toSpawns({ para: 3 }, 0, { healAura: true }),
         ],
       },
       heavy({ armored: 16, stego: 8, allosaur: 6, titan: 2 }),
@@ -563,29 +569,30 @@ export const LEVELS: LevelConfig[] = [
       rush(80, 16),
       heavy({ armored: 8, stego: 4, allosaur: 4 }),
       echelon([{ raptor: 22, swarm: 18 }, { allosaur: 8, stego: 4 }, { armored: 4 }]),
-      // Shielded medics behind raptor cover — the shield blunts focus
-      // fire, the heal aura props the cover up. Hive's sentinel
-      // upgrade carves through this wave; nothing else really does.
+      // Shielded healing paras behind raptor cover — both chips on the
+      // same enemy. Shield blunts focus fire, aura props the cover up.
+      // Hive's sentinel upgrade carves through this; nothing else
+      // really does.
       {
         archetype: "convoy",
         spacing: 0.5,
         spawns: [
           { kind: "raptor", count: 8, pathIndex: 0 },
-          { kind: "medic", count: 3, pathIndex: 0, shielded: true },
+          ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
           { kind: "raptor", count: 8, pathIndex: 0 },
         ],
       },
       chaos({ raptor: 20, swarm: 26, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
       rush(125, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
-      // Shielded medic + shielded armored escort. Priority puzzle: break
-      // an armored shield only to have a medic top it back up.
+      // Shielded armored escort plus shielded healing paras — break an
+      // armored shield, watch a healer top it right back up.
       {
         archetype: "heavy",
         spacing: 0.85,
         spawns: [
           ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
-          { kind: "medic", count: 2, pathIndex: 0, shielded: true },
+          ...toSpawns({ para: 2 }, 0, { shielded: true, healAura: true }),
           ...toSpawns({ allosaur: 5 }),
         ],
       },
@@ -608,8 +615,8 @@ export const LEVELS: LevelConfig[] = [
       chaos({ raptor: 20, swarm: 26, para: 5, allosaur: 8, stego: 5, armored: 3 }),
       rush(130, 28),
       // Elite debut: a single elite stego leads, plain pack trails.
-      // 1.5× HP + flattened resists + 1.1× scale + ELITE badge — the
-      // first time the player sees one mid-pack the silhouette pops.
+      // The kind-specific jade tint on its plates pops the silhouette
+      // mid-pack, and flattened resists mean explosive isn't free.
       {
         archetype: "vanguard",
         spacing: 0.55,
@@ -619,8 +626,14 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
       mixed({ raptor: 28, swarm: 24, para: 8, allosaur: 12, stego: 7, armored: 3 }),
-      // Elite armored breach — two of them. Flattened resists mean
-      // explosive stops being free; you need raw kinetic and uptime.
+      // Fierce raptor swarm — the red halo crowd. Each raptor hits 40%
+      // harder, so a leak is much more punishing.
+      {
+        archetype: "swarm",
+        spacing: 0.13,
+        spawns: [...toSpawns({ raptor: 30, swarm: 22 }, 0, { fierce: true })],
+      },
+      // Elite armored breach — two of them, glacial-blue chrome plate.
       {
         archetype: "heavy",
         spacing: 0.9,
@@ -630,23 +643,27 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
       heavy({ armored: 16, stego: 9, allosaur: 7, titan: 2 }),
-      // Mixed-defense penultimate: shielded medics + plain push. Tests
-      // whether the player can sustain anti-shield + anti-heal at once.
+      // Mixed-defense penultimate: shielded healing paras + plain push.
+      // Tests whether the player can sustain anti-shield + anti-heal at
+      // once. Sentinel-mode hive is the cleanest answer.
       {
         archetype: "chaos",
         spacing: 0.3,
         spawns: [
-          { kind: "medic", count: 3, pathIndex: 0, shielded: true },
+          ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
           ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
         ],
       },
-      // Finale: elite armored + elite stego in a chaos finale. Boss-feel
-      // without inventing a boss class — the elite tag does the work.
+      // Finale: elite + fierce armored leads (jade-blue + red halo +
+      // hits hard), plus an elite stego, plus a chaos pack underneath.
+      // Three chip combinations on screen at once — boss-feel without
+      // inventing a boss class.
       {
         archetype: "chaos",
         spacing: 0.3,
         spawns: [
-          ...toSpawns({ armored: 2, stego: 2 }, 0, { elite: true }),
+          ...toSpawns({ armored: 2 }, 0, { elite: true, fierce: true }),
+          ...toSpawns({ stego: 2 }, 0, { elite: true }),
           ...toSpawns({
             raptor: 30,
             swarm: 38,

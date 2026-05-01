@@ -27,7 +27,6 @@ const ENEMY_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
-  "medic",
 ];
 
 const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] = [
