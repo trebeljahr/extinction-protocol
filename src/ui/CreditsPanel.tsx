@@ -18,27 +18,32 @@ type CreditSection = {
   entries: CreditEntry[];
 };
 
-// Attribution sourced from in-repo comments where available:
-//  - /models/scifi/*       → Kenney "Space Kit" (src/render/BiomeCosmetics.tsx, src/biomes.ts)
-//  - /models/landmarks/snow/Cabin.glb → Kenney "Hexagon Kit" (src/easterEggs.ts)
-//  - /models/biomes/alien/* → Quaternius "Ultimate Space Kit" (src/biomes.ts)
-//  - /models/nature/* and biome rocks/bushes → Quaternius generic nature kits
-//    (src/render/Rocks.tsx, src/biomes.ts)
-//  - Hive drone primitive → Quaternius "Enemy Flying" (src/render/HiveDrones.tsx)
-// Anything not covered above is marked with a TODO so it can be filled in
-// without guessing.
+// Attribution sources, in order of certainty:
+//  1. In-repo comments call out Kenney/Quaternius packs by name in biomes.ts,
+//     easterEggs.ts, BiomeCosmetics.tsx, Rocks.tsx, HiveDrones.tsx.
+//  2. Embedded glTF metadata in each .glb (mesh names, material names,
+//     texture filenames, animation names) was inspected to confirm the
+//     source pack — Quaternius's classic palette/color naming and animation
+//     suffixes (`_Idle`, `_Walk`, `_Run`, `_Attack`, `_Death`, `_Jump`),
+//     Kenney's `Mesh ` mesh prefix + `metal`/`metalDark` materials and
+//     `colormap` Hexagon-Kit naming, and the shared `Atlas_Pirate.png`
+//     texture in pirate-themed landmarks.
+//  3. Audio MP3 ID3 tags were probed with ffprobe — most of the biome music
+//     tracks identified themselves as Kevin MacLeod (incompetech.com).
+//  4. Anything still unconfirmed (alien/desert music, all SFX) keeps a
+//     TODO comment with the asset path and the strongest available clue.
 const SECTIONS: CreditSection[] = [
   {
     title: "3D Models",
     entries: [
       {
-        name: "Sci-fi props (machines, satellite dishes, hangars, rocket bases, rover, barrels, crystals, structures, meteor)",
+        name: "Sci-fi props — machines, satellite dishes, hangars, rocket bases, rover, barrels, crystals, structures, meteor (scifi/*)",
         creator: "Kenney",
         license: "CC0 1.0",
         url: "https://kenney.nl/assets/space-kit",
       },
       {
-        name: "Snow cabin (landmarks/snow/Cabin.glb)",
+        name: "Hexagon-kit landmarks — Cabin, Crystal1 (snow), Crystal1 (wasteland)",
         creator: "Kenney",
         license: "CC0 1.0",
         url: "https://kenney.nl/assets/hexagon-kit",
@@ -50,65 +55,69 @@ const SECTIONS: CreditSection[] = [
         url: "https://quaternius.com/packs/ultimatespacekit.html",
       },
       {
-        name: "Generic nature props (nature/Bush*, Grass*, Rock*, Tree*)",
+        name: "Stylized nature props — Bush, Grass, Rock, Tree (nature/*)",
         creator: "Quaternius",
         license: "CC0 1.0",
-        url: "https://quaternius.com/",
+        url: "https://quaternius.com/packs/stylizednaturemegakit.html",
       },
       {
         name: "Biome rocks, bushes, and trees (biomes/desert, biomes/snow, biomes/wasteland)",
         creator: "Quaternius",
         license: "CC0 1.0",
-        url: "https://quaternius.com/",
+        url: "https://quaternius.com/packs/stylizednaturemegakit.html",
       },
       {
-        name: "Hive drone mesh (Enemy Flying)",
+        name: "Animated dinosaur enemies — Apatosaurus, Parasaurolophus, Stegosaurus, Trex, Triceratops, Velociraptor",
         creator: "Quaternius",
         license: "CC0 1.0",
-        url: "https://quaternius.com/",
+        url: "https://quaternius.com/packs/animateddinosaurs.html",
       },
-      // TODO: confirm source for /models/Apatosaurus.glb, Parasaurolophus.glb,
-      // Stegosaurus.glb, Trex.glb, Triceratops.glb, Velociraptor.glb
       {
-        name: "Dinosaur enemies (Apatosaurus, Parasaurolophus, Stegosaurus, Trex, Triceratops, Velociraptor)",
+        name: "Hive drone + Drone tower mesh (Enemy_Flying / Glub)",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/ultimatemonsters.html",
+      },
+      {
+        name: "Modular turret meshes — EMP, Flamethrower, Gatling, Gun Cannon, Hive, Lightning, Missile, Plasma, Rail Gun, Shield + root-level tower_*/turret_* variants",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/moduladefensekit.html",
+      },
+      // Forest/desert/wasteland landmarks share a single Atlas_Pirate.png
+      // texture and Prop_*/Environment_* mesh naming. Pattern matches
+      // Quaternius's free Pirate Pack but the in-glTF metadata doesn't carry
+      // an explicit creator tag — leaving a TODO so this can be confirmed
+      // against quaternius.com's pack listing rather than assumed.
+      // TODO: confirm pack for Atlas_Pirate.png landmarks — Barrel, House,
+      // Sawmill (forest); Chest, Skull (desert); Skull, Ruins (wasteland).
+      {
+        name: "Pirate-themed landmarks — Barrel, House, Sawmill, Chest, Ruins, Skull (Atlas_Pirate.png)",
         unknown: true,
       },
-      // TODO: confirm source for /models/turrets/*.glb (Drone, Emp Turret,
-      // Flamethrower Turret, Gatelng Gun Turret, Gun Cannon Turret, Hive
-      // Turret, Lighting Turret, Missile Turret, Plasma Turret, Rail Gun
-      // Turret, Shield Turret)
+      // TODO: confirm source for /models/landmarks/forest/BushFlowers.glb
+      // (mesh Bush_Common_Flowers, textures Flowers.webp + Leaves_NormalTree_C.webp)
+      // and /models/landmarks/forest/Mushroom.glb (mesh Mushroom_Common,
+      // texture Mushrooms.webp). The "_Common" suffix and webp textures
+      // don't match Quaternius/Kenney conventions.
       {
-        name: "Tower meshes (turrets/*.glb)",
+        name: "Forest detail props — BushFlowers, Mushroom",
         unknown: true,
       },
-      // TODO: confirm source for /models/tower_chain.glb, tower_pulse.glb,
-      // turret_emp.glb, turret_missile.glb (root-level turret variants)
+      // TODO: confirm source for /models/landmarks/desert/DeadTree.glb and
+      // /models/landmarks/wasteland/DeadTree.glb (mesh DeadTree_5, textures
+      // Bark_DeadTree.png + Bark_DeadTree_Normal.png). The PBR normal map
+      // suggests a different vendor than the palette-only Quaternius packs.
       {
-        name: "Legacy turret meshes (tower_chain.glb, tower_pulse.glb, turret_emp.glb, turret_missile.glb)",
+        name: "Dead trees — landmarks/desert/DeadTree, landmarks/wasteland/DeadTree",
         unknown: true,
       },
-      // TODO: confirm source for /models/landmarks/forest/* (Barrel,
-      // BushFlowers, House, Mushroom, Sawmill)
+      // TODO: confirm source for /models/landmarks/desert/Tent.glb,
+      // /models/landmarks/snow/Tent.glb, /models/landmarks/snow/Torch.glb.
+      // Color-only materials (Black/DarkWood/Green/DarkYellow/LightBlue),
+      // no textures — likely a Quaternius pack but no embedded clue.
       {
-        name: "Forest landmarks (Barrel, BushFlowers, House, Mushroom, Sawmill)",
-        unknown: true,
-      },
-      // TODO: confirm source for /models/landmarks/desert/* (Chest, DeadTree,
-      // Skull, Tent)
-      {
-        name: "Desert landmarks (Chest, DeadTree, Skull, Tent)",
-        unknown: true,
-      },
-      // TODO: confirm source for /models/landmarks/snow/* (Crystal1, Tent,
-      // Torch — Cabin attributed above)
-      {
-        name: "Snow landmarks (Crystal1, Tent, Torch)",
-        unknown: true,
-      },
-      // TODO: confirm source for /models/landmarks/wasteland/* (Crystal1,
-      // DeadTree, Ruins, Skull)
-      {
-        name: "Wasteland landmarks (Crystal1, DeadTree, Ruins, Skull)",
+        name: "Camp props — Tent (desert + snow), Torch (snow)",
         unknown: true,
       },
     ],
@@ -116,19 +125,45 @@ const SECTIONS: CreditSection[] = [
   {
     title: "Audio",
     entries: [
-      // TODO: confirm source for SFX in public/audio/*.mp3 — death, defeat,
-      // game-over, impact, level-select, life-lost, music-ambient, new-enemy,
-      // shoot-chain, shoot-cryo, shoot-mortar, shoot-pulse, star,
-      // tower-place, tower-select, tower-sell, ui-click, ui-close, ui-error,
-      // ui-open, ui-tab, upgrade, victory, wave-call, wave-clear, wave-start
       {
-        name: "Sound effects (UI clicks, tower fire, wave cues, victory/defeat stings, etc.)",
+        name: "Magic Forest (audio/music/forest.mp3)",
+        creator: "Kevin MacLeod",
+        license: "CC BY 4.0",
+        url: "https://incompetech.com/music/royalty-free/music.html",
+      },
+      {
+        name: "Black Vortex (audio/music/lava.mp3)",
+        creator: "Kevin MacLeod",
+        license: "CC BY 4.0",
+        url: "https://incompetech.com/music/royalty-free/music.html",
+      },
+      {
+        name: "Bittersweet (audio/music/snow.mp3)",
+        creator: "Kevin MacLeod",
+        license: "CC BY 4.0",
+        url: "https://incompetech.com/music/royalty-free/music.html",
+      },
+      {
+        name: "Corruption (audio/music/wasteland.mp3)",
+        creator: "Kevin MacLeod",
+        license: "CC BY 4.0",
+        url: "https://incompetech.com/music/royalty-free/music.html",
+      },
+      // TODO: confirm source for audio/music/alien.mp3 (16s, 256kbps, no
+      // ID3 tags) and audio/music/desert.mp3 (296s, 160kbps, no ID3 tags).
+      {
+        name: "Biome music — alien, desert",
         unknown: true,
       },
-      // TODO: confirm source for biome music tracks in public/audio/music/ —
-      // alien.mp3, desert.mp3, forest.mp3, lava.mp3, snow.mp3, wasteland.mp3
+      // TODO: confirm source for SFX in public/audio/*.mp3 — death, defeat,
+      // game-over, impact, level-select, life-lost, music-ambient,
+      // new-enemy, shoot-chain, shoot-cryo, shoot-mortar, shoot-pulse, star,
+      // tower-place, tower-select, tower-sell, ui-click, ui-close, ui-error,
+      // ui-open, ui-tab, upgrade, victory, wave-call, wave-clear, wave-start.
+      // None carry ID3 tags; if any of these were generated (jsfxr,
+      // sfxr-style) that should be noted here too.
       {
-        name: "Biome music tracks (alien, desert, forest, lava, snow, wasteland)",
+        name: "Sound effects — UI clicks, tower fire, wave cues, victory/defeat stings",
         unknown: true,
       },
     ],
@@ -147,11 +182,15 @@ const SECTIONS: CreditSection[] = [
   {
     title: "Icons",
     entries: [
-      // TODO: confirm source for public/icons/* (32x32.png, 128x128.png,
-      // icon.png) — app/window icons used by index.html and Tauri.
+      // public/icon-source.html renders public/models/tower_pulse.glb to
+      // generate icon.png + the 32×32 / 128×128 favicons. The icon credit
+      // therefore inherits whatever the tower mesh is licensed under
+      // (Quaternius Modular Defense Kit, listed above).
       {
-        name: "App icons (public/icons/*)",
-        unknown: true,
+        name: "App icons — public/icons/* (rendered from tower_pulse.glb via public/icon-source.html)",
+        creator: "Quaternius (mesh)",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/moduladefensekit.html",
       },
     ],
   },
