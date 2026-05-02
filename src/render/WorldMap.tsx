@@ -75,9 +75,17 @@ const ClampedControls = () => {
       enableRotate={false}
       enableZoom
       mouseButtons={{
-        LEFT: 2, // PAN
-        MIDDLE: 1,
-        RIGHT: 2,
+        LEFT: THREE.MOUSE.PAN,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN,
+      }}
+      // Touch defaults are ROTATE/DOLLY_PAN, but rotation is disabled
+      // and the world map needs single-finger pan to feel right on
+      // mobile. Two fingers still pinch-zoom + pan, matching the mouse
+      // wheel + drag combo.
+      touches={{
+        ONE: THREE.TOUCH.PAN,
+        TWO: THREE.TOUCH.DOLLY_PAN,
       }}
       panSpeed={1.6}
       zoomSpeed={0.8}
