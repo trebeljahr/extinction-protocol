@@ -34,12 +34,15 @@ export const ResultsScreen = () => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     // Stinger first; stars chime in on top so the moment lands as a single
     // beat rather than the per-star spray reading as the entire result cue.
-    audio.play(won ? "victory" : "defeat", 0.85, 1000, 3.5);
+    audio.play(won ? "victory" : "defeat", "notifications", 0.85, 1000, 3.5);
     if (stars > 0) {
       const starOffset = 450;
       for (let i = 0; i < stars; i++) {
         timers.push(
-          setTimeout(() => audio.play("star", 0.8, 30, 1.8), starOffset + i * STAR_STAGGER_MS),
+          setTimeout(
+            () => audio.play("star", "notifications", 0.8, 30, 1.8),
+            starOffset + i * STAR_STAGGER_MS,
+          ),
         );
       }
     }

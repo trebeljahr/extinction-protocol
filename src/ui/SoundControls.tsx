@@ -1,65 +1,58 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
+import {
+  type AudioPrefs,
+  loadAudioPrefs,
+  readAudioPrefs,
+  saveAudioPrefs,
+} from "../audio/preferences";
 
-const VOL_KEY = "extinction-protocol:audio:v1";
+type BusKey = Exclude<keyof AudioPrefs, "muted">;
 
-const loadPersisted = () => {
-  try {
-    const raw = localStorage.getItem(VOL_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as { sfx: number; music: number; muted: boolean };
-  } catch {
-    return null;
-  }
-};
+const SLIDERS: { key: BusKey; label: string }[] = [
+  { key: "music", label: "Music" },
+  { key: "ui", label: "UI" },
+  { key: "towers", label: "Towers" },
+  { key: "enemies", label: "Enemies" },
+  { key: "notifications", label: "Alerts" },
+];
 
-const savePersisted = (s: { sfx: number; music: number; muted: boolean }) => {
-  try {
-    localStorage.setItem(VOL_KEY, JSON.stringify(s));
-  } catch {
-    /* ignore */
-  }
+const applyBus = (key: BusKey, v: number) => {
+  if (key === "music") audio.setMusicVolume(v);
+  else audio.setBusVolume(key, v);
 };
 
 export const SoundControls = () => {
-  const [sfx, setSfx] = useState(audio.getSfxVolume());
-  const [music, setMusic] = useState(audio.getMusicVolume());
-  const [muted, setMuted] = useState(audio.isMuted());
+  const [prefs, setPrefs] = useState<AudioPrefs>(() => readAudioPrefs());
 
   useEffect(() => {
-    const persisted = loadPersisted();
-    if (persisted) {
-      audio.setSfxVolume(persisted.sfx);
-      audio.setMusicVolume(persisted.music);
-      audio.setMuted(persisted.muted);
-      setSfx(persisted.sfx);
-      setMusic(persisted.music);
-      setMuted(persisted.muted);
-    }
+    const persisted = loadAudioPrefs();
+    audio.setMusicVolume(persisted.music);
+    audio.setBusVolume("ui", persisted.ui);
+    audio.setBusVolume("towers", persisted.towers);
+    audio.setBusVolume("enemies", persisted.enemies);
+    audio.setBusVolume("notifications", persisted.notifications);
+    audio.setMuted(persisted.muted);
+    setPrefs(persisted);
   }, []);
 
-  const commit = (next: { sfx: number; music: number; muted: boolean }) => {
-    savePersisted(next);
-  };
-
-  const updateSfx = (v: number) => {
-    setSfx(v);
-    audio.setSfxVolume(v);
-    commit({ sfx: v, music, muted });
-  };
-
-  const updateMusic = (v: number) => {
-    setMusic(v);
-    audio.setMusicVolume(v);
-    commit({ sfx, music: v, muted });
+  const updateBus = (key: BusKey, v: number) => {
+    applyBus(key, v);
+    setPrefs((prev) => {
+      const next = { ...prev, [key]: v };
+      saveAudioPrefs(next);
+      return next;
+    });
   };
 
   const toggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    audio.setMuted(next);
-    commit({ sfx, music, muted: next });
+    setPrefs((prev) => {
+      const next = { ...prev, muted: !prev.muted };
+      audio.setMuted(next.muted);
+      saveAudioPrefs(next);
+      return next;
+    });
   };
 
   return (
@@ -69,46 +62,33 @@ export const SoundControls = () => {
         <button
           type="button"
           className={`px-2.5 py-1 rounded-[5px] border text-[10px] font-bold tracking-uber font-[inherit] cursor-pointer ${
-            muted
+            prefs.muted
               ? "bg-tint-pink border-[rgba(255,122,154,0.45)] text-pink"
               : "bg-[rgba(61,209,255,0.12)] border-[rgba(61,209,255,0.4)] text-cyan"
           }`}
           onClick={toggleMute}
-          aria-pressed={!muted}
+          aria-pressed={!prefs.muted}
         >
-          {muted ? "MUTED" : "ON"}
+          {prefs.muted ? "MUTED" : "ON"}
         </button>
       </div>
-      <Row>
-        <Label htmlFor="sfx-vol">SFX</Label>
-        <input
-          id="sfx-vol"
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={sfx}
-          onChange={(e) => updateSfx(Number(e.target.value))}
-          disabled={muted}
-          className="flex-1 accent-cyan disabled:opacity-40"
-        />
-        <Value value={sfx} />
-      </Row>
-      <Row>
-        <Label htmlFor="music-vol">Music</Label>
-        <input
-          id="music-vol"
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={music}
-          onChange={(e) => updateMusic(Number(e.target.value))}
-          disabled={muted}
-          className="flex-1 accent-cyan disabled:opacity-40"
-        />
-        <Value value={music} />
-      </Row>
+      {SLIDERS.map(({ key, label }) => (
+        <Row key={key}>
+          <Label htmlFor={`vol-${key}`}>{label}</Label>
+          <input
+            id={`vol-${key}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={prefs[key]}
+            onChange={(e) => updateBus(key, Number(e.target.value))}
+            disabled={prefs.muted}
+            className="flex-1 accent-cyan disabled:opacity-40"
+          />
+          <Value value={prefs[key]} />
+        </Row>
+      ))}
     </section>
   );
 };

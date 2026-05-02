@@ -3,30 +3,16 @@ import type { Biome } from "../biomes";
 import type { GameEvent } from "../sim/types";
 import { useGame } from "../store";
 import { audio, type MusicTrack } from "./AudioManager";
+import { applyAudioPrefs, loadAudioPrefs } from "./preferences";
 
 const biomeTrack = (biome: Biome): MusicTrack => `music-${biome}` as MusicTrack;
-
-const VOL_KEY = "extinction-protocol:audio:v1";
-
-const loadPersistedAudio = () => {
-  try {
-    const raw = localStorage.getItem(VOL_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw) as { sfx: number; music: number; muted: boolean };
-    if (typeof s.sfx === "number") audio.setSfxVolume(s.sfx);
-    if (typeof s.music === "number") audio.setMusicVolume(s.music);
-    if (typeof s.muted === "boolean") audio.setMuted(s.muted);
-  } catch {
-    /* ignore */
-  }
-};
 
 export const useAudioBridge = () => {
   useEffect(() => {
     let cancelled = false;
     audio.preload().then(() => {
       if (cancelled) return;
-      loadPersistedAudio();
+      applyAudioPrefs(loadAudioPrefs());
     });
 
     const pickTrack = (): MusicTrack => {
@@ -99,40 +85,40 @@ export const useAudioBridge = () => {
           audio.playShoot(e.towerKind);
           break;
         case "impact":
-          audio.play("impact", 0.25, 60, 1.0);
+          audio.play("impact", "enemies", 0.25, 60, 1.0);
           break;
         case "death":
-          audio.play("death", 0.3, 60);
+          audio.play("death", "enemies", 0.3, 60);
           break;
         case "wave-start":
           audio.startMusic(pickTrack());
-          audio.play("wave-start", 0.5, 500);
+          audio.play("wave-start", "notifications", 0.5, 500);
           break;
         case "wave-clear":
-          audio.play("wave-clear", 0.6, 500);
+          audio.play("wave-clear", "notifications", 0.6, 500);
           break;
         case "life-lost":
-          audio.play("life-lost", 0.7, 120);
+          audio.play("life-lost", "enemies", 0.7, 120);
           break;
         case "upgrade":
-          audio.play("upgrade", 0.5, 100);
+          audio.play("upgrade", "towers", 0.5, 100);
           break;
         case "tower-placed":
-          audio.play("tower-place", 0.55, 60, 1.2);
+          audio.play("tower-place", "towers", 0.55, 60, 1.2);
           break;
         case "tower-sold":
-          audio.play("tower-sell", 0.6, 60, 0.8);
+          audio.play("tower-sell", "towers", 0.6, 60, 0.8);
           break;
         case "place-failed":
           audio.ui("error");
           break;
         case "wave-called-early":
-          audio.play("wave-call", 0.6, 200, 1.5);
+          audio.play("wave-call", "notifications", 0.6, 200, 1.5);
           break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();
-          audio.play("game-over", 0.8, 1000);
+          audio.play("game-over", "notifications", 0.8, 1000);
           break;
       }
     });

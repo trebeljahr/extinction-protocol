@@ -15,13 +15,23 @@ export type MusicTrack =
   | "music-lava"
   | "music-alien";
 
+export type SfxBus = "ui" | "towers" | "enemies" | "notifications";
+
 const VOICE_CAP_PER_KEY = 3;
 const TOTAL_VOICE_CAP = 18;
+
+const DEFAULT_SFX_VOLUME = 0.6;
+const DEFAULT_MUSIC_VOLUME = 0.25;
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private sfxGain: GainNode | null = null;
+  private busGains: Record<SfxBus, GainNode | null> = {
+    ui: null,
+    towers: null,
+    enemies: null,
+    notifications: null,
+  };
   private musicGain: GainNode | null = null;
   private samples = new Map<string, Sample>();
   private music: { src: AudioBufferSourceNode; gain: GainNode; key: MusicTrack } | null = null;
@@ -29,8 +39,13 @@ export class AudioManager {
   private musicUrls: Record<MusicTrack, string> | null = null;
   private lastPlayedAt = new Map<string, number>();
   private activeVoices = new Map<string, Set<AudioBufferSourceNode>>();
-  private sfxVolume = 0.6;
-  private musicVolume = 0.25;
+  private busVolumes: Record<SfxBus, number> = {
+    ui: DEFAULT_SFX_VOLUME,
+    towers: DEFAULT_SFX_VOLUME,
+    enemies: DEFAULT_SFX_VOLUME,
+    notifications: DEFAULT_SFX_VOLUME,
+  };
+  private musicVolume = DEFAULT_MUSIC_VOLUME;
   private muted = false;
 
   async init() {
@@ -44,12 +59,15 @@ export class AudioManager {
       return;
     }
     this.master = this.ctx.createGain();
-    this.master.gain.value = 1;
+    this.master.gain.value = this.muted ? 0 : 1;
     this.master.connect(this.ctx.destination);
 
-    this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = this.sfxVolume;
-    this.sfxGain.connect(this.master);
+    for (const bus of ["ui", "towers", "enemies", "notifications"] as const) {
+      const g = this.ctx.createGain();
+      g.gain.value = this.busVolumes[bus];
+      g.connect(this.master);
+      this.busGains[bus] = g;
+    }
 
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = this.musicVolume;
@@ -128,8 +146,9 @@ export class AudioManager {
     return n;
   }
 
-  play(key: string, volumeScale = 1, cooldownMs = 50, maxDurationSec?: number) {
-    if (!this.ctx || !this.sfxGain || this.muted) return;
+  play(key: string, bus: SfxBus, volumeScale = 1, cooldownMs = 50, maxDurationSec?: number) {
+    const busGain = this.busGains[bus];
+    if (!this.ctx || !busGain || this.muted) return;
     const sample = this.samples.get(key);
     if (!sample?.loaded || !sample.buffer) return;
     const now = performance.now();
@@ -150,7 +169,7 @@ export class AudioManager {
     src.buffer = sample.buffer;
     const gain = this.ctx.createGain();
     gain.gain.value = Math.min(1.2, volumeScale);
-    src.connect(gain).connect(this.sfxGain);
+    src.connect(gain).connect(busGain);
     keyVoices.add(src);
     src.onended = () => {
       keyVoices!.delete(src);
@@ -189,7 +208,7 @@ export class AudioManager {
       hive: ["shoot-pulse", 0.28, 80, 0.7],
     };
     const [key, vol, cd, maxDur] = map[kind];
-    this.play(key, vol, cd, maxDur);
+    this.play(key, "towers", vol, cd, maxDur);
   }
 
   // Synthesised flamethrower whoosh: filtered white noise with an envelope
@@ -198,7 +217,8 @@ export class AudioManager {
   private lastWhooshAt = 0;
   private activeWhooshes = new Set<AudioBufferSourceNode>();
   playWhoosh(volumeScale = 0.35, durationSec = 0.45) {
-    if (!this.ctx || !this.sfxGain || this.muted) return;
+    const towersGain = this.busGains.towers;
+    if (!this.ctx || !towersGain || this.muted) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
     const wallNow = performance.now();
@@ -233,7 +253,7 @@ export class AudioManager {
     gain.gain.linearRampToValueAtTime(peak * 0.7, now + durationSec * 0.6);
     gain.gain.linearRampToValueAtTime(0, now + durationSec);
 
-    src.connect(bp).connect(lp).connect(gain).connect(this.sfxGain);
+    src.connect(bp).connect(lp).connect(gain).connect(towersGain);
     this.activeWhooshes.add(src);
     src.onended = () => {
       this.activeWhooshes.delete(src);
@@ -252,7 +272,7 @@ export class AudioManager {
       select: ["tower-select", 0.45, 60, 0.9],
     };
     const [key, vol, cd, maxDur] = map[kind];
-    this.play(key, vol, cd, maxDur);
+    this.play(key, "ui", vol, cd, maxDur);
   }
 
   private async ensureMusicLoaded(key: MusicTrack) {
@@ -360,13 +380,15 @@ export class AudioManager {
     return this.muted;
   }
 
-  setSfxVolume(v: number) {
-    this.sfxVolume = Math.max(0, Math.min(1, v));
-    if (this.sfxGain) this.sfxGain.gain.value = this.sfxVolume;
+  setBusVolume(bus: SfxBus, v: number) {
+    const clamped = Math.max(0, Math.min(1, v));
+    this.busVolumes[bus] = clamped;
+    const g = this.busGains[bus];
+    if (g) g.gain.value = clamped;
   }
 
-  getSfxVolume() {
-    return this.sfxVolume;
+  getBusVolume(bus: SfxBus) {
+    return this.busVolumes[bus];
   }
 
   setMusicVolume(v: number) {

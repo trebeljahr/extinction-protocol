@@ -66,7 +66,7 @@ export const LevelNode = ({ level }: Props) => {
     e.stopPropagation();
     if (!unlocked) return;
     audio.ensureResumed();
-    audio.play("level-select", 0.7, 80);
+    audio.play("level-select", "ui", 0.7, 80);
     startLevel(level.id);
   };
 

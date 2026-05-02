@@ -19,7 +19,7 @@ export const AchievementToast = () => {
 
   useEffect(() => {
     if (toasts.length === 0) return;
-    audio.play("star", 0.7, 120, 1.4);
+    audio.play("star", "notifications", 0.7, 120, 1.4);
   }, [toasts.length]);
 
   if (toasts.length === 0) return null;

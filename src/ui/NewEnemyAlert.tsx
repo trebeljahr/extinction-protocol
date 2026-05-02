@@ -16,7 +16,7 @@ export const NewEnemyAlert = () => {
 
   useEffect(() => {
     if (!kind) return;
-    audio.play("new-enemy", 0.7, 200, 2.5);
+    audio.play("new-enemy", "enemies", 0.7, 200, 2.5);
   }, [kind]);
 
   useEffect(() => {
