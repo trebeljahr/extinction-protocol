@@ -1,6 +1,7 @@
 import type { EnemyKind } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
+export type SlotId = 1 | 2 | 3;
 
 export type ProgressStats = {
   killsTotal: number;
@@ -50,12 +51,30 @@ export type ProgressData = {
   difficulty: Difficulty;
 };
 
-const STORAGE_KEY = "extinction-protocol:progress:v1";
+export type SlotMeta = {
+  name: string;
+  lastPlayed: number;
+};
+
+export type SlotInfo = {
+  id: SlotId;
+  exists: boolean;
+  meta: SlotMeta;
+  progress: ProgressData;
+  levelsCleared: number;
+  totalStars: number;
+};
+
+export const SLOT_IDS: readonly SlotId[] = [1, 2, 3] as const;
+
+const slotKey = (id: SlotId) => `extinction-protocol:slot:${id}:v1`;
+const LEGACY_KEY = "extinction-protocol:progress:v1";
 const STARTING_LIVES = 20;
+const NAME_MAX_LEN = 24;
 
 const emptyStats = (): ProgressStats => ({ killsTotal: 0, winsTotal: 0 });
 
-const empty = (): ProgressData => ({
+export const emptyProgress = (): ProgressData => ({
   version: 1,
   starsByLevel: {},
   encountered: {},
@@ -64,47 +83,175 @@ const empty = (): ProgressData => ({
   difficulty: DEFAULT_DIFFICULTY,
 });
 
+const defaultName = (id: SlotId) => `Save ${id}`;
+
 const isDifficulty = (v: unknown): v is Difficulty =>
   typeof v === "string" && (DIFFICULTIES as readonly string[]).includes(v);
 
-export const loadProgress = (): ProgressData => {
-  if (typeof window === "undefined" || !window.localStorage) return empty();
+const isProgressLike = (parsed: unknown): parsed is Partial<ProgressData> =>
+  typeof parsed === "object" &&
+  parsed !== null &&
+  (parsed as { version?: unknown }).version === 1 &&
+  typeof (parsed as { starsByLevel?: unknown }).starsByLevel === "object";
+
+const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
+  const stats = raw.stats as Partial<ProgressStats> | undefined;
+  return {
+    version: 1,
+    starsByLevel:
+      raw.starsByLevel && typeof raw.starsByLevel === "object"
+        ? (raw.starsByLevel as Record<number, Stars>)
+        : {},
+    encountered: (raw.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
+    stats: {
+      killsTotal: typeof stats?.killsTotal === "number" ? stats.killsTotal : 0,
+      winsTotal: typeof stats?.winsTotal === "number" ? stats.winsTotal : 0,
+    },
+    unlocked:
+      raw.unlocked && typeof raw.unlocked === "object"
+        ? (raw.unlocked as Record<string, number>)
+        : {},
+    difficulty: isDifficulty(raw.difficulty) ? raw.difficulty : DEFAULT_DIFFICULTY,
+  };
+};
+
+type SlotPayload = { meta: SlotMeta; progress: ProgressData };
+
+const readSlotRaw = (id: SlotId): SlotPayload | null => {
+  if (typeof window === "undefined" || !window.localStorage) return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return empty();
-    const parsed = JSON.parse(raw) as Partial<ProgressData>;
-    if (parsed?.version !== 1 || typeof parsed.starsByLevel !== "object") return empty();
-    const rawStats = parsed.stats as Partial<ProgressStats> | undefined;
-    const stats: ProgressStats = {
-      killsTotal: typeof rawStats?.killsTotal === "number" ? rawStats.killsTotal : 0,
-      winsTotal: typeof rawStats?.winsTotal === "number" ? rawStats.winsTotal : 0,
+    const raw = window.localStorage.getItem(slotKey(id));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { meta?: SlotMeta; progress?: Partial<ProgressData> };
+    if (!parsed.progress || !isProgressLike(parsed.progress)) return null;
+    const rawName = parsed.meta?.name;
+    const meta: SlotMeta = {
+      name:
+        typeof rawName === "string" && rawName.trim() !== ""
+          ? rawName.slice(0, NAME_MAX_LEN)
+          : defaultName(id),
+      lastPlayed: typeof parsed.meta?.lastPlayed === "number" ? parsed.meta.lastPlayed : 0,
     };
-    const unlocked =
-      parsed.unlocked && typeof parsed.unlocked === "object"
-        ? (parsed.unlocked as Record<string, number>)
-        : {};
-    const difficulty: Difficulty = isDifficulty(parsed.difficulty)
-      ? parsed.difficulty
-      : DEFAULT_DIFFICULTY;
-    return {
-      version: 1,
-      starsByLevel: parsed.starsByLevel as Record<number, Stars>,
-      encountered: (parsed.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
-      stats,
-      unlocked,
-      difficulty,
-    };
+    return { meta, progress: normalizeProgress(parsed.progress) };
   } catch {
-    return empty();
+    return null;
   }
 };
 
-export const saveProgress = (p: ProgressData): void => {
+const writeSlotRaw = (id: SlotId, payload: SlotPayload): void => {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    window.localStorage.setItem(slotKey(id), JSON.stringify(payload));
   } catch {
     // storage full or disabled — silently ignore
+  }
+};
+
+// Promote a pre-slot save (single-key v1 schema) into slot 1 the first
+// time the new build runs. Skipped if slot 1 already has data — the user
+// has already started fresh on the new system, so the legacy blob is
+// dropped without overwriting their slot 1.
+const migrateLegacyToSlot1 = (): void => {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const legacy = window.localStorage.getItem(LEGACY_KEY);
+    if (!legacy) return;
+    if (window.localStorage.getItem(slotKey(1))) {
+      window.localStorage.removeItem(LEGACY_KEY);
+      return;
+    }
+    const parsed = JSON.parse(legacy) as Partial<ProgressData>;
+    if (!isProgressLike(parsed)) {
+      window.localStorage.removeItem(LEGACY_KEY);
+      return;
+    }
+    writeSlotRaw(1, {
+      meta: { name: defaultName(1), lastPlayed: Date.now() },
+      progress: normalizeProgress(parsed),
+    });
+    window.localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+let migrationRun = false;
+const ensureMigrated = () => {
+  if (migrationRun) return;
+  migrationRun = true;
+  migrateLegacyToSlot1();
+};
+
+export const totalStars = (p: ProgressData): number => {
+  let sum = 0;
+  for (const s of Object.values(p.starsByLevel)) sum += s;
+  return sum;
+};
+
+const levelsClearedCount = (p: ProgressData): number => {
+  let n = 0;
+  for (const s of Object.values(p.starsByLevel)) if (s > 0) n++;
+  return n;
+};
+
+export const listSlots = (): SlotInfo[] => {
+  ensureMigrated();
+  return SLOT_IDS.map((id) => {
+    const payload = readSlotRaw(id);
+    if (!payload) {
+      return {
+        id,
+        exists: false,
+        meta: { name: defaultName(id), lastPlayed: 0 },
+        progress: emptyProgress(),
+        levelsCleared: 0,
+        totalStars: 0,
+      };
+    }
+    return {
+      id,
+      exists: true,
+      meta: payload.meta,
+      progress: payload.progress,
+      levelsCleared: levelsClearedCount(payload.progress),
+      totalStars: totalStars(payload.progress),
+    };
+  });
+};
+
+export const loadSlot = (id: SlotId): { progress: ProgressData; meta: SlotMeta } => {
+  ensureMigrated();
+  const payload = readSlotRaw(id);
+  if (payload) return payload;
+  return { progress: emptyProgress(), meta: { name: defaultName(id), lastPlayed: 0 } };
+};
+
+export const saveSlot = (id: SlotId, progress: ProgressData, name?: string): void => {
+  const existing = readSlotRaw(id);
+  const nextName = name ?? existing?.meta.name ?? defaultName(id);
+  writeSlotRaw(id, {
+    meta: { name: nextName, lastPlayed: Date.now() },
+    progress,
+  });
+};
+
+export const renameSlot = (id: SlotId, name: string): void => {
+  const trimmed = name.trim().slice(0, NAME_MAX_LEN);
+  if (trimmed === "") return;
+  const payload = readSlotRaw(id);
+  if (!payload) return;
+  writeSlotRaw(id, {
+    meta: { name: trimmed, lastPlayed: payload.meta.lastPlayed },
+    progress: payload.progress,
+  });
+};
+
+export const deleteSlot = (id: SlotId): void => {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.removeItem(slotKey(id));
+  } catch {
+    // ignore
   }
 };
 
@@ -129,12 +276,6 @@ export const recordLevelResult = (p: ProgressData, levelId: number, stars: Stars
     ...p,
     starsByLevel: { ...p.starsByLevel, [levelId]: stars },
   };
-};
-
-export const totalStars = (p: ProgressData): number => {
-  let sum = 0;
-  for (const s of Object.values(p.starsByLevel)) sum += s;
-  return sum;
 };
 
 export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressData | null => {

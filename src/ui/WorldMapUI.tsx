@@ -18,6 +18,7 @@ export const WorldMapUI = () => {
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
+  const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   const difficulty = progress.difficulty;
 
@@ -121,6 +122,16 @@ export const WorldMapUI = () => {
               }}
             >
               Credits
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost w-full"
+              onClick={() => {
+                setMenuOpen(false);
+                goToSlots();
+              }}
+            >
+              Change save slot
             </button>
           </div>
         </MenuOverlay>

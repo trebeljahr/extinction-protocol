@@ -6,16 +6,19 @@ import { EASTER_EGG_BY_ID } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
-import type { Difficulty, ProgressData, Stars } from "./progress";
+import type { Difficulty, ProgressData, SlotId, Stars } from "./progress";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTY_MULTIPLIERS,
+  deleteSlot as deleteSlotStorage,
+  emptyProgress,
   getStars,
   isLevelUnlocked,
-  loadProgress,
+  loadSlot,
   markEncountered,
   recordLevelResult,
-  saveProgress,
+  renameSlot as renameSlotStorage,
+  saveSlot,
   setDifficulty as setDifficultyOnProgress,
   starsForLives,
 } from "./progress";
@@ -56,7 +59,7 @@ import {
   TREE_REMOVE_COST,
 } from "./sim/world";
 
-export type Screen = "worldMap" | "playing" | "results";
+export type Screen = "splash" | "slots" | "worldMap" | "playing" | "results";
 
 export type AchievementToast = { id: AchievementId; key: number };
 
@@ -263,6 +266,10 @@ type GameStore = {
   eventListeners: ((e: GameEvent) => void)[];
 
   screen: Screen;
+  // null until the user picks a save slot from the SaveSlots screen.
+  // All progress writes route through this — saveSlot is a no-op when
+  // no slot is active (e.g. during splash / slot picker).
+  activeSlot: SlotId | null;
   selectedLevelId: number | null;
   progress: ProgressData;
   hoveredLevelId: number | null;
@@ -275,6 +282,13 @@ type GameStore = {
   autoPausedForNewEnemy: boolean;
   treeClickCounts: Record<number, number>;
   rockClickCounts: Record<number, number>;
+
+  // Entry-flow actions: splash → slot picker → world map.
+  dismissSplash: () => void;
+  goToSlots: () => void;
+  selectSlot: (id: SlotId) => void;
+  renameSlot: (id: SlotId, name: string) => void;
+  deleteSlot: (id: SlotId) => void;
 
   startLevel: (id: number) => void;
   retryCurrentLevel: () => void;
@@ -373,13 +387,20 @@ const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty) => {
   };
 };
 
+// All progress saves route through this — when no slot is active (splash
+// + slot picker), progress writes are silently dropped so we never
+// clobber another slot's data. Once a slot is active, every progress
+// change also bumps that slot's lastPlayed timestamp.
+const persistProgress = (slot: SlotId | null, progress: ProgressData): void => {
+  if (slot === null) return;
+  saveSlot(slot, progress);
+};
+
 export const isUnlocked = (levelId: number, progress: ProgressData) =>
   isLevelUnlocked(levelId, progress);
 
-const initialProgress = loadProgress();
-
 export const useGame = create<GameStore>((set, get) => ({
-  ...buildWorldForLevel(getLevel(1), initialProgress.difficulty),
+  ...buildWorldForLevel(getLevel(1), DEFAULT_DIFFICULTY),
   engine: new Engine(),
   selectedKind: null,
   selectedTreeId: null,
@@ -387,9 +408,10 @@ export const useGame = create<GameStore>((set, get) => ({
   assigningDroneSlot: null,
   eventListeners: [],
 
-  screen: "worldMap",
+  screen: "splash",
+  activeSlot: null,
   selectedLevelId: null,
-  progress: initialProgress,
+  progress: emptyProgress(),
   hoveredLevelId: null,
   lastResult: null,
   compendiumOpen: false,
@@ -441,6 +463,61 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  dismissSplash: () => {
+    const s = get();
+    if (s.screen !== "splash") return;
+    set({ screen: "slots" });
+  },
+
+  goToSlots: () => {
+    const { engine } = get();
+    engine.reset();
+    set({
+      screen: "slots",
+      activeSlot: null,
+      progress: emptyProgress(),
+      hoveredLevelId: null,
+      lastResult: null,
+      selectedLevelId: null,
+      newEnemyQueue: [],
+      autoPausedForNewEnemy: false,
+    });
+  },
+
+  selectSlot: (id) => {
+    const { progress } = loadSlot(id);
+    // Materialize the slot on pick — even a fresh slot becomes "filled"
+    // so the SaveSlots screen shows its name + zeroed stats next time
+    // instead of looking empty when nothing's been played yet.
+    saveSlot(id, progress);
+    // Rebuild the world-map preview world with this slot's difficulty
+    // so the preview matches what the player will actually face.
+    set({
+      activeSlot: id,
+      progress,
+      screen: "worldMap",
+      hoveredLevelId: null,
+      lastResult: null,
+      ...buildWorldForLevel(getLevel(1), progress.difficulty),
+    });
+  },
+
+  renameSlot: (id, name) => {
+    renameSlotStorage(id, name);
+    // SaveSlots forces its own refresh after calling this action — the
+    // store doesn't mirror slot metadata, so nothing else to update.
+  },
+
+  deleteSlot: (id) => {
+    const s = get();
+    deleteSlotStorage(id);
+    // If the player just nuked their active slot, drop them back to
+    // the picker — there's no save to write to anymore.
+    if (s.activeSlot === id) {
+      set({ activeSlot: null, progress: emptyProgress() });
+    }
+  },
+
   setHoveredLevel: (id) => set({ hoveredLevelId: id }),
 
   setCompendiumOpen: (open) => set({ compendiumOpen: open }),
@@ -456,7 +533,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     if (s.progress.difficulty === difficulty) return;
     const next = setDifficultyOnProgress(s.progress, difficulty);
-    saveProgress(next);
+    persistProgress(s.activeSlot, next);
     set({ progress: next });
   },
 
@@ -575,7 +652,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult = { ...lastResult, unlockedAchievements: unlockedThisRun };
     }
 
-    if (progress !== s.progress) saveProgress(progress);
+    if (progress !== s.progress) persistProgress(s.activeSlot, progress);
 
     const updates: Partial<GameStore> = {};
     if (progress !== s.progress) updates.progress = progress;
@@ -675,7 +752,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (unlock) {
       spawnParticles(w, tree.pos, 18, "#8ecf6b", [2.5, 5.5], 0.55);
       spawnParticles(w, tree.pos, 10, "#c8f2a4", [1.5, 3.5], 0.75);
-      saveProgress(unlock.progress);
+      persistProgress(s.activeSlot, unlock.progress);
       track("achievement_unlocked", { achievement_id: unlock.id });
     }
     set({
@@ -733,7 +810,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (unlock) {
       spawnParticles(w, rock.pos, 22, "#e8faff", [3, 6], 0.7);
       spawnParticles(w, rock.pos, 12, "#aaf0ff", [1.5, 3.5], 0.9);
-      saveProgress(unlock.progress);
+      persistProgress(s.activeSlot, unlock.progress);
       track("achievement_unlocked", { achievement_id: unlock.id });
     }
     set({
@@ -808,7 +885,7 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       const unlock = tryUnlockEasterEgg(s.progress, def.achievement);
       if (unlock) {
-        saveProgress(unlock.progress);
+        persistProgress(s.activeSlot, unlock.progress);
         updates.progress = unlock.progress;
         updates.achievementToasts = [
           ...s.achievementToasts,
@@ -1045,7 +1122,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const ach = checkAchievements(s.progress, s.world, null);
     const newToasts = ach.unlocked.map((id) => ({ id, key: nextToastKey++ }));
     if (ach.unlocked.length > 0) {
-      saveProgress(ach.progress);
+      persistProgress(s.activeSlot, ach.progress);
       for (const id of ach.unlocked) track("achievement_unlocked", { achievement_id: id });
     }
     set({
@@ -1176,7 +1253,7 @@ export const useGame = create<GameStore>((set, get) => ({
     // Re-run checks so progress-only achievements (campaign, perfect_run)
     // unlock when stars cross their thresholds via this debug path.
     const res = checkAchievements(next, s.world, null);
-    saveProgress(res.progress);
+    persistProgress(s.activeSlot, res.progress);
     const newToasts = res.unlocked.map((id) => ({ id, key: nextToastKey++ }));
     set({
       progress: res.progress,
@@ -1185,15 +1262,9 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   debugResetProgress: () => {
-    const empty: ProgressData = {
-      version: 1,
-      starsByLevel: {},
-      encountered: {},
-      stats: { killsTotal: 0, winsTotal: 0 },
-      unlocked: {},
-      difficulty: DEFAULT_DIFFICULTY,
-    };
-    saveProgress(empty);
+    const s = get();
+    const empty = emptyProgress();
+    persistProgress(s.activeSlot, empty);
     set({ progress: empty });
   },
 }));

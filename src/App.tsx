@@ -9,6 +9,8 @@ import { HUD } from "./ui/HUD";
 import { LandscapeNudge } from "./ui/LandscapeNudge";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 import { ResultsScreen } from "./ui/ResultsScreen";
+import { SaveSlots } from "./ui/SaveSlots";
+import { Splash } from "./ui/Splash";
 import { enterFullscreen, isFullscreen, loadFullscreenPref } from "./ui/useFullscreen";
 import { useIsMobile } from "./ui/useMediaQuery";
 import { WorldMapUI } from "./ui/WorldMapUI";
@@ -112,6 +114,11 @@ export const App = () => {
   // we want to keep glowing in play still bloom there.
   const bloomThreshold = screen === "worldMap" ? 2.5 : 0.82;
   const bloomSmoothing = screen === "worldMap" ? 0.05 : 0.18;
+
+  // Entry-flow screens render standalone — no canvas, no HUD. They
+  // sit above everything else and gate access to the gameplay canvas.
+  if (screen === "splash") return <Splash />;
+  if (screen === "slots") return <SaveSlots />;
 
   return (
     <>
