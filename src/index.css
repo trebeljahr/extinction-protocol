@@ -1609,4 +1609,90 @@
     color: #8a9bad;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Credits panel — reuses .achievements-overlay / .achievements-card / .achievements-header
+     for the chrome and adds its own list layout. */
+  .credits-body {
+    padding: 18px 28px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .credits-section-title {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+  }
+
+  .credits-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .credits-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 12px;
+    background: rgba(8, 12, 18, 0.55);
+    border: 1px solid rgba(120, 160, 200, 0.16);
+    border-radius: 8px;
+  }
+
+  .credits-row-name {
+    font-size: var(--fs-md);
+    color: var(--color-fg);
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+
+  .credits-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    font-size: var(--fs-sm);
+  }
+
+  .credits-creator {
+    color: var(--color-fg-secondary);
+    font-weight: 600;
+  }
+
+  .credits-license {
+    color: var(--color-fg-dim);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .credits-url {
+    color: var(--color-blue);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .credits-url:hover {
+    text-decoration: underline;
+  }
+
+  .credits-tbd {
+    color: var(--color-fg-faint);
+    font-style: italic;
+    font-size: var(--fs-sm);
+  }
 }

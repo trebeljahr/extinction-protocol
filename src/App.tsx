@@ -21,6 +21,9 @@ const Compendium = lazy(() => import("./ui/Compendium").then((m) => ({ default: 
 const AchievementsPanel = lazy(() =>
   import("./ui/AchievementsPanel").then((m) => ({ default: m.AchievementsPanel })),
 );
+const CreditsPanel = lazy(() =>
+  import("./ui/CreditsPanel").then((m) => ({ default: m.CreditsPanel })),
+);
 
 const SceneRoot = () => {
   const screen = useGame((s) => s.screen);
@@ -54,8 +57,9 @@ export const App = () => {
   const screen = useGame((s) => s.screen);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   const achievementsOpen = useGame((s) => s.achievementsOpen);
+  const creditsOpen = useGame((s) => s.creditsOpen);
   const selectedKind = useGame((s) => s.selectedKind);
-  const modalOpen = compendiumOpen || achievementsOpen;
+  const modalOpen = compendiumOpen || achievementsOpen || creditsOpen;
 
   // Drive the cursor from gameplay state. Crosshair on the canvas
   // while a tower kind is selected, default everywhere else. Buttons
@@ -105,6 +109,11 @@ export const App = () => {
       {achievementsOpen && (
         <Suspense fallback={null}>
           <AchievementsPanel />
+        </Suspense>
+      )}
+      {creditsOpen && (
+        <Suspense fallback={null}>
+          <CreditsPanel />
         </Suspense>
       )}
       {screen === "playing" && !modalOpen && <NewEnemyAlert />}

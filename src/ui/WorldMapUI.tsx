@@ -14,6 +14,7 @@ export const WorldMapUI = () => {
   const hoveredLevelId = useGame((s) => s.hoveredLevelId);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
+  const setCreditsOpen = useGame((s) => s.setCreditsOpen);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const hovered = LEVELS.find((l) => l.id === hoveredLevelId) ?? null;
@@ -78,6 +79,16 @@ export const WorldMapUI = () => {
               }}
             >
               Achievements
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost w-full"
+              onClick={() => {
+                setMenuOpen(false);
+                setCreditsOpen(true);
+              }}
+            >
+              Credits
             </button>
           </div>
         </MenuOverlay>

@@ -266,6 +266,7 @@ type GameStore = {
   lastResult: LastResult | null;
   compendiumOpen: boolean;
   achievementsOpen: boolean;
+  creditsOpen: boolean;
   achievementToasts: AchievementToast[];
   newEnemyQueue: EnemyKind[];
   autoPausedForNewEnemy: boolean;
@@ -278,6 +279,7 @@ type GameStore = {
   setHoveredLevel: (id: number | null) => void;
   setCompendiumOpen: (open: boolean) => void;
   setAchievementsOpen: (open: boolean) => void;
+  setCreditsOpen: (open: boolean) => void;
   dismissAchievementToast: (key: number) => void;
 
   reset: () => void;
@@ -384,6 +386,7 @@ export const useGame = create<GameStore>((set, get) => ({
   lastResult: null,
   compendiumOpen: false,
   achievementsOpen: false,
+  creditsOpen: false,
   achievementToasts: [],
   newEnemyQueue: [],
   autoPausedForNewEnemy: false,
@@ -435,6 +438,8 @@ export const useGame = create<GameStore>((set, get) => ({
   setCompendiumOpen: (open) => set({ compendiumOpen: open }),
 
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
+
+  setCreditsOpen: (open) => set({ creditsOpen: open }),
 
   dismissAchievementToast: (key) =>
     set((state) => ({ achievementToasts: state.achievementToasts.filter((t) => t.key !== key) })),
