@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AchievementId } from "./achievements";
 import { checkAchievements } from "./achievements";
+import { track } from "./analytics";
 import { EASTER_EGG_BY_ID } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
@@ -409,6 +410,7 @@ export const useGame = create<GameStore>((set, get) => ({
       treeClickCounts: {},
       rockClickCounts: {},
     });
+    track("level_start", { level_id: id });
   },
 
   retryCurrentLevel: () => {
@@ -468,6 +470,7 @@ export const useGame = create<GameStore>((set, get) => ({
       for (const id of res.unlocked) {
         newToasts.push({ id, key: nextToastKey++ });
         unlockedThisRun.push(id);
+        track("achievement_unlocked", { achievement_id: id });
       }
     };
 
@@ -525,6 +528,18 @@ export const useGame = create<GameStore>((set, get) => ({
             unlockedAchievements: [],
           };
           screen = "results";
+          if (ev.won) {
+            track("level_complete", {
+              level_id: w.levelId,
+              waves_survived: w.totalWaves,
+              stars,
+            });
+          } else {
+            track("level_failed", {
+              level_id: w.levelId,
+              wave_reached: w.wave,
+            });
+          }
         }
         runChecks(ev);
         for (const fn of s.eventListeners) fn(ev);
@@ -637,6 +652,7 @@ export const useGame = create<GameStore>((set, get) => ({
       spawnParticles(w, tree.pos, 18, "#8ecf6b", [2.5, 5.5], 0.55);
       spawnParticles(w, tree.pos, 10, "#c8f2a4", [1.5, 3.5], 0.75);
       saveProgress(unlock.progress);
+      track("achievement_unlocked", { achievement_id: unlock.id });
     }
     set({
       selectedKind: null,
@@ -694,6 +710,7 @@ export const useGame = create<GameStore>((set, get) => ({
       spawnParticles(w, rock.pos, 22, "#e8faff", [3, 6], 0.7);
       spawnParticles(w, rock.pos, 12, "#aaf0ff", [1.5, 3.5], 0.9);
       saveProgress(unlock.progress);
+      track("achievement_unlocked", { achievement_id: unlock.id });
     }
     set({
       selectedKind: null,
@@ -773,6 +790,7 @@ export const useGame = create<GameStore>((set, get) => ({
           ...s.achievementToasts,
           { id: unlock.id, key: nextToastKey++ },
         ];
+        track("achievement_unlocked", { achievement_id: unlock.id });
       }
     }
     set(updates);
@@ -1002,7 +1020,10 @@ export const useGame = create<GameStore>((set, get) => ({
     // wired up — without making the player kill an enemy first.
     const ach = checkAchievements(s.progress, s.world, null);
     const newToasts = ach.unlocked.map((id) => ({ id, key: nextToastKey++ }));
-    if (ach.unlocked.length > 0) saveProgress(ach.progress);
+    if (ach.unlocked.length > 0) {
+      saveProgress(ach.progress);
+      for (const id of ach.unlocked) track("achievement_unlocked", { achievement_id: id });
+    }
     set({
       assigningDroneSlot: null,
       towerVersion: newVersion,
