@@ -5,6 +5,7 @@ import { isDebug } from "../debug";
 import { getLevel } from "../levels";
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
+import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 
@@ -62,6 +63,7 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeTitle="Resume (Esc)"
     >
       <SoundControls />
+      <FullscreenToggle />
       {isDebug && <DebugMenuSection />}
       <ActionsCol>
         <button

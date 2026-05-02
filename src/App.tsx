@@ -6,8 +6,11 @@ import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
 import { HUD } from "./ui/HUD";
+import { LandscapeNudge } from "./ui/LandscapeNudge";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 import { ResultsScreen } from "./ui/ResultsScreen";
+import { enterFullscreen, isFullscreen, loadFullscreenPref } from "./ui/useFullscreen";
+import { useIsMobile } from "./ui/useMediaQuery";
 import { WorldMapUI } from "./ui/WorldMapUI";
 
 // Heavy panels and the world-map scene only load when the user actually
@@ -64,6 +67,7 @@ export const App = () => {
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const selectedKind = useGame((s) => s.selectedKind);
   const modalOpen = compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen;
+  const isMobile = useIsMobile();
 
   // Drive the cursor from gameplay state. Crosshair on the canvas
   // while a tower kind is selected, default everywhere else. Buttons
@@ -74,6 +78,30 @@ export const App = () => {
     else document.body.classList.remove(cls);
     return () => document.body.classList.remove(cls);
   }, [selectedKind]);
+
+  // Body class so CSS @media-style mobile overrides can also key off
+  // pointer/runtime detection, not just viewport width — covers narrow
+  // desktop windows being styled mobile by mistake.
+  useEffect(() => {
+    const cls = "is-mobile";
+    if (isMobile) document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+    return () => document.body.classList.remove(cls);
+  }, [isMobile]);
+
+  // Default-fullscreen on mobile. Triggered the moment the player
+  // enters a level, so the gesture (the level-node tap on the world
+  // map) still counts as user-activation for the fullscreen API.
+  // Honors the user's saved preference: "off" never auto-enters; "on"
+  // tries even on desktop; "auto" opts into mobile only.
+  useEffect(() => {
+    if (screen !== "playing") return;
+    if (isFullscreen()) return;
+    const pref = loadFullscreenPref();
+    if (pref === "off") return;
+    if (pref === "auto" && !isMobile) return;
+    void enterFullscreen();
+  }, [screen, isMobile]);
 
   // World-map ground gets pushed past the play-scene bloom threshold by
   // the strong directional light (lit snow albedo runs ~1.7-1.9 in linear).
@@ -127,6 +155,7 @@ export const App = () => {
       )}
       {screen === "playing" && !modalOpen && <NewEnemyAlert />}
       <AchievementToast />
+      <LandscapeNudge />
     </>
   );
 };

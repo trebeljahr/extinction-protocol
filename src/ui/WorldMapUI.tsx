@@ -6,6 +6,7 @@ import { DIFFICULTY_LABEL, getStars, isLevelUnlocked, totalStars } from "../prog
 import { useGame } from "../store";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyIcon } from "./DifficultyIcon";
+import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
@@ -79,6 +80,7 @@ export const WorldMapUI = () => {
       {menuOpen && (
         <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
           <SoundControls />
+          <FullscreenToggle />
           <div className="flex flex-col gap-2">
             <button
               type="button"

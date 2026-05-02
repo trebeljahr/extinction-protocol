@@ -134,16 +134,38 @@
     margin: 0;
     padding: 0;
     width: 100vw;
+    /* `100dvh` follows the dynamic viewport on mobile (excludes the
+       URL bar when it's visible, expands when it auto-hides). Falls
+       back to plain 100vh on engines without dvh support. */
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     background: #0b1016;
     color: var(--color-fg);
+    /* Stops two-finger pan and double-tap zoom from drifting the page
+       around the canvas on mobile. The Three.js canvas already sets
+       `touch-action: none`, but the body/html still need the lock so
+       the rubber-band scroll doesn't fire over UI overlays. */
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   canvas {
     display: block;
     touch-action: none;
     cursor: default;
+  }
+
+  /* Safe-area inset CSS variables — fall back to 0 on platforms that
+     don't expose env() (desktop browsers). HUD positions multiply these
+     into top/left/right/bottom offsets so the notch / dynamic island /
+     home-indicator never clip controls. */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
   }
 
   /* Gameplay-aware cursor: crosshair while a tower kind is selected
@@ -225,6 +247,18 @@
     font-weight: 600;
     opacity: 0.7;
     margin-left: 4px;
+  }
+
+  @keyframes rotateNudge {
+    0%,
+    20%,
+    100% {
+      transform: rotate(-90deg);
+    }
+    50%,
+    70% {
+      transform: rotate(0deg);
+    }
   }
 
   @keyframes call-wave-pulse {
