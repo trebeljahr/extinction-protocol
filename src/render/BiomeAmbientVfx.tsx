@@ -112,7 +112,7 @@ export const BiomeAmbientVfx = () => {
   // and now both spawn ambient particles along the rivers/lakes only.
   const flowSpawn = useMemo<FlowSpawn | null>(() => {
     if (!hasFlowFeatures(biome)) return null;
-    const features = buildLavaFeatures(paths, levelId);
+    const features = buildLavaFeatures(paths, levelId, biome);
     return { features, surface: buildLavaSurface(features) };
   }, [biome, paths, levelId]);
 

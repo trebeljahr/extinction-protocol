@@ -110,7 +110,7 @@ const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] =
   const rng = mulberry32(levelId * 7919 + 131);
   if (rng() > BASE_CHANCE) return [];
 
-  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId) : null;
+  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
   const center = pickBaseCenter(rng, paths, lava);
   if (!center) return [];
 

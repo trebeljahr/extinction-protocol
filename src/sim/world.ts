@@ -359,7 +359,7 @@ export const createWorld = (
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
   // share the same flow geometry — see hasFlowFeatures.
-  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(level.paths, level.id) : null;
+  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(level.paths, level.id, biome) : null;
   const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1, lava);
   const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees, lava);
   const { eggs, nextId } = buildEasterEggs(

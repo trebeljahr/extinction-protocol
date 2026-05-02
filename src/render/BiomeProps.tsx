@@ -80,10 +80,16 @@ const rockUrls = (biome: Biome): string[] =>
 // footprint is ~3 units wide and sitting 2.4u from the node center put
 // its silhouette basically touching the bubble. Bumped the inner hole to
 // 4.0 and pushed the outer ring out so props still have room to land.
-const CLUSTER_R = 7.0; // outer radius
+const CLUSTER_R = 7.5; // outer radius — bumped slightly so retries have more landing area
 const NODE_CLEAR = 4.0; // inner hole — keep hero props off the node
+// Center-to-center spacing slack between props on top of summed radii.
+// Was applied as `MIN_GAP * 0.25` (≈0.3u), which let trees and rocks
+// silhouettes nearly touch on the world map. The full 1.2u slack reads
+// as deliberately spaced.
 const MIN_GAP = 1.2;
-const MAX_RETRIES = 14;
+// Was 14 — too low when the disc is 90% full after the landmark drops.
+// 28 retries gives the rock placements a real chance to land cleanly.
+const MAX_RETRIES = 28;
 
 const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map((l) => ({
   x: l.nodePos.x,
@@ -121,7 +127,7 @@ const buildPropPlan = () => {
       for (const p of placed) {
         const dx = x - p.x;
         const dz = z - p.z;
-        const minDist = radius + p.r + MIN_GAP * 0.25;
+        const minDist = radius + p.r + MIN_GAP;
         if (dx * dx + dz * dz < minDist * minDist) {
           bad = true;
           break;

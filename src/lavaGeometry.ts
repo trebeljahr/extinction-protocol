@@ -1,25 +1,116 @@
+import type { Biome } from "./biomes";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { Vec2 } from "./sim/types";
 
-export const LAVA_COLOR = "#ff6a1c";
-export const LAVA_EMISSIVE = "#ff5010";
-export const LAVA_EMISSIVE_INTENSITY = 1.6;
-// Alien biome reuses the same molten-flow geometry. Neon-cyan goo — same
-// hue the path used to be — so the rivers actually read as bright veins
-// across the violet ground. Emissive intensity is lifted so they glow
-// without disappearing into the dark scene background.
-export const ALIEN_GOO_COLOR = "#6cffd6";
-export const ALIEN_GOO_EMISSIVE = "#aafff0";
-export const ALIEN_GOO_EMISSIVE_INTENSITY = 1.2;
-export const RIVER_WIDTH = 2.2;
-// Tributaries are visibly thinner so the main river still reads as the main
-// river. Roughly 0.55× width, capped to keep the molten band readable.
-export const TRIBUTARY_WIDTH = 1.25;
+// Per-biome palettes for the rendered river/lake meshes. Kept here next
+// to the geometry so the renderer can read both from one place.
+export type FlowPalette = {
+  fluidColor: string;
+  fluidEmissive: string;
+  fluidEmissiveIntensity: number;
+  bridgeDeck: string;
+  bridgeTrim: string;
+};
 
-// Biomes that have molten-flow features (rivers + lakes + bridges over the
-// path). Used everywhere a feature gate is needed so we don't litter the
-// codebase with `biome === "lava" || biome === "alien"` chains.
-export const hasFlowFeatures = (biome: string): boolean => biome === "lava" || biome === "alien";
+// Per-biome flow shape: how many rivers, how many lakes, whether to bridge
+// path crossings, and the visual palette. Biomes without flow features
+// (desert, snow, wasteland) are represented as `null`.
+//   - lava   : two molten rivers (h + v) + tributaries + 5 lakes, bridges
+//   - forest : one meandering water channel + 2 small ponds, bridges
+//   - alien  : no rivers — only static goo puddles (8 of them), no bridges
+export type FlowConfig = {
+  riverCount: number;
+  tributaries: boolean;
+  riverWidth: number;
+  tributaryWidth: number;
+  lakeCount: number;
+  // Lake half-axes are sampled in [lakeMin, lakeMin+lakeRange] world units.
+  lakeMin: number;
+  lakeRange: number;
+  bridges: boolean;
+  palette: FlowPalette;
+};
+
+const LAVA_PALETTE: FlowPalette = {
+  fluidColor: "#ff6a1c",
+  fluidEmissive: "#ff5010",
+  fluidEmissiveIntensity: 1.6,
+  bridgeDeck: "#2e1a10",
+  bridgeTrim: "#7a3a1e",
+};
+
+// Forest river palette — water-blue, very mild emissive so the water
+// reads as wet under direct sun without glowing in fog. Bridges are a
+// warmer pine/oak deck on darker stained trim.
+const FOREST_PALETTE: FlowPalette = {
+  fluidColor: "#3a82c6",
+  fluidEmissive: "#1a4870",
+  fluidEmissiveIntensity: 0.18,
+  bridgeDeck: "#5a3c20",
+  bridgeTrim: "#3a2614",
+};
+
+// Alien goo — cyan-on-violet. Static puddles read better with a deeper
+// teal base and lower emissive than the old "river" mix; the previous
+// near-white emissive at 1.2 intensity bloomed the puddles into white
+// discs once the rivers stopped competing for visual weight.
+// Bridges aren't used since alien only has lakes, but the trim colors
+// are kept for completeness.
+const ALIEN_PALETTE: FlowPalette = {
+  fluidColor: "#3ad6b0",
+  fluidEmissive: "#5affc8",
+  fluidEmissiveIntensity: 0.55,
+  bridgeDeck: "#1f1230",
+  bridgeTrim: "#4a2a70",
+};
+
+const FLOW_CONFIG: Partial<Record<Biome, FlowConfig>> = {
+  lava: {
+    riverCount: 2,
+    tributaries: true,
+    riverWidth: 2.2,
+    tributaryWidth: 1.25,
+    lakeCount: 5,
+    lakeMin: 1.2,
+    lakeRange: 1.6,
+    bridges: true,
+    palette: LAVA_PALETTE,
+  },
+  forest: {
+    // One meandering channel + small ponds — keeps the level breezy
+    // instead of carving the playfield in half.
+    riverCount: 1,
+    tributaries: false,
+    riverWidth: 1.8,
+    tributaryWidth: 1.0,
+    lakeCount: 2,
+    lakeMin: 0.9,
+    lakeRange: 1.0,
+    bridges: true,
+    palette: FOREST_PALETTE,
+  },
+  alien: {
+    // Static puddles only — goo doesn't flow on the alien plane. Puddles
+    // are larger and more numerous to compensate for the absent rivers.
+    riverCount: 0,
+    tributaries: false,
+    riverWidth: 0,
+    tributaryWidth: 0,
+    lakeCount: 8,
+    lakeMin: 1.4,
+    lakeRange: 1.8,
+    bridges: false,
+    palette: ALIEN_PALETTE,
+  },
+};
+
+export const getFlowConfig = (biome: Biome): FlowConfig | null => FLOW_CONFIG[biome] ?? null;
+
+// Biomes that have any flow features at all (rivers, lakes, or both).
+// Trees/rocks/cosmetics consult this to know whether to query
+// `isOnLavaSurface` for placement filtering. Renamed from the legacy
+// "hasFlowFeatures" but the export is preserved for callers.
+export const hasFlowFeatures = (biome: string): boolean => Boolean(FLOW_CONFIG[biome as Biome]);
 
 export type River = { points: Vec2[]; width: number };
 export type Lake = { x: number; y: number; rx: number; ry: number; rot: number };
@@ -136,16 +227,24 @@ const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
   return out;
 };
 
-const buildLakes = (rng: () => number, paths: Vec2[][], rivers: Vec2[][]): Lake[] => {
+const buildLakes = (
+  rng: () => number,
+  paths: Vec2[][],
+  rivers: Vec2[][],
+  config: FlowConfig,
+): Lake[] => {
   const lakes: Lake[] = [];
-  const target = 5;
+  const target = config.lakeCount;
+  // Tries scale with the target so dense puddle biomes get enough retries
+  // to land all of them rather than capping at the old 240-attempt budget.
+  const maxTries = Math.max(240, target * 60);
   let tries = 0;
-  while (lakes.length < target && tries < 240) {
+  while (lakes.length < target && tries < maxTries) {
     tries++;
     const x = (rng() - 0.5) * MAP_WIDTH * 0.85;
     const y = (rng() - 0.5) * MAP_HEIGHT * 0.85;
-    const rx = 1.2 + rng() * 1.6;
-    const ry = 1.2 + rng() * 1.6;
+    const rx = config.lakeMin + rng() * config.lakeRange;
+    const ry = config.lakeMin + rng() * config.lakeRange;
     const r = Math.max(rx, ry);
 
     const pathClear = r + PATH_WIDTH / 2 + 0.4;
@@ -166,7 +265,7 @@ const buildLakes = (rng: () => number, paths: Vec2[][], rivers: Vec2[][]): Lake[
 
     // Lakes can sit close to rivers (reads as a pool fed by a stream) but
     // not overlap them so much that the river endpoints get swallowed.
-    const riverClear = r + RIVER_WIDTH * 0.2;
+    const riverClear = r + config.riverWidth * 0.2;
     for (const river of rivers) {
       for (let i = 0; i < river.length - 1; i++) {
         if (
@@ -254,35 +353,49 @@ const computeBridges = (paths: Vec2[][], rivers: River[]): Bridge[] => {
   return out;
 };
 
-export const buildLavaFeatures = (paths: Vec2[][], levelId: number): LavaFeatures => {
-  const rng = mulberry32(levelId * 7919 + 31);
-  const mainPoints = [buildRiver(rng, "h"), buildRiver(rng, "v")];
-  const rivers: River[] = mainPoints.map((points) => ({ points, width: RIVER_WIDTH }));
+export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome): LavaFeatures => {
+  const config = getFlowConfig(biome);
+  if (!config) return { rivers: [], lakes: [], bridges: [] };
 
-  // 1–2 tributaries off each main river, branching from non-endpoint indices.
-  // Skipped if the rolled parentIdx puts the offshoot off the map.
-  for (const main of mainPoints) {
-    const branchCount = 1 + (rng() < 0.5 ? 1 : 0);
-    for (let b = 0; b < branchCount; b++) {
-      const parentIdx = 2 + Math.floor(rng() * Math.max(1, main.length - 4));
-      const points = buildTributary(rng, main, parentIdx);
-      const last = points[points.length - 1];
-      if (
-        last.x < -MAP_WIDTH / 2 - 2 ||
-        last.x > MAP_WIDTH / 2 + 2 ||
-        last.y < -MAP_HEIGHT / 2 - 2 ||
-        last.y > MAP_HEIGHT / 2 + 2
-      )
-        continue;
-      rivers.push({ points, width: TRIBUTARY_WIDTH });
+  const rng = mulberry32(levelId * 7919 + 31);
+
+  // Pick alternating axes when there are multiple rivers so the channels
+  // cross each other; for a single channel pick an axis from the seed.
+  const mainPoints: Vec2[][] = [];
+  for (let i = 0; i < config.riverCount; i++) {
+    const axis: "h" | "v" =
+      config.riverCount > 1 ? (i % 2 === 0 ? "h" : "v") : rng() < 0.5 ? "h" : "v";
+    mainPoints.push(buildRiver(rng, axis));
+  }
+  const rivers: River[] = mainPoints.map((points) => ({ points, width: config.riverWidth }));
+
+  if (config.tributaries) {
+    // 1–2 tributaries off each main river, branching from non-endpoint
+    // indices. Skipped if the rolled parentIdx puts the offshoot off the
+    // map. Only fired when the biome opts in (lava only today).
+    for (const main of mainPoints) {
+      const branchCount = 1 + (rng() < 0.5 ? 1 : 0);
+      for (let b = 0; b < branchCount; b++) {
+        const parentIdx = 2 + Math.floor(rng() * Math.max(1, main.length - 4));
+        const points = buildTributary(rng, main, parentIdx);
+        const last = points[points.length - 1];
+        if (
+          last.x < -MAP_WIDTH / 2 - 2 ||
+          last.x > MAP_WIDTH / 2 + 2 ||
+          last.y < -MAP_HEIGHT / 2 - 2 ||
+          last.y > MAP_HEIGHT / 2 + 2
+        )
+          continue;
+        rivers.push({ points, width: config.tributaryWidth });
+      }
     }
   }
 
   const allPoints = rivers.map((r) => r.points);
   return {
     rivers,
-    lakes: buildLakes(rng, paths, allPoints),
-    bridges: computeBridges(paths, rivers),
+    lakes: buildLakes(rng, paths, allPoints, config),
+    bridges: config.bridges ? computeBridges(paths, rivers) : [],
   };
 };
 

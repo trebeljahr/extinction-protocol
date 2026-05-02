@@ -30,6 +30,15 @@ export type BiomeLayer = {
   maxScale: number;
   castShadow: boolean;
   blocks?: boolean;
+  // Effective half-radius (world units) used by Ground.tsx for non-blocking
+  // layer prop↔prop spacing. Multiplied by per-instance scale at placement
+  // time. Defaults are set in Ground.tsx based on the URL pattern, so
+  // existing layer defs don't need to be touched.
+  footprint?: number;
+  // When set, the layer uses gaussian-clustered placement instead of
+  // uniform scatter. Reads as deliberate huddles ("grass tufts behind
+  // a rock", "bush thicket in a corner") rather than wallpaper.
+  cluster?: { seeds: number; sigma: number };
 };
 
 export type BiomeStyle = {
@@ -135,25 +144,32 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 1337,
     urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
-    count: 220,
+    // Reduced from 220 — Ground.tsx now spaces against trees/rocks/other
+    // decor, so the old over-count just made the placement loop give up
+    // early. Cluster mode reads as "tufts of grass" instead of wallpaper.
+    count: 160,
     clearance: PATH_WIDTH / 2 + 0.3,
     minScale: 0.6,
     maxScale: 1.1,
     castShadow: false,
+    footprint: 0.28,
+    cluster: { seeds: 8, sigma: 2.2 },
   },
   {
     seed: 9001,
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    count: 70,
+    count: 55,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.75,
     maxScale: 1.35,
     castShadow: false,
+    footprint: 0.6,
+    cluster: { seeds: 6, sigma: 2.0 },
   },
   {
     seed: 4242,
     urls: ["/models/nature/Rock1.glb", "/models/nature/Rock2.glb", "/models/nature/Rock3.glb"],
-    count: 50,
+    count: 40,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.2,
@@ -184,11 +200,15 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Bush2.glb",
       "/models/biomes/desert/Bush3.glb",
     ],
-    count: 55,
+    count: 50,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.7,
     maxScale: 1.25,
     castShadow: false,
+    footprint: 0.6,
+    // Desert bushes huddle near the rare oasis-feel pockets rather than
+    // sprinkling evenly across a featureless sand sheet.
+    cluster: { seeds: 5, sigma: 2.4 },
   },
   {
     seed: 4242,
@@ -197,7 +217,7 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Rock2.glb",
       "/models/biomes/desert/Rock3.glb",
     ],
-    count: 60,
+    count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.3,
@@ -209,6 +229,20 @@ const desertLayers = (): BiomeLayer[] => [
 
 const snowLayers = (): BiomeLayer[] => [
   {
+    seed: 1337,
+    // Forest grass tufts read as patchy tundra grass poking through the
+    // snow — adds a second small-silhouette layer so the ground isn't
+    // 100% white. Tight clusters in a few pockets, not blanket coverage.
+    urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
+    count: 70,
+    clearance: PATH_WIDTH / 2 + 0.3,
+    minScale: 0.5,
+    maxScale: 0.95,
+    castShadow: false,
+    footprint: 0.28,
+    cluster: { seeds: 5, sigma: 1.6 },
+  },
+  {
     seed: 9001,
     // The Quaternius "snow bush" assets render as solid-white layered discs
     // — indistinguishable from the snow rocks at top-down camera distance,
@@ -216,11 +250,15 @@ const snowLayers = (): BiomeLayer[] => [
     // forest bush set: small green shrubs poking through snow give the
     // ground a second silhouette and read as boreal vegetation.
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    count: 60,
+    // Reduced from 60 + clustered — small tight thickets read as deliberate
+    // shrubs rather than the previous evenly-scattered "white blob" feel.
+    count: 36,
     clearance: PATH_WIDTH / 2 + 0.7,
     minScale: 0.7,
-    maxScale: 1.25,
+    maxScale: 1.2,
     castShadow: false,
+    footprint: 0.55,
+    cluster: { seeds: 5, sigma: 1.8 },
   },
   {
     seed: 4242,
@@ -228,10 +266,12 @@ const snowLayers = (): BiomeLayer[] => [
     // see into, which reads as a broken mesh (open interior). Rock1 is the
     // solid variant that stays.
     urls: ["/models/biomes/snow/Rock1.glb"],
-    count: 55,
+    // Thinned to 42 from 55 so trees + bushes + grass + rocks share the
+    // playfield more evenly instead of rocks dominating the silhouette.
+    count: 42,
     clearance: PATH_WIDTH / 2 + 0.9,
-    minScale: 0.75,
-    maxScale: 1.35,
+    minScale: 0.7,
+    maxScale: 1.4,
     castShadow: true,
     blocks: true,
   },

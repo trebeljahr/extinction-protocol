@@ -1,59 +1,25 @@
 import { nanoid } from "nanoid";
 import { useMemo } from "react";
-import {
-  ALIEN_GOO_COLOR,
-  ALIEN_GOO_EMISSIVE,
-  ALIEN_GOO_EMISSIVE_INTENSITY,
-  buildLavaFeatures,
-  hasFlowFeatures,
-  LAVA_COLOR,
-  LAVA_EMISSIVE,
-  LAVA_EMISSIVE_INTENSITY,
-} from "../lavaGeometry";
+import { buildLavaFeatures, type FlowPalette, getFlowConfig } from "../lavaGeometry";
 import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 
-// Lava bridges are scorched timber. Alien bridges are darker stone-on-violet
-// to match the goo palette underneath.
-const LAVA_BRIDGE_DECK = "#2e1a10";
-const LAVA_BRIDGE_TRIM = "#7a3a1e";
-const ALIEN_BRIDGE_DECK = "#1f1230";
-const ALIEN_BRIDGE_TRIM = "#4a2a70";
-
-type FlowPalette = {
-  fluidColor: string;
-  fluidEmissive: string;
-  fluidIntensity: number;
-  bridgeDeck: string;
-  bridgeTrim: string;
-};
-
-const LAVA_PALETTE: FlowPalette = {
-  fluidColor: LAVA_COLOR,
-  fluidEmissive: LAVA_EMISSIVE,
-  fluidIntensity: LAVA_EMISSIVE_INTENSITY,
-  bridgeDeck: LAVA_BRIDGE_DECK,
-  bridgeTrim: LAVA_BRIDGE_TRIM,
-};
-
-const ALIEN_PALETTE: FlowPalette = {
-  fluidColor: ALIEN_GOO_COLOR,
-  fluidEmissive: ALIEN_GOO_EMISSIVE,
-  fluidIntensity: ALIEN_GOO_EMISSIVE_INTENSITY,
-  bridgeDeck: ALIEN_BRIDGE_DECK,
-  bridgeTrim: ALIEN_BRIDGE_TRIM,
-};
-
+// Renders the per-biome flow geometry built by `buildLavaFeatures` —
+// rivers, lakes/puddles, and bridges over path crossings. Palette comes
+// from `getFlowConfig(biome).palette` so each biome (lava/forest/alien)
+// styles the same shapes differently.
 export const LavaFeatures = () => {
   const biome = useGame((s) => s.world.biome);
   const paths = useGame((s) => s.world.paths);
   const levelId = useGame((s) => s.world.levelId);
 
   const decorated = useMemo(() => {
-    if (!hasFlowFeatures(biome)) return null;
-    const features = buildLavaFeatures(paths, levelId);
+    const config = getFlowConfig(biome);
+    if (!config) return null;
+    const features = buildLavaFeatures(paths, levelId, biome);
     return {
+      palette: config.palette,
       rivers: features.rivers.map((r) => ({ ...r, id: nanoid() })),
       lakes: features.lakes.map((l) => ({ ...l, id: nanoid() })),
       bridges: features.bridges.map((b) => ({ ...b, id: nanoid() })),
@@ -62,7 +28,7 @@ export const LavaFeatures = () => {
 
   if (!decorated) return null;
 
-  const palette = biome === "alien" ? ALIEN_PALETTE : LAVA_PALETTE;
+  const { palette } = decorated;
   const bridgeWidth = PATH_WIDTH + 0.4;
 
   return (
@@ -82,7 +48,7 @@ export const LavaFeatures = () => {
           <meshStandardMaterial
             color={palette.fluidColor}
             emissive={palette.fluidEmissive}
-            emissiveIntensity={palette.fluidIntensity}
+            emissiveIntensity={palette.fluidEmissiveIntensity}
             roughness={0.85}
             toneMapped={false}
           />
@@ -149,7 +115,7 @@ const RiverMesh = ({
           <meshStandardMaterial
             color={palette.fluidColor}
             emissive={palette.fluidEmissive}
-            emissiveIntensity={palette.fluidIntensity}
+            emissiveIntensity={palette.fluidEmissiveIntensity}
             roughness={0.85}
             toneMapped={false}
           />
@@ -161,7 +127,7 @@ const RiverMesh = ({
           <meshStandardMaterial
             color={palette.fluidColor}
             emissive={palette.fluidEmissive}
-            emissiveIntensity={palette.fluidIntensity}
+            emissiveIntensity={palette.fluidEmissiveIntensity}
             roughness={0.85}
             toneMapped={false}
           />

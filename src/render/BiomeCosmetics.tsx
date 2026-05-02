@@ -299,7 +299,7 @@ export const BiomeCosmetics = () => {
       ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
       ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
-    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId) : null;
+    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
     const instances = buildInstances(biome, paths, levelId, blockers, lava);
     const byUrl = new Map<string, Instance[]>();
     for (const inst of instances) {

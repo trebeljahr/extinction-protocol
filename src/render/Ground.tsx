@@ -3,8 +3,15 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ALL_BIOME_URLS, BIOME_LAYERS, BIOME_STYLE, type BiomeLayer } from "../biomes";
+import {
+  buildLavaFeatures,
+  hasFlowFeatures,
+  isOnLavaSurface,
+  type LavaFeatures,
+} from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
-import type { Vec2 } from "../sim/types";
+import type { Rock, Tree, Vec2 } from "../sim/types";
+import { ROCK_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
 
 const mulberry32 = (seed: number) => {
@@ -16,6 +23,15 @@ const mulberry32 = (seed: number) => {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+};
+
+// Box–Muller normal sample. Identical formula to BiomeCosmetics; kept
+// local so this file doesn't pull in the full cosmetics module just for
+// a five-line helper.
+const gaussian = (rng: () => number, sigma: number): number => {
+  const u = Math.max(rng(), 1e-9);
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
 };
 
 const distPointToSegSq = (
@@ -50,25 +66,156 @@ const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) =
   return false;
 };
 
-type Placement = { x: number; y: number; scale: number; rot: number };
+type Placement = { x: number; y: number; scale: number; rot: number; r: number };
 
-const buildLayer = (paths: Vec2[][], spec: BiomeLayer): Placement[][] => {
+// Default footprint guesses by URL family — used when a BiomeLayer omits
+// `footprint`. Grass is small, bushes are mid, anything else falls back
+// to a conservative 0.5 so unfamiliar packs still get reasonable spacing.
+const defaultFootprint = (url: string): number => {
+  const f = url.toLowerCase();
+  if (/grass/.test(f)) return 0.28;
+  if (/bush/.test(f)) return 0.6;
+  if (/rock/.test(f)) return 0.55;
+  return 0.5;
+};
+
+const layerFootprint = (spec: BiomeLayer): number =>
+  spec.footprint ?? defaultFootprint(spec.urls[0] ?? "");
+
+// Pick K cluster seed points well-clear of paths/blockers/lava so the
+// gaussian halos around each anchor don't dump props into a path or
+// river. Returns whatever seeds it could land — caller falls back to
+// uniform random when none could be placed.
+const pickClusterSeeds = (
+  rng: () => number,
+  paths: Vec2[][],
+  blockers: { x: number; y: number; r: number }[],
+  lava: LavaFeatures | null,
+  clearance: number,
+  count: number,
+): Vec2[] => {
+  const seeds: Vec2[] = [];
+  const pathR2 = (clearance + 0.6) * (clearance + 0.6);
+  const seedMinDistSq = 5.5 * 5.5;
+  let tries = 0;
+  while (seeds.length < count && tries < count * 70) {
+    tries++;
+    const x = (rng() - 0.5) * MAP_WIDTH * 0.85;
+    const y = (rng() - 0.5) * MAP_HEIGHT * 0.85;
+    if (isOnLavaSurface(lava, x, y, 1.0)) continue;
+    let blocked = false;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) break;
+    }
+    if (blocked) continue;
+    for (const b of blockers) {
+      const dx = b.x - x;
+      const dy = b.y - y;
+      const r = b.r + 1.0;
+      if (dx * dx + dy * dy < r * r) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+    let tooClose = false;
+    for (const s of seeds) {
+      const dx = s.x - x;
+      const dy = s.y - y;
+      if (dx * dx + dy * dy < seedMinDistSq) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (tooClose) continue;
+    seeds.push({ x, y });
+  }
+  return seeds;
+};
+
+// Build placements for one non-blocking layer. Also takes the running
+// "all-decor" placement list and a blockers list (trees + rocks) so each
+// new placement can spacing-check against everything already placed.
+// Margin between placements is `(footprint*scale)+(other.footprint*other.scale)+SLACK`.
+const PROP_SPACING_SLACK = 0.15;
+
+const buildLayer = (
+  paths: Vec2[][],
+  spec: BiomeLayer,
+  decor: (Placement & { layerIndex: number })[],
+  blockers: { x: number; y: number; r: number }[],
+  lava: LavaFeatures | null,
+  layerIndex: number,
+): Placement[][] => {
   const rng = mulberry32(spec.seed);
   const buckets: Placement[][] = spec.urls.map(() => []);
+  const footprint = layerFootprint(spec);
+  const halfW = MAP_WIDTH * 0.475;
+  const halfH = MAP_HEIGHT * 0.475;
+
+  // Prepare cluster anchors when the layer asks for them. Falls back to
+  // uniform sampling if the seed-finder couldn't place any (e.g. very
+  // dense paths).
+  const clusterCfg = spec.cluster;
+  const seeds = clusterCfg
+    ? pickClusterSeeds(rng, paths, blockers, lava, spec.clearance, clusterCfg.seeds)
+    : [];
+  const useClusters = clusterCfg !== undefined && seeds.length > 0;
+
   let tries = 0;
   let placed = 0;
-  while (placed < spec.count && tries < spec.count * 30) {
+  const maxTries = spec.count * 60;
+  while (placed < spec.count && tries < maxTries) {
     tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH;
-    const y = (rng() - 0.5) * MAP_HEIGHT;
+    let x: number;
+    let y: number;
+    if (useClusters && clusterCfg) {
+      const seed = seeds[Math.floor(rng() * seeds.length)];
+      x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, clusterCfg.sigma)));
+      y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, clusterCfg.sigma)));
+    } else {
+      x = (rng() - 0.5) * MAP_WIDTH;
+      y = (rng() - 0.5) * MAP_HEIGHT;
+    }
+
     if (nearAnyPath(paths, x, y, spec.clearance)) continue;
+    if (isOnLavaSurface(lava, x, y, footprint * spec.maxScale + 0.2)) continue;
+
+    const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
+    const r = footprint * scale;
+
+    let blocked = false;
+    for (const b of blockers) {
+      const dx = b.x - x;
+      const dy = b.y - y;
+      const min = r + b.r + PROP_SPACING_SLACK;
+      if (dx * dx + dy * dy < min * min) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+    for (const d of decor) {
+      const dx = d.x - x;
+      const dy = d.y - y;
+      const min = r + d.r + PROP_SPACING_SLACK;
+      if (dx * dx + dy * dy < min * min) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+
     const variant = Math.floor(rng() * spec.urls.length);
-    buckets[variant].push({
-      x,
-      y,
-      scale: spec.minScale + rng() * (spec.maxScale - spec.minScale),
-      rot: rng() * Math.PI * 2,
-    });
+    const placement: Placement = { x, y, scale, rot: rng() * Math.PI * 2, r };
+    buckets[variant].push(placement);
+    decor.push({ ...placement, layerIndex });
     placed++;
   }
   return buckets;
@@ -129,20 +276,38 @@ const NatureInstances = ({
   );
 };
 
+const buildBlockers = (trees: Tree[], rocks: Rock[]): { x: number; y: number; r: number }[] => {
+  const out: { x: number; y: number; r: number }[] = [];
+  for (const t of trees) out.push({ x: t.pos.x, y: t.pos.y, r: TREE_FOOTPRINT * t.scale });
+  for (const r of rocks) out.push({ x: r.pos.x, y: r.pos.y, r: ROCK_FOOTPRINT * r.scale });
+  return out;
+};
+
 export const Ground = () => {
   const paths = useGame((s) => s.world.paths);
   const biome = useGame((s) => s.world.biome);
+  const levelId = useGame((s) => s.world.levelId);
+  const trees = useGame((s) => s.world.trees);
+  const rocks = useGame((s) => s.world.rocks);
   const style = BIOME_STYLE[biome];
   const specs = useMemo(() => BIOME_LAYERS[biome].filter((s) => !s.blocks), [biome]);
 
-  const layers = useMemo(
-    () =>
-      specs.map((spec) => ({
-        spec,
-        buckets: buildLayer(paths, spec).map((placements) => ({ id: nanoid(), placements })),
+  // Decor placements are layered: each layer sees blockers (trees+rocks)
+  // *and* the running list of previously-placed decor so cross-layer
+  // overlap is impossible. Lava/forest/alien surfaces are also avoided
+  // so we don't sprinkle grass into the river.
+  const layers = useMemo(() => {
+    const blockers = buildBlockers(trees, rocks);
+    const decor: (Placement & { layerIndex: number })[] = [];
+    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
+    return specs.map((spec, layerIndex) => ({
+      spec,
+      buckets: buildLayer(paths, spec, decor, blockers, lava, layerIndex).map((placements) => ({
+        id: nanoid(),
+        placements,
       })),
-    [paths, specs],
-  );
+    }));
+  }, [paths, specs, biome, levelId, trees, rocks]);
 
   return (
     <group>
