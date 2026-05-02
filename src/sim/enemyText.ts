@@ -8,6 +8,7 @@ export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
   stego: "Armored grazer",
   armored: "Juggernaut",
   titan: "Colossus",
+  boss: "Apex matriarch",
 };
 
 export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
@@ -20,4 +21,5 @@ export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
     "Juggernaut. Hardened against shock and blast — no clear weakness, kinetic and cold both creep through. Heavy slow resistance leaves cryo without its slow.",
   titan:
     "Colossus. Resists nearly everything except cold. Heavy slow resistance — every step costs lives.",
+  boss: "Apex matriarch. Shrugs off kinetic, explosive, and flame — only cryo cuts deep. Heavy slow resistance keeps her marching. Pays out a fortune when she falls.",
 };

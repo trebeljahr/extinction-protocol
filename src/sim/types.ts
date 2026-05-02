@@ -2,7 +2,15 @@ export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
 
-export type EnemyKind = "raptor" | "allosaur" | "stego" | "swarm" | "armored" | "para" | "titan";
+export type EnemyKind =
+  | "raptor"
+  | "allosaur"
+  | "stego"
+  | "swarm"
+  | "armored"
+  | "para"
+  | "titan"
+  | "boss";
 
 // Composable per-enemy buffs — any combination can be layered on any
 // kind. See `chipBountyMul` in world.ts for the per-chip bounty scaling.
@@ -243,6 +251,11 @@ export type WaveSpec = {
   spacing?: number;
   hpMul?: number;
   archetype?: WaveArchetype;
+  // Marks a boss wave: triggers the on-screen banner, audio sting, and a
+  // big gold bonus when the boss enemy in this wave dies. Independent of
+  // archetype so any composition can be flagged a boss event — typically
+  // used for an escort + boss layout via `convoy` or `vanguard`.
+  bossWave?: boolean;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";
@@ -253,6 +266,8 @@ export type GameEvent =
   | { type: "death"; pos: Vec2 }
   | { type: "wave-start"; wave: number }
   | { type: "wave-clear"; wave: number }
+  | { type: "boss-wave-start"; wave: number }
+  | { type: "boss-defeated"; wave: number; bonus: number }
   | { type: "life-lost" }
   | { type: "game-over"; won: boolean }
   | { type: "upgrade" }

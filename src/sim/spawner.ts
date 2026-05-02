@@ -1,5 +1,5 @@
 import type { DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
-import { emit, spawnEnemy } from "./world";
+import { addShake, emit, spawnEnemy } from "./world";
 
 export type { WaveArchetype };
 
@@ -136,6 +136,13 @@ const startWave = (world: World) => {
     });
   }
   emit(world, { type: "wave-start", wave: world.wave });
+  if (spec.bossWave) {
+    emit(world, { type: "boss-wave-start", wave: world.wave });
+    // Heavy ground tremor sells the matriarch's arrival before her
+    // silhouette is even on screen — sustained decay so the camera
+    // judders for ~a second rather than flicking once.
+    addShake(world, 0.85, 1.6);
+  }
 };
 
 const earlyCallBase = (world: World): number => (world.wave === 0 ? 0 : 15 + world.wave);

@@ -76,6 +76,7 @@ export const PlayScene = () => {
       <ModelEnemyMesh kind="stego" url="/models/Stegosaurus.glb" targetSize={1.9} />
       <ModelEnemyMesh kind="armored" url="/models/Triceratops.glb" targetSize={2.0} />
       <ModelEnemyMesh kind="titan" url="/models/Apatosaurus.glb" targetSize={11.0} clip="Walk" />
+      <ModelEnemyMesh kind="boss" url="/models/Apatosaurus.glb" targetSize={18.0} clip="Walk" />
 
       <ModelTowerMesh kind="pulse" url="/models/tower_pulse.glb" targetSize={1.6} />
       <ModelTowerMesh kind="chain" url="/models/turrets/Lighting Turret.glb" targetSize={1.8} />

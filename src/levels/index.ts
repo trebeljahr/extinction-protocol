@@ -26,6 +26,7 @@ type EnemyCounts = {
   stego?: number;
   armored?: number;
   titan?: number;
+  boss?: number;
 };
 
 const SPAWN_ORDER: EnemyKind[] = [
@@ -36,6 +37,7 @@ const SPAWN_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
+  "boss",
 ];
 
 type SpawnFlags = {
@@ -166,6 +168,17 @@ const partShielded = (
   ],
 });
 
+// Boss wave — escort entourage leads, then the boss. The bossWave flag
+// triggers the on-screen banner, audio sting, and bonus gold on kill.
+// Single-path; multi-path boss waves are authored inline so the boss
+// placement per lane is explicit.
+const bossWave = (entourage: EnemyCounts, bosses = 1, spacing = 0.55, pathIndex = 0): WaveSpec => ({
+  archetype: "convoy",
+  spacing,
+  bossWave: true,
+  spawns: [...toSpawns(entourage, pathIndex), ...toSpawns({ boss: bosses }, pathIndex)],
+});
+
 export const LEVELS: LevelConfig[] = [
   {
     id: 1,
@@ -259,7 +272,10 @@ export const LEVELS: LevelConfig[] = [
       rush(65, 12),
       heavy({ armored: 5, stego: 3, allosaur: 2 }),
       mixed({ raptor: 20, swarm: 14, para: 4, allosaur: 5, stego: 2 }),
-      chaos({ raptor: 18, swarm: 22, para: 4, allosaur: 5, stego: 3, armored: 1 }),
+      // Boss wave: the matriarch's debut. Light entourage so she's the
+      // focus — players who didn't bring cryo will struggle to chip
+      // through her resists in time.
+      bossWave({ raptor: 10, allosaur: 3, stego: 1 }, 1),
     ],
   },
   {
@@ -383,7 +399,10 @@ export const LEVELS: LevelConfig[] = [
       rush(120, 26),
       heavy({ armored: 11, stego: 6, allosaur: 5 }),
       mixed({ raptor: 26, swarm: 20, allosaur: 10, stego: 6, armored: 3 }),
-      chaos({ raptor: 28, swarm: 32, allosaur: 10, stego: 6, armored: 6, titan: 1 }),
+      // Boss wave: matriarch flanked by armored escorts and a titan
+      // wingman — first time the player has to crack a heavy entourage
+      // while she lumbers forward.
+      bossWave({ allosaur: 6, stego: 4, armored: 3, titan: 1 }, 1, 0.7),
     ],
   },
   {
@@ -676,27 +695,19 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
         ],
       },
-      // Finale: elite + fierce armored leads (chrome-blue + red halo +
-      // hits hard), plus an elite + regen stego, plus a chaos pack
-      // underneath. Four chip combinations on screen at once — boss-feel
-      // without inventing a boss class. Regen + elite stego is the
-      // hardest single target: between the resist flatten and the
-      // self-heal, a slow tower drip just won't kill it.
+      // Boss wave: elite-armored escort leads, then the matriarch with
+      // an elite-regen stego at her flank. The chip-stacked entourage
+      // forces the player to commit anti-modifier T3s before she gets
+      // close to the gate.
       {
-        archetype: "chaos",
-        spacing: 0.3,
+        archetype: "convoy",
+        spacing: 0.55,
+        bossWave: true,
         spawns: [
           ...toSpawns({ armored: 2 }, 0, { elite: true, fierce: true }),
-          ...toSpawns({ stego: 2 }, 0, { elite: true, regen: true }),
-          ...toSpawns({
-            raptor: 30,
-            swarm: 38,
-            para: 10,
-            allosaur: 12,
-            stego: 6,
-            armored: 5,
-            titan: 3,
-          }),
+          ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
+          ...toSpawns({ stego: 1 }, 0, { elite: true, regen: true }),
+          ...toSpawns({ boss: 1 }),
         ],
       },
     ],
@@ -1047,14 +1058,20 @@ export const LEVELS: LevelConfig[] = [
         [0, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
         [1, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
       ),
-      // Extinction: slow, dense, brutal — the true end-boss wave. Designed
-      // so anyone coasting on one-of-each-max-tier towers runs out of DPS.
-      split(
-        "heavy",
-        0.55,
-        [0, { stego: 12, armored: 14, titan: 6 }],
-        [1, { stego: 12, armored: 14, titan: 6 }],
-      ),
+      // Boss wave: twin matriarchs, one per lane, flanked by titan+armored
+      // entourages. The two-path map means the player can't focus-fire one
+      // boss without leaving the other unchecked.
+      {
+        archetype: "convoy",
+        spacing: 0.5,
+        bossWave: true,
+        spawns: [
+          ...toSpawns({ stego: 6, armored: 7, titan: 3 }, 0),
+          ...toSpawns({ stego: 6, armored: 7, titan: 3 }, 1),
+          ...toSpawns({ boss: 1 }, 0),
+          ...toSpawns({ boss: 1 }, 1),
+        ],
+      },
     ],
   },
   {
@@ -1518,15 +1535,24 @@ export const LEVELS: LevelConfig[] = [
         [3, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
         [4, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
       ),
-      split(
-        "chaos",
-        0.2,
-        [0, { raptor: 20, swarm: 28, allosaur: 9, stego: 7, armored: 6, titan: 3 }],
-        [1, { raptor: 20, swarm: 28, allosaur: 9, stego: 7, armored: 6, titan: 3 }],
-        [2, { raptor: 20, swarm: 28, allosaur: 9, stego: 7, armored: 6, titan: 3 }],
-        [3, { raptor: 20, swarm: 28, allosaur: 9, stego: 7, armored: 6, titan: 3 }],
-        [4, { raptor: 20, swarm: 28, allosaur: 9, stego: 7, armored: 6, titan: 3 }],
-      ),
+      // Boss wave: matriarchs on the outer two lanes, heavy titan+armored
+      // entourages on the inner three. Five-wide map so coverage breadth
+      // is the bottleneck — focus-firing one boss leaves the other lanes
+      // bleeding lives.
+      {
+        archetype: "convoy",
+        spacing: 0.45,
+        bossWave: true,
+        spawns: [
+          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 0),
+          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 1),
+          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 2),
+          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 3),
+          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 4),
+          ...toSpawns({ boss: 1 }, 0),
+          ...toSpawns({ boss: 1 }, 4),
+        ],
+      },
     ],
   },
   {
@@ -2100,14 +2126,22 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
         [2, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
       ),
-      // Final Extinction: the true boss. Everyone you've seen, slow and dense.
-      split(
-        "heavy",
-        0.55,
-        [0, { stego: 18, armored: 22, titan: 10 }],
-        [1, { stego: 18, armored: 22, titan: 10 }],
-        [2, { stego: 18, armored: 22, titan: 10 }],
-      ),
+      // Final Extinction: a triumvirate of matriarchs, one per lane,
+      // riding in on a wall of titans and armored. The campaign's true
+      // boss event — a player making it here has earned the spectacle.
+      {
+        archetype: "convoy",
+        spacing: 0.45,
+        bossWave: true,
+        spawns: [
+          ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 0),
+          ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 1),
+          ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 2),
+          ...toSpawns({ boss: 1 }, 0),
+          ...toSpawns({ boss: 1 }, 1),
+          ...toSpawns({ boss: 1 }, 2),
+        ],
+      },
     ],
   },
 ];

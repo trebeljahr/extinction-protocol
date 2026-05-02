@@ -11,6 +11,7 @@ import {
   TOWER_LABEL,
 } from "../sim/world";
 import { useGame } from "../store";
+import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyIcon } from "./DifficultyIcon";
 import { EnemyPanel } from "./EnemyPanel";
@@ -225,6 +226,7 @@ export const HUD = () => {
       <TowerPanel />
       <EnemyPanel />
       <TreePanel />
+      <BossBanner />
 
       {paused && !compendiumOpen && <PauseMenu onResume={togglePause} />}
     </div>

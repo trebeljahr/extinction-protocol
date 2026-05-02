@@ -112,8 +112,8 @@ export const ModelEnemyMesh = ({
 
   // Invisible, oversized tap target. Lets users hit the enemy even when
   // their finger lands next to the silhouette — critical on touch. The
-  // titan's native silhouette is already huge, so it opts out.
-  const useProxy = kind !== "titan";
+  // titan and boss native silhouettes are already huge, so they opt out.
+  const useProxy = kind !== "titan" && kind !== "boss";
   const proxyRadius = useMemo(() => Math.max(targetSize * 0.8, 1.0), [targetSize]);
   // Invisible click target — no need for smooth silhouette.
   const proxyGeom = useMemo(

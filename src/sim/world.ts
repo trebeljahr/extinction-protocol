@@ -509,6 +509,10 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   armored: { kind: "armored", hp: 300, maxHp: 300, speed: 1.1, bounty: 22, damage: 1 },
   para: { kind: "para", hp: 45, maxHp: 45, speed: 1.8, bounty: 5, damage: 2 },
   titan: { kind: "titan", hp: 1200, maxHp: 1200, speed: 0.65, bounty: 48, damage: 8 },
+  // Boss — appears on flagged boss waves only. ~3.5× titan HP, lumbers
+  // along, hits hard. Per-kill bonus on top of bounty is paid out by
+  // spawnerTick when a boss-flagged enemy dies.
+  boss: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
 };
 
 // Per-kind shield pool used when a spec marks an enemy as shielded.
@@ -522,6 +526,7 @@ export const SHIELD_BY_KIND: Record<EnemyKind, number> = {
   armored: 120,
   para: 25,
   titan: 400,
+  boss: 800,
 };
 
 export const SHIELD_REGEN_DELAY = 4;
@@ -576,6 +581,10 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4, flame: 0.4 },
   para: { kinetic: 1.1, electric: 1.0, cold: 1.0, explosive: 0.9, flame: 0.9 },
   titan: { kinetic: 0.5, electric: 0.9, cold: 1.3, explosive: 0.35, flame: 0.35 },
+  // Boss — even tougher than titan. Cold is the only real lever
+  // (1.5×); kinetic bullets scrape, explosives barely tickle. Forces
+  // the player to lean on cryo and chip-cracking T3 upgrades.
+  boss: { kinetic: 0.45, electric: 0.85, cold: 1.5, explosive: 0.3, flame: 0.3 },
 };
 
 export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
@@ -586,6 +595,7 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
   armored: 0.75,
   para: 0,
   titan: 0.5,
+  boss: 0.6,
 };
 
 // Per-chip stat multipliers — applied at spawn (HP/damage/bounty) or
@@ -620,6 +630,11 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   stego: { url: "/models/Stegosaurus.glb", targetSize: 1.9 },
   armored: { url: "/models/Triceratops.glb", targetSize: 2.0 },
   titan: { url: "/models/Apatosaurus.glb", targetSize: 11.0, clip: "Walk" },
+  // Boss — the largest available model scaled up further so the
+  // silhouette dwarfs everything else on screen. Same Apatosaurus mesh
+  // as titan; the elite-tint pass + dedicated label sells it as a
+  // distinct adversary.
+  boss: { url: "/models/Apatosaurus.glb", targetSize: 18.0, clip: "Walk" },
 };
 
 export const ENEMY_LABEL: Record<EnemyKind, string> = {
@@ -630,6 +645,7 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
   armored: "Triceratops",
   para: "Parasaur",
   titan: "Apatosaur",
+  boss: "Matriarch",
 };
 
 // Per-kind elite material tint — a distinct palette per species so the
@@ -643,6 +659,7 @@ export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
   stego: "#3affb0", // jade — carved jade plates
   armored: "#5ad6ff", // glacial blue — chrome-plated tank
   titan: "#ffd24a", // burnished gold — legendary colossus
+  boss: "#ff2a55", // arterial red — matriarch's blood-glow
 };
 
 // Tier-3 anti-modifier hit options carried by tower fire paths into
@@ -722,6 +739,18 @@ export const applyDamage = (
     world.gold += enemy.bounty;
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
     emit(world, { type: "death", pos: enemy.pos });
+    // Boss kill — extra payout on top of the normal bounty so the
+    // moment reads as a windfall, plus an event for the UI flash.
+    // Scales with wave so late-game boss kills stay meaningful when
+    // upgrades cost five-figure gold.
+    if (enemy.kind === "boss") {
+      const bonus = 100 + world.wave * 15;
+      world.gold += bonus;
+      // Bigger crimson burst on top of the standard death particles —
+      // sells the takedown without needing a new VFX subsystem.
+      spawnParticles(world, enemy.pos, 32, "#ff2a55", [4, 9], 0.7);
+      emit(world, { type: "boss-defeated", wave: world.wave, bonus });
+    }
   }
 };
 
@@ -736,6 +765,9 @@ const LATERAL_OFFSET_BY_KIND: Record<EnemyKind, number> = {
   stego: PATH_WIDTH * 0.2,
   armored: PATH_WIDTH * 0.2,
   titan: PATH_WIDTH * 0.08,
+  // Boss is wider than the lane allows — pin to centerline so the
+  // silhouette doesn't clip past the path edges.
+  boss: 0,
 };
 
 export type SpawnOptions = {
