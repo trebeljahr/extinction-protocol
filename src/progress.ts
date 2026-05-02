@@ -7,12 +7,47 @@ export type ProgressStats = {
   winsTotal: number;
 };
 
+export type Difficulty = "easy" | "medium" | "hard" | "extinction";
+
+export type DifficultyMultipliers = {
+  hp: number;
+  startGold: number;
+  goldKill: number;
+  speed: number;
+};
+
+export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "extinction"];
+
+export const DIFFICULTY_MULTIPLIERS: Record<Difficulty, DifficultyMultipliers> = {
+  easy: { hp: 0.7, startGold: 1.3, goldKill: 1.2, speed: 1.0 },
+  medium: { hp: 1.0, startGold: 1.0, goldKill: 1.0, speed: 1.0 },
+  hard: { hp: 1.4, startGold: 0.9, goldKill: 0.95, speed: 1.0 },
+  extinction: { hp: 1.8, startGold: 0.7, goldKill: 0.85, speed: 1.2 },
+};
+
+export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  extinction: "Extinction",
+};
+
+export const DIFFICULTY_TAGLINE: Record<Difficulty, string> = {
+  easy: "Roam in peace",
+  medium: "The intended hunt",
+  hard: "Pack pressure",
+  extinction: "The asteroid is here",
+};
+
+export const DEFAULT_DIFFICULTY: Difficulty = "medium";
+
 export type ProgressData = {
   version: 1;
   starsByLevel: Record<number, Stars>;
   encountered: Partial<Record<EnemyKind, boolean>>;
   stats: ProgressStats;
   unlocked: Record<string, number>;
+  difficulty: Difficulty;
 };
 
 const STORAGE_KEY = "extinction-protocol:progress:v1";
@@ -26,7 +61,11 @@ const empty = (): ProgressData => ({
   encountered: {},
   stats: emptyStats(),
   unlocked: {},
+  difficulty: DEFAULT_DIFFICULTY,
 });
+
+const isDifficulty = (v: unknown): v is Difficulty =>
+  typeof v === "string" && (DIFFICULTIES as readonly string[]).includes(v);
 
 export const loadProgress = (): ProgressData => {
   if (typeof window === "undefined" || !window.localStorage) return empty();
@@ -44,12 +83,16 @@ export const loadProgress = (): ProgressData => {
       parsed.unlocked && typeof parsed.unlocked === "object"
         ? (parsed.unlocked as Record<string, number>)
         : {};
+    const difficulty: Difficulty = isDifficulty(parsed.difficulty)
+      ? parsed.difficulty
+      : DEFAULT_DIFFICULTY;
     return {
       version: 1,
       starsByLevel: parsed.starsByLevel as Record<number, Stars>,
       encountered: (parsed.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
       stats,
       unlocked,
+      difficulty,
     };
   } catch {
     return empty();
@@ -107,3 +150,9 @@ export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressDa
 
 export const hasEncountered = (p: ProgressData, kind: EnemyKind): boolean =>
   p.encountered[kind] === true;
+
+export const setDifficulty = (p: ProgressData, difficulty: Difficulty): ProgressData =>
+  p.difficulty === difficulty ? p : { ...p, difficulty };
+
+export const getMultipliers = (p: ProgressData): DifficultyMultipliers =>
+  DIFFICULTY_MULTIPLIERS[p.difficulty];

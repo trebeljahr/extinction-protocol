@@ -6,14 +6,17 @@ import { EASTER_EGG_BY_ID } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
-import type { ProgressData, Stars } from "./progress";
+import type { Difficulty, ProgressData, Stars } from "./progress";
 import {
+  DEFAULT_DIFFICULTY,
+  DIFFICULTY_MULTIPLIERS,
   getStars,
   isLevelUnlocked,
   loadProgress,
   markEncountered,
   recordLevelResult,
   saveProgress,
+  setDifficulty as setDifficultyOnProgress,
   starsForLives,
 } from "./progress";
 import { Engine } from "./sim/loop";
@@ -280,6 +283,9 @@ type GameStore = {
   setCompendiumOpen: (open: boolean) => void;
   setAchievementsOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
+  setDifficulty: (difficulty: Difficulty) => void;
+  difficultyPickerOpen: boolean;
+  setDifficultyPickerOpen: (open: boolean) => void;
   dismissAchievementToast: (key: number) => void;
 
   reset: () => void;
@@ -356,8 +362,8 @@ const tryUnlockEasterEgg = (
   };
 };
 
-const buildWorldForLevel = (level: LevelConfig) => {
-  const world = createWorld(level);
+const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty) => {
+  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty]);
   return {
     world,
     ui: snapshot(world, 0, 0, emptyInspect),
@@ -370,8 +376,10 @@ const buildWorldForLevel = (level: LevelConfig) => {
 export const isUnlocked = (levelId: number, progress: ProgressData) =>
   isLevelUnlocked(levelId, progress);
 
+const initialProgress = loadProgress();
+
 export const useGame = create<GameStore>((set, get) => ({
-  ...buildWorldForLevel(getLevel(1)),
+  ...buildWorldForLevel(getLevel(1), initialProgress.difficulty),
   engine: new Engine(),
   selectedKind: null,
   selectedTreeId: null,
@@ -381,7 +389,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
   screen: "worldMap",
   selectedLevelId: null,
-  progress: loadProgress(),
+  progress: initialProgress,
   hoveredLevelId: null,
   lastResult: null,
   compendiumOpen: false,
@@ -396,11 +404,11 @@ export const useGame = create<GameStore>((set, get) => ({
   startLevel: (id) => {
     const level = LEVELS.find((l) => l.id === id);
     if (!level) return;
-    if (!isLevelUnlocked(id, get().progress)) return;
-    const { engine } = get();
+    const { engine, progress } = get();
+    if (!isLevelUnlocked(id, progress)) return;
     engine.reset();
     set({
-      ...buildWorldForLevel(level),
+      ...buildWorldForLevel(level, progress.difficulty),
       selectedKind: null,
       selectedTreeId: null,
       selectedRockId: null,
@@ -440,6 +448,17 @@ export const useGame = create<GameStore>((set, get) => ({
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
 
   setCreditsOpen: (open) => set({ creditsOpen: open }),
+
+  difficultyPickerOpen: false,
+  setDifficultyPickerOpen: (open) => set({ difficultyPickerOpen: open }),
+
+  setDifficulty: (difficulty) => {
+    const s = get();
+    if (s.progress.difficulty === difficulty) return;
+    const next = setDifficultyOnProgress(s.progress, difficulty);
+    saveProgress(next);
+    set({ progress: next });
+  },
 
   dismissAchievementToast: (key) =>
     set((state) => ({ achievementToasts: state.achievementToasts.filter((t) => t.key !== key) })),
@@ -1172,6 +1191,7 @@ export const useGame = create<GameStore>((set, get) => ({
       encountered: {},
       stats: { killsTotal: 0, winsTotal: 0 },
       unlocked: {},
+      difficulty: DEFAULT_DIFFICULTY,
     };
     saveProgress(empty);
     set({ progress: empty });

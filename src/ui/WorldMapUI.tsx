@@ -2,9 +2,10 @@ import type React from "react";
 import { useState } from "react";
 import { isDebug } from "../debug";
 import { LEVELS } from "../levels";
-import { getStars, isLevelUnlocked, totalStars } from "../progress";
+import { DIFFICULTY_LABEL, getStars, isLevelUnlocked, totalStars } from "../progress";
 import { useGame } from "../store";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
+import { DifficultyIcon } from "./DifficultyIcon";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
@@ -15,7 +16,9 @@ export const WorldMapUI = () => {
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
+  const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const [menuOpen, setMenuOpen] = useState(false);
+  const difficulty = progress.difficulty;
 
   const hovered = LEVELS.find((l) => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;
@@ -39,6 +42,23 @@ export const WorldMapUI = () => {
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
         <button
           type="button"
+          className="bg-surface-1 border border-border rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setDifficultyPickerOpen(true)}
+          aria-label="Change difficulty"
+          title="Change difficulty"
+        >
+          <DifficultyIcon difficulty={difficulty} className="w-7 h-7 text-blue" />
+          <div className="flex flex-col items-start">
+            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
+              Difficulty
+            </span>
+            <span className="text-sm font-bold text-fg leading-tight">
+              {DIFFICULTY_LABEL[difficulty]}
+            </span>
+          </div>
+        </button>
+        <button
+          type="button"
           className="bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setMenuOpen(true)}
           aria-label="Open menu"
@@ -60,6 +80,16 @@ export const WorldMapUI = () => {
         <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
           <SoundControls />
           <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost w-full"
+              onClick={() => {
+                setMenuOpen(false);
+                setDifficultyPickerOpen(true);
+              }}
+            >
+              Difficulty · {DIFFICULTY_LABEL[difficulty]}
+            </button>
             <button
               type="button"
               className="btn btn-ghost w-full"

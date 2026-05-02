@@ -8,6 +8,7 @@ import {
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
+import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
 import { samplePath } from "./path";
 import type {
   Beam,
@@ -349,7 +350,10 @@ const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEn
   return out;
 };
 
-export const createWorld = (level: LevelConfig): World => {
+export const createWorld = (
+  level: LevelConfig,
+  difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
+): World => {
   const biome = biomeForPos(level.nodePos);
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
@@ -368,15 +372,21 @@ export const createWorld = (level: LevelConfig): World => {
     lava,
   );
   const easterEggSchedule = buildEasterEggSchedule(biome, level.id * 5471 + 3);
+  // Compose per-level hpScale × difficulty.hp into each wave's hpMul. The
+  // spawner already respects spec.hpMul, so baking it once at creation
+  // means the rest of the sim doesn't need to know about difficulty.
+  const baseHpScale = (level.hpScale ?? 1) * difficulty.hp;
+  const plannedWaves =
+    baseHpScale === 1
+      ? level.waves
+      : level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * baseHpScale }));
   return {
     time: 0,
     tickCount: 0,
     levelId: level.id,
     biome,
     paths: level.paths,
-    plannedWaves: level.hpScale
-      ? level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * level.hpScale! }))
-      : level.waves,
+    plannedWaves,
     enemies: [],
     enemyById: new Map(),
     towers: [],
@@ -396,7 +406,7 @@ export const createWorld = (level: LevelConfig): World => {
     waveTotalEnemies: 0,
     midwaveTimer: 0,
     midwaveTimerMax: 0,
-    gold: level.startGold,
+    gold: Math.floor(level.startGold * difficulty.startGold),
     lives: STARTING_LIVES,
     startLives: STARTING_LIVES,
     status: "running",
@@ -408,6 +418,8 @@ export const createWorld = (level: LevelConfig): World => {
     runTowerKinds: {},
     easterEggs: eggs,
     easterEggSchedule,
+    speedMul: difficulty.speed,
+    goldKillMul: difficulty.goldKill,
   };
 };
 
@@ -764,7 +776,9 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   if (regen) bountyMul *= REGEN_BOUNTY_MUL;
   if (elite) bountyMul *= ELITE_BOUNTY_MUL;
   if (fierce) bountyMul *= FIERCE_BOUNTY_MUL;
-  const bounty = Math.ceil(base.bounty * bountyMul);
+  // Difficulty's gold-per-kill multiplier folds in here so the existing
+  // `world.gold += enemy.bounty` in applyDamage stays a single read.
+  const bounty = Math.max(1, Math.ceil(base.bounty * bountyMul * world.goldKillMul));
   // Shield pool is fixed by kind (not scaled by hpMul) — that way the
   // tutorial-feel of cracking a raptor's 10-pt bubble doesn't erode at
   // late levels where hpMul is high.
@@ -784,7 +798,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     lateralOffset,
     hp: maxHp,
     maxHp,
-    speed: base.speed,
+    speed: base.speed * world.speedMul,
     bounty,
     damage,
     alive: true,

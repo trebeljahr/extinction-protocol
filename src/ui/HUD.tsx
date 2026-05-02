@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { getLevel } from "../levels";
+import { DIFFICULTY_LABEL } from "../progress";
 import type { TowerKind } from "../sim/types";
 import {
   DAMAGE_TYPE_COLOR,
@@ -11,6 +12,7 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
+import { DifficultyIcon } from "./DifficultyIcon";
 import { EnemyPanel } from "./EnemyPanel";
 import { PauseMenu } from "./PauseMenu";
 import { TowerPanel } from "./TowerPanel";
@@ -46,8 +48,15 @@ export const HUD = () => {
   const togglePause = useGame((s) => s.togglePause);
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
+  const difficulty = useGame((s) => s.progress.difficulty);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
+  const difficultyAccent: Record<typeof difficulty, string> = {
+    easy: "text-mint",
+    medium: "text-blue",
+    hard: "text-orange",
+    extinction: "text-red",
+  };
   const paused = status === "paused";
   const compendiumOpen = useGame((s) => s.compendiumOpen);
 
@@ -129,6 +138,21 @@ export const HUD = () => {
             <div className="text-[15px] font-bold mt-0.5 whitespace-nowrap">{levelName}</div>
           </div>
         )}
+        <div
+          className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2"
+          title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]}`}
+        >
+          <DifficultyIcon
+            difficulty={difficulty}
+            className={`w-6 h-6 ${difficultyAccent[difficulty]}`}
+          />
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">Mode</span>
+            <span className={`text-[13px] font-bold leading-tight ${difficultyAccent[difficulty]}`}>
+              {DIFFICULTY_LABEL[difficulty]}
+            </span>
+          </div>
+        </div>
       </div>
 
       <button

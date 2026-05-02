@@ -308,6 +308,11 @@ export type World = {
   runTowerKinds: Partial<Record<TowerKind, boolean>>;
   easterEggs: EasterEgg[];
   easterEggSchedule: EasterEggScheduleEntry[];
+  // Per-run multipliers driven by the global difficulty setting. HP and
+  // startGold are baked in at world-creation time; speed and goldKill are
+  // applied per spawn / per kill so they live on World.
+  speedMul: number;
+  goldKillMul: number;
 };
 
 export type EasterEgg = {
