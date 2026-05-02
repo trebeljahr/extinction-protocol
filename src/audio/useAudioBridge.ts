@@ -99,7 +99,7 @@ export const useAudioBridge = () => {
           // top of the standard wave-start so the moment reads as bigger
           // than a regular wave. Reuses existing samples — no new audio
           // assets shipped with this change.
-          audio.play("new-enemy", 0.85, 500, 2.5);
+          audio.play("new-enemy", "notifications", 0.85, 500, 2.5);
           break;
         case "wave-clear":
           audio.play("wave-clear", "notifications", 0.6, 500);
@@ -108,7 +108,7 @@ export const useAudioBridge = () => {
           // Takedown sting — repurpose victory horn as an in-run windfall
           // cue. Distinct from wave-clear so a boss kill doesn't blur
           // into the normal end-of-wave tone.
-          audio.play("victory", 0.7, 500, 3.0);
+          audio.play("victory", "notifications", 0.7, 500, 3.0);
           break;
         case "life-lost":
           audio.play("life-lost", "enemies", 0.7, 120);
