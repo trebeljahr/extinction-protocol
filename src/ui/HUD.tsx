@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { getLevel } from "../levels";
 import { DIFFICULTY_LABEL } from "../progress";
@@ -19,6 +19,7 @@ import { PauseMenu } from "./PauseMenu";
 import { TowerPanel } from "./TowerPanel";
 import { TowerPreview } from "./TowerPreview";
 import { TreePanel } from "./TreePanel";
+import { useIsMobile } from "./useMediaQuery";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 const HOTKEYS: Record<TowerKind, string> = {
@@ -60,6 +61,15 @@ export const HUD = () => {
   };
   const paused = status === "paused";
   const compendiumOpen = useGame((s) => s.compendiumOpen);
+  const isMobile = useIsMobile();
+  // On mobile the picker collapses to a small handle to free up the
+  // canvas. Auto-closes on selection (one less tap to start placing)
+  // and re-opens via the handle. On desktop the picker is always
+  // visible — `pickerOpen` is ignored in that branch.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    if (selectedKind !== null) setPickerOpen(false);
+  }, [selectedKind]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -176,52 +186,93 @@ export const HUD = () => {
         </span>
       </button>
 
-      <div className="tower-picker">
-        {KINDS.map((kind) => {
-          const cost = TOWER_COST[kind];
-          const affordable = gold >= cost;
-          const active = selectedKind === kind;
-          const dmgType = TOWER_DAMAGE_TYPE[kind];
-          return (
+      {isMobile && !pickerOpen && (
+        <button
+          type="button"
+          className="tower-picker-handle"
+          onClick={() => {
+            // Tapping the handle opens the picker. If a kind is currently
+            // selected for placement, treat the same tap as "cancel
+            // placement and pick a different tower" — clear the selection
+            // so the user isn't surprised by stale ghost cursors.
+            if (selectedKind !== null) setSelectedKind(null);
+            setPickerOpen(true);
+          }}
+          aria-expanded={false}
+          aria-label="Open build menu"
+          title="Build"
+        >
+          <span className="tower-picker-handle-icon" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="tower-picker-handle-label">Build</span>
+          {selectedKind && (
+            <span className="tower-picker-handle-active">{TOWER_LABEL[selectedKind]}</span>
+          )}
+        </button>
+      )}
+
+      {(!isMobile || pickerOpen) && (
+        <div className={`tower-picker ${isMobile ? "tower-picker-mobile-open" : ""}`}>
+          {isMobile && (
             <button
               type="button"
-              key={kind}
-              className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
-              data-ui-sound={active ? "close" : !affordable ? "error" : "select"}
-              onClick={(e) => {
-                setSelectedKind(selectedKind === kind ? null : kind);
-                e.currentTarget.blur();
-              }}
-              title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
+              className="tower-picker-close"
+              onClick={() => setPickerOpen(false)}
+              aria-label="Close build menu"
+              title="Close"
             >
-              {active && (
-                <span className="card-cancel" aria-hidden>
-                  ×
-                </span>
-              )}
-              <div className="tower-preview-wrap">
-                <TowerPreview kind={kind} />
-                <span className="tower-hot">{HOTKEYS[kind]}</span>
-              </div>
-              <div className="flex items-center justify-between gap-1 mt-1">
-                <span
-                  className="inline-flex items-center"
-                  style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
-                  title={DAMAGE_TYPE_LABEL[dmgType]}
-                >
-                  <DamageIcon type={dmgType} size={13} title={DAMAGE_TYPE_LABEL[dmgType]} />
-                </span>
-                <span className="tower-cost text-[11px] font-bold tabular-nums text-gold">
-                  {cost}g
-                </span>
-              </div>
-              <div className="tower-name text-[10px] font-semibold leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-center">
-                {TOWER_LABEL[kind]}
-              </div>
+              ×
             </button>
-          );
-        })}
-      </div>
+          )}
+          {KINDS.map((kind) => {
+            const cost = TOWER_COST[kind];
+            const affordable = gold >= cost;
+            const active = selectedKind === kind;
+            const dmgType = TOWER_DAMAGE_TYPE[kind];
+            return (
+              <button
+                type="button"
+                key={kind}
+                className={`tower-card ${active ? "active" : ""} ${affordable ? "" : "disabled"}`}
+                data-ui-sound={active ? "close" : !affordable ? "error" : "select"}
+                onClick={(e) => {
+                  setSelectedKind(selectedKind === kind ? null : kind);
+                  e.currentTarget.blur();
+                }}
+                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
+              >
+                {active && (
+                  <span className="card-cancel" aria-hidden>
+                    ×
+                  </span>
+                )}
+                <div className="tower-preview-wrap">
+                  <TowerPreview kind={kind} />
+                  <span className="tower-hot">{HOTKEYS[kind]}</span>
+                </div>
+                <div className="flex items-center justify-between gap-1 mt-1">
+                  <span
+                    className="inline-flex items-center"
+                    style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
+                    title={DAMAGE_TYPE_LABEL[dmgType]}
+                  >
+                    <DamageIcon type={dmgType} size={13} title={DAMAGE_TYPE_LABEL[dmgType]} />
+                  </span>
+                  <span className="tower-cost text-[11px] font-bold tabular-nums text-gold">
+                    {cost}g
+                  </span>
+                </div>
+                <div className="tower-name text-[10px] font-semibold leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-center">
+                  {TOWER_LABEL[kind]}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <TowerPanel />
       <EnemyPanel />

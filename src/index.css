@@ -1875,4 +1875,330 @@
     font-style: italic;
     font-size: var(--fs-sm);
   }
+
+  /* ── Tower-picker handle (mobile only) ─────────────────────────
+     Folds the 6-card picker into a small pill. The HUD only renders
+     this when `useIsMobile()` is true, so the rule is mobile-only by
+     construction — no media query needed. */
+  .tower-picker-handle {
+    position: absolute;
+    left: 50%;
+    bottom: calc(12px + var(--safe-bottom));
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(14, 20, 28, 0.92);
+    color: var(--color-fg-secondary);
+    border: 1px solid rgba(120, 160, 200, 0.32);
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: var(--fs-md);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    backdrop-filter: blur(var(--blur-md));
+    pointer-events: auto;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+  .tower-picker-handle-icon {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 16px;
+    height: 12px;
+  }
+  .tower-picker-handle-icon > span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: currentColor;
+    border-radius: 1px;
+  }
+  .tower-picker-handle-active {
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: rgba(159, 216, 255, 0.18);
+    border: 1px solid var(--color-blue);
+    color: #fff;
+    font-size: var(--fs-xs);
+    letter-spacing: 0.04em;
+  }
+
+  .tower-picker-close {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(14, 20, 28, 0.95);
+    color: var(--color-fg);
+    border: 1px solid rgba(120, 160, 200, 0.32);
+    font-size: 18px;
+    line-height: 1;
+    pointer-events: auto;
+    cursor: pointer;
+    backdrop-filter: blur(var(--blur-md));
+    /* Hidden on desktop — this control only mounts when isMobile. */
+  }
+
+  /* When the picker pops open on mobile it sits as a wrapping flex
+     row that fits the small viewport (vs. the desktop single-row that
+     would overflow). The .tower-picker base rule still anchors it to
+     the bottom of the screen. */
+  .tower-picker-mobile-open {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: calc(12px + var(--safe-bottom));
+    transform: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 10px 10px;
+    background: rgba(14, 20, 28, 0.92);
+    border: 1px solid rgba(120, 160, 200, 0.28);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--blur-md));
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  /* ── Mobile breakpoint overrides ───────────────────────────────
+     Single hard breakpoint at 720px — same threshold the React hook
+     uses, so JSX branches and CSS overrides agree. Desktop styles
+     above are untouched. The `.is-mobile` body class also kicks in
+     for narrow desktop windows that the hook flags via pointer:coarse. */
+  @media (max-width: 720px) {
+    /* Tighter HUD inset; honor the safe-area top so the notch doesn't
+       eat the gold/lives stat block. */
+    .hud-top {
+      top: calc(8px + var(--safe-top));
+      left: calc(8px + var(--safe-left));
+      gap: 6px;
+      flex-wrap: wrap;
+      max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
+    }
+    .stat,
+    .call-wave-btn {
+      padding: 4px 8px;
+      min-width: 0;
+      border-radius: 5px;
+    }
+    .stat-label {
+      font-size: var(--fs-2xs);
+      letter-spacing: 0.08em;
+    }
+    .stat-value {
+      font-size: var(--fs-base);
+    }
+    .call-wave-sub {
+      font-size: var(--fs-xs);
+      margin-left: 2px;
+    }
+    /* Menu button — shrink padding + drop the fancy "ESC" pill (no
+       keyboard on mobile). */
+    .hud-menu-btn {
+      top: calc(8px + var(--safe-top)) !important;
+      right: calc(8px + var(--safe-right)) !important;
+      padding: 6px 10px;
+      gap: 6px;
+      font-size: var(--fs-md);
+    }
+    .hud-menu-btn .text-sm {
+      font-size: var(--fs-md);
+    }
+    .hud-menu-btn .text-\[10px\] {
+      display: none;
+    }
+    /* Outpost pill — hide the duplicate level name on mobile; it's
+       already in the pause menu and the wave count communicates the
+       same thing in less space. */
+    .hud-top > .bg-surface-1 {
+      display: none;
+    }
+
+    /* Side panels — full-width drawers anchored to the bottom edge
+       so the player doesn't have to thumb-stretch to reach them. The
+       320–360px desktop width clobbers a phone viewport. */
+    .enemy-panel,
+    .tree-panel,
+    .tower-panel {
+      left: 8px !important;
+      right: 8px !important;
+      bottom: calc(72px + var(--safe-bottom)) !important;
+      top: auto !important;
+      width: auto !important;
+      max-height: 56vh;
+      overflow-y: auto;
+      padding: 12px;
+      border-radius: var(--radius-lg);
+    }
+    .panel-name {
+      font-size: var(--fs-base);
+    }
+    .panel-stats {
+      font-size: var(--fs-xs);
+    }
+    .branches {
+      gap: 8px;
+    }
+    .branch {
+      padding: 8px;
+    }
+    .tier-name {
+      font-size: var(--fs-xs);
+    }
+    .tier-desc {
+      font-size: var(--fs-2xs);
+    }
+
+    /* Compendium — single column, smaller preview, scrollable detail. */
+    .compendium-overlay,
+    .achievements-overlay {
+      padding: 0;
+    }
+    .compendium-card,
+    .achievements-card {
+      max-height: 100dvh;
+      max-width: 100vw;
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+    .compendium-header,
+    .achievements-header {
+      padding: 12px 16px 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .compendium-header h1,
+    .achievements-header h1 {
+      font-size: var(--fs-h2);
+    }
+    .compendium-subtitle,
+    .achievements-subtitle {
+      font-size: var(--fs-xs);
+    }
+    .compendium-selector {
+      padding: 10px 12px;
+      gap: 4px;
+      /* Snap-scroll the species tabs so each one centers as the
+         player flicks through. Combined with min-width-0 below,
+         the tabs become a swipeable row instead of compressing into
+         unreadable nubs. */
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .compendium-tab {
+      min-width: 96px;
+      flex: 0 0 auto;
+      scroll-snap-align: center;
+      padding: 8px 10px 6px;
+    }
+    .compendium-tab-name {
+      font-size: var(--fs-sm);
+    }
+    .compendium-detail {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 14px 14px calc(20px + var(--safe-bottom));
+    }
+    .compendium-detail-preview {
+      width: 100%;
+      max-width: none;
+      height: 200px;
+    }
+    .compendium-detail-name {
+      font-size: var(--fs-h2);
+    }
+    .compendium-detail-subtitle {
+      font-size: var(--fs-xs);
+      letter-spacing: 0.16em;
+    }
+    .compendium-detail-desc {
+      font-size: var(--fs-md);
+    }
+    .compendium-stats {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+    .compendium-stats > div {
+      padding: 5px 4px;
+    }
+    .compendium-stats dt {
+      font-size: 8px;
+    }
+    .compendium-stats dd {
+      font-size: var(--fs-base);
+    }
+    .compendium-resist-chips {
+      grid-template-columns: 1fr;
+    }
+
+    /* Achievements grid — single column instead of auto-fill so each
+       tile is wide enough to read on a phone. */
+    .achievements-grid {
+      grid-template-columns: 1fr;
+      padding: 12px 14px calc(18px + var(--safe-bottom));
+    }
+
+    /* New-enemy alert — fits within the viewport on the smallest
+       phones (iPhone SE = 320×568 logical) without scrolling. The
+       desktop layout was 360×huge; we shrink the dossier image and
+       loosen the row gap. */
+    .new-enemy-card {
+      width: calc(100vw - 24px) !important;
+      max-width: 360px;
+      padding: 16px 16px 16px !important;
+      gap: 6px !important;
+      max-height: calc(100dvh - 24px);
+      overflow-y: auto;
+    }
+    .new-enemy-card h1 {
+      font-size: var(--fs-2xl) !important;
+    }
+    .new-enemy-card .w-\[260px\] {
+      width: 160px !important;
+      height: 160px !important;
+    }
+    .new-enemy-card .grid-cols-4 {
+      gap: 4px !important;
+      padding: 6px !important;
+    }
+
+    /* Pause-menu / world-map menu — shrink the overlay card so the
+       buttons fit and the user can dismiss without scrolling. */
+    .overlay-card {
+      min-width: 0 !important;
+      width: calc(100vw - 24px);
+      max-width: 420px;
+      padding: 20px 18px 16px !important;
+      max-height: calc(100dvh - 24px);
+      overflow-y: auto;
+    }
+
+    /* Achievement toasts — full-width strip from the top so they
+       don't collide with HUD pills below the safe-area inset. */
+    .achievement-toast-stack {
+      top: calc(60px + var(--safe-top));
+      left: 12px;
+      right: 12px;
+    }
+    .achievement-toast {
+      min-width: 0;
+      max-width: none;
+    }
+  }
 }
