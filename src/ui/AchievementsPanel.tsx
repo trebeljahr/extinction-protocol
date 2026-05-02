@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ACHIEVEMENTS, isAchievementUnlocked, totalUnlocked } from "../achievements";
 import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
+import { IconHiddenAchievement } from "./AchievementIcons";
 
 export const AchievementsPanel = () => {
   const progress = useGame((s) => s.progress);
@@ -52,6 +53,8 @@ export const AchievementsPanel = () => {
             const hideName = !unlocked && secrecy !== "visible";
             const hideDesc = !unlocked && secrecy !== "visible";
             const hideHint = !unlocked && secrecy === "hidden";
+            const hideIcon = !unlocked && secrecy !== "visible";
+            const Icon = hideIcon ? IconHiddenAchievement : def.icon;
             const statusLabel = unlocked
               ? "UNLOCKED"
               : secrecy === "hidden"
@@ -64,13 +67,18 @@ export const AchievementsPanel = () => {
                 key={def.id}
                 className={`achievement-tile ${unlocked ? "unlocked" : "locked"} secrecy-${secrecy}`}
               >
-                <div className="achievement-tile-status">{statusLabel}</div>
-                <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
-                <div className="achievement-tile-desc">{hideDesc ? "???" : def.desc}</div>
-                <div className="achievement-tile-hint">{hideHint ? "???" : def.hint}</div>
-                {unlocked && ts && (
-                  <div className="achievement-tile-date">{new Date(ts).toLocaleDateString()}</div>
-                )}
+                <div className="achievement-tile-icon">
+                  <Icon size={44} />
+                </div>
+                <div className="achievement-tile-body">
+                  <div className="achievement-tile-status">{statusLabel}</div>
+                  <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
+                  <div className="achievement-tile-desc">{hideDesc ? "???" : def.desc}</div>
+                  <div className="achievement-tile-hint">{hideHint ? "???" : def.hint}</div>
+                  {unlocked && ts && (
+                    <div className="achievement-tile-date">{new Date(ts).toLocaleDateString()}</div>
+                  )}
+                </div>
               </div>
             );
           })}

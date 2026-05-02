@@ -28,6 +28,7 @@ export const AchievementToast = () => {
     <div className="achievement-toast-stack">
       {toasts.map((t) => {
         const def = ACHIEVEMENT_BY_ID[t.id];
+        const Icon = def.icon;
         return (
           <button
             type="button"
@@ -36,9 +37,14 @@ export const AchievementToast = () => {
             onClick={() => dismiss(t.key)}
             title="Dismiss"
           >
-            <div className="achievement-toast-label">ACHIEVEMENT UNLOCKED</div>
-            <div className="achievement-toast-name">{def.name}</div>
-            <div className="achievement-toast-desc">{def.desc}</div>
+            <div className="achievement-toast-icon">
+              <Icon size={40} />
+            </div>
+            <div className="achievement-toast-text">
+              <div className="achievement-toast-label">ACHIEVEMENT UNLOCKED</div>
+              <div className="achievement-toast-name">{def.name}</div>
+              <div className="achievement-toast-desc">{def.desc}</div>
+            </div>
           </button>
         );
       })}

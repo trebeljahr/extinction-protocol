@@ -1,7 +1,9 @@
+import type { FC } from "react";
 import { LEVELS } from "./levels";
 import type { ProgressData } from "./progress";
 import { getStars, starsForLives } from "./progress";
 import type { EnemyKind, GameEvent, TowerKind, World } from "./sim/types";
+import { ACHIEVEMENT_ICONS, type AchievementIconProps } from "./ui/AchievementIcons";
 
 export type AchievementId =
   | "first_blood"
@@ -48,9 +50,12 @@ export type AchievementDef = {
   desc: string;
   hint: string;
   secrecy?: AchievementSecrecy;
+  icon: FC<AchievementIconProps>;
 };
 
-export const ACHIEVEMENTS: AchievementDef[] = [
+type AchievementDefRaw = Omit<AchievementDef, "icon">;
+
+const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
   {
     id: "first_blood",
     name: "First Blood",
@@ -282,6 +287,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     secrecy: "hint",
   },
 ];
+
+export const ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENTS_RAW.map((a) => ({
+  ...a,
+  icon: ACHIEVEMENT_ICONS[a.id],
+}));
 
 export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.fromEntries(
   ACHIEVEMENTS.map((a) => [a.id, a]),
