@@ -14,9 +14,9 @@ import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 
 // A "base" is a deliberate cluster of sci-fi props tucked off to the side
-// of the map — hero structure (hangar/rocket/structure) ringed by a few
-// supports (generators, dishes, barrels). Not every level gets one: the
-// seed decides per-levelId so bases feel like a discovery, not wallpaper.
+// of the map — hero structure (hangar/rocket/structure), optional habitat
+// modules, and smaller supports (generators, dishes, barrels). Most biomes
+// still roll per-levelId so bases feel like a discovery, not wallpaper.
 
 const BASE_CLEAR_FROM_PATH = PATH_WIDTH / 2 + 2.5;
 const BASE_INSET_X = 5.5;
@@ -28,6 +28,8 @@ const BASE_CHANCE = 0.55;
 // appropriate scale to the level — hangars at the world-map target size
 // looked undersized next to trees/rocks in the play scene.
 const HERO_SCALE = 1.8;
+const HABITAT_SCALE_MIN = 0.95;
+const HABITAT_SCALE_MAX = 1.2;
 const SUPPORT_SCALE_MIN = 1.2;
 const SUPPORT_SCALE_MAX = 1.55;
 
@@ -104,28 +106,52 @@ const pickBaseCenter = (
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 
+const pickUrl = (urls: string[], rng: () => number): string =>
+  urls[Math.floor(rng() * urls.length)];
+
 const buildBase = (biome: Biome, paths: Vec2[][], levelId: number): Instance[] => {
   const recipe = BIOME_BASES[biome];
   if (!recipe) return [];
   const rng = mulberry32(levelId * 7919 + 131);
-  if (rng() > BASE_CHANCE) return [];
+  if (rng() > (recipe.chance ?? BASE_CHANCE)) return [];
 
   const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
   const center = pickBaseCenter(rng, paths, lava);
   if (!center) return [];
 
-  const hero = recipe.hero[Math.floor(rng() * recipe.hero.length)];
+  const hero = pickUrl(recipe.hero, rng);
   const baseRot = rng() * Math.PI * 2;
   const items: Instance[] = [{ url: hero, pos: center, scale: HERO_SCALE, rotY: baseRot }];
 
-  for (let i = 0; i < SUPPORT_COUNT; i++) {
-    const u = recipe.support[Math.floor(rng() * recipe.support.length)];
-    const a = (i / SUPPORT_COUNT) * Math.PI * 2 + (rng() - 0.5) * 0.5;
-    const r = 2.0 + rng() * 1.1;
+  const ringItems: { url: string; minScale: number; maxScale: number; radiusOffset: number }[] = [];
+  const habitatUrls = recipe.habitat ?? [];
+  const habitatCount = habitatUrls.length ? (recipe.habitatCount ?? 0) : 0;
+  for (let i = 0; i < habitatCount; i++) {
+    ringItems.push({
+      url: pickUrl(habitatUrls, rng),
+      minScale: HABITAT_SCALE_MIN,
+      maxScale: HABITAT_SCALE_MAX,
+      radiusOffset: 0.35,
+    });
+  }
+  const supportCount = recipe.supportCount ?? SUPPORT_COUNT;
+  for (let i = 0; i < supportCount; i++) {
+    ringItems.push({
+      url: pickUrl(recipe.support, rng),
+      minScale: SUPPORT_SCALE_MIN,
+      maxScale: SUPPORT_SCALE_MAX,
+      radiusOffset: 0,
+    });
+  }
+
+  for (let i = 0; i < ringItems.length; i++) {
+    const item = ringItems[i];
+    const a = (i / ringItems.length) * Math.PI * 2 + (rng() - 0.5) * 0.5;
+    const r = 2.0 + item.radiusOffset + rng() * 1.1;
     items.push({
-      url: u,
+      url: item.url,
       pos: { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r },
-      scale: SUPPORT_SCALE_MIN + rng() * (SUPPORT_SCALE_MAX - SUPPORT_SCALE_MIN),
+      scale: item.minScale + rng() * (item.maxScale - item.minScale),
       rotY: baseRot + (rng() - 0.5) * 0.8,
     });
   }
@@ -237,5 +263,6 @@ export const BiomeBases = () => {
 // Preload every base URL so switching biomes mid-session doesn't stall.
 for (const recipe of Object.values(BIOME_BASES)) {
   if (!recipe) continue;
-  for (const u of [...recipe.hero, ...recipe.support]) useGLTF.preload(u);
+  for (const u of [...recipe.hero, ...recipe.support, ...(recipe.habitat ?? [])])
+    useGLTF.preload(u);
 }

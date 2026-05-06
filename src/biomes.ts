@@ -472,9 +472,17 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
 
 // "Bases" — deliberate clusters of sci-fi props tucked in a corner on
 // some levels. A hero structure (hangar/rocket) surrounded by a handful
-// of supports (generators, dishes, barrels). Not every level gets one.
-// See BiomeBases.tsx for placement logic.
-export type BaseRecipe = { hero: string[]; support: string[] };
+// of supports (generators, dishes, barrels). Recipes can opt into extra
+// habitat modules when a biome should read more settled. See
+// BiomeBases.tsx for placement logic.
+export type BaseRecipe = {
+  hero: string[];
+  support: string[];
+  chance?: number;
+  habitat?: string[];
+  habitatCount?: number;
+  supportCount?: number;
+};
 export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
   forest: null,
   desert: {
@@ -517,7 +525,14 @@ export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
     ],
   },
   alien: {
+    chance: 1,
     hero: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
+    habitat: [
+      "/models/scifi/structure_closed.glb",
+      "/models/scifi/structure_detailed.glb",
+      "/models/scifi/hangar_smallB.glb",
+    ],
+    habitatCount: 2,
     support: [
       "/models/scifi/satelliteDish_detailed.glb",
       "/models/scifi/satelliteDish.glb",
@@ -570,5 +585,7 @@ export const ALL_BIOME_URLS = [
   ...Object.values(BIOME_LAYERS).flatMap((ls) => ls.flatMap((l) => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
   ...Object.values(BIOME_COSMETICS).flat(),
-  ...Object.values(BIOME_BASES).flatMap((r) => (r ? [...r.hero, ...r.support] : [])),
+  ...Object.values(BIOME_BASES).flatMap((r) =>
+    r ? [...r.hero, ...r.support, ...(r.habitat ?? [])] : [],
+  ),
 ];
