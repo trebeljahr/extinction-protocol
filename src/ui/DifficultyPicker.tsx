@@ -128,10 +128,6 @@ export const DifficultyPicker = () => {
             );
           })}
         </div>
-
-        <div className="px-6 py-3 text-[11px] text-fg-faint border-t border-border-faint">
-          Difficulty applies to your next deploy and persists across sessions.
-        </div>
       </div>
     </div>
   );

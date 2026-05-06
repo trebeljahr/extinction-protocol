@@ -297,3 +297,9 @@ export const setDifficulty = (p: ProgressData, difficulty: Difficulty): Progress
 
 export const getMultipliers = (p: ProgressData): DifficultyMultipliers =>
   DIFFICULTY_MULTIPLIERS[p.difficulty];
+
+// Lower-is-easier comparator. DIFFICULTIES is ordered easy → extinction, so
+// the smaller index wins. Used for per-run minimum tracking when the player
+// changes difficulty mid-level.
+export const minDifficulty = (a: Difficulty, b: Difficulty): Difficulty =>
+  DIFFICULTIES.indexOf(a) <= DIFFICULTIES.indexOf(b) ? a : b;

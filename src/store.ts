@@ -16,6 +16,7 @@ import {
   isLevelUnlocked,
   loadSlot,
   markEncountered,
+  minDifficulty,
   recordLevelResult,
   renameSlot as renameSlotStorage,
   saveSlot,
@@ -300,6 +301,11 @@ type GameStore = {
   setDifficulty: (difficulty: Difficulty) => void;
   difficultyPickerOpen: boolean;
   setDifficultyPickerOpen: (open: boolean) => void;
+  // Lowest difficulty seen during the current run. Set on level start to
+  // the active progress.difficulty, then ratcheted down by setDifficulty
+  // mid-level. Achievement credit for the run reflects this — not the
+  // difficulty the player happens to be on at game-over.
+  runMinDifficulty: Difficulty | null;
   dismissAchievementToast: (key: number) => void;
 
   reset: () => void;
@@ -442,6 +448,7 @@ export const useGame = create<GameStore>((set, get) => ({
       screen: "playing",
       treeClickCounts: {},
       rockClickCounts: {},
+      runMinDifficulty: progress.difficulty,
     });
     track("level_start", { level_id: id });
   },
@@ -460,6 +467,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
+      runMinDifficulty: null,
     });
   },
 
@@ -528,13 +536,44 @@ export const useGame = create<GameStore>((set, get) => ({
 
   difficultyPickerOpen: false,
   setDifficultyPickerOpen: (open) => set({ difficultyPickerOpen: open }),
+  runMinDifficulty: null,
 
   setDifficulty: (difficulty) => {
     const s = get();
     if (s.progress.difficulty === difficulty) return;
     const next = setDifficultyOnProgress(s.progress, difficulty);
     persistProgress(s.activeSlot, next);
-    set({ progress: next });
+
+    const updates: Partial<GameStore> = { progress: next };
+
+    // Mid-level apply: when the player changes difficulty from inside a
+    // running level, push the new multipliers onto the live world and
+    // re-bake hpMul for waves that haven't started yet. The current wave
+    // and any already-queued spawns keep their old hpMul — switching
+    // applies to subsequent waves, not retroactively. Run-min ratchets
+    // toward easier so achievement credit reflects the easiest setting
+    // the player coasted on at any point.
+    if (s.screen === "playing" && s.selectedLevelId !== null) {
+      const w = s.world;
+      const level = getLevel(s.selectedLevelId);
+      const mul = DIFFICULTY_MULTIPLIERS[difficulty];
+      w.speedMul = mul.speed;
+      w.goldKillMul = mul.goldKill;
+      const baseHpScale = (level.hpScale ?? 1) * mul.hp;
+      const startIdx = Math.max(0, w.wave); // index of next wave to start
+      for (let i = startIdx; i < level.waves.length; i++) {
+        const orig = level.waves[i];
+        w.plannedWaves[i] = {
+          ...orig,
+          hpMul: (orig.hpMul ?? 1) * baseHpScale,
+        };
+      }
+      const prevMin = s.runMinDifficulty ?? difficulty;
+      updates.runMinDifficulty = minDifficulty(prevMin, difficulty);
+      updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
+    }
+
+    set(updates);
   },
 
   dismissAchievementToast: (key) =>
