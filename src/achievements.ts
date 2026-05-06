@@ -59,19 +59,19 @@ const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
   {
     id: "first_blood",
     name: "First Blood",
-    desc: "Eliminate your first invader.",
+    desc: "Eliminate your first runaway dinosaur.",
     hint: "Any kill counts.",
   },
   {
     id: "extermination",
     name: "Extermination",
-    desc: "Eliminate 500 invaders across all runs.",
+    desc: "Eliminate 500 runaway dinosaurs across all runs.",
     hint: "Lifetime kills.",
   },
   {
     id: "apex_hunter",
     name: "Apex Hunter",
-    desc: "Eliminate 2,500 invaders across all runs.",
+    desc: "Eliminate 2,500 runaway dinosaurs across all runs.",
     hint: "Lifetime kills.",
   },
   {
