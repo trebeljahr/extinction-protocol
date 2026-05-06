@@ -54,22 +54,35 @@ export const LavaFeatures = () => {
           />
         </mesh>
       ))}
-      {decorated.bridges.map((b) => (
-        <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]} rotation={[0, -b.rotY, 0]}>
-          <mesh castShadow receiveShadow>
-            <boxGeometry args={[b.length, 0.18, bridgeWidth]} />
-            <meshStandardMaterial color={palette.bridgeDeck} roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.18, bridgeWidth / 2 - 0.06]} castShadow>
-            <boxGeometry args={[b.length, 0.22, 0.12]} />
-            <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.18, -(bridgeWidth / 2 - 0.06)]} castShadow>
-            <boxGeometry args={[b.length, 0.22, 0.12]} />
-            <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
-          </mesh>
-        </group>
-      ))}
+      {decorated.bridges.map((b) =>
+        b.kind === "plaza" ? (
+          <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]}>
+            <mesh castShadow receiveShadow>
+              <cylinderGeometry args={[b.radius, b.radius, 0.18, 28]} />
+              <meshStandardMaterial color={palette.bridgeDeck} roughness={1} />
+            </mesh>
+            <mesh position={[0, 0.16, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+              <torusGeometry args={[b.radius - 0.05, 0.06, 8, 28]} />
+              <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
+            </mesh>
+          </group>
+        ) : (
+          <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]} rotation={[0, -b.rotY, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[b.length, 0.18, bridgeWidth]} />
+              <meshStandardMaterial color={palette.bridgeDeck} roughness={1} />
+            </mesh>
+            <mesh position={[0, 0.18, bridgeWidth / 2 - 0.06]} castShadow>
+              <boxGeometry args={[b.length, 0.22, 0.12]} />
+              <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
+            </mesh>
+            <mesh position={[0, 0.18, -(bridgeWidth / 2 - 0.06)]} castShadow>
+              <boxGeometry args={[b.length, 0.22, 0.12]} />
+              <meshStandardMaterial color={palette.bridgeTrim} roughness={1} />
+            </mesh>
+          </group>
+        ),
+      )}
     </group>
   );
 };

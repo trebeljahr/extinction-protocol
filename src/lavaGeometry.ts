@@ -114,7 +114,21 @@ export const hasFlowFeatures = (biome: string): boolean => Boolean(FLOW_CONFIG[b
 
 export type River = { points: Vec2[]; width: number };
 export type Lake = { x: number; y: number; rx: number; ry: number; rot: number };
-export type Bridge = { pos: Vec2; rotY: number; length: number };
+// Two bridge shapes:
+//   - rect: a deck spanning a single path×river crossing (the default).
+//   - plaza: a disc that absorbs multiple overlapping crossings, e.g. when
+//     two paths meet on a river (L24 Cascade) or four paths converge on
+//     a center crossing (L22 Maelstrom). Without this, the rect bridges
+//     visually pierce each other in an X with mismatched railings.
+export type RectBridge = { kind: "rect"; pos: Vec2; rotY: number; length: number };
+export type PlazaBridge = { kind: "plaza"; pos: Vec2; radius: number };
+export type Bridge = RectBridge | PlazaBridge;
+
+// Internal structure carrying provenance — only different-path bridges
+// merge, so a single path's meander-crossings (same path, same river)
+// never pull each other into a plaza. The pathIdx is dropped before the
+// renderer sees the result.
+type SourcedRect = RectBridge & { pathIdx: number };
 export type LavaFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
 
 export const mulberry32 = (seed: number) => {
@@ -318,8 +332,9 @@ const segIntersect = (a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2): Vec2 | null => {
 // with river width so tributary crossings get smaller decks.
 const BRIDGE_OVERHANG = 2.2;
 const computeBridges = (paths: Vec2[][], rivers: River[]): Bridge[] => {
-  const out: Bridge[] = [];
-  for (const path of paths) {
+  const rects: SourcedRect[] = [];
+  for (let pIdx = 0; pIdx < paths.length; pIdx++) {
+    const path = paths[pIdx];
     for (let pi = 0; pi < path.length - 1; pi++) {
       const a = path[pi];
       const b = path[pi + 1];
@@ -345,10 +360,139 @@ const computeBridges = (paths: Vec2[][], rivers: River[]): Bridge[] => {
           if (rLen < 1e-6) continue;
           const sinTheta = Math.abs(ptx * (rdy / rLen) - pty * (rdx / rLen));
           const projected = river.width / Math.max(0.25, sinTheta);
-          out.push({ pos: hit, rotY, length: projected + BRIDGE_OVERHANG });
+          rects.push({
+            kind: "rect",
+            pos: hit,
+            rotY,
+            length: projected + BRIDGE_OVERHANG,
+            pathIdx: pIdx,
+          });
         }
       }
     }
+  }
+  return mergeOverlappingBridges(consolidateSamePathBridges(rects));
+};
+
+// The smoothed path geometry (one polyline per path, ~50 vertices) means a
+// single conceptual path×river crossing emits multiple adjacent bridges
+// from successive segments of the same path. Collapse near-duplicate
+// same-path bridges into the longest representative so they don't pile
+// up in the X-merge phase below.
+const SAME_PATH_DIST_SQ = PATH_WIDTH * PATH_WIDTH;
+const consolidateSamePathBridges = (rects: SourcedRect[]): SourcedRect[] => {
+  const out: SourcedRect[] = [];
+  for (const b of rects) {
+    let merged = false;
+    for (let k = 0; k < out.length; k++) {
+      const c = out[k];
+      if (c.pathIdx !== b.pathIdx) continue;
+      const dx = c.pos.x - b.pos.x;
+      const dy = c.pos.y - b.pos.y;
+      if (dx * dx + dy * dy >= SAME_PATH_DIST_SQ) continue;
+      // Same crossing event for one path — keep the longer deck so the
+      // river footprint stays covered when the path bends through the
+      // crossing at varying angles.
+      if (b.length > c.length) out[k] = b;
+      merged = true;
+      break;
+    }
+    if (!merged) out.push(b);
+  }
+  return out;
+};
+
+// Cluster bridges that come from DIFFERENT paths and overlap each other,
+// then collapse each multi-bridge cluster into a single circular plaza.
+// Restricting merges to cross-path bridges is what keeps a single path's
+// own meander-crossings (which can be a few units apart and arrive at
+// the river at opposite-going angles) rendering as separate decks.
+//
+// Distance: deck length scale, since a path-path X often emits its two
+// bridges a few units apart (the paths cross slightly off the river
+// segment) but their decks still physically overlap due to length.
+//
+// Angle: bridges from different paths can still happen to be parallel
+// (e.g. two parallel paths each crossing the same V-river) — those don't
+// X-overlap and shouldn't merge.
+const BRIDGE_MERGE_DIST = PATH_WIDTH * 2;
+const BRIDGE_MERGE_ANGLE = (30 * Math.PI) / 180;
+const angleBetween = (a: number, b: number): number => {
+  // Bridges are bidirectional — a deck rotated by π looks identical, so
+  // collapse the diff into [0, π/2].
+  let d = Math.abs(a - b) % Math.PI;
+  if (d > Math.PI / 2) d = Math.PI - d;
+  return d;
+};
+const mergeOverlappingBridges = (rects: SourcedRect[]): Bridge[] => {
+  const n = rects.length;
+  if (n <= 1) return rects.slice();
+
+  // Union-find — bridges within MERGE_DIST get unioned. Transitive merging
+  // means a chain of three near-collinear hits all collapses into one plaza.
+  const parent = new Int32Array(n);
+  for (let i = 0; i < n; i++) parent[i] = i;
+  const find = (i: number): number => {
+    let r = i;
+    while (parent[r] !== r) r = parent[r];
+    while (parent[i] !== r) {
+      const next = parent[i];
+      parent[i] = r;
+      i = next;
+    }
+    return r;
+  };
+  const distSq = BRIDGE_MERGE_DIST * BRIDGE_MERGE_DIST;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (rects[i].pathIdx === rects[j].pathIdx) continue;
+      const dx = rects[i].pos.x - rects[j].pos.x;
+      const dy = rects[i].pos.y - rects[j].pos.y;
+      if (dx * dx + dy * dy >= distSq) continue;
+      if (angleBetween(rects[i].rotY, rects[j].rotY) < BRIDGE_MERGE_ANGLE) continue;
+      const ri = find(i);
+      const rj = find(j);
+      if (ri !== rj) parent[ri] = rj;
+    }
+  }
+
+  const clusters = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    const arr = clusters.get(r);
+    if (arr) arr.push(i);
+    else clusters.set(r, [i]);
+  }
+
+  const out: Bridge[] = [];
+  for (const idxs of clusters.values()) {
+    if (idxs.length === 1) {
+      const { pathIdx: _ignore, ...rect } = rects[idxs[0]];
+      out.push(rect);
+      continue;
+    }
+    let cx = 0;
+    let cy = 0;
+    let maxLen = 0;
+    let maxOffset = 0;
+    for (const i of idxs) {
+      cx += rects[i].pos.x;
+      cy += rects[i].pos.y;
+      maxLen = Math.max(maxLen, rects[i].length);
+    }
+    cx /= idxs.length;
+    cy /= idxs.length;
+    // Plaza must reach every member's far end so the underlying river is
+    // fully covered: max(per-bridge half-length + center→cluster-center
+    // offset) is the conservative radius.
+    for (const i of idxs) {
+      const dx = rects[i].pos.x - cx;
+      const dy = rects[i].pos.y - cy;
+      const offset = Math.hypot(dx, dy);
+      maxOffset = Math.max(maxOffset, offset + rects[i].length / 2);
+    }
+    const radius = Math.max(maxLen / 2, maxOffset) + 0.2;
+    out.push({ kind: "plaza", pos: { x: cx, y: cy }, radius });
   }
   return out;
 };
@@ -488,13 +632,21 @@ const sampleOnce = (surface: LavaSurface, rand: () => number): { x: number; y: n
 
 // Bridge approximated as a stadium: distance-to-segment between the two
 // endpoints, with radius = bridge half-width. Slight padding so embers
-// don't visibly poke out from beneath the deck.
+// don't visibly poke out from beneath the deck. Plaza bridges check a
+// straight disc.
 const BRIDGE_OCCLUDE_PAD = 0.2;
 export const isUnderBridge = (bridges: Bridge[], x: number, y: number): boolean => {
   if (bridges.length === 0) return false;
   const halfW = (PATH_WIDTH + 0.4) / 2 + BRIDGE_OCCLUDE_PAD;
   const r2 = halfW * halfW;
   for (const b of bridges) {
+    if (b.kind === "plaza") {
+      const dx = x - b.pos.x;
+      const dy = y - b.pos.y;
+      const r = b.radius + BRIDGE_OCCLUDE_PAD;
+      if (dx * dx + dy * dy < r * r) return true;
+      continue;
+    }
     const tx = Math.cos(b.rotY);
     const ty = -Math.sin(b.rotY);
     const halfL = b.length / 2;
