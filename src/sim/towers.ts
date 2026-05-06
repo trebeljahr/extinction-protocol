@@ -21,6 +21,12 @@ const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
   if (tower.targetingMode === "start") return -(e.segment + e.segmentT);
   if (tower.targetingMode === "strongest") return e.maxHp;
+  if (tower.targetingMode === "weakest") {
+    // Shielded enemies rank as full HP so we don't waste shots draining
+    // a shield while damaged unshielded enemies are nearby.
+    const effHp = e.shield > 0 ? e.maxHp : e.hp;
+    return -effHp;
+  }
   return e.segment + e.segmentT;
 };
 

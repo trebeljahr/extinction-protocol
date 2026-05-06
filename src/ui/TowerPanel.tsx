@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 import type { EnemyKind, TargetingMode, Tower } from "../sim/types";
 import {
   formatStat,
@@ -32,11 +32,35 @@ const ENEMY_ORDER: EnemyKind[] = [
   "boss",
 ];
 
-const TARGETING_MODES: { mode: TargetingMode; label: string; title: string }[] = [
+const LowHpIcon = () => (
+  <svg
+    width="12"
+    height="6"
+    viewBox="0 0 12 6"
+    aria-hidden="true"
+    style={{ marginRight: 4, verticalAlign: "middle" }}
+  >
+    <rect x="0.5" y="0.5" width="11" height="5" rx="1" fill="none" stroke="currentColor" />
+    <rect x="2" y="2" width="2" height="2" fill="currentColor" />
+  </svg>
+);
+
+const TARGETING_MODES: {
+  mode: TargetingMode;
+  label: string;
+  title: string;
+  icon?: ComponentType;
+}[] = [
   { mode: "tower", label: "Near", title: "Closest to tower" },
   { mode: "start", label: "Start", title: "Closest to path start" },
   { mode: "end", label: "End", title: "Closest to path end" },
   { mode: "strongest", label: "Strong", title: "Highest max HP in range" },
+  {
+    mode: "weakest",
+    label: "Weak",
+    title: "Lowest current HP — finish off damaged enemies (ignores shielded)",
+    icon: LowHpIcon,
+  },
 ];
 
 export const TowerPanel = () => {
@@ -174,7 +198,7 @@ export const TowerPanel = () => {
         <div className="targeting-row">
           <div className="targeting-label">Target</div>
           <div className="targeting-buttons">
-            {TARGETING_MODES.map(({ mode, label, title }) => (
+            {TARGETING_MODES.map(({ mode, label, title, icon: Icon }) => (
               <button
                 type="button"
                 key={mode}
@@ -183,6 +207,7 @@ export const TowerPanel = () => {
                 onClick={() => useGame.getState().setTargetingMode(mode)}
                 title={title}
               >
+                {Icon && <Icon />}
                 {label}
               </button>
             ))}
