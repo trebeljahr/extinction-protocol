@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { EnemyKind } from "../sim/types";
 import { useGame } from "../store";
 
 const MAX_SHIELDED = 128;
@@ -9,6 +10,22 @@ const MAX_SHIELDED = 128;
 // keeping the hex-ish facets visible.
 const SHIELD_BASE_COLOR = new THREE.Color("#7fc8ff");
 const SHIELD_REGEN_COLOR = new THREE.Color("#cdeaff");
+
+// Per-kind bubble radius, tuned to hug the model from typical camera
+// angles. The previous sqrt(maxHp) heuristic over-sized medium kinds
+// (whose HP is high relative to a narrow silhouette — raptors, stegos)
+// and under-sized titans/bosses (capped at 2.6 even at 4200 HP). Body
+// shape, not HP pool, drives how big the bubble should look.
+const SHIELD_RADIUS_BY_KIND: Record<EnemyKind, number> = {
+  raptor: 0.7,
+  swarm: 0.45,
+  para: 0.85,
+  allosaur: 1.0,
+  stego: 1.0,
+  armored: 1.05,
+  titan: 3.0,
+  boss: 5.0,
+};
 
 // Re-use this geometry/material across every shielded enemy via instancing.
 // One InstancedMesh handles the whole field — minimal draw cost.
@@ -33,11 +50,7 @@ export const ShieldBubbles = () => {
       if (e.shield <= 0) continue;
 
       const ratio = e.shield / e.maxShield;
-      // Bubble radius scales loosely with the silhouette of the kind —
-      // hardcoded per-kind would be cleaner, but this gives a reasonable
-      // catch-all using max HP as a proxy for size. Capped so titans
-      // don't get a half-screen field.
-      const sizeProxy = Math.min(2.6, 0.9 + Math.sqrt(e.maxHp) * 0.06);
+      const baseR = SHIELD_RADIUS_BY_KIND[e.kind];
       // Subtle pulse on the bubble — faster pulse during regen so the
       // recovery reads as "charging back up." Cracks/flicker shows up as
       // a tighter pulse + lower opacity at low ratio.
@@ -46,8 +59,8 @@ export const ShieldBubbles = () => {
         ? 1 + Math.sin(time * 8 + e.id) * 0.06
         : 1 + Math.sin(time * 2.5 + e.id) * 0.025;
       const flicker = ratio < 0.4 ? 0.85 + Math.sin(time * 22 + e.id) * 0.15 * (1 - ratio) : 1;
-      const r = sizeProxy * pulse * flicker;
-      dummy.position.set(e.pos.x, sizeProxy * 0.55, -e.pos.y);
+      const r = baseR * pulse * flicker;
+      dummy.position.set(e.pos.x, baseR * 0.6, -e.pos.y);
       dummy.rotation.set(0, time * 0.3 + e.id, 0);
       dummy.scale.setScalar(r);
       dummy.updateMatrix();
