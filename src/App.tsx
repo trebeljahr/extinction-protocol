@@ -5,6 +5,8 @@ import { lazy, Suspense, useEffect } from "react";
 import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
+import { CanvasFailure } from "./ui/CanvasFailure";
+import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { HUD } from "./ui/HUD";
 import { LandscapeNudge } from "./ui/LandscapeNudge";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
@@ -123,18 +125,20 @@ export const App = () => {
   return (
     <>
       {!modalOpen && (
-        <Canvas shadows dpr={dprCap}>
-          <SceneRoot />
-          <EffectComposer multisampling={0}>
-            <Bloom
-              intensity={0.28}
-              luminanceThreshold={bloomThreshold}
-              luminanceSmoothing={bloomSmoothing}
-              mipmapBlur
-              kernelSize={bloomKernel}
-            />
-          </EffectComposer>
-        </Canvas>
+        <ErrorBoundary fallback={(error, reset) => <CanvasFailure error={error} reset={reset} />}>
+          <Canvas shadows dpr={dprCap}>
+            <SceneRoot />
+            <EffectComposer multisampling={0}>
+              <Bloom
+                intensity={0.28}
+                luminanceThreshold={bloomThreshold}
+                luminanceSmoothing={bloomSmoothing}
+                mipmapBlur
+                kernelSize={bloomKernel}
+              />
+            </EffectComposer>
+          </Canvas>
+        </ErrorBoundary>
       )}
 
       {screen === "worldMap" && !modalOpen && <WorldMapUI />}
