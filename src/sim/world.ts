@@ -579,7 +579,7 @@ export const ENEMY_RESIST: Record<EnemyKind, Record<DamageType, number>> = {
   allosaur: { kinetic: 1.0, electric: 1.0, cold: 1.0, explosive: 1.0, flame: 1.0 },
   stego: { kinetic: 0.4, electric: 1.7, cold: 1.0, explosive: 0.6, flame: 0.6 },
   swarm: { kinetic: 0.6, electric: 2.0, cold: 1.3, explosive: 1.7, flame: 1.7 },
-  armored: { kinetic: 0.9, electric: 0.5, cold: 1.0, explosive: 0.4, flame: 0.4 },
+  armored: { kinetic: 1.3, electric: 0.5, cold: 1.0, explosive: 0.4, flame: 0.4 },
   // Hollow head crest acts as a resonator: chain damage rings through it
   // (1.7×), while the same crest vents heat — flame slides off (0.5×).
   para: { kinetic: 1.1, electric: 1.7, cold: 1.0, explosive: 0.8, flame: 0.5 },
