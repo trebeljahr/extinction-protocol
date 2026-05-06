@@ -67,6 +67,7 @@ export const HealAuras = () => {
           opacity={0.08}
           side={THREE.DoubleSide}
           depthWrite={false}
+          blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
       </instancedMesh>
@@ -78,6 +79,7 @@ export const HealAuras = () => {
           opacity={0.5}
           side={THREE.DoubleSide}
           depthWrite={false}
+          blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
       </instancedMesh>

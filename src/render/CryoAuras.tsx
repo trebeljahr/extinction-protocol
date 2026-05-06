@@ -27,6 +27,7 @@ const CryoAura = ({ x, y, range }: { x: number; y: number; range: number }) => (
         opacity={0.06}
         side={THREE.DoubleSide}
         depthWrite={false}
+        blending={THREE.AdditiveBlending}
       />
     </mesh>
     <mesh>
@@ -37,6 +38,7 @@ const CryoAura = ({ x, y, range }: { x: number; y: number; range: number }) => (
         opacity={0.22}
         side={THREE.DoubleSide}
         depthWrite={false}
+        blending={THREE.AdditiveBlending}
       />
     </mesh>
   </group>
