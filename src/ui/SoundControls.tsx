@@ -83,8 +83,7 @@ export const SoundControls = () => {
             step={0.01}
             value={prefs[key]}
             onChange={(e) => updateBus(key, Number(e.target.value))}
-            disabled={prefs.muted}
-            className="flex-1 accent-cyan disabled:opacity-40"
+            className="flex-1 accent-cyan"
           />
           <Value value={prefs[key]} />
         </Row>
