@@ -407,6 +407,8 @@ export const createWorld = (
     cryoWaves: [],
     particles: [],
     spawnQueue: [],
+    bossTrickleStreams: [],
+    bossTrickleIntervalMul: difficulty.bossTrickleIntervalMul,
     wave: 0,
     totalWaves: level.waves.length,
     waveActive: false,

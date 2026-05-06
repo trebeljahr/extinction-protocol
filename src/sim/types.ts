@@ -265,6 +265,27 @@ export type WaveSpec = {
   // archetype so any composition can be flagged a boss event — typically
   // used for an escort + boss layout via `convoy` or `vanguard`.
   bossWave?: boolean;
+  // Steady drip of small enemies during a boss wave so the player has
+  // gold-generating targets while the boss lumbers across the field.
+  // Streams keep firing until every boss in this wave is dead/escaped.
+  bossTrickle?: BossTrickleStream[];
+};
+
+export type BossTrickleStream = {
+  kinds: EnemyKind[]; // sampled uniformly each tick
+  pathIndex: number;
+  minInterval: number;
+  maxInterval: number;
+  startDelay?: number;
+};
+
+export type ActiveBossTrickle = {
+  kinds: EnemyKind[];
+  pathIndex: number;
+  minInterval: number;
+  maxInterval: number;
+  nextAt: number;
+  hpMul: number;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";
@@ -313,6 +334,10 @@ export type World = {
   cryoWaves: CryoWave[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
+  bossTrickleStreams: ActiveBossTrickle[];
+  // Scales interval between trickle spawns during a boss wave. <1 = more
+  // frequent (harder), >1 = sparser (easier). Sourced from difficulty.
+  bossTrickleIntervalMul: number;
   wave: number;
   totalWaves: number;
   waveActive: boolean;

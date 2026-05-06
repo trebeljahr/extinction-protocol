@@ -1,4 +1,11 @@
-import type { EnemyKind, EnemySpec, Vec2, WaveArchetype, WaveSpec } from "../sim/types";
+import type {
+  BossTrickleStream,
+  EnemyKind,
+  EnemySpec,
+  Vec2,
+  WaveArchetype,
+  WaveSpec,
+} from "../sim/types";
 
 export type LevelConfig = {
   id: number;
@@ -172,12 +179,30 @@ const partShielded = (
 // triggers the on-screen banner, audio sting, and bonus gold on kill.
 // Single-path; multi-path boss waves are authored inline so the boss
 // placement per lane is explicit.
-const bossWave = (entourage: EnemyCounts, bosses = 1, spacing = 0.55, pathIndex = 0): WaveSpec => ({
+const bossWave = (
+  entourage: EnemyCounts,
+  bosses = 1,
+  spacing = 0.55,
+  pathIndex = 0,
+  bossTrickle?: BossTrickleStream[],
+): WaveSpec => ({
   archetype: "convoy",
   spacing,
   bossWave: true,
   spawns: [...toSpawns(entourage, pathIndex), ...toSpawns({ boss: bosses }, pathIndex)],
+  ...(bossTrickle ? { bossTrickle } : {}),
 });
+
+// Steady drip of small enemies during a boss wave so the player has gold
+// targets while the matriarch lumbers across the field. Tuned so a
+// reasonable defense can clear the trickle while still chipping the boss.
+const trickleStream = (
+  pathIndex: number,
+  kinds: EnemyKind[] = ["swarm", "raptor"],
+  minInterval = 1.8,
+  maxInterval = 2.8,
+  startDelay = 6,
+): BossTrickleStream => ({ pathIndex, kinds, minInterval, maxInterval, startDelay });
 
 export const LEVELS: LevelConfig[] = [
   {
@@ -274,8 +299,11 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 20, swarm: 14, para: 4, allosaur: 5, stego: 2 }),
       // Boss wave: the matriarch's debut. Light entourage so she's the
       // focus — players who didn't bring cryo will struggle to chip
-      // through her resists in time.
-      bossWave({ raptor: 10, allosaur: 3, stego: 1 }, 1),
+      // through her resists in time. A slow swarm+raptor drip behind her
+      // gives the player gold to react with while she crawls forward.
+      bossWave({ raptor: 10, allosaur: 3, stego: 1 }, 1, 0.55, 0, [
+        trickleStream(0, ["swarm", "raptor"], 2.2, 3.2, 7),
+      ]),
     ],
   },
   {
@@ -401,8 +429,11 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 26, swarm: 20, allosaur: 10, stego: 6, armored: 3 }),
       // Boss wave: matriarch flanked by armored escorts and a titan
       // wingman — first time the player has to crack a heavy entourage
-      // while she lumbers forward.
-      bossWave({ allosaur: 6, stego: 4, armored: 3, titan: 1 }, 1, 0.7),
+      // while she lumbers forward. A steadier drip of small chaff feeds
+      // the player gold while heavy fire is locked onto the matriarch.
+      bossWave({ allosaur: 6, stego: 4, armored: 3, titan: 1 }, 1, 0.7, 0, [
+        trickleStream(0, ["swarm", "raptor"], 1.8, 2.8, 8),
+      ]),
     ],
   },
   {
@@ -709,6 +740,7 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ stego: 1 }, 0, { elite: true, regen: true }),
           ...toSpawns({ boss: 1 }),
         ],
+        bossTrickle: [trickleStream(0, ["swarm", "raptor"], 1.6, 2.6, 9)],
       },
     ],
   },
@@ -1070,6 +1102,11 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ stego: 6, armored: 7, titan: 3 }, 1),
           ...toSpawns({ boss: 1 }, 0),
           ...toSpawns({ boss: 1 }, 1),
+        ],
+        // Drip on each lane so neither matriarch's column goes silent.
+        bossTrickle: [
+          trickleStream(0, ["swarm", "raptor"], 1.6, 2.6, 9),
+          trickleStream(1, ["swarm", "raptor"], 1.6, 2.6, 10),
         ],
       },
     ],
@@ -1551,6 +1588,13 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 4),
           ...toSpawns({ boss: 1 }, 0),
           ...toSpawns({ boss: 1 }, 4),
+        ],
+        // Trickle the inner three lanes (matriarchs are on the outer
+        // two) so the player gets gold-targets across the whole board.
+        bossTrickle: [
+          trickleStream(1, ["swarm", "raptor"], 1.7, 2.7, 8),
+          trickleStream(2, ["swarm", "raptor"], 1.7, 2.7, 9),
+          trickleStream(3, ["swarm", "raptor"], 1.7, 2.7, 10),
         ],
       },
     ],
@@ -2140,6 +2184,14 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ boss: 1 }, 0),
           ...toSpawns({ boss: 1 }, 1),
           ...toSpawns({ boss: 1 }, 2),
+        ],
+        // One trickle per lane — three matriarchs means every column is
+        // already drowning in heavy entourage, but a fast chaff drip
+        // means the player keeps earning gold to upgrade in real time.
+        bossTrickle: [
+          trickleStream(0, ["swarm", "raptor"], 1.5, 2.4, 9),
+          trickleStream(1, ["swarm", "raptor"], 1.5, 2.4, 10),
+          trickleStream(2, ["swarm", "raptor"], 1.5, 2.4, 11),
         ],
       },
     ],

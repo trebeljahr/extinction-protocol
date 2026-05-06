@@ -114,6 +114,7 @@ const startWave = (world: World) => {
   world.waveActive = true;
   world.midwaveTimer = 0;
   world.midwaveTimerMax = 0;
+  world.bossTrickleStreams = [];
   const spec = world.plannedWaves[world.wave - 1];
   const roster = rosterFromSpec(spec);
   world.waveTotalEnemies = roster.length;
@@ -135,6 +136,19 @@ const startWave = (world: World) => {
       resists: entry.resists,
     });
   }
+  if (spec.bossTrickle) {
+    const mul = world.bossTrickleIntervalMul;
+    for (const s of spec.bossTrickle) {
+      world.bossTrickleStreams.push({
+        kinds: s.kinds.slice(),
+        pathIndex: s.pathIndex,
+        minInterval: s.minInterval * mul,
+        maxInterval: s.maxInterval * mul,
+        nextAt: world.time + (s.startDelay ?? 0),
+        hpMul,
+      });
+    }
+  }
   emit(world, { type: "wave-start", wave: world.wave });
   if (spec.bossWave) {
     emit(world, { type: "boss-wave-start", wave: world.wave });
@@ -142,6 +156,30 @@ const startWave = (world: World) => {
     // silhouette is even on screen — sustained decay so the camera
     // judders for ~a second rather than flicking once.
     addShake(world, 0.47, 1.6);
+  }
+};
+
+const bossesStillActive = (world: World): boolean => {
+  for (const e of world.enemies) if (e.kind === "boss") return true;
+  for (const q of world.spawnQueue) if (q.kind === "boss") return true;
+  return false;
+};
+
+const tickBossTrickle = (world: World) => {
+  if (world.bossTrickleStreams.length === 0) return;
+  const bossesLeft = bossesStillActive(world);
+  if (!bossesLeft) {
+    world.bossTrickleStreams = [];
+    return;
+  }
+  for (const stream of world.bossTrickleStreams) {
+    while (stream.nextAt <= world.time) {
+      const kind = stream.kinds[Math.floor(Math.random() * stream.kinds.length)];
+      spawnEnemy(world, kind, { hpMul: stream.hpMul, pathIndex: stream.pathIndex });
+      const interval =
+        stream.minInterval + Math.random() * (stream.maxInterval - stream.minInterval);
+      stream.nextAt += Math.max(0.1, interval);
+    }
   }
 };
 
@@ -206,6 +244,8 @@ export const spawnerTick = (world: World, dt: number) => {
       resists: req.resists,
     });
   }
+
+  tickBossTrickle(world);
 
   if (midwaveThresholdCrossed(world)) {
     if (world.midwaveTimerMax === 0) {
