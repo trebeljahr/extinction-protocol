@@ -6,12 +6,14 @@ const HIT_RADIUS = 0.5;
 
 const applyHit = (world: World, p: Projectile) => {
   emit(world, { type: "impact", pos: p.pos });
-  // Carry T3 anti-modifier flags from the firing tower into applyDamage.
+  // Carry T3 anti-modifier flags + kill-credit attribution from the
+  // firing tower into applyDamage.
   const hitOpts = {
     shieldDamageMul: p.shieldDamageMul,
     armorPierce: p.armorPierce,
     resistStrip: p.resistStrip,
     regenSuppressOnHit: p.regenSuppressOnHit,
+    attackerTowerId: p.ownerTowerId,
   };
 
   if (p.kind === "splash") {

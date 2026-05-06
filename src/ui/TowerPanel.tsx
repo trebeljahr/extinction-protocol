@@ -126,7 +126,7 @@ export const TowerPanel = () => {
           </div>
           <div className="panel-stats">
             DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG{" "}
-            {tower.range.toFixed(1)}
+            {tower.range.toFixed(1)} · KILLS {tower.kills}
             {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
             {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
             {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}

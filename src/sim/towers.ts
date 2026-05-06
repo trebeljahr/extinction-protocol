@@ -41,12 +41,15 @@ const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
 };
 
 // Pull T3 anti-modifier hit options off a tower for the projectile/
-// applyDamage calls. Inert defaults — only T3 upgrades populate them.
+// applyDamage calls, plus the tower id for kill-credit attribution.
+// T3 fields default inert; attackerTowerId is always populated so kills
+// from chain ricochets / cryo / flame ticks land on the firing tower.
 const towerHitOpts = (t: Tower) => ({
   shieldDamageMul: t.shieldDamageMul,
   armorPierce: t.armorPierce,
   resistStrip: t.resistStrip,
   regenSuppressOnHit: t.regenSuppressOnHit,
+  attackerTowerId: t.id,
 });
 
 const firePulse = (world: World, t: Tower, target: Enemy) => {

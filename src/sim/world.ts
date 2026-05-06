@@ -18,6 +18,7 @@ import type {
   EasterEggScheduleEntry,
   Enemy,
   EnemyKind,
+  EntityId,
   Explosion,
   GameEvent,
   Projectile,
@@ -662,14 +663,17 @@ export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
   boss: "#ff2a55", // arterial red — matriarch's blood-glow
 };
 
-// Tier-3 anti-modifier hit options carried by tower fire paths into
-// applyDamage. Defaults are inert — only towers that have purchased the
-// matching T3 upgrade populate them.
+// Tower-source info carried by tower fire paths into applyDamage. The
+// T3 anti-modifier flags below are inert by default — only towers that
+// have purchased the matching upgrade populate them. attackerTowerId is
+// always populated by the tower fire paths and is what kill-credit
+// attribution reads when an enemy dies.
 export type HitOptions = {
   shieldDamageMul?: number; // Mortar T3: extra damage to shields specifically
   armorPierce?: boolean; // Pulse T3: clamp resist-chip multipliers to ≥1
   resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
   regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
+  attackerTowerId?: EntityId | null;
 };
 
 export const applyDamage = (
@@ -737,6 +741,15 @@ export const applyDamage = (
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
+    // Kill credit goes to whichever tower delivered the killing blow —
+    // chain ricochets, cryo/flame ticks, and projectile splash all funnel
+    // through here with attackerTowerId set by the firing tower. The
+    // tower may have been sold between fire and impact, so a missing
+    // lookup is silently ignored.
+    if (hitOpts?.attackerTowerId !== undefined && hitOpts.attackerTowerId !== null) {
+      const attacker = world.towerById.get(hitOpts.attackerTowerId);
+      if (attacker) attacker.kills += 1;
+    }
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
     emit(world, { type: "death", pos: enemy.pos });
     // Boss kill — extra payout on top of the normal bounty so the
@@ -998,6 +1011,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     resistStrip: 0,
     regenSuppressOnHit: 0,
     freezeBlocksRegen: false,
+    kills: 0,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);
@@ -1035,6 +1049,7 @@ export const createProjectile = (
     armorPierce: hitOpts?.armorPierce ?? false,
     resistStrip: hitOpts?.resistStrip ?? 0,
     regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
+    ownerTowerId: hitOpts?.attackerTowerId ?? null,
   };
   world.projectiles.push(p);
   return p;

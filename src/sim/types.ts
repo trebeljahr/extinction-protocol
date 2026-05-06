@@ -128,6 +128,11 @@ export type Tower = {
   resistStrip: number; // Chain T3: strips own-type resist toward 1 per hit
   regenSuppressOnHit: number; // Pyre T3: extends regenPausedUntil after hit
   freezeBlocksRegen: boolean; // Cryo T3: regen paused while slowed
+  // Number of enemies this tower has personally killed this run.
+  // Credited in applyDamage to whichever tower delivered the killing
+  // blow — chain ricochets and cryo/flame ticks attribute to the
+  // firing tower, not the enemy chain link they died on.
+  kills: number;
 };
 
 export type Tree = {
@@ -168,6 +173,10 @@ export type Projectile = {
   armorPierce: boolean;
   resistStrip: number;
   regenSuppressOnHit: number;
+  // Id of the tower that fired this projectile. Forwarded into
+  // applyDamage so kill credit lands on the firing tower even if it
+  // was sold or upgraded between fire and impact.
+  ownerTowerId: EntityId | null;
 };
 
 export type Beam = {
