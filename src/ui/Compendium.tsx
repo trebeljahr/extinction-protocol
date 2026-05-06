@@ -34,7 +34,6 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
-import { EnemyIcon } from "./EnemyIcon";
 import { EnemyPreview } from "./EnemyPreview";
 import { MechanicIcon } from "./MechanicIcon";
 import { TowerPreview } from "./TowerPreview";
@@ -176,13 +175,7 @@ const EnemySectionView = ({
               disabled={!seen}
               title={seen ? ENEMY_LABEL[kind] : "Not yet encountered"}
             >
-              <span className="compendium-tab-icon" aria-hidden>
-                {seen ? (
-                  <EnemyIcon kind={kind} />
-                ) : (
-                  <span className="compendium-tab-locked-glyph">?</span>
-                )}
-              </span>
+              <span className="compendium-tab-index">{ENEMY_ORDER.indexOf(kind) + 1}</span>
               <span className="compendium-tab-name">{seen ? ENEMY_LABEL[kind] : "???"}</span>
             </button>
           );
