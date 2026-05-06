@@ -5,6 +5,7 @@ import type { DamageType } from "../sim/types";
 import { DAMAGE_TYPE_LABEL, ENEMY_LABEL, ENEMY_RESIST, ENEMY_STATS } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
+import { EnemyIcon } from "./EnemyIcon";
 import { EnemyPreview } from "./EnemyPreview";
 
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
@@ -50,6 +51,12 @@ export const NewEnemyAlert = () => {
       <div className="new-enemy-card flex flex-col items-stretch gap-2.5 w-[360px] max-w-[calc(100vw-32px)] pt-[22px] px-[26px] pb-6 rounded-2xl border border-[rgba(255,170,110,0.35)]">
         <div className="self-center text-[10px] tracking-uber text-orange font-bold px-2.5 py-1 rounded-sm border border-[rgba(255,178,102,0.45)] bg-[rgba(255,178,102,0.08)] uppercase">
           NEW HOSTILE · DATABASE UPDATED
+        </div>
+        <div
+          className="self-center mt-1 text-orange drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
+          aria-hidden
+        >
+          <EnemyIcon kind={kind} size={56} />
         </div>
         <h1 className="mt-1 mb-0 text-center text-[28px] font-bold tracking-[0.02em] text-white font-display">
           {ENEMY_LABEL[kind]}

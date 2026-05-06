@@ -16,6 +16,7 @@ import {
   REGEN_RATE,
 } from "../sim/world";
 import { useGame } from "../store";
+import { EnemyIcon } from "./EnemyIcon";
 
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
@@ -107,7 +108,9 @@ export const EnemyPanel = () => {
   return (
     <div className="enemy-panel">
       <div className="panel-header">
-        <div className={`enemy-swatch kind-${kind}`} />
+        <div className={`enemy-swatch kind-${kind}`}>
+          <EnemyIcon kind={kind} />
+        </div>
         <div className="panel-title">
           <div className="panel-name">
             {ENEMY_LABEL[kind]}
