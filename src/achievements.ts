@@ -89,8 +89,8 @@ const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
   {
     id: "full_arsenal",
     name: "Full Arsenal",
-    desc: "Build all four tower types in a single mission.",
-    hint: "Pulse + Chain + Cryo + Mortar.",
+    desc: "Build all six tower types in a single mission.",
+    hint: "Pulse + Chain + Cryo + Mortar + Flame + Hive.",
   },
   {
     id: "fully_armed",
@@ -126,7 +126,7 @@ const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
     id: "master_engineer",
     name: "Master Engineer",
     desc: "Have one of every tower type fully upgraded at once.",
-    hint: "Four towers, each tier 3 on both branches.",
+    hint: "Six towers, each tier 3 on both branches.",
   },
   {
     id: "campaign",
@@ -299,7 +299,7 @@ export const ACHIEVEMENT_BY_ID: Record<AchievementId, AchievementDef> = Object.f
 
 export const TOTAL_ENEMY_KINDS = 7;
 
-const ALL_TOWER_KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar"];
+const ALL_TOWER_KINDS: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const ALL_ENEMY_KINDS: EnemyKind[] = [
   "raptor",
   "swarm",
