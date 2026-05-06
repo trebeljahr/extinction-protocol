@@ -50,10 +50,15 @@ export const AchievementsPanel = () => {
             const unlocked = isAchievementUnlocked(progress, def.id);
             const secrecy = def.secrecy ?? "visible";
             const hideName = !unlocked && secrecy !== "visible";
-            const hideDesc = !unlocked && secrecy !== "visible";
-            const hideHint = !unlocked && secrecy === "hidden";
             const hideIcon = !unlocked && secrecy !== "visible";
             const Icon = hideIcon ? IconHiddenAchievement : def.icon;
+            const descText = unlocked
+              ? def.desc
+              : secrecy === "hidden"
+                ? "???"
+                : secrecy === "hint"
+                  ? def.hint
+                  : def.desc;
             const statusLabel = unlocked
               ? "UNLOCKED"
               : secrecy === "hidden"
@@ -72,8 +77,7 @@ export const AchievementsPanel = () => {
                 <div className="achievement-tile-body">
                   <div className="achievement-tile-status">{statusLabel}</div>
                   <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
-                  <div className="achievement-tile-desc">{hideDesc ? "???" : def.desc}</div>
-                  <div className="achievement-tile-hint">{hideHint ? "???" : def.hint}</div>
+                  <div className="achievement-tile-desc">{descText}</div>
                 </div>
               </div>
             );

@@ -124,22 +124,105 @@ export const IconScholar: FC<AchievementIconProps> = (p) => (
 
 export const IconFullArsenal: FC<AchievementIconProps> = (p) => (
   <Svg {...p} label="Full Arsenal">
-    {/* 4 mini tower silhouettes in 2x2 */}
-    {[
-      [6, 7],
-      [16, 7],
-      [6, 17],
-      [16, 17],
-    ].map(([cx, cy]) => (
-      <g key={`${cx}-${cy}`}>
-        <rect x={cx - 2.4} y={cy - 0.5} width="4.8" height="3" fill="currentColor" />
-        <path
-          d={`M${cx - 1.6} ${cy - 0.5} L${cx} ${cy - 4} L${cx + 1.6} ${cy - 0.5} Z`}
-          fill="currentColor"
-        />
-        <circle cx={cx} cy={cy - 1.5} r="0.5" fill={HL} opacity="0.6" />
-      </g>
-    ))}
+    {/* Hex frame connecting six tower-glyph slots */}
+    <polygon
+      points="12,4.5 18.5,8.25 18.5,15.75 12,19.5 5.5,15.75 5.5,8.25"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="0.4"
+      strokeOpacity="0.4"
+      strokeDasharray="1.2 1.4"
+    />
+    {/* pulse — top: dot + concentric ring */}
+    <g>
+      <circle cx="12" cy="4.5" r="2" fill="none" stroke="currentColor" strokeWidth="0.55" />
+      <circle cx="12" cy="4.5" r="0.9" fill="currentColor" />
+    </g>
+    {/* chain — top-right: linked rings */}
+    <g>
+      <ellipse
+        cx="17.55"
+        cy="8.25"
+        rx="0.95"
+        ry="1.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="0.6"
+        transform="rotate(-25 17.55 8.25)"
+      />
+      <ellipse
+        cx="19.4"
+        cy="8.25"
+        rx="0.95"
+        ry="1.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="0.6"
+        transform="rotate(25 19.4 8.25)"
+      />
+    </g>
+    {/* cryo — bottom-right: snowflake */}
+    <g transform="translate(18.5 15.75)">
+      <line
+        x1="0"
+        y1="-2.1"
+        x2="0"
+        y2="2.1"
+        stroke="currentColor"
+        strokeWidth="0.65"
+        strokeLinecap="round"
+      />
+      <line
+        x1="-1.82"
+        y1="-1.05"
+        x2="1.82"
+        y2="1.05"
+        stroke="currentColor"
+        strokeWidth="0.65"
+        strokeLinecap="round"
+      />
+      <line
+        x1="-1.82"
+        y1="1.05"
+        x2="1.82"
+        y2="-1.05"
+        stroke="currentColor"
+        strokeWidth="0.65"
+        strokeLinecap="round"
+      />
+      <circle cx="0" cy="0" r="0.55" fill={HL} opacity="0.85" />
+    </g>
+    {/* mortar — bottom: bomb with fuse */}
+    <g>
+      <circle cx="12" cy="20" r="1.55" fill="currentColor" />
+      <line
+        x1="12"
+        y1="18.45"
+        x2="12.4"
+        y2="17.6"
+        stroke="currentColor"
+        strokeWidth="0.7"
+        strokeLinecap="round"
+      />
+      <circle cx="12.55" cy="17.4" r="0.4" fill={HL} opacity="0.95" />
+    </g>
+    {/* flame — bottom-left: teardrop flame */}
+    <path
+      d="M 5.5 13.7 C 3.9 14.6, 3.6 16.2, 4.4 17.2 C 4.85 17.85, 5.5 17.95, 5.5 17.95 C 5.5 17.95, 6.15 17.85, 6.6 17.2 C 7.4 16.2, 7.1 14.6, 5.5 13.7 Z"
+      fill="currentColor"
+    />
+    <path
+      d="M 5.5 14.85 C 4.85 15.45, 4.7 16.25, 5 16.7 C 5.2 17, 5.5 17.05, 5.5 17.05 C 5.5 17.05, 5.8 17, 6 16.7 C 6.3 16.25, 6.15 15.45, 5.5 14.85 Z"
+      fill={HL}
+      opacity="0.55"
+    />
+    {/* hive — top-left: hexagon with grid dot */}
+    <g>
+      <polygon points="5.5,6.4 7.05,7.3 7.05,9.1 5.5,10 3.95,9.1 3.95,7.3" fill="currentColor" />
+      <circle cx="5.5" cy="8.2" r="0.55" fill="#000" opacity="0.5" />
+    </g>
+    {/* central armory hub */}
+    <circle cx="12" cy="12" r="0.9" fill={HL} opacity="0.55" />
   </Svg>
 );
 
@@ -292,20 +375,80 @@ export const IconCampaign: FC<AchievementIconProps> = (p) => (
 
 export const IconPerfectRun: FC<AchievementIconProps> = (p) => (
   <Svg {...p} label="Perfect Run">
-    {/* Laurel wreath */}
-    <g fill="currentColor">
-      <path d="M5 17 Q 3 12, 5.5 6 Q 8 9, 7.5 14 Q 7 16, 5 17 Z" />
-      <ellipse cx="4.6" cy="9" rx="1" ry="2" transform="rotate(-30 4.6 9)" />
-      <ellipse cx="6.2" cy="13" rx="1" ry="2" transform="rotate(-10 6.2 13)" />
-      <path d="M19 17 Q 21 12, 18.5 6 Q 16 9, 16.5 14 Q 17 16, 19 17 Z" />
-      <ellipse cx="19.4" cy="9" rx="1" ry="2" transform="rotate(30 19.4 9)" />
-      <ellipse cx="17.8" cy="13" rx="1" ry="2" transform="rotate(10 17.8 13)" />
-    </g>
-    {/* Center star */}
-    <polygon
-      points="12,8 13.2,11 16.4,11.2 13.9,13.2 14.7,16.3 12,14.6 9.3,16.3 10.1,13.2 7.6,11.2 10.8,11"
+    {/* Diamond body */}
+    <path d="M 4 9 L 8 4 L 16 4 L 20 9 L 12 21 Z" fill="currentColor" />
+    {/* Right pavilion highlight (lit side) */}
+    <polygon points="12,9 20,9 12,21" fill={HL} opacity="0.18" />
+    {/* Right crown highlight */}
+    <polygon points="12,9 16,4 20,9" fill={HL} opacity="0.28" />
+    {/* Crown center facet — animated flash */}
+    <polygon points="8,4 12,9 16,4" fill={HL} opacity="0.45" className="ach-facet-flash" />
+    {/* Static glint on left crown */}
+    <line
+      x1="6"
+      y1="6.6"
+      x2="7.5"
+      y2="8.2"
+      stroke={HL}
+      strokeWidth="0.6"
+      strokeOpacity="0.7"
+      strokeLinecap="round"
+    />
+    {/* Animated traveling glint inside the gem */}
+    <line
+      x1="13.5"
+      y1="11"
+      x2="14.2"
+      y2="14.5"
+      stroke={HL}
+      strokeWidth="0.6"
+      strokeOpacity="0.95"
+      strokeLinecap="round"
+      className="ach-glint-a"
+    />
+    <line
+      x1="9.5"
+      y1="11.5"
+      x2="9"
+      y2="13"
+      stroke={HL}
+      strokeWidth="0.5"
+      strokeOpacity="0.85"
+      strokeLinecap="round"
+      className="ach-glint-b"
+    />
+    {/* Internal facet lines */}
+    <path d="M 4 9 L 20 9" fill="none" stroke={HL} strokeWidth="0.45" strokeOpacity="0.55" />
+    <path d="M 8 4 L 12 9 L 16 4" fill="none" stroke={HL} strokeWidth="0.45" strokeOpacity="0.55" />
+    <path d="M 12 9 L 12 21" fill="none" stroke={HL} strokeWidth="0.4" strokeOpacity="0.4" />
+    {/* Outline */}
+    <path
+      d="M 4 9 L 8 4 L 16 4 L 20 9 L 12 21 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="0.7"
+      strokeLinejoin="miter"
+    />
+    {/* Sparkles in the corners — twinkle in sequence */}
+    <path
+      className="ach-sparkle ach-sparkle-a"
+      d="M 2.4 4.8 L 2.8 5.9 L 3.9 6.3 L 2.8 6.7 L 2.4 7.8 L 2 6.7 L 0.9 6.3 L 2 5.9 Z"
       fill={HL}
-      opacity="0.95"
+    />
+    <path
+      className="ach-sparkle ach-sparkle-b"
+      d="M 21.6 4.8 L 22 5.9 L 23.1 6.3 L 22 6.7 L 21.6 7.8 L 21.2 6.7 L 20.1 6.3 L 21.2 5.9 Z"
+      fill={HL}
+    />
+    <path
+      className="ach-sparkle ach-sparkle-c"
+      d="M 3.4 17.4 L 3.75 18.4 L 4.75 18.75 L 3.75 19.1 L 3.4 20.1 L 3.05 19.1 L 2.05 18.75 L 3.05 18.4 Z"
+      fill={HL}
+    />
+    <path
+      className="ach-sparkle ach-sparkle-d"
+      d="M 20.6 16.8 L 20.95 17.75 L 21.9 18.1 L 20.95 18.45 L 20.6 19.4 L 20.25 18.45 L 19.3 18.1 L 20.25 17.75 Z"
+      fill={HL}
     />
   </Svg>
 );

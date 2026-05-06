@@ -1921,7 +1921,10 @@
     color: #6b7685;
     font-style: italic;
   }
-  .achievement-tile.locked.secrecy-hint .achievement-tile-desc,
+  .achievement-tile.locked.secrecy-hint .achievement-tile-desc {
+    color: #7f8c99;
+    font-style: italic;
+  }
   .achievement-tile.locked.secrecy-hidden .achievement-tile-desc {
     color: #525c6b;
   }
@@ -1938,11 +1941,95 @@
     line-height: 1.4;
   }
 
-  .achievement-tile-hint {
-    margin-top: auto;
-    font-size: var(--fs-sm);
-    color: #7f8c99;
-    font-style: italic;
+  /* Shimmering diamond animation (IconPerfectRun) — paused unless icon
+     is rendered inside an unlocked tile or in the unlock toast. */
+  @keyframes ach-sparkle-twinkle {
+    0%,
+    100% {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes ach-facet-flash {
+    0%,
+    60%,
+    100% {
+      opacity: 0.45;
+    }
+    30% {
+      opacity: 0.95;
+    }
+  }
+
+  @keyframes ach-glint-flash {
+    0%,
+    70%,
+    100% {
+      opacity: 0;
+    }
+    35% {
+      opacity: 1;
+    }
+  }
+
+  .ach-sparkle {
+    transform-origin: center;
+    transform-box: fill-box;
+    opacity: 0;
+    animation: ach-sparkle-twinkle 2.2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .ach-sparkle-a {
+    animation-delay: 0s;
+  }
+  .ach-sparkle-b {
+    animation-delay: 0.55s;
+  }
+  .ach-sparkle-c {
+    animation-delay: 1.1s;
+  }
+  .ach-sparkle-d {
+    animation-delay: 1.65s;
+  }
+
+  .ach-facet-flash {
+    animation: ach-facet-flash 3.2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+
+  .ach-glint-a,
+  .ach-glint-b {
+    opacity: 0;
+    animation: ach-glint-flash 3.2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .ach-glint-b {
+    animation-delay: 1.6s;
+  }
+
+  .achievement-tile.unlocked .ach-sparkle,
+  .achievement-tile.unlocked .ach-facet-flash,
+  .achievement-tile.unlocked .ach-glint-a,
+  .achievement-tile.unlocked .ach-glint-b,
+  .achievement-toast .ach-sparkle,
+  .achievement-toast .ach-facet-flash,
+  .achievement-toast .ach-glint-a,
+  .achievement-toast .ach-glint-b {
+    animation-play-state: running;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ach-sparkle,
+    .ach-facet-flash,
+    .ach-glint-a,
+    .ach-glint-b {
+      animation: none;
+    }
   }
 
   /* Credits panel — reuses .achievements-overlay / .achievements-card / .achievements-header
