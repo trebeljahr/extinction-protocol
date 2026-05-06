@@ -309,7 +309,10 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const hitY = Math.max(def.targetSize * 0.5, 0.9);
 
   useFrame((state, delta) => {
-    mixerRef.current?.update(delta);
+    // Freeze skeletal idle while the game is paused, matching enemies.
+    // Click-pop and face-camera below stay real-time so a tap during
+    // pause still gives feedback.
+    if (useGame.getState().world.status !== "paused") mixerRef.current?.update(delta);
 
     // Detect a new click via clickCount transition. If this same click
     // crossed the unlock threshold (`triggered` flipped true), amplify
