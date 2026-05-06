@@ -31,6 +31,7 @@ import {
   earlyCallTimerSec,
   callWaveEarly as simCallWaveEarly,
 } from "./sim/spawner";
+import { autoAssignDroneToNewTower } from "./sim/towers";
 import type {
   DamageType,
   EnemyKind,
@@ -1042,7 +1043,8 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
     if (!free) w.gold -= cost;
-    createTower(w, s.selectedKind, pos);
+    const placed = createTower(w, s.selectedKind, pos);
+    autoAssignDroneToNewTower(w, placed);
     emit(w, { type: "tower-placed", towerKind: s.selectedKind });
     // Keep the currently-picked tower kind selected (so the player can
     // keep placing more of the same) and *don't* auto-select the tower

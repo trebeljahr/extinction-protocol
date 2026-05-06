@@ -403,6 +403,46 @@ export const HIVE_ORBIT_RADIUS = 1.55;
 export const HIVE_ORBIT_HEIGHT = 1.1;
 const HIVE_ORBIT_SPEED = 0.55; // rad/s
 
+// Proximity radius for auto-assigning a free drone when a tower is
+// placed near a hive. Picked a touch above the longest tower range
+// (mortar = 9.0) so a hive nestled near a chokepoint will adopt
+// neighbours without poaching towers across the map.
+export const HIVE_AUTO_ASSIGN_RANGE = 10;
+
+// On placement, attach the closest hive's free drone to the new tower
+// so the player doesn't have to drill into the hive panel for every
+// neighbour. Manual assignments (existing non-null slots) are left
+// alone — only an idle slot is filled. No-op when the new tower is
+// itself a hive, or when no hive within range has a free drone.
+export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean => {
+  if (tower.kind === "hive") return false;
+  const rangeSq = HIVE_AUTO_ASSIGN_RANGE * HIVE_AUTO_ASSIGN_RANGE;
+  let bestHive: Tower | null = null;
+  let bestDroneIdx = -1;
+  let bestDistSq = rangeSq;
+  for (const h of world.towers) {
+    if (h.kind !== "hive") continue;
+    const d2 = distSq(h.pos, tower.pos);
+    if (d2 > rangeSq) continue;
+    let freeIdx = -1;
+    for (let i = 0; i < h.droneCount; i++) {
+      if (h.droneAssignments[i] === null) {
+        freeIdx = i;
+        break;
+      }
+    }
+    if (freeIdx < 0) continue;
+    if (d2 < bestDistSq) {
+      bestDistSq = d2;
+      bestHive = h;
+      bestDroneIdx = freeIdx;
+    }
+  }
+  if (!bestHive) return false;
+  bestHive.droneAssignments[bestDroneIdx] = tower.id;
+  return true;
+};
+
 // Phase angle uses a fixed denominator (HIVE_MAX_DRONES) so adding
 // drones via Path A doesn't reshuffle the existing drones' orbits —
 // the new drone slots in at its own index without disrupting the
