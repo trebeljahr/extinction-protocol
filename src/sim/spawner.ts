@@ -141,7 +141,7 @@ const startWave = (world: World) => {
     // Heavy ground tremor sells the matriarch's arrival before her
     // silhouette is even on screen — sustained decay so the camera
     // judders for ~a second rather than flicking once.
-    addShake(world, 0.85, 1.6);
+    addShake(world, 0.47, 1.6);
   }
 };
 

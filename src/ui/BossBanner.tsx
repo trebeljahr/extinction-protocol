@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGame } from "../store";
 
-const SHOW_SEC = 3.6;
+const SHOW_SEC = 5.4;
 
 // Boss-wave banner — listens for boss-wave-start events and shows a
 // dramatic top-of-screen alert for a few seconds. Cleared automatically
