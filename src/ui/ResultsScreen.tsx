@@ -12,6 +12,11 @@ export const ResultsScreen = () => {
   const progress = useGame((s) => s.progress);
   const retry = useGame((s) => s.retryCurrentLevel);
   const goToMap = useGame((s) => s.goToWorldMap);
+  const startLevel = useGame((s) => s.startLevel);
+
+  const nextLevel = result ? LEVELS.find((l) => l.id === result.levelId + 1) : undefined;
+  const showNext =
+    !!result && result.won && nextLevel !== undefined && isLevelUnlocked(nextLevel.id, progress);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -21,11 +26,14 @@ export const ResultsScreen = () => {
       } else if (e.code === "Escape") {
         e.preventDefault();
         goToMap();
+      } else if (showNext && (e.code === "Enter" || e.code === "NumpadEnter")) {
+        e.preventDefault();
+        startLevel(nextLevel!.id);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [retry, goToMap]);
+  }, [retry, goToMap, startLevel, showNext, nextLevel]);
 
   const stars = result?.stars ?? 0;
   const won = result?.won ?? false;
@@ -53,10 +61,6 @@ export const ResultsScreen = () => {
 
   if (!result) return null;
 
-  const nextLevel = LEVELS.find((l) => l.id === result.levelId + 1);
-  const nextNowUnlocked =
-    result.won && nextLevel !== undefined && isLevelUnlocked(nextLevel.id, progress);
-
   return (
     <div className="overlay">
       <div className="overlay-card min-w-[420px] px-10 py-8">
@@ -77,7 +81,7 @@ export const ResultsScreen = () => {
               NEW BEST
             </div>
           )}
-          {nextNowUnlocked && (
+          {showNext && (
             <div className="mt-1.5 text-center text-xs text-cyan tracking-[0.06em]">
               Unlocked: {nextLevel!.name}
             </div>
@@ -97,7 +101,16 @@ export const ResultsScreen = () => {
         </div>
 
         <div className="flex gap-2.5 justify-center">
-          <button type="button" onClick={goToMap} className="btn">
+          {showNext && (
+            <button type="button" onClick={() => startLevel(nextLevel!.id)} className="btn">
+              Next Level (Enter)
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={goToMap}
+            className={showNext ? "btn btn-secondary" : "btn"}
+          >
             World Map (Esc)
           </button>
           <button type="button" onClick={retry} className="btn btn-secondary">
