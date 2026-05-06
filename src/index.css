@@ -898,6 +898,13 @@
     text-align: center;
     min-width: 320px;
     cursor: default;
+    /* Cap to viewport so long pause-menu content (settings + debug + nested
+       lists) scrolls inside the card instead of overflowing off-screen.
+       `100dvh` follows the dynamic viewport on mobile so the card never
+       hides behind the URL bar when it shows up. */
+    max-height: min(90vh, calc(100dvh - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .overlay-card h1 {

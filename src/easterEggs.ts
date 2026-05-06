@@ -49,6 +49,19 @@ export type EasterEggVisual = {
   skinned?: boolean; // true for animated skinned meshes (dinosaurs)
 };
 
+// Per-click visual reaction tuning. The renderer always plays a small
+// damped scale-pop on click so the model visibly squashes — these knobs
+// adjust intensity or layer extra reactions on top.
+export type EasterEggReaction = {
+  // Scale-pop amplitude (0..1). 0 disables the squash; 0.25 is a snappy
+  // tap; ~0.4 is springy. Defaults to 0.25 when omitted.
+  popIntensity?: number;
+  // When true, the model briefly arcs to face the camera and returns to
+  // its home rotation. Only meaningful for skinned meshes (dinos) — on
+  // static props the rotation flick reads as a clipping glitch.
+  faceCamera?: boolean;
+};
+
 export type EasterEggDef = {
   id: string;
   achievement: AchievementId;
@@ -61,6 +74,7 @@ export type EasterEggDef = {
   scheduled?: EasterEggSchedule;
   visual?: EasterEggVisual;
   clickRoll?: EasterEggClickRoll;
+  reaction?: EasterEggReaction;
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -106,6 +120,8 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleLife: 0.55,
       secondary: { color: "#fff2c8", count: 10, speed: [1.5, 3], life: 0.35 },
     },
+    // Torch flares — bigger pop reads as the flame whooshing up.
+    reaction: { popIntensity: 0.45 },
   },
   {
     id: "barrel",
@@ -143,6 +159,8 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleSpeed: [1, 2.5],
       particleLife: 0.9,
     },
+    // Buildings shouldn't squash like rubber — small settle is enough.
+    reaction: { popIntensity: 0.08 },
   },
   {
     id: "crystal",
@@ -248,6 +266,9 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleLife: 0.9,
       secondary: { color: "#fff2c8", count: 18, speed: [2, 5], life: 0.6 },
     },
+    // Each tap of the rocket gives a vertical kick — bigger pop reads as
+    // the booster pulsing before launch.
+    reaction: { popIntensity: 0.35 },
   },
   {
     id: "tumbleweed",
@@ -298,6 +319,8 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       secondary: { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.4 },
     },
     visual: { tint: "#ffc8dc", skinned: true, clip: "Idle" },
+    // Springy startle pop + the raptor briefly turns to look at the camera.
+    reaction: { popIntensity: 0.4, faceCamera: true },
   },
   {
     id: "buried_para",
