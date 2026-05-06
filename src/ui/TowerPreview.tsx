@@ -1,97 +1,42 @@
-import { useGLTF } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo } from "react";
-import * as THREE from "three";
 import type { TowerKind } from "../sim/types";
+import { type BakeSpec, useBakedIcon } from "./bakedIcon";
 
-const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number; rotY: number }> = {
-  pulse: { url: "/models/tower_pulse.glb", targetSize: 1.5, rotY: 0 },
-  chain: { url: "/models/turrets/Lighting Turret.glb", targetSize: 1.5, rotY: 0 },
-  mortar: { url: "/models/turrets/Missile Turret.glb", targetSize: 1.5, rotY: 0 },
-  cryo: { url: "/models/turrets/Emp Turret.glb", targetSize: 1.5, rotY: 0 },
-  flame: { url: "/models/turrets/Flamethrower Turret.glb", targetSize: 1.5, rotY: 0 },
-  hive: { url: "/models/turrets/Hive Turret.glb", targetSize: 1.5, rotY: 0 },
+const TOWER_MODEL: Record<TowerKind, { url: string; rotY: number }> = {
+  pulse: { url: "/models/tower_pulse.glb", rotY: 0 },
+  chain: { url: "/models/turrets/Lighting Turret.glb", rotY: 0 },
+  mortar: { url: "/models/turrets/Missile Turret.glb", rotY: 0 },
+  cryo: { url: "/models/turrets/Emp Turret.glb", rotY: 0 },
+  flame: { url: "/models/turrets/Flamethrower Turret.glb", rotY: 0 },
+  hive: { url: "/models/turrets/Hive Turret.glb", rotY: 0 },
 };
 
-const StaticTower = ({
-  url,
-  targetSize,
-  rotY,
-}: {
-  url: string;
-  targetSize: number;
-  rotY: number;
-}) => {
-  const { scene } = useGLTF(url);
-  const { invalidate } = useThree();
-
-  const cloned = useMemo(() => {
-    const c = scene.clone(true);
-    c.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) {
-        m.castShadow = false;
-        m.receiveShadow = false;
-      }
-    });
-    return c;
-  }, [scene]);
-
-  const { normalizedScale, centerScaled } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    const s = targetSize / maxDim;
-    return {
-      normalizedScale: s,
-      centerScaled: { x: center.x * s, y: center.y * s, z: center.z * s },
-    };
-  }, [scene, targetSize]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `cloned` is a re-run trigger (new GLB scene), not read inside
-  useEffect(() => {
-    // Re-invalidate a few times so the env HDRI finishes loading before the final draw.
-    const timers = [0, 60, 220, 520].map((ms) => setTimeout(() => invalidate(), ms));
-    return () => timers.forEach(clearTimeout);
-  }, [cloned, invalidate]);
-
-  return (
-    <group
-      position={[-centerScaled.x, -centerScaled.y, -centerScaled.z]}
-      rotation={[0, rotY, 0]}
-      scale={normalizedScale}
-    >
-      <primitive object={cloned} />
-    </group>
-  );
-};
+const specFor = (kind: TowerKind): BakeSpec => ({
+  cacheKey: `tower:${kind}`,
+  modelUrl: TOWER_MODEL[kind].url,
+  // Tower props are static (not rigged) so a regular .clone() is fine.
+  skinned: false,
+  rotY: TOWER_MODEL[kind].rotY,
+  // 3/4 view, framed slightly above the model's mid-height. Matches the
+  // angle the picker has had since we shipped TowerPreview originally,
+  // just translated into the bakedIcon's grounded 1×1×1 model space.
+  camera: { position: [2.3, 1.0, 0.75], target: [0, 0.5, 0], fov: 26 },
+});
 
 export const TowerPreview = ({ kind }: { kind: TowerKind }) => {
-  const { url, targetSize, rotY } = TOWER_MODEL[kind];
+  const url = useBakedIcon(specFor(kind));
   return (
     <div className={`tower-swatch kind-${kind}`}>
-      <Canvas
-        frameloop="demand"
-        dpr={[1, 2]}
-        gl={{ alpha: true, antialias: true }}
-        camera={{ position: [3.4, 0.7, 1.1], fov: 26, near: 0.1, far: 20 }}
-        onCreated={({ camera }) => {
-          camera.lookAt(0, 0, 0);
-          camera.updateProjectionMatrix();
-        }}
-        style={{ width: "100%", height: "100%", background: "transparent" }}
-      >
-        <ambientLight intensity={0.9} color="#eaf2ff" />
-        <directionalLight position={[14, 26, 10]} intensity={2.2} color="#fff4dc" />
-        <directionalLight position={[-8, 12, -4]} intensity={0.8} color="#bcd8ff" />
-        <hemisphereLight args={["#bcd8ff", "#5a4a2a", 0.95]} />
-        <Suspense fallback={null}>
-          <StaticTower url={url} targetSize={targetSize} rotY={rotY} />
-        </Suspense>
-      </Canvas>
+      {url ? (
+        <img
+          className="tower-icon"
+          src={url}
+          alt=""
+          aria-hidden
+          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+        />
+      ) : (
+        <div className="tower-icon tower-icon-pending" />
+      )}
     </div>
   );
 };
-
-for (const k of Object.keys(TOWER_MODEL) as TowerKind[]) useGLTF.preload(TOWER_MODEL[k].url);

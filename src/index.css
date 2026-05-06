@@ -475,18 +475,12 @@
     overflow: hidden;
   }
 
-  /* r3f nests the canvas inside wrapper divs, so match at any depth. Force
-   absolute positioning so the inner canvas collapses to the swatch box
-   instead of pushing the parent tall. */
-  .tower-swatch > div,
-  .tower-swatch > div > div {
+  /* The icon (an <img> baked once via the shared offscreen renderer)
+     fills the swatch. Absolute positioning matches the legacy r3f-Canvas
+     layout so existing card/picker styles still anchor properly. */
+  .tower-swatch > .tower-icon {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-  .tower-swatch canvas {
-    display: block;
     width: 100%;
     height: 100%;
   }
