@@ -8,7 +8,7 @@ const TOWER_MODEL: Record<TowerKind, { url: string; targetSize: number }> = {
   pulse: { url: "/models/tower_pulse.glb", targetSize: 1.6 },
   chain: { url: "/models/turrets/Lighting Turret.glb", targetSize: 1.8 },
   mortar: { url: "/models/turrets/Missile Turret.glb", targetSize: 1.8 },
-  cryo: { url: "/models/turrets/Emp Turret.glb", targetSize: 1.8 },
+  cryo: { url: "/models/turrets/Emp Turret.glb", targetSize: 1.55 },
   flame: { url: "/models/turrets/Flamethrower Turret.glb", targetSize: 1.7 },
   hive: { url: "/models/turrets/Hive Turret.glb", targetSize: 1.8 },
 };

@@ -81,7 +81,7 @@ export const PlayScene = () => {
       <ModelTowerMesh kind="pulse" url="/models/tower_pulse.glb" targetSize={1.6} />
       <ModelTowerMesh kind="chain" url="/models/turrets/Lighting Turret.glb" targetSize={1.8} />
       <ModelTowerMesh kind="mortar" url="/models/turrets/Missile Turret.glb" targetSize={1.8} />
-      <ModelTowerMesh kind="cryo" url="/models/turrets/Emp Turret.glb" targetSize={1.8} idleSpin />
+      <ModelTowerMesh kind="cryo" url="/models/turrets/Emp Turret.glb" targetSize={1.55} idleSpin />
       <ModelTowerMesh kind="flame" url="/models/turrets/Flamethrower Turret.glb" targetSize={1.7} />
       <ModelTowerMesh kind="hive" url="/models/turrets/Hive Turret.glb" targetSize={1.8} />
       <HiveDrones />
