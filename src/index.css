@@ -2240,15 +2240,15 @@
   }
 
   .splash-mark {
-    width: 96px;
-    height: 96px;
-    color: var(--color-gold);
-    filter: drop-shadow(0 0 12px rgba(255, 214, 106, 0.5));
+    width: 112px;
+    height: 112px;
+    filter: drop-shadow(0 0 14px rgba(255, 214, 106, 0.45));
     animation: splashMarkPulse 2.4s ease-in-out infinite;
   }
-  .splash-mark svg {
+  .splash-mark img {
     width: 100%;
     height: 100%;
+    display: block;
   }
   @keyframes splashMarkPulse {
     0%,

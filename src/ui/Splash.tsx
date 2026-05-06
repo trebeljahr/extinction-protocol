@@ -75,20 +75,7 @@ export const Splash = () => {
     <div className={`splash ${exiting ? "splash-exit" : ""}`}>
       <div className="splash-card">
         <div className="splash-mark" aria-hidden>
-          {/* Stylized three-toed dino footprint — readable at any size,
-              pure SVG so no extra request, currentColor for theming. */}
-          <svg viewBox="0 0 100 100" role="img">
-            <title>Extinction Protocol</title>
-            <g fill="currentColor">
-              <ellipse cx="50" cy="74" rx="22" ry="14" />
-              <path d="M 28 36 C 24 44 24 54 28 60 C 33 64 40 60 40 52 C 40 44 36 36 32 32 Z" />
-              <path d="M 50 22 C 45 30 44 42 48 50 C 52 54 56 50 56 42 C 56 32 53 24 50 22 Z" />
-              <path d="M 72 36 C 76 44 76 54 72 60 C 67 64 60 60 60 52 C 60 44 64 36 68 32 Z" />
-              <circle cx="35" cy="76" r="3" fill="rgba(0,0,0,0.4)" />
-              <circle cx="50" cy="80" r="3" fill="rgba(0,0,0,0.4)" />
-              <circle cx="65" cy="76" r="3" fill="rgba(0,0,0,0.4)" />
-            </g>
-          </svg>
+          <img src="/icons/icon.png" alt="" />
         </div>
         <h1 className="splash-title">Extinction Protocol</h1>
         <div className="splash-subtitle">Defense Network · Initializing</div>
