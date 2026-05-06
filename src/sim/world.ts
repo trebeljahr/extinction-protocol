@@ -430,6 +430,7 @@ export const createWorld = (
     easterEggSchedule,
     speedMul: difficulty.speed,
     goldKillMul: difficulty.goldKill,
+    invincible: false,
   };
 };
 

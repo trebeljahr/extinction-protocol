@@ -304,137 +304,164 @@ const TowerSectionView = ({
   const isCryo = selected === "cryo";
   const isChain = selected === "chain";
   const isMortar = selected === "mortar";
+  // Debug-only override — production never sets entries here so all towers
+  // render as unlocked. The debug menu lets a tester flip them so the
+  // compendium's locked layout can be inspected.
+  const towerLocks = useGame((s) => s.compendiumLocks.towers);
+  const selectedLocked = towerLocks[selected] === true;
 
   return (
     <>
       <div className="compendium-selector">
-        {TOWER_ORDER.map((kind) => (
-          <button
-            type="button"
-            key={kind}
-            className={`compendium-tab ${selected === kind ? "active" : ""}`}
-            data-ui-sound="tab"
-            onClick={() => setSelected(kind)}
-            title={TOWER_LABEL[kind]}
-          >
-            <span className="compendium-tab-index">{TOWER_ORDER.indexOf(kind) + 1}</span>
-            <span className="compendium-tab-name">{TOWER_LABEL[kind]}</span>
-          </button>
-        ))}
+        {TOWER_ORDER.map((kind) => {
+          const locked = towerLocks[kind] === true;
+          return (
+            <button
+              type="button"
+              key={kind}
+              className={`compendium-tab ${selected === kind ? "active" : ""} ${locked ? "locked" : ""}`}
+              data-ui-sound="tab"
+              onClick={() => setSelected(kind)}
+              disabled={locked}
+              title={locked ? "Locked" : TOWER_LABEL[kind]}
+            >
+              <span className="compendium-tab-index">{TOWER_ORDER.indexOf(kind) + 1}</span>
+              <span className="compendium-tab-name">{locked ? "???" : TOWER_LABEL[kind]}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="compendium-detail">
-        <div className="compendium-detail-preview compendium-tower-preview">
-          <TowerPreview kind={selected} />
+      {selectedLocked ? (
+        <div className="compendium-detail">
+          <div className="compendium-detail-preview">
+            <div className="compendium-detail-locked">?</div>
+          </div>
+          <div className="compendium-detail-info">
+            <div className="compendium-detail-locked-text">
+              <div className="compendium-detail-name">Unknown defense</div>
+              <p className="compendium-detail-desc">
+                Field-test a successful deployment to unlock this tower's dossier.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="compendium-detail-info">
-          <div className="compendium-detail-head">
-            <div className="compendium-detail-name">{TOWER_LABEL[selected]}</div>
-            <div className="compendium-detail-subtitle">
-              {!isHive && (
+      ) : (
+        <div className="compendium-detail">
+          <div className="compendium-detail-preview compendium-tower-preview">
+            <TowerPreview kind={selected} />
+          </div>
+          <div className="compendium-detail-info">
+            <div className="compendium-detail-head">
+              <div className="compendium-detail-name">{TOWER_LABEL[selected]}</div>
+              <div className="compendium-detail-subtitle">
+                {!isHive && (
+                  <>
+                    <span
+                      className="compendium-detail-damage-type"
+                      style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
+                    >
+                      <DamageIcon type={dmgType} size={14} />
+                      {DAMAGE_TYPE_LABEL[dmgType]}
+                    </span>
+                    <span className="compendium-detail-divider">·</span>
+                  </>
+                )}
+                <span>{TOWER_SUBTITLE[selected]}</span>
+                <span className="compendium-detail-divider">·</span>
+                <span>{cost}g</span>
+              </div>
+            </div>
+            <p className="compendium-detail-desc">{TOWER_DESCRIPTION[selected]}</p>
+
+            <dl className="compendium-stats">
+              {isHive ? (
                 <>
-                  <span
-                    className="compendium-detail-damage-type"
-                    style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
-                  >
-                    <DamageIcon type={dmgType} size={14} />
-                    {DAMAGE_TYPE_LABEL[dmgType]}
-                  </span>
-                  <span className="compendium-detail-divider">·</span>
+                  <div>
+                    <dt>Drones</dt>
+                    <dd>{HIVE_BASE_DRONES}</dd>
+                  </div>
+                  <div>
+                    <dt>Buff</dt>
+                    <dd>+{Math.round(HIVE_BASE_SERVICE_BUFF * 100)}%</dd>
+                  </div>
+                  <div>
+                    <dt>Cost</dt>
+                    <dd>{cost}g</dd>
+                  </div>
+                  <div>
+                    <dt>Role</dt>
+                    <dd>Support</dd>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <dt>{isCryo ? "Slow" : "DMG"}</dt>
+                    <dd>
+                      {isCryo ? `${Math.round((1 - stats.slowFactor) * 100)}%` : stats.damage}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Rate</dt>
+                    <dd>{stats.fireRate.toFixed(1)}/s</dd>
+                  </div>
+                  <div>
+                    <dt>Range</dt>
+                    <dd>{stats.range.toFixed(1)}</dd>
+                  </div>
+                  <div>
+                    <dt>{isMortar ? "Splash" : isChain ? "Chain" : isCryo ? "Chill" : "Cost"}</dt>
+                    <dd>
+                      {isMortar
+                        ? stats.splashRadius.toFixed(1)
+                        : isChain
+                          ? `${stats.chainCount}`
+                          : isCryo
+                            ? `${stats.slowDuration.toFixed(1)}s`
+                            : `${cost}g`}
+                    </dd>
+                  </div>
                 </>
               )}
-              <span>{TOWER_SUBTITLE[selected]}</span>
-              <span className="compendium-detail-divider">·</span>
-              <span>{cost}g</span>
+            </dl>
+
+            <div className="compendium-section-block">
+              <div className="compendium-resist-label">Behavior</div>
+              <p className="compendium-detail-desc">{TOWER_BEHAVIOR[selected]}</p>
             </div>
-          </div>
-          <p className="compendium-detail-desc">{TOWER_DESCRIPTION[selected]}</p>
 
-          <dl className="compendium-stats">
-            {isHive ? (
-              <>
-                <div>
-                  <dt>Drones</dt>
-                  <dd>{HIVE_BASE_DRONES}</dd>
-                </div>
-                <div>
-                  <dt>Buff</dt>
-                  <dd>+{Math.round(HIVE_BASE_SERVICE_BUFF * 100)}%</dd>
-                </div>
-                <div>
-                  <dt>Cost</dt>
-                  <dd>{cost}g</dd>
-                </div>
-                <div>
-                  <dt>Role</dt>
-                  <dd>Support</dd>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <dt>{isCryo ? "Slow" : "DMG"}</dt>
-                  <dd>{isCryo ? `${Math.round((1 - stats.slowFactor) * 100)}%` : stats.damage}</dd>
-                </div>
-                <div>
-                  <dt>Rate</dt>
-                  <dd>{stats.fireRate.toFixed(1)}/s</dd>
-                </div>
-                <div>
-                  <dt>Range</dt>
-                  <dd>{stats.range.toFixed(1)}</dd>
-                </div>
-                <div>
-                  <dt>{isMortar ? "Splash" : isChain ? "Chain" : isCryo ? "Chill" : "Cost"}</dt>
-                  <dd>
-                    {isMortar
-                      ? stats.splashRadius.toFixed(1)
-                      : isChain
-                        ? `${stats.chainCount}`
-                        : isCryo
-                          ? `${stats.slowDuration.toFixed(1)}s`
-                          : `${cost}g`}
-                  </dd>
-                </div>
-              </>
-            )}
-          </dl>
-
-          <div className="compendium-section-block">
-            <div className="compendium-resist-label">Behavior</div>
-            <p className="compendium-detail-desc">{TOWER_BEHAVIOR[selected]}</p>
-          </div>
-
-          <div className="compendium-section-block">
-            <div className="compendium-resist-label">Upgrade tree</div>
-            <div className="compendium-upgrades">
-              {(["a", "b"] as const).map((branchId) => {
-                const branch = tree[branchId];
-                return (
-                  <div key={branchId} className="compendium-branch">
-                    <div className="compendium-branch-label">
-                      Path {branchId.toUpperCase()} · {branch.label}
+            <div className="compendium-section-block">
+              <div className="compendium-resist-label">Upgrade tree</div>
+              <div className="compendium-upgrades">
+                {(["a", "b"] as const).map((branchId) => {
+                  const branch = tree[branchId];
+                  return (
+                    <div key={branchId} className="compendium-branch">
+                      <div className="compendium-branch-label">
+                        Path {branchId.toUpperCase()} · {branch.label}
+                      </div>
+                      <ol className="compendium-branch-tiers">
+                        {branch.tiers.map((tier) => (
+                          <li key={tier.name}>
+                            <span className="compendium-tier-name">{tier.name}</span>
+                            <span className="compendium-tier-desc">{tier.desc}</span>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
-                    <ol className="compendium-branch-tiers">
-                      {branch.tiers.map((tier) => (
-                        <li key={tier.name}>
-                          <span className="compendium-tier-name">{tier.name}</span>
-                          <span className="compendium-tier-desc">{tier.desc}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="compendium-section-block">
-            <div className="compendium-resist-label">Matchups</div>
-            <p className="compendium-detail-desc">{TOWER_MATCHUPS[selected]}</p>
+            <div className="compendium-section-block">
+              <div className="compendium-resist-label">Matchups</div>
+              <p className="compendium-detail-desc">{TOWER_MATCHUPS[selected]}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 };
@@ -448,40 +475,64 @@ const MechanicSectionView = ({
   selected: MechanicId;
   setSelected: (id: MechanicId) => void;
 }) => {
+  // Same debug-only override pattern as towers — production never sets
+  // entries here so mechanics always render unlocked under normal play.
+  const mechLocks = useGame((s) => s.compendiumLocks.mechanics);
+  const selectedLocked = mechLocks[selected] === true;
   return (
     <>
       <div className="compendium-selector">
-        {MECHANIC_ORDER.map((id) => (
-          <button
-            type="button"
-            key={id}
-            className={`compendium-tab ${selected === id ? "active" : ""}`}
-            data-ui-sound="tab"
-            onClick={() => setSelected(id)}
-            title={MECHANIC_LABEL[id]}
-          >
-            <span className="compendium-tab-index">{MECHANIC_ORDER.indexOf(id) + 1}</span>
-            <span className="compendium-tab-name">{MECHANIC_LABEL[id]}</span>
-          </button>
-        ))}
+        {MECHANIC_ORDER.map((id) => {
+          const locked = mechLocks[id] === true;
+          return (
+            <button
+              type="button"
+              key={id}
+              className={`compendium-tab ${selected === id ? "active" : ""} ${locked ? "locked" : ""}`}
+              data-ui-sound="tab"
+              onClick={() => setSelected(id)}
+              disabled={locked}
+              title={locked ? "Locked" : MECHANIC_LABEL[id]}
+            >
+              <span className="compendium-tab-index">{MECHANIC_ORDER.indexOf(id) + 1}</span>
+              <span className="compendium-tab-name">{locked ? "???" : MECHANIC_LABEL[id]}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="compendium-detail">
-        <div className="compendium-detail-preview">
-          <MechanicIcon id={selected} size={360} />
-        </div>
-        <div className="compendium-detail-info">
-          <div className="compendium-detail-head">
-            <div className="compendium-detail-name">{MECHANIC_LABEL[selected]}</div>
-            <div className="compendium-detail-subtitle">{MECHANIC_SUBTITLE[selected]}</div>
+      {selectedLocked ? (
+        <div className="compendium-detail">
+          <div className="compendium-detail-preview">
+            <div className="compendium-detail-locked">?</div>
           </div>
-          <p className="compendium-detail-desc">{MECHANIC_DESCRIPTION[selected]}</p>
-          <div className="compendium-section-block">
-            <div className="compendium-resist-label">How it works</div>
-            <p className="compendium-detail-desc">{MECHANIC_DETAIL[selected]}</p>
+          <div className="compendium-detail-info">
+            <div className="compendium-detail-locked-text">
+              <div className="compendium-detail-name">Unknown mechanic</div>
+              <p className="compendium-detail-desc">
+                Encounter this mechanic in combat to unlock its dossier.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="compendium-detail">
+          <div className="compendium-detail-preview">
+            <MechanicIcon id={selected} size={360} />
+          </div>
+          <div className="compendium-detail-info">
+            <div className="compendium-detail-head">
+              <div className="compendium-detail-name">{MECHANIC_LABEL[selected]}</div>
+              <div className="compendium-detail-subtitle">{MECHANIC_SUBTITLE[selected]}</div>
+            </div>
+            <p className="compendium-detail-desc">{MECHANIC_DESCRIPTION[selected]}</p>
+            <div className="compendium-section-block">
+              <div className="compendium-resist-label">How it works</div>
+              <p className="compendium-detail-desc">{MECHANIC_DETAIL[selected]}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

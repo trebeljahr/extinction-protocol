@@ -75,55 +75,63 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeLabel="Resume"
       closeTitle="Resume (Esc)"
     >
-      <button
-        type="button"
-        onClick={() => setDifficultyPickerOpen(true)}
-        className="w-full mb-3 bg-surface-1 border border-border rounded-md px-3 py-2 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
-        aria-label="Change difficulty"
-        title="Change difficulty"
-      >
-        <DifficultyIcon difficulty={difficulty} className={`w-7 h-7 ${accent}`} />
-        <div className="flex flex-col items-start flex-1">
-          <span className="text-[9px] font-bold tracking-wide text-gold uppercase">Difficulty</span>
-          <span className={`text-sm font-bold leading-tight ${accent}`}>
-            {DIFFICULTY_LABEL[difficulty]}
-          </span>
-        </div>
-        <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
-      </button>
-      <SoundControls />
-      <FullscreenToggle />
-      {isDebug && <DebugMenuSection />}
-      <ActionsCol>
+      <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-2">
         <button
           type="button"
-          className="btn btn-ghost w-full"
-          onClick={() => setCompendiumOpen(true)}
+          onClick={() => setDifficultyPickerOpen(true)}
+          className="w-full mb-3 bg-surface-1 border border-border rounded-md px-3 py-2 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
+          aria-label="Change difficulty"
+          title="Change difficulty"
         >
-          Compendium
+          <DifficultyIcon difficulty={difficulty} className={`w-7 h-7 ${accent}`} />
+          <div className="flex flex-col items-start flex-1">
+            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
+              Difficulty
+            </span>
+            <span className={`text-sm font-bold leading-tight ${accent}`}>
+              {DIFFICULTY_LABEL[difficulty]}
+            </span>
+          </div>
+          <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
         </button>
-        <button
-          type="button"
-          className="btn btn-ghost w-full"
-          onClick={() => setAchievementsOpen(true)}
-        >
-          Achievements
-        </button>
-        <button
-          type="button"
-          className="btn btn-warn w-full"
-          onClick={() => setConfirming("restart")}
-        >
-          Restart
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger w-full"
-          onClick={() => setConfirming("worldMap")}
-        >
-          Return to World Map
-        </button>
-      </ActionsCol>
+        <SoundControls />
+        <FullscreenToggle />
+        <ActionsCol>
+          <button
+            type="button"
+            className="btn btn-ghost w-full"
+            onClick={() => setCompendiumOpen(true)}
+          >
+            Compendium
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost w-full"
+            onClick={() => setAchievementsOpen(true)}
+          >
+            Achievements
+          </button>
+          <button
+            type="button"
+            className="btn btn-warn w-full"
+            onClick={() => setConfirming("restart")}
+          >
+            Restart
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger w-full"
+            onClick={() => setConfirming("worldMap")}
+          >
+            Return to World Map
+          </button>
+        </ActionsCol>
+        {isDebug && (
+          <div className="mt-5">
+            <DebugMenuSection />
+          </div>
+        )}
+      </div>
     </MenuOverlay>
   );
 };

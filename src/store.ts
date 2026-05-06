@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import type { AchievementId } from "./achievements";
-import { checkAchievements } from "./achievements";
+import { ACHIEVEMENT_BY_ID, checkAchievements } from "./achievements";
 import { track } from "./analytics";
-import { EASTER_EGG_BY_ID } from "./easterEggs";
+import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
@@ -23,12 +23,14 @@ import {
   starsForLives,
 } from "./progress";
 import { Engine } from "./sim/loop";
+import type { MechanicId } from "./sim/mechanicsText";
 import { segmentLength } from "./sim/path";
 import {
   canCallEarly,
   earlyCallGoldReward,
   earlyCallTimerSec,
   callWaveEarly as simCallWaveEarly,
+  startWave,
 } from "./sim/spawner";
 import { autoAssignDroneToNewTower } from "./sim/towers";
 import type {
@@ -52,6 +54,7 @@ import {
   emit,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
+  spawnEnemy,
   spawnMovingEasterEgg,
   spawnParticles,
   TOWER_COST,
@@ -355,11 +358,31 @@ type GameStore = {
   //    free functions so they share the same set/snapshot machinery
   //    as the regular UI actions and trigger the same UI updates. ──
   freeTowers: boolean;
+  invincible: boolean;
+  pathDebug: boolean;
+  // Compendium lock overrides for towers + mechanics. Enemies use
+  // progress.encountered directly (toggled via debugSetEnemyEncountered)
+  // since the regular compendium UI already gates on it. Towers and
+  // mechanics have no production lock concept, so this debug-only map
+  // forces the compendium to render them as locked.
+  compendiumLocks: {
+    towers: Partial<Record<TowerKind, boolean>>;
+    mechanics: Partial<Record<MechanicId, boolean>>;
+  };
   debugAddGold: (n: number) => void;
   debugSkipWave: () => void;
   debugWinLevel: () => void;
   debugSetFreeTowers: (on: boolean) => void;
+  debugSetInvincible: (on: boolean) => void;
+  debugSetPathDebug: (on: boolean) => void;
   debugTriggerEasterEgg: (defId: string) => void;
+  debugForceUnlockEasterEggAchievement: (defId: string) => void;
+  debugSpawnEnemy: (kind: EnemyKind) => void;
+  debugForceWave: (n: number) => void;
+  debugSetEnemyEncountered: (kind: EnemyKind, encountered: boolean) => void;
+  debugSetTowerLocked: (kind: TowerKind, locked: boolean) => void;
+  debugSetMechanicLocked: (id: MechanicId, locked: boolean) => void;
+  debugSetAchievementUnlocked: (id: AchievementId, unlocked: boolean) => void;
   debugSetLevelStars: (levelId: number, stars: Stars) => void;
   debugResetProgress: () => void;
 };
@@ -431,11 +454,16 @@ export const useGame = create<GameStore>((set, get) => ({
   startLevel: (id) => {
     const level = LEVELS.find((l) => l.id === id);
     if (!level) return;
-    const { engine, progress } = get();
+    const s = get();
+    const { engine, progress } = s;
     if (!isLevelUnlocked(id, progress)) return;
     engine.reset();
+    const built = buildWorldForLevel(level, progress.difficulty);
+    // Carry the debug invincibility flag across level starts/retries so a
+    // toggled-on tester doesn't have to flip it again every restart.
+    built.world.invincible = s.invincible;
     set({
-      ...buildWorldForLevel(level, progress.difficulty),
+      ...built,
       selectedKind: null,
       selectedTreeId: null,
       selectedRockId: null,
@@ -1217,6 +1245,9 @@ export const useGame = create<GameStore>((set, get) => ({
   // call sites in production, leaving these as orphan dead code that
   // gets minified away.
   freeTowers: false,
+  invincible: false,
+  pathDebug: false,
+  compendiumLocks: { towers: {}, mechanics: {} },
 
   debugAddGold: (n) => {
     const s = get();
@@ -1262,6 +1293,50 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ freeTowers: on });
   },
 
+  debugSetInvincible: (on) => {
+    const s = get();
+    s.world.invincible = on;
+    // Bump UI snapshot so the toggle's pressed state and the persistent
+    // "INVINCIBLE" badge re-render immediately, even when paused.
+    set({ invincible: on, ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugSetPathDebug: (on) => {
+    set({ pathDebug: on });
+  },
+
+  debugSpawnEnemy: (kind) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running" && w.status !== "paused") return;
+    if (w.paths.length === 0) return;
+    spawnEnemy(w, kind);
+    set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugForceWave: (n) => {
+    const s = get();
+    const w = s.world;
+    if (w.status !== "running" && w.status !== "paused") return;
+    const target = Math.max(1, Math.min(w.totalWaves, Math.floor(n)));
+    // Wipe the current wave + sim queue, then call startWave directly so
+    // the target wave begins immediately. setting wave=target-1 makes
+    // startWave's `wave += 1` land on `target`, which queues
+    // plannedWaves[target-1]. Calling startWave inline (vs. nudging the
+    // spawnerTick to do it) keeps the response instant *and* works for
+    // target=1, where the spawnerTick would bail because wave === 0.
+    w.spawnQueue.length = 0;
+    for (const e of w.enemies) e.alive = false;
+    w.wave = target - 1;
+    w.waveActive = false;
+    w.nextWaveIn = 0;
+    w.midwaveTimer = 0;
+    w.midwaveTimerMax = 0;
+    if (w.status === "paused") w.status = "running";
+    startWave(w);
+    set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
   debugTriggerEasterEgg: (defId) => {
     const s = get();
     const w = s.world;
@@ -1291,6 +1366,77 @@ export const useGame = create<GameStore>((set, get) => ({
       ];
     }
     set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  debugForceUnlockEasterEggAchievement: (defId) => {
+    const s = get();
+    const def = EASTER_EGG_DEFS.find((d) => d.id === defId);
+    if (!def) return;
+    if (s.progress.unlocked[def.achievement] !== undefined) return;
+    const next: ProgressData = {
+      ...s.progress,
+      unlocked: { ...s.progress.unlocked, [def.achievement]: Date.now() },
+    };
+    persistProgress(s.activeSlot, next);
+    set({
+      progress: next,
+      achievementToasts: [...s.achievementToasts, { id: def.achievement, key: nextToastKey++ }],
+    });
+    track("achievement_unlocked", { achievement_id: def.achievement });
+  },
+
+  debugSetEnemyEncountered: (kind, encountered) => {
+    const s = get();
+    const nextEncountered = { ...s.progress.encountered };
+    if (encountered) nextEncountered[kind] = true;
+    else delete nextEncountered[kind];
+    let next: ProgressData = { ...s.progress, encountered: nextEncountered };
+    // Re-run achievement checks so flipping the last species on lights up
+    // Scholar (and flipping it off doesn't lock Scholar back, since
+    // checkAchievements never revokes — that's intentional).
+    const res = checkAchievements(next, s.world, null);
+    next = res.progress;
+    persistProgress(s.activeSlot, next);
+    const newToasts = res.unlocked.map((id) => ({ id, key: nextToastKey++ }));
+    set({
+      progress: next,
+      achievementToasts:
+        newToasts.length > 0 ? [...s.achievementToasts, ...newToasts] : s.achievementToasts,
+    });
+  },
+
+  debugSetTowerLocked: (kind, locked) => {
+    const s = get();
+    const nextTowers = { ...s.compendiumLocks.towers };
+    if (locked) nextTowers[kind] = true;
+    else delete nextTowers[kind];
+    set({ compendiumLocks: { ...s.compendiumLocks, towers: nextTowers } });
+  },
+
+  debugSetMechanicLocked: (id, locked) => {
+    const s = get();
+    const nextMech = { ...s.compendiumLocks.mechanics };
+    if (locked) nextMech[id] = true;
+    else delete nextMech[id];
+    set({ compendiumLocks: { ...s.compendiumLocks, mechanics: nextMech } });
+  },
+
+  debugSetAchievementUnlocked: (id, unlocked) => {
+    const s = get();
+    if (!ACHIEVEMENT_BY_ID[id]) return;
+    const isUnlocked = s.progress.unlocked[id] !== undefined;
+    if (isUnlocked === unlocked) return;
+    const nextUnlocked = { ...s.progress.unlocked };
+    if (unlocked) nextUnlocked[id] = Date.now();
+    else delete nextUnlocked[id];
+    const next: ProgressData = { ...s.progress, unlocked: nextUnlocked };
+    persistProgress(s.activeSlot, next);
+    set({
+      progress: next,
+      ...(unlocked
+        ? { achievementToasts: [...s.achievementToasts, { id, key: nextToastKey++ }] }
+        : {}),
+    });
   },
 
   debugSetLevelStars: (levelId, stars) => {

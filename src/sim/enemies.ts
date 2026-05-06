@@ -49,7 +49,10 @@ export const updateEnemies = (world: World, dt: number) => {
     }
 
     if (adv.finished) {
-      world.lives -= e.damage;
+      // Debug invincibility absorbs the leak — enemy still despawns at the
+      // exit but lives stay at startLives, the shake/event still fire so
+      // the leak is visually unmistakable.
+      if (!world.invincible) world.lives -= e.damage;
       e.alive = false;
       emit(world, { type: "life-lost" });
       // Slight jolt so the hit registers — previous 0.18 mag with decay 6

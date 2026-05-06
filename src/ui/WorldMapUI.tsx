@@ -11,6 +11,7 @@ import {
   totalStars,
 } from "../progress";
 import { useGame } from "../store";
+import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyIcon } from "./DifficultyIcon";
 import { FullscreenToggle } from "./FullscreenToggle";
@@ -89,59 +90,66 @@ export const WorldMapUI = () => {
 
       {menuOpen && (
         <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
-          <SoundControls />
-          <FullscreenToggle />
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                setDifficultyPickerOpen(true);
-              }}
-            >
-              Difficulty · {DIFFICULTY_LABEL[difficulty]}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                setCompendiumOpen(true);
-              }}
-            >
-              Compendium
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                setAchievementsOpen(true);
-              }}
-            >
-              Achievements
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                setCreditsOpen(true);
-              }}
-            >
-              Credits
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                goToSlots();
-              }}
-            >
-              Change save slot
-            </button>
+          <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-2">
+            <SoundControls />
+            <FullscreenToggle />
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setDifficultyPickerOpen(true);
+                }}
+              >
+                Difficulty · {DIFFICULTY_LABEL[difficulty]}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCompendiumOpen(true);
+                }}
+              >
+                Compendium
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAchievementsOpen(true);
+                }}
+              >
+                Achievements
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCreditsOpen(true);
+                }}
+              >
+                Credits
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  goToSlots();
+                }}
+              >
+                Change save slot
+              </button>
+            </div>
+            {isDebug && (
+              <div className="mt-5">
+                <DebugMenuSection />
+              </div>
+            )}
           </div>
         </MenuOverlay>
       )}

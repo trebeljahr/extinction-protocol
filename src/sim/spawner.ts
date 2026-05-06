@@ -109,7 +109,10 @@ const midwaveThresholdCrossed = (world: World): boolean => {
   return remainingEnemies(world) <= world.waveTotalEnemies * EARLY_CALL_THRESHOLD;
 };
 
-const startWave = (world: World) => {
+// Exported for the debug menu's "force wave" action — production gameplay
+// only ever enters this through spawnerTick or callWaveEarly, both of
+// which respect the regular gating.
+export const startWave = (world: World) => {
   world.wave += 1;
   world.waveActive = true;
   world.midwaveTimer = 0;

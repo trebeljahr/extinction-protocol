@@ -362,6 +362,10 @@ export type World = {
   // applied per spawn / per kill so they live on World.
   speedMul: number;
   goldKillMul: number;
+  // Debug-only — when true, leaks at the exit don't deduct lives.
+  // Toggled by the debug menu; always false in production builds (the
+  // toggle UI is gated by isDebug + dead-codes out).
+  invincible: boolean;
 };
 
 export type EasterEgg = {
