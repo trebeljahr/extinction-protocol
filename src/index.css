@@ -1343,7 +1343,6 @@
     padding: 2px 8px;
     text-align: center;
     min-width: 22px;
-    transform: translate(-50%, -50%);
     pointer-events: none;
     user-select: none;
     white-space: nowrap;

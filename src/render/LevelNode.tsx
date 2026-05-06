@@ -83,10 +83,12 @@ export const LevelNode = ({ level }: Props) => {
     document.body.style.cursor = "default";
   };
 
-  // Stars sit high above the dome; the number / lock label is centered
-  // horizontally with the node and placed at the node's base so it reads
-  // as a plaque directly under the icon.
+  // Stars sit high above the dome; the number / lock label sits just
+  // south of the ground ring (radius 1.5) so it reads as a plaque
+  // directly under the icon at our tilted ortho angle. Positive z =
+  // "south" on screen.
   const starY = 3.15;
+  const labelZ = 1.85;
 
   const x = level.nodePos.x;
   const z = -level.nodePos.y;
@@ -144,7 +146,7 @@ export const LevelNode = ({ level }: Props) => {
         </mesh>
       )}
 
-      <Html center position={[0, 0.05, 0]} zIndexRange={[0, 10]} wrapperClass="map-label-wrap">
+      <Html center position={[0, 0.05, labelZ]} zIndexRange={[0, 10]} wrapperClass="map-label-wrap">
         <div className={`map-label ${unlocked ? "" : "locked"}`}>
           {unlocked ? level.id : "\u{1F512}"}
         </div>
