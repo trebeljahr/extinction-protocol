@@ -433,119 +433,30 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   ],
 };
 
-// Small cosmetic props rendered as decor in levels AND on the world map.
-// Only Quaternius-style organic assets and Kenney space-kit sci-fi props
-// belong here — man-made wooden props (Barrel, Chest) were swapped for
-// sci-fi machine/satellite variants so non-nature biomes read as post-
-// human tech, not woodwork. NOTHING tree-sized in this list — anything
-// that reads as a placement-blocker silhouette (DeadTree, Tree_Light)
-// lives in BIOME_LAYERS with `blocks: true` so it's removable. Tiny accent
-// shards like Crystal1 stay here so they never block placement.
+// Small cosmetic props scattered across levels — strictly ground-decor
+// that reads as flat texture, not as an obstacle. Anything that looked
+// like a placement-blocker silhouette (meteors, sci-fi machines, satellite
+// dishes, barrels) was pulled: those props had no destructor handler and
+// didn't actually block placement, so players misread them as clearable.
+// Tree- and rock-sized blockers live in BIOME_LAYERS with `blocks: true`.
+// Tiny accent shards (Crystal1) stay here — small enough to read as decor.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
-  forest: [
-    "/models/landmarks/forest/Mushroom.glb",
-    "/models/scifi/machine_barrel.glb",
-    "/models/landmarks/forest/BushFlowers.glb",
-  ],
-  desert: [
-    "/models/landmarks/desert/Skull.glb",
-    "/models/scifi/machine_wireless.glb",
-    "/models/scifi/satelliteDish.glb",
-  ],
+  forest: ["/models/landmarks/forest/Mushroom.glb", "/models/landmarks/forest/BushFlowers.glb"],
+  desert: ["/models/landmarks/desert/Skull.glb"],
   snow: [],
-  wasteland: [
-    "/models/landmarks/wasteland/Skull.glb",
-    "/models/scifi/machine_generator.glb",
-    "/models/scifi/meteor_detailed.glb",
-  ],
-  lava: [
-    "/models/landmarks/wasteland/Skull.glb",
-    "/models/landmarks/wasteland/Crystal1.glb",
-    "/models/scifi/meteor_detailed.glb",
-    "/models/scifi/machine_barrelLarge.glb",
-  ],
+  wasteland: ["/models/landmarks/wasteland/Skull.glb"],
+  lava: ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/wasteland/Crystal1.glb"],
+  // Alien plants/bushes are bush-class flora — same convention as the
+  // non-blocking bush layers in BIOME_LAYERS, kept here as scattered decor.
   alien: [
     "/models/biomes/alien/Bush_1.gltf",
     "/models/biomes/alien/Bush_2.gltf",
     "/models/biomes/alien/Plant_1.gltf",
     "/models/biomes/alien/Plant_2.gltf",
     "/models/landmarks/wasteland/Crystal1.glb",
-    "/models/scifi/meteor_detailed.glb",
   ],
 };
 
-// "Bases" — deliberate clusters of sci-fi props tucked in a corner on
-// some levels. A hero structure (hangar/rocket) surrounded by a handful
-// of supports (generators, dishes, barrels). Recipes can opt into extra
-// habitat modules when a biome should read more settled. See
-// BiomeBases.tsx for placement logic.
-export type BaseRecipe = {
-  hero: string[];
-  support: string[];
-  chance?: number;
-  habitat?: string[];
-  habitatCount?: number;
-  supportCount?: number;
-};
-export const BIOME_BASES: Record<Biome, BaseRecipe | null> = {
-  forest: null,
-  desert: {
-    hero: ["/models/scifi/hangar_smallA.glb", "/models/scifi/rocket_baseA.glb"],
-    support: [
-      "/models/scifi/machine_generator.glb",
-      "/models/scifi/satelliteDish_detailed.glb",
-      "/models/scifi/rover.glb",
-      "/models/scifi/machine_barrelLarge.glb",
-      "/models/scifi/barrels.glb",
-    ],
-  },
-  snow: {
-    hero: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
-    support: [
-      "/models/scifi/machine_generatorLarge.glb",
-      "/models/scifi/satelliteDish.glb",
-      "/models/scifi/machine_wirelessCable.glb",
-      "/models/scifi/barrels.glb",
-    ],
-  },
-  wasteland: {
-    hero: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
-    support: [
-      "/models/scifi/machine_generator.glb",
-      "/models/scifi/satelliteDish_large.glb",
-      "/models/scifi/meteor_detailed.glb",
-      "/models/scifi/turret_single.glb",
-      "/models/scifi/rover.glb",
-    ],
-  },
-  lava: {
-    hero: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
-    support: [
-      "/models/scifi/machine_generatorLarge.glb",
-      "/models/scifi/machine_barrelLarge.glb",
-      "/models/scifi/barrels.glb",
-      "/models/scifi/meteor_detailed.glb",
-      "/models/scifi/turret_single.glb",
-    ],
-  },
-  alien: {
-    chance: 1,
-    hero: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
-    habitat: [
-      "/models/scifi/structure_closed.glb",
-      "/models/scifi/structure_detailed.glb",
-      "/models/scifi/hangar_smallB.glb",
-    ],
-    habitatCount: 2,
-    support: [
-      "/models/scifi/satelliteDish_detailed.glb",
-      "/models/scifi/satelliteDish.glb",
-      "/models/scifi/machine_wirelessCable.glb",
-      "/models/scifi/rock_crystalsLargeA.glb",
-      "/models/landmarks/wasteland/Crystal1.glb",
-    ],
-  },
-};
 
 // Visual-role classification + target sizes so props on the world map (and
 // in levels) read with a sensible hierarchy:
@@ -589,7 +500,4 @@ export const ALL_BIOME_URLS = [
   ...Object.values(BIOME_LAYERS).flatMap((ls) => ls.flatMap((l) => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
   ...Object.values(BIOME_COSMETICS).flat(),
-  ...Object.values(BIOME_BASES).flatMap((r) =>
-    r ? [...r.hero, ...r.support, ...(r.habitat ?? [])] : [],
-  ),
 ];

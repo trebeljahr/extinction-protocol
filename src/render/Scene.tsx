@@ -3,7 +3,6 @@ import { BIOME_STYLE } from "../biomes";
 import { MAP_HEIGHT } from "../level";
 import { useGame } from "../store";
 import { BiomeAmbientVfx } from "./BiomeAmbientVfx";
-import { BiomeBases } from "./BiomeBases";
 import { BiomeCosmetics } from "./BiomeCosmetics";
 import { CameraRig } from "./CameraRig";
 import { EasterEggs } from "./EasterEggs";
@@ -64,7 +63,6 @@ export const PlayScene = () => {
       <Rocks />
       <Trees />
       <BiomeCosmetics />
-      <BiomeBases />
       <EasterEggs />
       <Placement />
       <PathLine />
