@@ -308,8 +308,8 @@ const wastelandLayers = (): BiomeLayer[] => [
 
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
 // slightly larger, reading as volcanic boulders and slag heaps. Adds a
-// blue-crystal accent layer (same shards used in alien levels) — the
-// crystal pop against the dark volcanic ground reads as cooled gem veins.
+// blue-crystal blocker layer with the large crystal mesh so every clearable
+// obstacle has a readable silhouette.
 const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -329,8 +329,8 @@ const lavaLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: ["/models/landmarks/wasteland/Crystal1.glb", "/models/scifi/rock_crystalsLargeA.glb"],
-    count: 18,
+    urls: ["/models/scifi/rock_crystalsLargeA.glb"],
+    count: 14,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.45,
     maxScale: 1.0,
@@ -340,10 +340,11 @@ const lavaLayers = (): BiomeLayer[] => [
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 6, 5151),
 ];
 
-// Alien leans on the Quaternius crystal shards + wasteland rock skeletons.
-// Feels like a violet dust plain peppered with gem outcroppings. Tree_Light
-// is promoted from cosmetic to a blocking layer so it acts as a removable
-// obstacle rather than non-interactive scenery.
+// Alien leans on large crystal shards + wasteland rock skeletons. Crystal1
+// is authored as a tiny shard, so it stays render-only in BIOME_COSMETICS
+// instead of becoming a hard-to-see placement blocker. Tree_Light is promoted
+// from cosmetic to a blocking layer so it acts as a removable obstacle rather
+// than non-interactive scenery.
 const alienLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -361,8 +362,8 @@ const alienLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: ["/models/landmarks/wasteland/Crystal1.glb", "/models/scifi/rock_crystalsLargeA.glb"],
-    count: 45,
+    urls: ["/models/scifi/rock_crystalsLargeA.glb"],
+    count: 28,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.5,
     maxScale: 1.25,
@@ -458,6 +459,7 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
   ],
   lava: [
     "/models/landmarks/wasteland/Skull.glb",
+    "/models/landmarks/wasteland/Crystal1.glb",
     "/models/scifi/meteor_detailed.glb",
     "/models/scifi/machine_barrelLarge.glb",
   ],
@@ -466,6 +468,7 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/biomes/alien/Bush_2.gltf",
     "/models/biomes/alien/Plant_1.gltf",
     "/models/biomes/alien/Plant_2.gltf",
+    "/models/landmarks/wasteland/Crystal1.glb",
     "/models/scifi/meteor_detailed.glb",
   ],
 };
