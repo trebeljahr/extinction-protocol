@@ -24,9 +24,6 @@ export const FullscreenToggle = () => {
           {active ? "ON" : "OFF"}
         </button>
       </div>
-      <div className="text-[11px] text-fg-muted mt-1 leading-snug">
-        Hides the browser chrome on mobile. Some iOS Safari versions don't support fullscreen.
-      </div>
     </section>
   );
 };
