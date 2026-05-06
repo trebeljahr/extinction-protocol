@@ -3,7 +3,7 @@ import type { EnemyKind } from "./types";
 export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
   raptor: "Pack hunter",
   swarm: "Aerial swarm",
-  para: "Runner",
+  para: "Crested runner",
   allosaur: "Apex predator",
   stego: "Armored grazer",
   armored: "Juggernaut",
@@ -14,7 +14,7 @@ export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
 export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
   raptor: "Fast pack hunter. Low HP but keeps coming — electric chains chew through them.",
   swarm: "Tiny and fragile, but never alone. Electric arcs and AoE shred entire packs.",
-  para: "Agile runner with no real weakness. Out-DPS it before it slips through.",
+  para: "The hollow crest rings under chain damage — but vents flame harmlessly.",
   allosaur: "Apex predator. Balanced resistances — nothing crushes it, but nothing fails either.",
   stego: "Plated hide shrugs off kinetic and explosive. Electric cracks the plates.",
   armored:
