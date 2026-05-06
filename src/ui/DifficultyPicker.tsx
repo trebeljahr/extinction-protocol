@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { audio } from "../audio/AudioManager";
 import {
   DIFFICULTIES,
+  DIFFICULTY_ACCENT,
   DIFFICULTY_LABEL,
   DIFFICULTY_MULTIPLIERS,
   DIFFICULTY_TAGLINE,
@@ -10,31 +11,11 @@ import {
 import { useGame } from "../store";
 import { DifficultyIcon } from "./DifficultyIcon";
 
-const ACCENT: Record<Difficulty, { ring: string; tile: string; text: string; glow: string }> = {
-  easy: {
-    ring: "border-mint",
-    tile: "bg-tint-green",
-    text: "text-mint",
-    glow: "shadow-[0_0_24px_rgba(180,255,201,0.18)]",
-  },
-  medium: {
-    ring: "border-blue",
-    tile: "bg-tint-blue",
-    text: "text-blue",
-    glow: "shadow-[0_0_24px_rgba(159,216,255,0.18)]",
-  },
-  hard: {
-    ring: "border-orange",
-    tile: "bg-[rgba(255,178,102,0.12)]",
-    text: "text-orange",
-    glow: "shadow-[0_0_24px_rgba(255,178,102,0.22)]",
-  },
-  extinction: {
-    ring: "border-red",
-    tile: "bg-tint-red",
-    text: "text-red",
-    glow: "shadow-[0_0_28px_rgba(255,90,122,0.28)]",
-  },
+const GLOW: Record<Difficulty, string> = {
+  easy: "shadow-[0_0_24px_rgba(180,255,201,0.18)]",
+  medium: "shadow-[0_0_24px_rgba(159,216,255,0.18)]",
+  hard: "shadow-[0_0_24px_rgba(255,178,102,0.22)]",
+  extinction: "shadow-[0_0_28px_rgba(255,90,122,0.28)]",
 };
 
 const formatPercent = (mul: number, deltaOnly = true): string => {
@@ -83,7 +64,7 @@ export const DifficultyPicker = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-5 overflow-y-auto">
           {DIFFICULTIES.map((d) => {
             const m = DIFFICULTY_MULTIPLIERS[d];
-            const accent = ACCENT[d];
+            const accent = DIFFICULTY_ACCENT[d];
             const active = d === current;
             return (
               <button
@@ -95,7 +76,7 @@ export const DifficultyPicker = () => {
                 }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-lg border bg-surface-1 transition-all text-left cursor-pointer ${
                   active
-                    ? `${accent.ring} ${accent.glow}`
+                    ? `${accent.border} ${GLOW[d]}`
                     : "border-border hover:border-border-strong"
                 }`}
                 aria-pressed={active}
@@ -108,7 +89,7 @@ export const DifficultyPicker = () => {
                   </span>
                 )}
                 <div
-                  className={`w-full aspect-square rounded-md flex items-center justify-center ${accent.tile} border border-border-faint`}
+                  className={`w-full aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
                 >
                   <DifficultyIcon difficulty={d} className={`w-3/4 h-3/4 ${accent.text}`} />
                 </div>

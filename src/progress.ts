@@ -40,6 +40,23 @@ export const DIFFICULTY_TAGLINE: Record<Difficulty, string> = {
   extinction: "The asteroid is here",
 };
 
+// Single source of truth for the per-difficulty accent palette so every
+// surface that surfaces difficulty (world map, HUD, picker) reads from
+// the same hue. Class fragments map to Tailwind utility classes whose
+// underlying CSS variables live in src/index.css.
+export type DifficultyAccent = {
+  text: string;
+  border: string;
+  tint: string;
+};
+
+export const DIFFICULTY_ACCENT: Record<Difficulty, DifficultyAccent> = {
+  easy: { text: "text-mint", border: "border-mint", tint: "bg-tint-green" },
+  medium: { text: "text-blue", border: "border-blue", tint: "bg-tint-blue" },
+  hard: { text: "text-orange", border: "border-orange", tint: "bg-[rgba(255,178,102,0.12)]" },
+  extinction: { text: "text-red", border: "border-red", tint: "bg-tint-red" },
+};
+
 export const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 export type ProgressData = {

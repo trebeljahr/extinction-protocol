@@ -2,7 +2,13 @@ import type React from "react";
 import { useState } from "react";
 import { isDebug } from "../debug";
 import { LEVELS } from "../levels";
-import { DIFFICULTY_LABEL, getStars, isLevelUnlocked, totalStars } from "../progress";
+import {
+  DIFFICULTY_ACCENT,
+  DIFFICULTY_LABEL,
+  getStars,
+  isLevelUnlocked,
+  totalStars,
+} from "../progress";
 import { useGame } from "../store";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyIcon } from "./DifficultyIcon";
@@ -21,6 +27,8 @@ export const WorldMapUI = () => {
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   const difficulty = progress.difficulty;
+
+  const accent = DIFFICULTY_ACCENT[difficulty];
 
   const hovered = LEVELS.find((l) => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;
@@ -44,17 +52,17 @@ export const WorldMapUI = () => {
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
         <button
           type="button"
-          className="bg-surface-1 border border-border rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          className={`${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
           onClick={() => setDifficultyPickerOpen(true)}
           aria-label="Change difficulty"
           title="Change difficulty"
         >
-          <DifficultyIcon difficulty={difficulty} className="w-7 h-7 text-blue" />
+          <DifficultyIcon difficulty={difficulty} className={`w-7 h-7 ${accent.text}`} />
           <div className="flex flex-col items-start">
             <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
               Difficulty
             </span>
-            <span className="text-sm font-bold text-fg leading-tight">
+            <span className={`text-sm font-bold leading-tight ${accent.text}`}>
               {DIFFICULTY_LABEL[difficulty]}
             </span>
           </div>

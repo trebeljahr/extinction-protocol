@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAudioBridge } from "../audio/useAudioBridge";
 import { getLevel } from "../levels";
-import { DIFFICULTY_LABEL } from "../progress";
+import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
 import type { TowerKind } from "../sim/types";
 import {
   DAMAGE_TYPE_COLOR,
@@ -53,12 +53,7 @@ export const HUD = () => {
   const difficulty = useGame((s) => s.progress.difficulty);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
-  const difficultyAccent: Record<typeof difficulty, string> = {
-    easy: "text-mint",
-    medium: "text-blue",
-    hard: "text-orange",
-    extinction: "text-red",
-  };
+  const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   const isMobile = useIsMobile();
@@ -150,16 +145,13 @@ export const HUD = () => {
           </div>
         )}
         <div
-          className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2"
+          className={`${difficultyAccent.tint} border ${difficultyAccent.border} rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2`}
           title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]}`}
         >
-          <DifficultyIcon
-            difficulty={difficulty}
-            className={`w-6 h-6 ${difficultyAccent[difficulty]}`}
-          />
+          <DifficultyIcon difficulty={difficulty} className={`w-6 h-6 ${difficultyAccent.text}`} />
           <div className="flex flex-col">
             <span className="text-[9px] font-bold tracking-wide text-gold uppercase">Mode</span>
-            <span className={`text-[13px] font-bold leading-tight ${difficultyAccent[difficulty]}`}>
+            <span className={`text-[13px] font-bold leading-tight ${difficultyAccent.text}`}>
               {DIFFICULTY_LABEL[difficulty]}
             </span>
           </div>
