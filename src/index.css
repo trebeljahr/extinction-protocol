@@ -2687,8 +2687,10 @@
     color: var(--color-gold);
   }
 
-  /* Difficulty pill — small caps lockup in the slot's difficulty colour.
-     One class per difficulty so the colour token can stay a CSS var. */
+  /* Difficulty pill — colour comes from a Tailwind `text-*` utility on
+     the element (driven by DIFFICULTY_ACCENT in progress.ts) so HUD,
+     picker, world map and this all read from the same palette. The
+     shape and sizing live here. */
   .save-slot-difficulty {
     font-size: var(--fs-2xs);
     font-weight: 700;
@@ -2699,18 +2701,6 @@
     background: rgba(8, 12, 18, 0.6);
     line-height: 1;
     white-space: nowrap;
-  }
-  .save-slot-difficulty--easy {
-    color: var(--color-mint);
-  }
-  .save-slot-difficulty--medium {
-    color: var(--color-blue);
-  }
-  .save-slot-difficulty--hard {
-    color: var(--color-orange);
-  }
-  .save-slot-difficulty--extinction {
-    color: var(--color-red);
   }
 
   .save-slot-name {

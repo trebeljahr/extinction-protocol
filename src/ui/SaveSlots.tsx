@@ -3,21 +3,14 @@ import { Suspense, useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { LEVELS } from "../levels";
 import {
+  DIFFICULTY_ACCENT,
   DIFFICULTY_LABEL,
-  type Difficulty,
   listSlots,
   type SlotId,
   type SlotInfo,
 } from "../progress";
 import { SaveSlotsScene } from "../render/SaveSlotsScene";
 import { useGame } from "../store";
-
-const DIFFICULTY_PILL_CLASS: Record<Difficulty, string> = {
-  easy: "save-slot-difficulty save-slot-difficulty--easy",
-  medium: "save-slot-difficulty save-slot-difficulty--medium",
-  hard: "save-slot-difficulty save-slot-difficulty--hard",
-  extinction: "save-slot-difficulty save-slot-difficulty--extinction",
-};
 
 export const SaveSlots = () => {
   const selectSlot = useGame((s) => s.selectSlot);
@@ -112,7 +105,9 @@ const SaveSlotTile = ({
       <div className="save-slot-tile-head">
         <div className="save-slot-id">SLOT {slot.id}</div>
         {filled && (
-          <div className={DIFFICULTY_PILL_CLASS[slot.progress.difficulty]}>
+          <div
+            className={`save-slot-difficulty ${DIFFICULTY_ACCENT[slot.progress.difficulty].text}`}
+          >
             {DIFFICULTY_LABEL[slot.progress.difficulty].toUpperCase()}
           </div>
         )}
