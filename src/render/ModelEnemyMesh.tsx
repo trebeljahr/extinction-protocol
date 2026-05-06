@@ -192,9 +192,14 @@ export const ModelEnemyMesh = ({
           obj.scale.setScalar(normalizedScale);
           obj.userData.enemyId = e.id;
           obj.userData.enemyMaxHp = e.maxHp;
+          // Boss draws after environment props so dense trees / rocks
+          // can't visually swallow her silhouette during a wave. Shadow
+          // still grounds her since shadows render in their own pass.
+          const bossOnTop = kind === "boss";
           obj.traverse((o) => {
             o.userData.enemyId = e.id;
             o.userData.enemyMaxHp = e.maxHp;
+            if (bossOnTop) o.renderOrder = 10;
             const m = o as THREE.Mesh;
             if (m.isMesh) {
               m.castShadow = true;
