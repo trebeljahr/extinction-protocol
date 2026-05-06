@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { BIOME_STYLE } from "../biomes";
 import { PATH_WIDTH } from "../level";
@@ -89,6 +89,165 @@ const PathDebugOverlay = ({ path, pathIndex }: { path: Vec2[]; pathIndex: number
   );
 };
 
+// Soft inner gradient on the strip — slightly darker at the edges so the
+// ribbon reads as "carved into the ground" rather than a flat decal. Cached
+// as a single 1×N grayscale texture; the material multiplies its color by
+// the texel, so 1.0 = full pathColor and < 1.0 = darker.
+let edgeGradientTex: THREE.CanvasTexture | null = null;
+const getEdgeGradientTexture = (): THREE.CanvasTexture => {
+  if (edgeGradientTex) return edgeGradientTex;
+  const N = 64;
+  const cv = document.createElement("canvas");
+  cv.width = 1;
+  cv.height = N;
+  const g = cv.getContext("2d");
+  if (g) {
+    const grad = g.createLinearGradient(0, 0, 0, N);
+    // V=0 / V=1 are ribbon edges, V=0.5 is the centerline. Slight inset
+    // shading at the rim helps the ribbon settle into the terrain instead
+    // of looking like a hard rectangle stamped on top.
+    grad.addColorStop(0.0, "rgb(140,140,140)");
+    grad.addColorStop(0.12, "rgb(195,195,195)");
+    grad.addColorStop(0.5, "rgb(255,255,255)");
+    grad.addColorStop(0.88, "rgb(195,195,195)");
+    grad.addColorStop(1.0, "rgb(140,140,140)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 1, N);
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  // sRGB so the multiply happens in linear space and matches how the
+  // ground colors are sampled — otherwise the gradient looks crushed.
+  tex.colorSpace = THREE.SRGBColorSpace;
+  edgeGradientTex = tex;
+  return tex;
+};
+
+// Build a ribbon (triangle strip) mesh that runs along the path centerline
+// with constant perpendicular width. Corners use a bisector miter so the
+// edges meet cleanly without overlapping decals or visible seams. `path`
+// is the same smoothed polyline the sim walks (smoothPath in sim/path.ts
+// runs once at createWorld), so anything within ±width/2 of the centerline
+// is guaranteed to render inside the visible ribbon.
+const buildRibbonGeometry = (path: Vec2[], width: number): THREE.BufferGeometry => {
+  const n = path.length;
+  const half = width / 2;
+  const positions = new Float32Array(n * 2 * 3);
+  const uvs = new Float32Array(n * 2 * 2);
+  const indices: number[] = [];
+  // Cap the miter offset so an acute angle doesn't shoot a spike outward.
+  // The smoothed polyline keeps inter-segment angles small, so this only
+  // ever bites at the original waypoints near tight turns.
+  const MAX_MITER_RATIO = 2.4;
+
+  // Cumulative arc length for U coordinate so the gradient texture (if
+  // ever extended along U) doesn't stretch on long segments.
+  let cumLen = 0;
+  const segLens: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    segLens.push(Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y));
+  }
+  const total = segLens.reduce((a, b) => a + b, 1e-6);
+
+  // Y plane height: lifted slightly above ground but below tower bases.
+  const Y = 0.02;
+
+  for (let i = 0; i < n; i++) {
+    const p = path[i];
+
+    // Outgoing segment normal (perpendicular, left-of-direction).
+    let n1x = 0;
+    let n1y = 0;
+    if (i < n - 1) {
+      const dx = path[i + 1].x - path[i].x;
+      const dy = path[i + 1].y - path[i].y;
+      const l = Math.hypot(dx, dy) || 1;
+      n1x = -dy / l;
+      n1y = dx / l;
+    }
+    // Incoming segment normal.
+    let n0x = 0;
+    let n0y = 0;
+    if (i > 0) {
+      const dx = path[i].x - path[i - 1].x;
+      const dy = path[i].y - path[i - 1].y;
+      const l = Math.hypot(dx, dy) || 1;
+      n0x = -dy / l;
+      n0y = dx / l;
+    }
+
+    let nx: number;
+    let ny: number;
+    let scale = 1;
+    if (i === 0) {
+      nx = n1x;
+      ny = n1y;
+    } else if (i === n - 1) {
+      nx = n0x;
+      ny = n0y;
+    } else {
+      // Average normals → bisector. cos(theta/2) = dot(bisector, n0).
+      let bx = n0x + n1x;
+      let by = n0y + n1y;
+      const bl = Math.hypot(bx, by);
+      if (bl < 1e-4) {
+        // Near 180° turn-around — fall back to incoming normal.
+        nx = n0x;
+        ny = n0y;
+      } else {
+        bx /= bl;
+        by /= bl;
+        const cosHalf = Math.max(0.001, bx * n0x + by * n0y);
+        scale = Math.min(MAX_MITER_RATIO, 1 / cosHalf);
+        nx = bx;
+        ny = by;
+      }
+    }
+
+    const offX = nx * half * scale;
+    const offY = ny * half * scale;
+
+    // Left vertex (positive normal), right vertex (negative normal).
+    // Convert sim Y → render Z with the standard `-y` mapping used
+    // everywhere else in the renderer.
+    const li = i * 6;
+    positions[li + 0] = p.x + offX;
+    positions[li + 1] = Y;
+    positions[li + 2] = -(p.y + offY);
+    positions[li + 3] = p.x - offX;
+    positions[li + 4] = Y;
+    positions[li + 5] = -(p.y - offY);
+
+    // U runs along the path (cumulative length / total); V is 0 left edge,
+    // 1 right edge — gradient texture maps darkness to V.
+    const u = cumLen / total;
+    uvs[i * 4 + 0] = u;
+    uvs[i * 4 + 1] = 0;
+    uvs[i * 4 + 2] = u;
+    uvs[i * 4 + 3] = 1;
+    if (i < n - 1) cumLen += segLens[i];
+  }
+
+  for (let i = 0; i < n - 1; i++) {
+    const a = i * 2;
+    const b = a + 1;
+    const c = a + 2;
+    const d = a + 3;
+    // CCW when viewed from +Y (above) so the front face points up.
+    indices.push(a, b, c, b, d, c);
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return geom;
+};
+
 const SinglePath = ({
   path,
   pathColor,
@@ -100,56 +259,27 @@ const SinglePath = ({
   startColor: string;
   endColor: string;
 }) => {
-  // `path` here is already the smoothed polyline produced by
-  // smoothPath() in createWorld — no per-render smoothing or wobble, so
-  // the painted ribbon is the exact same polyline enemies walk.
-  const segments = useMemo(() => {
-    const out: { id: string; pos: [number, number, number]; rotY: number; length: number }[] = [];
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = path[i];
-      const b = path[i + 1];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const length = Math.hypot(dx, dy);
-      const midX = (a.x + b.x) / 2;
-      const midZ = -(a.y + b.y) / 2;
-      const rotY = Math.atan2(-(b.y - a.y), b.x - a.x);
-      out.push({ id: nanoid(), pos: [midX, 0.02, midZ], rotY, length });
-    }
-    return out;
-  }, [path]);
+  const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH), [path]);
+  const gradientTex = useMemo(() => getEdgeGradientTexture(), []);
 
-  // Joints fill the gaps between rotated quads. With smoothing the joints
-  // become visually invisible mid-path but still cap sharp turns cleanly.
-  const joints = useMemo(
-    () => path.map((p) => ({ id: nanoid(), pos: [p.x, 0.03, -p.y] as [number, number, number] })),
-    [path],
-  );
+  // Geometry is built per-level and replaced when paths change; dispose
+  // the previous one to avoid leaking GPU buffers across resets.
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   if (path.length < 2) return null;
 
+  const last = path[path.length - 1];
+
   return (
     <group>
-      {segments.map((s) => (
-        <mesh key={s.id} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} receiveShadow>
-          <planeGeometry args={[s.length, PATH_WIDTH]} />
-          <meshStandardMaterial color={pathColor} roughness={1} />
-        </mesh>
-      ))}
-      {joints.map((j) => (
-        <mesh key={j.id} position={j.pos} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <circleGeometry args={[PATH_WIDTH / 2, 16]} />
-          <meshStandardMaterial color={pathColor} roughness={1} />
-        </mesh>
-      ))}
+      <mesh geometry={geometry} receiveShadow>
+        <meshStandardMaterial color={pathColor} roughness={1} map={gradientTex} />
+      </mesh>
       <mesh position={[path[0].x, 0.04, -path[0].y]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={startColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
-      <mesh
-        position={[path[path.length - 1].x, 0.04, -path[path.length - 1].y]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <mesh position={[last.x, 0.04, -last.y]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={endColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
