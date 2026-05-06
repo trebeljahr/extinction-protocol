@@ -972,6 +972,7 @@
 
   .compendium-selector {
     display: flex;
+    flex-shrink: 0;
     gap: 6px;
     padding: 14px 20px;
     border-bottom: 1px solid rgba(120, 160, 200, 0.1);
