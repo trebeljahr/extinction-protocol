@@ -1316,6 +1316,51 @@
     height: 100%;
   }
 
+  .mechanic-preview {
+    width: 100%;
+    height: 100%;
+  }
+  .mechanic-preview canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Mechanic title row keeps the inline SVG badge next to the name so
+     the visual signature is on the title line, while the 3D preview
+     does the "what it looks like in-game" work. */
+  .compendium-mech-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .compendium-mech-badge {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    background: #0c1420;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .compendium-mech-badge .mechanic-icon {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Mechanic stats are 3-cell with longer value strings than the
+     enemy/tower stat blocks, so the cells need room to breathe and
+     the values shrink a tick to keep them on one line. */
+  .compendium-mech-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .compendium-mech-stats dd {
+    font-size: var(--fs-md);
+    letter-spacing: 0.01em;
+  }
+
   @media (max-width: 820px) {
     .compendium-detail {
       grid-template-columns: 1fr;

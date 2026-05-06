@@ -17,7 +17,11 @@ const MAX_REGEN = 128;
 
 const TEX_SIZE = 128;
 
-const buildPlusTexture = () => {
+// Exported so MechanicPreview (compendium "Mechanics" tab) can mount
+// the exact same texture above its preview dinosaur. When this builder
+// is retuned, both the live in-game badge and the compendium preview
+// update together — no second source of truth to drift from.
+export const buildPlusTexture = () => {
   const c = document.createElement("canvas");
   c.width = TEX_SIZE;
   c.height = TEX_SIZE;

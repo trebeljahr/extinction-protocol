@@ -4,9 +4,9 @@ import { hasEncountered } from "../progress";
 import { ENEMY_DESCRIPTION, ENEMY_SUBTITLE } from "../sim/enemyText";
 import {
   MECHANIC_DESCRIPTION,
-  MECHANIC_DETAIL,
   MECHANIC_LABEL,
   MECHANIC_ORDER,
+  MECHANIC_STATS,
   MECHANIC_SUBTITLE,
   type MechanicId,
 } from "../sim/mechanicsText";
@@ -37,6 +37,7 @@ import { DamageIcon } from "./DamageIcon";
 import { EnemyIcon } from "./EnemyIcon";
 import { EnemyPreview } from "./EnemyPreview";
 import { MechanicIcon } from "./MechanicIcon";
+import { MechanicPreview } from "./MechanicPreview";
 import { TowerPreview } from "./TowerPreview";
 
 type Section = "enemy" | "tower" | "mechanic";
@@ -518,18 +519,27 @@ const MechanicSectionView = ({
       ) : (
         <div className="compendium-detail">
           <div className="compendium-detail-preview">
-            <MechanicIcon id={selected} size={360} />
+            <MechanicPreview id={selected} size={360} />
           </div>
           <div className="compendium-detail-info">
-            <div className="compendium-detail-head">
-              <div className="compendium-detail-name">{MECHANIC_LABEL[selected]}</div>
-              <div className="compendium-detail-subtitle">{MECHANIC_SUBTITLE[selected]}</div>
+            <div className="compendium-detail-head compendium-mech-head">
+              <span className="compendium-mech-badge" aria-hidden>
+                <MechanicIcon id={selected} size={56} />
+              </span>
+              <div>
+                <div className="compendium-detail-name">{MECHANIC_LABEL[selected]}</div>
+                <div className="compendium-detail-subtitle">{MECHANIC_SUBTITLE[selected]}</div>
+              </div>
             </div>
             <p className="compendium-detail-desc">{MECHANIC_DESCRIPTION[selected]}</p>
-            <div className="compendium-section-block">
-              <div className="compendium-resist-label">How it works</div>
-              <p className="compendium-detail-desc">{MECHANIC_DETAIL[selected]}</p>
-            </div>
+            <dl className="compendium-stats compendium-mech-stats">
+              {MECHANIC_STATS[selected].map(([label, val]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{val}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
       )}

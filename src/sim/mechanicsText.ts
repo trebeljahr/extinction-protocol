@@ -65,17 +65,46 @@ export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = {
     "Per-spawn damage-type adaptation. Layered on top of base resists, independent of the host kind.",
 };
 
-export const MECHANIC_DETAIL: Record<MechanicId, string> = {
-  shielded:
-    "Damage drains the shield first; overflow touches HP. Broken shields stay down for 4s, then regenerate at 25% max/sec. Mortar T3 (Singularity) deals 2× shield damage. Swarm units never carry shields.",
-  healAura:
-    "Healers don't heal each other or themselves. Aura is continuous and layers onto any host kind.",
-  regen:
-    "Pauses for 1.5s after each damage tick. Pyre T3 (Napalm) extends the pause on every hit. Cryo T3 (Cryo Lock) pauses regen for the slow duration.",
-  elite:
-    "Flattens vulnerabilities and immunities toward 1×. Slow resistance gets +25% (capped at 95%). Damage output unchanged.",
-  fierce: "+40% damage on exit. HP and resists unchanged.",
-  slow: "Default: 40% speed for 1.5s. Cryo Path A deepens the slow (12% speed, 2.3s at T3). Heavy targets carry built-in slow resistance.",
-  resists:
-    "Multiplies on top of base resists; flame-immune means 0× damage regardless of tier. Each tower has a T3 that cracks one form of adaptation: Pulse pierces kinetic immunity, Chain strips electric resist on hit, Mortar doubles shield damage, Pyre suppresses regen, Cryo Lock blocks regen during freeze.",
+// Compact key numbers per mechanic — rendered as a 3-cell stat grid in
+// the compendium so the visual + a number row replaces the long "How
+// it works" prose this used to carry. The 3D MechanicPreview shows
+// what the effect looks like in-game; this row gives the tuning at a
+// glance. Kept tight on purpose — push longer detail into per-tower
+// text or upgrade tooltips, not back into here.
+export const MECHANIC_STATS: Record<MechanicId, [string, string][]> = {
+  shielded: [
+    ["Pool", "10–800 HP"],
+    ["Break", "4s"],
+    ["Regen", "25%/s"],
+  ],
+  healAura: [
+    ["Range", "3.5 tiles"],
+    ["Rate", "3 HP/s"],
+    ["Self-heal", "no"],
+  ],
+  regen: [
+    ["Rate", "1.5 HP/s"],
+    ["Pause", "1.5s on hit"],
+    ["Counters", "Pyre T3 · Cryo T3"],
+  ],
+  elite: [
+    ["Resists", "→ 1×"],
+    ["Slow resist", "+25%"],
+    ["Damage", "unchanged"],
+  ],
+  fierce: [
+    ["Contact dmg", "+40%"],
+    ["HP", "unchanged"],
+    ["Resists", "unchanged"],
+  ],
+  slow: [
+    ["Default", "40% speed"],
+    ["Duration", "1.5s"],
+    ["Source", "Cryo only"],
+  ],
+  resists: [
+    ["Mod", "0×–0.4×"],
+    ["Stacks", "× base resist"],
+    ["Counter", "Tower T3 anti-mod"],
+  ],
 };
