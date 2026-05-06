@@ -180,14 +180,23 @@ const forestLayers = (): BiomeLayer[] => [
 
 // Dead-tree props read as "tree-sized" silhouettes; promoted from cosmetic
 // to a blocking layer so the player can clear them and they don't sit in
-// build slots permanently.
-const DEAD_TREE_LAYER = (url: string, count: number, seed: number): BiomeLayer => ({
+// build slots permanently. Scale overrides exist because the desert
+// DeadTree.glb is authored ~2x the size of the wasteland variant — at the
+// shared 0.7–1.15 it dwarfs nearby bushes/rocks, so desert passes its own
+// smaller range.
+const DEAD_TREE_LAYER = (
+  url: string,
+  count: number,
+  seed: number,
+  minScale = 0.7,
+  maxScale = 1.15,
+): BiomeLayer => ({
   seed,
   urls: [url],
   count,
   clearance: PATH_WIDTH / 2 + 1.3,
-  minScale: 0.7,
-  maxScale: 1.15,
+  minScale,
+  maxScale,
   castShadow: true,
   blocks: true,
 });
@@ -224,7 +233,7 @@ const desertLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
-  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151),
+  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.25, 0.4),
 ];
 
 const snowLayers = (): BiomeLayer[] => [
