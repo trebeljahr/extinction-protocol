@@ -311,8 +311,13 @@ export const Ground = () => {
 
   return (
     <group>
+      {/* Oversized so the plane edge is always off-screen at any
+          aspect/zoom — otherwise the scene background bleeds through
+          past the playable 40×24 footprint. Decor (trees/rocks/grass)
+          still places inside MAP_WIDTH × MAP_HEIGHT, so the skirt reads
+          as flat outer ground; fog blends its far edges into the sky. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[MAP_WIDTH, MAP_HEIGHT]} />
+        <planeGeometry args={[MAP_WIDTH * 6, MAP_HEIGHT * 8]} />
         <meshStandardMaterial color={style.groundColor} roughness={0.98} metalness={0} />
       </mesh>
 
