@@ -402,7 +402,7 @@ export const updateTowers = (world: World, dt: number) => {
 // and serviced tower — looks like the drone "flies over" rather than
 // teleporting, even with snap-to-center positioning.
 
-export const HIVE_ORBIT_RADIUS = 1.55;
+export const HIVE_ORBIT_RADIUS = 1.0;
 export const HIVE_ORBIT_HEIGHT = 1.1;
 const HIVE_ORBIT_SPEED = 0.55; // rad/s
 
