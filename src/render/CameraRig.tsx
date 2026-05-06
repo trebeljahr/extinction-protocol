@@ -61,6 +61,14 @@ export const CameraRig = () => {
   const levelId = useGame((s) => s.world.levelId);
   const size = useThree((s) => s.size);
 
+  // Local one-shot rumble triggered when the run flips to "lost". The
+  // sim loop stops ticking on loss (so world.shake stops decaying), and
+  // the per-tick shake never fires on loss anyway — handle it entirely
+  // here. lossShakeStart is the wall-clock ms when the rumble began;
+  // null means inactive. prevStatus tracks the transition into "lost".
+  const lossShakeStartRef = useRef<number | null>(null);
+  const prevStatusRef = useRef(useGame.getState().world.status);
+
   const pathHalfZ = useMemo(() => computeMaxPathExtentZ(paths), [paths]);
   const fitZoom = useMemo(
     () => computeFitZoom(size.width, size.height, pathHalfZ),
@@ -87,7 +95,23 @@ export const CameraRig = () => {
     const g = groupRef.current;
     if (!g) return;
     const { world } = useGame.getState();
-    const mag = world.status === "running" ? world.shake.magnitude : 0;
+    const status = world.status;
+    if (status === "lost" && prevStatusRef.current !== "lost") {
+      lossShakeStartRef.current = performance.now();
+    }
+    if (status === "running") lossShakeStartRef.current = null;
+    prevStatusRef.current = status;
+
+    let mag = status === "running" ? world.shake.magnitude : 0;
+    const lossStart = lossShakeStartRef.current;
+    if (lossStart !== null) {
+      // 600ms ease-out (cubic): magnitude 0.6 → 0.
+      const t = Math.min(1, (performance.now() - lossStart) / 600);
+      const ease = 1 - t;
+      const lossMag = 0.6 * ease * ease * ease;
+      if (lossMag > mag) mag = lossMag;
+      if (t >= 1) lossShakeStartRef.current = null;
+    }
     if (mag > 0.001) {
       g.position.x = (Math.random() - 0.5) * mag;
       g.position.z = (Math.random() - 0.5) * mag;

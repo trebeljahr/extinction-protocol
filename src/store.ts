@@ -668,7 +668,18 @@ export const useGame = create<GameStore>((set, get) => ({
             improved: ev.won && stars > prev,
             unlockedAchievements: [],
           };
-          screen = "results";
+          if (ev.won) {
+            screen = "results";
+          } else {
+            // Hold the results screen back briefly so the loss-rumble in
+            // CameraRig is visible before the overlay covers the world.
+            setTimeout(() => {
+              const cur = useGame.getState();
+              if (cur.world.status === "lost" && cur.screen !== "results") {
+                set({ screen: "results" });
+              }
+            }, 600);
+          }
           if (ev.won) {
             track("level_complete", {
               level_id: w.levelId,
