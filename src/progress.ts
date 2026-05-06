@@ -23,7 +23,7 @@ export const DIFFICULTY_MULTIPLIERS: Record<Difficulty, DifficultyMultipliers> =
   easy: { hp: 0.7, startGold: 1.3, goldKill: 1.2, speed: 1.0 },
   medium: { hp: 1.0, startGold: 1.0, goldKill: 1.0, speed: 1.0 },
   hard: { hp: 1.4, startGold: 0.9, goldKill: 0.95, speed: 1.0 },
-  extinction: { hp: 1.8, startGold: 0.7, goldKill: 0.85, speed: 1.2 },
+  extinction: { hp: 1.8, startGold: 0.85, goldKill: 0.85, speed: 1.2 },
 };
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = {

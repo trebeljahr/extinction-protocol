@@ -6,6 +6,8 @@
  *   npx tsx scripts/wave-optimal-path.ts 19 --safety=1.3
  *   npx tsx scripts/wave-optimal-path.ts 19 --beam=8     # beam search
  *   npx tsx scripts/wave-optimal-path.ts                 # all levels, compact
+ *   npx tsx scripts/wave-optimal-path.ts 27 --difficulty=extinction
+ *   npx tsx scripts/wave-optimal-path.ts --audit --beam=4   # all levels × all difficulties
  *
  * Why this exists:
  *   wave-feasibility.ts checks each wave in isolation ("could you clear it
@@ -40,6 +42,13 @@
  */
 
 import { LEVELS } from "../src/levels";
+import {
+  DIFFICULTIES,
+  DIFFICULTY_LABEL,
+  DIFFICULTY_MULTIPLIERS,
+  type Difficulty,
+  type DifficultyMultipliers,
+} from "../src/progress";
 import { pathLength } from "../src/sim/path";
 import type { DamageType, EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
@@ -288,13 +297,16 @@ const reqDpsForState = (
   pathLengths: number[],
   safety: number,
   towers: TowerInstance[],
+  speedMul: number,
 ): number[] => {
   const spacing = spec.spacing ?? Math.max(0.35, 0.75 - waveNumber * 0.03);
   return perLane.map((w, i) => {
     if (w.totalEnemies === 0) return 0;
     const slow = slowFactorForLane(towers, i, w);
     const spawnSpan = Math.max(0, (w.totalEnemies - 1) * spacing);
-    const dur = spawnSpan + pathLengths[i] / (w.slowestSpeed * slow);
+    // speedMul folds the difficulty speed multiplier into the combat-window
+    // calc — Extinction's 1.2× speed shortens dur by ~17%, raising reqDPS.
+    const dur = spawnSpan + pathLengths[i] / (w.slowestSpeed * speedMul * slow);
     const shieldMul = shieldMulForLane(towers, i);
     const regenEff = regenEffectivenessForLane(towers, i);
     const effectiveHp = w.totalHp + w.totalShield / shieldMul;
@@ -545,6 +557,7 @@ const prepAndClearWave = (
   safety: number,
   lookahead: number,
   placements: PlacementOptions,
+  difficulty: DifficultyMultipliers,
   forceFirst?: { kind: TowerKind; lanes: number[] },
 ): { state: SimState; step: WaveStep } => {
   const spec = level.waves[waveIdx];
@@ -577,7 +590,15 @@ const prepAndClearWave = (
   // wave-totalHp) are constant across all candidate actions in a single
   // iteration of this loop. Compute them ONCE here, then iterate actions.
   while (true) {
-    const reqDps = reqDpsForState(spec, waveIdx + 1, perLane, pathLengths, safety, state.towers);
+    const reqDps = reqDpsForState(
+      spec,
+      waveIdx + 1,
+      perLane,
+      pathLengths,
+      safety,
+      state.towers,
+      difficulty.speed,
+    );
     const beforeDps = dpsPerLane(state.towers, perLane);
     if (allLanesCleared(beforeDps, reqDps)) break;
     const actions = enumerateActions(state, placements).filter((a) => a.cost <= state.gold);
@@ -590,7 +611,15 @@ const prepAndClearWave = (
     for (let j = waveIdx; j < horizonEnd; j++) {
       const lw = perLaneByWave[j];
       horizonReqBefore.push(
-        reqDpsForState(level.waves[j], j + 1, lw, pathLengths, safety, state.towers),
+        reqDpsForState(
+          level.waves[j],
+          j + 1,
+          lw,
+          pathLengths,
+          safety,
+          state.towers,
+          difficulty.speed,
+        ),
       );
       horizonDpsBefore.push(dpsPerLane(state.towers, lw));
       horizonWeights.push(lw.reduce((s, p) => s + p.totalHp, 0));
@@ -608,6 +637,7 @@ const prepAndClearWave = (
         pathLengths,
         safety,
         trial.towers,
+        difficulty.speed,
       );
 
       // Reject actions that don't strictly help close the deficit on the
@@ -630,7 +660,15 @@ const prepAndClearWave = (
         const lreqAfter =
           j === waveIdx
             ? reqDpsTrial
-            : reqDpsForState(level.waves[j], j + 1, lw, pathLengths, safety, trial.towers);
+            : reqDpsForState(
+                level.waves[j],
+                j + 1,
+                lw,
+                pathLengths,
+                safety,
+                trial.towers,
+                difficulty.speed,
+              );
         const beforeJ = horizonDpsBefore[idx];
         const afterJ = j === waveIdx ? afterDps : dpsPerLane(trial.towers, lw);
 
@@ -659,9 +697,22 @@ const prepAndClearWave = (
   }
 
   const dpsAfter = dpsPerLane(state.towers, perLane);
-  const reqDpsFinal = reqDpsForState(spec, waveIdx + 1, perLane, pathLengths, safety, state.towers);
+  const reqDpsFinal = reqDpsForState(
+    spec,
+    waveIdx + 1,
+    perLane,
+    pathLengths,
+    safety,
+    state.towers,
+    difficulty.speed,
+  );
   const cleared = allLanesCleared(dpsAfter, reqDpsFinal);
-  const bounty = cleared ? waveBounty(spec) + (5 + waveIdx + 1) : 0;
+  // Bounty per kill is multiplied by goldKill (Math.ceil per-enemy in the
+  // sim; the optimizer's coarse aggregate uses raw multiplication). The
+  // wave-clear flat bonus (5 + wave) is NOT scaled by difficulty.
+  const bounty = cleared
+    ? Math.floor(waveBounty(spec) * difficulty.goldKill) + (5 + waveIdx + 1)
+    : 0;
   const goldOut = state.gold + bounty;
   const totalHp = perLane.reduce((s, w) => s + w.totalHp, 0);
 
@@ -685,8 +736,11 @@ const prepAndClearWave = (
   return { state, step };
 };
 
-const initialState = (level: (typeof LEVELS)[number]): SimState => ({
-  gold: level.startGold,
+const initialState = (
+  level: (typeof LEVELS)[number],
+  difficulty: DifficultyMultipliers,
+): SimState => ({
+  gold: Math.floor(level.startGold * difficulty.startGold),
   towers: [],
   spentByKind: emptySpentByKind(),
   totalSpent: 0,
@@ -696,15 +750,16 @@ const simulate = (
   level: (typeof LEVELS)[number],
   safety: number,
   lookahead: number,
+  difficulty: DifficultyMultipliers,
   forceFirstKind?: TowerKind,
 ): SimResult => {
-  const hpScale = level.hpScale ?? 1;
+  const hpScale = (level.hpScale ?? 1) * difficulty.hp;
   const numPaths = level.paths.length;
   const pathLengths = level.paths.map(pathLength);
   const placements = computePlacementOptions(level.paths);
   const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
 
-  let state = initialState(level);
+  let state = initialState(level, difficulty);
   const history: WaveStep[] = [];
 
   for (let i = 0; i < level.waves.length; i++) {
@@ -721,6 +776,7 @@ const simulate = (
       safety,
       lookahead,
       placements,
+      difficulty,
       force,
     );
     history.push(r.step);
@@ -753,14 +809,15 @@ const simulateBeam = (
   safety: number,
   lookahead: number,
   beamWidth: number,
+  difficulty: DifficultyMultipliers,
 ): SimResult => {
-  const hpScale = level.hpScale ?? 1;
+  const hpScale = (level.hpScale ?? 1) * difficulty.hp;
   const numPaths = level.paths.length;
   const pathLengths = level.paths.map(pathLength);
   const placements = computePlacementOptions(level.paths);
   const perLaneByWave = level.waves.map((w) => analyzeWavePerLane(w, hpScale, numPaths));
 
-  let beam: BeamNode[] = [{ state: initialState(level), history: [] }];
+  let beam: BeamNode[] = [{ state: initialState(level, difficulty), history: [] }];
 
   for (let i = 0; i < level.waves.length; i++) {
     const successors: BeamNode[] = [];
@@ -776,6 +833,7 @@ const simulateBeam = (
         safety,
         lookahead,
         placements,
+        difficulty,
       );
       if (r.step.cleared) {
         successors.push({
@@ -797,6 +855,7 @@ const simulateBeam = (
             safety,
             lookahead,
             placements,
+            difficulty,
             { kind, lanes },
           );
           if (r2.step.cleared) {
@@ -823,6 +882,7 @@ const simulateBeam = (
         safety,
         lookahead,
         placements,
+        difficulty,
       );
       return {
         level,
@@ -890,7 +950,13 @@ const formatLaneVec = (v: number[]): string => v.map((n) => fmt(n, 0)).join("/")
  * margin (dpsBefore >> reqDps)? Flags stretches of 3+ consecutive chill
  * waves as potentially boring — the player is watching, not playing.
  */
-const chillAnalysis = (safety: number, lookahead: number, marginMul: number, minStreak: number) => {
+const chillAnalysis = (
+  safety: number,
+  lookahead: number,
+  marginMul: number,
+  minStreak: number,
+  difficulty: DifficultyMultipliers,
+) => {
   type Streak = {
     level: (typeof LEVELS)[number];
     startWave: number;
@@ -908,7 +974,7 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
 
   for (let i = 0; i < LEVELS.length; i++) {
     const level = LEVELS[i];
-    const r = simulate(level, safety, lookahead);
+    const r = simulate(level, safety, lookahead, difficulty);
     if (!r.success) continue;
 
     // Identify "true chill" waves: spent=0 AND every lane's dpsBefore is
@@ -1025,7 +1091,12 @@ const chillAnalysis = (safety: number, lookahead: number, marginMul: number, min
   );
 };
 
-const compareStarters = (levelIdx: number, safety: number, lookahead: number) => {
+const compareStarters = (
+  levelIdx: number,
+  safety: number,
+  lookahead: number,
+  difficulty: DifficultyMultipliers,
+) => {
   const level = LEVELS[levelIdx];
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name} — starter comparison${C.reset} ` +
@@ -1036,7 +1107,13 @@ const compareStarters = (levelIdx: number, safety: number, lookahead: number) =>
   );
   const kinds = ["(greedy)", ...(Object.keys(TOWER_STATS) as TowerKind[])] as const;
   for (const starter of kinds) {
-    const r = simulate(level, safety, lookahead, starter === "(greedy)" ? undefined : starter);
+    const r = simulate(
+      level,
+      safety,
+      lookahead,
+      difficulty,
+      starter === "(greedy)" ? undefined : starter,
+    );
     const cleared = r.success ? r.history.length : (r.failedAt ?? 0) - 1;
     const status = r.success
       ? `${C.green}CLEARED${C.reset}  `
@@ -1053,15 +1130,20 @@ const printLevel = (
   safety: number,
   lookahead: number,
   verbose: boolean,
+  difficulty: DifficultyMultipliers,
+  difficultyLabel: string,
   precomputed?: SimResult,
 ) => {
-  const result = precomputed ?? simulate(LEVELS[levelIdx], safety, lookahead);
+  const result = precomputed ?? simulate(LEVELS[levelIdx], safety, lookahead, difficulty);
   const { level, history, success } = result;
 
+  const effHpScale = (level.hpScale ?? 1) * difficulty.hp;
+  const effStartGold = Math.floor(level.startGold * difficulty.startGold);
   console.log(
     `\n${C.bold}═══ L${level.id}: ${level.name}${C.reset}` +
-      `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
-      ` ${C.dim}startGold=${level.startGold}, safety=${safety}×, paths=${level.paths.length}${C.reset}`,
+      ` ${C.magenta}[${difficultyLabel}]${C.reset}` +
+      `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}× × diff ${difficulty.hp}× = ${effHpScale.toFixed(2)}×)${C.reset}` : ` ${C.dim}(diff hp ${difficulty.hp}×)${C.reset}`}` +
+      ` ${C.dim}startGold=${effStartGold} (base ${level.startGold} × ${difficulty.startGold}), safety=${safety}×, paths=${level.paths.length}${C.reset}`,
   );
   console.log(
     `${C.dim}DPS columns are per-lane (L0/L1/...). A lane with no enemies shows 0.${C.reset}`,
@@ -1136,12 +1218,21 @@ const beamWidth = beamArg ? Number(beamArg.split("=")[1]) : 1;
 const verbose = args.includes("--verbose") || args.includes("-v");
 const compareMode = args.includes("--compare-starters");
 const chillMode = args.includes("--chill");
+const auditMode = args.includes("--audit");
 const marginArg = args.find((a: string) => a.startsWith("--margin="));
 const marginMul = marginArg ? Number(marginArg.split("=")[1]) : 1.5;
 const minStreakArg = args.find((a: string) => a.startsWith("--min-streak="));
 const minStreak = minStreakArg ? Number(minStreakArg.split("=")[1]) : 3;
 const forceFirstArg = args.find((a: string) => a.startsWith("--force-first="));
 const forceFirst = forceFirstArg ? (forceFirstArg.split("=")[1] as TowerKind) : undefined;
+const difficultyArg = args.find((a: string) => a.startsWith("--difficulty="));
+const difficulty: Difficulty = difficultyArg
+  ? (difficultyArg.split("=")[1] as Difficulty)
+  : "medium";
+if (!DIFFICULTIES.includes(difficulty)) {
+  console.error(`Invalid --difficulty (got "${difficulty}"). Valid: ${DIFFICULTIES.join(", ")}`);
+  process.exit(1);
+}
 const levelArg = args.find((a: string) => /^\d+$/.test(a));
 
 if (!Number.isFinite(safety) || safety <= 0) {
@@ -1164,15 +1255,74 @@ if (forceFirst && !(forceFirst in TOWER_STATS)) {
 
 // Beam search ignores forceFirst (it diversifies through its own forced
 // starters at every wave, not just wave 1).
-const runSim = (level: (typeof LEVELS)[number]): SimResult =>
+const runSim = (level: (typeof LEVELS)[number], difficulty: DifficultyMultipliers): SimResult =>
   beamWidth > 1
-    ? simulateBeam(level, safety, lookahead, beamWidth)
-    : simulate(level, safety, lookahead, forceFirst);
+    ? simulateBeam(level, safety, lookahead, beamWidth, difficulty)
+    : simulate(level, safety, lookahead, difficulty, forceFirst);
+
+const runForDifficulty = (diff: Difficulty, verbose: boolean, perLevelOutput: boolean) => {
+  const mult = DIFFICULTY_MULTIPLIERS[diff];
+  const label = DIFFICULTY_LABEL[diff];
+  const results = LEVELS.map((l) => runSim(l, mult));
+  if (perLevelOutput) {
+    for (let i = 0; i < LEVELS.length; i++) {
+      printLevel(i, safety, lookahead, verbose, mult, label, results[i]);
+    }
+  }
+  const failed: { id: number; name: string; wave: number; hpScale: number; startGold: number }[] =
+    [];
+  for (const r of results) {
+    if (!r.success) {
+      failed.push({
+        id: r.level.id,
+        name: r.level.name,
+        wave: r.failedAt ?? 0,
+        hpScale: (r.level.hpScale ?? 1) * mult.hp,
+        startGold: Math.floor(r.level.startGold * mult.startGold),
+      });
+    }
+  }
+  return { diff, label, mult, results, failed };
+};
 
 if (chillMode) {
-  chillAnalysis(safety, lookahead, marginMul, minStreak);
+  chillAnalysis(safety, lookahead, marginMul, minStreak, DIFFICULTY_MULTIPLIERS[difficulty]);
   process.exit(0);
 }
+
+if (auditMode) {
+  // Audit across all difficulties: report which levels exceed the
+  // achievable-DPS ceiling per difficulty. No per-level dump — just the
+  // failure set with diagnostic context for rebalancing.
+  const modeLabel = beamWidth > 1 ? `beam=${beamWidth}` : "greedy";
+  console.log(
+    `${C.bold}═══ Difficulty audit${C.reset} ${C.dim}(${modeLabel}, safety=${safety}×, lookahead=${lookahead})${C.reset}\n`,
+  );
+  for (const diff of DIFFICULTIES) {
+    const { label, mult, failed } = runForDifficulty(diff, false, false);
+    const accent = failed.length === 0 ? C.green : failed.length <= 2 ? C.yellow : C.red;
+    console.log(
+      `${accent}${C.bold}${label}${C.reset} ${C.dim}(hp×${mult.hp}, gold×${mult.startGold}, speed×${mult.speed}, kill×${mult.goldKill})${C.reset}`,
+    );
+    if (failed.length === 0) {
+      console.log(`  ${C.green}All ${LEVELS.length} levels clearable.${C.reset}`);
+    } else {
+      console.log(
+        `  ${C.red}${failed.length} level${failed.length === 1 ? "" : "s"} above achievable-DPS ceiling:${C.reset}`,
+      );
+      for (const f of failed) {
+        console.log(
+          `    ${C.red}L${f.id} ${padR(f.name, 22)}${C.reset} ${C.dim}fails W${f.wave}, effective hpScale ${f.hpScale.toFixed(2)}×, startGold ${f.startGold}${C.reset}`,
+        );
+      }
+    }
+    console.log();
+  }
+  process.exit(0);
+}
+
+const diffMult = DIFFICULTY_MULTIPLIERS[difficulty];
+const diffLabel = DIFFICULTY_LABEL[difficulty];
 
 if (levelArg) {
   const idx = Number(levelArg) - 1;
@@ -1181,18 +1331,18 @@ if (levelArg) {
     process.exit(1);
   }
   if (compareMode) {
-    compareStarters(idx, safety, lookahead);
+    compareStarters(idx, safety, lookahead, diffMult);
   } else {
-    const result = runSim(LEVELS[idx]);
-    printLevel(idx, safety, lookahead, verbose, result);
+    const result = runSim(LEVELS[idx], diffMult);
+    printLevel(idx, safety, lookahead, verbose, diffMult, diffLabel, result);
   }
 } else {
-  const results = LEVELS.map((l) => runSim(l));
+  const results = LEVELS.map((l) => runSim(l, diffMult));
   for (let i = 0; i < LEVELS.length; i++) {
-    printLevel(i, safety, lookahead, verbose, results[i]);
+    printLevel(i, safety, lookahead, verbose, diffMult, diffLabel, results[i]);
   }
   // Cross-level summary: where does the chosen strategy break?
-  console.log(`\n${C.bold}═══ Summary${C.reset}`);
+  console.log(`\n${C.bold}═══ Summary${C.reset} ${C.magenta}[${diffLabel}]${C.reset}`);
   const failed: string[] = [];
   for (const r of results) {
     if (!r.success) failed.push(`L${r.level.id}W${r.failedAt}`);
@@ -1200,9 +1350,9 @@ if (levelArg) {
   const modeLabel = beamWidth > 1 ? `beam=${beamWidth}` : "greedy";
   if (failed.length === 0) {
     console.log(
-      `${C.green}All ${LEVELS.length} levels clearable with ${modeLabel} @ safety=${safety}×${C.reset}`,
+      `${C.green}All ${LEVELS.length} levels clearable with ${modeLabel} @ safety=${safety}×, difficulty=${diffLabel}${C.reset}`,
     );
   } else {
-    console.log(`${C.red}${modeLabel} breaks at: ${failed.join(", ")}${C.reset}`);
+    console.log(`${C.red}${modeLabel} @ ${diffLabel} breaks at: ${failed.join(", ")}${C.reset}`);
   }
 }
