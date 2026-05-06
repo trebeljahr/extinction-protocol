@@ -48,7 +48,6 @@ export const AchievementsPanel = () => {
         <div className="achievements-grid">
           {ACHIEVEMENTS.map((def) => {
             const unlocked = isAchievementUnlocked(progress, def.id);
-            const ts = progress.unlocked[def.id];
             const secrecy = def.secrecy ?? "visible";
             const hideName = !unlocked && secrecy !== "visible";
             const hideDesc = !unlocked && secrecy !== "visible";
@@ -75,9 +74,6 @@ export const AchievementsPanel = () => {
                   <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
                   <div className="achievement-tile-desc">{hideDesc ? "???" : def.desc}</div>
                   <div className="achievement-tile-hint">{hideHint ? "???" : def.hint}</div>
-                  {unlocked && ts && (
-                    <div className="achievement-tile-date">{new Date(ts).toLocaleDateString()}</div>
-                  )}
                 </div>
               </div>
             );

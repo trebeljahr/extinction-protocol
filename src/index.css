@@ -1783,13 +1783,6 @@
     font-style: italic;
   }
 
-  .achievement-tile-date {
-    font-size: var(--fs-xs);
-    letter-spacing: 0.1em;
-    color: #8a9bad;
-    font-variant-numeric: tabular-nums;
-  }
-
   /* Credits panel — reuses .achievements-overlay / .achievements-card / .achievements-header
      for the chrome and adds its own list layout. */
   .credits-body {
