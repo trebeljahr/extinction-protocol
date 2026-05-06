@@ -50,9 +50,11 @@ type Item = {
 };
 
 // Exp-damp half-life (seconds). Lower = snappier, higher = floatier.
-// 0.08s on yaw matches roughly a quarter-second to settle through a
-// 90° corner at typical speeds — readable as a turn, not a flick.
-const POS_HALFLIFE = 0.06;
+// Position halflife is tiny — sim now walks a smoothed polyline so there's
+// no waypoint snap to mask, and any larger value pulls the rendered model
+// perpendicular-inside the painted lane on curves. Yaw stays a touch
+// floatier so corner turns read as a rotation, not an instant flip.
+const POS_HALFLIFE = 0.02;
 const YAW_HALFLIFE = 0.09;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);

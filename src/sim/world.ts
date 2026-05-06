@@ -9,7 +9,7 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
-import { samplePath } from "./path";
+import { samplePath, smoothPath } from "./path";
 import type {
   Beam,
   CryoWave,
@@ -356,16 +356,23 @@ export const createWorld = (
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
 ): World => {
   const biome = biomeForPos(level.nodePos);
+  // Smooth the authored corner waypoints into the dense polyline that
+  // everything downstream walks: enemy advancement, render strip, tower
+  // placement clearance, lava bridge cuts, decoration spacing. Doing this
+  // once here is what keeps the painted lane and the enemy lane aligned —
+  // if any consumer fell back to the raw waypoints they'd cut corners
+  // that the others curved around.
+  const paths = level.paths.map((p) => smoothPath(p));
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
   // share the same flow geometry — see hasFlowFeatures.
-  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(level.paths, level.id, biome) : null;
-  const { trees, nextId: afterTrees } = buildTrees(level.paths, level.id * 7919 + 101, 1, lava);
-  const { rocks, nextId: afterRocks } = buildRocks(biome, level.paths, trees, afterTrees, lava);
+  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, level.id, biome) : null;
+  const { trees, nextId: afterTrees } = buildTrees(paths, level.id * 7919 + 101, 1, lava);
+  const { rocks, nextId: afterRocks } = buildRocks(biome, paths, trees, afterTrees, lava);
   const { eggs, nextId } = buildEasterEggs(
     biome,
-    level.paths,
+    paths,
     trees,
     rocks,
     level.id * 2311 + 47,
@@ -386,7 +393,7 @@ export const createWorld = (
     tickCount: 0,
     levelId: level.id,
     biome,
-    paths: level.paths,
+    paths,
     plannedWaves,
     enemies: [],
     enemyById: new Map(),
