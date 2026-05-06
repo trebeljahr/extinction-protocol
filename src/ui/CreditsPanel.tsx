@@ -43,10 +43,16 @@ const SECTIONS: CreditSection[] = [
         url: "https://kenney.nl/assets/space-kit",
       },
       {
-        name: "Hexagon-kit landmarks — Cabin, Crystal1 (snow), Crystal1 (wasteland)",
+        name: "Hexagon-kit landmarks — Crystal1 (snow), Crystal1 (wasteland)",
         creator: "Kenney",
         license: "CC0 1.0",
         url: "https://kenney.nl/assets/hexagon-kit",
+      },
+      {
+        name: "Medieval Village house — snow biome cabin (House_1)",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/medievalvillagepack.html",
       },
       {
         name: "Alien biome vegetation (biomes/alien/*)",

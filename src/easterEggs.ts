@@ -62,6 +62,13 @@ export type EasterEggReaction = {
   faceCamera?: boolean;
 };
 
+// Position in raw model space (before scale-to-targetSize) where a smoke
+// column should rise from once the egg has been clicked. Used by the
+// snow-biome cabin so smoke streams out of its chimney rather than puffing
+// out around the whole mesh; presence of this field also tells the click
+// handler to suppress the default ground-level puff.
+export type ChimneyOffset = { x: number; y: number; z: number };
+
 export type EasterEggDef = {
   id: string;
   achievement: AchievementId;
@@ -75,6 +82,7 @@ export type EasterEggDef = {
   visual?: EasterEggVisual;
   clickRoll?: EasterEggClickRoll;
   reaction?: EasterEggReaction;
+  chimneyOffset?: ChimneyOffset;
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -145,11 +153,18 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     id: "cabin",
     achievement: "cabin_smoke",
     biomes: ["snow"],
-    // Cabin.glb was the broken Atlas_Pirate.png "Environment_House2" mesh
-    // (same as forest/House.glb) — half a sunken pirate-ship hull. Replaced
-    // with kenney/hexagon-kit's building-cabin: a log cabin with a peaked
-    // roof on a small stone-tile base, which reads cleanly under the top-
-    // down camera as a wilderness shelter sitting on a rocky outcrop.
+    // Quaternius medieval-village House_1: stone-and-timber cottage with a
+    // visible stone chimney at the back-left of the roof. The earlier
+    // kenney/hexagon-kit log cabin sat on a stone-tile hex base that read
+    // poorly against the snow ground; this cottage carries its own
+    // foundation and reads as a wilderness dwelling.
+    //
+    // chimneyOffset is the chimney top in raw model space (model bbox is
+    // 2.14 × 3.39 × 2.66, so the offset lands on the very top of the
+    // back-left stone column). EasterEggs.tsx anchors a particle column
+    // there once the egg has been clicked; presence of the field also
+    // tells the click handler in store.ts to skip the default
+    // around-the-mesh puff in favor of that column.
     model: "/models/landmarks/snow/Cabin.glb",
     targetSize: 2.6,
     clickThreshold: 1,
@@ -161,6 +176,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     },
     // Buildings shouldn't squash like rubber — small settle is enough.
     reaction: { popIntensity: 0.08 },
+    chimneyOffset: { x: -0.29, y: 3.39, z: -0.86 },
   },
   {
     id: "crystal",

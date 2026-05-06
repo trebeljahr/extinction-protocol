@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
+  type ChimneyOffset,
   EASTER_EGG_BY_ID,
   type EasterEggDef,
   type EasterEggVisual,
@@ -78,6 +79,182 @@ const computePop = (elapsed: number, intensity: number): number => {
 
 // Bell curve over the face-camera window: 0 → 1 (peak look-at) → 0 (home).
 const FACE_CAMERA_DURATION = 1.2;
+
+// Smoke column rising from a chimney. Mounted only after the cabin has
+// been clicked at least once. Each particle is an instanced sphere that
+// spawns at the chimney top, drifts up and slightly outward, billows in
+// scale as it rises, and shrinks to nothing at end of life. Repeat clicks
+// (tracked through `clickCount`) refresh a handful of stale slots so the
+// column visibly thickens with a fresh puff for a moment.
+//
+// Coordinates are in the outer egg group's local space, so the offset
+// rotates with egg.rotY (chimney stays attached to its corner of the
+// roof) but smoke still rises along world Y because rotation is around
+// the Y axis.
+const SMOKE_PARTICLE_COUNT = 22;
+
+type SmokeParticle = {
+  age: number;
+  life: number;
+  offX: number;
+  offY: number;
+  offZ: number;
+  velX: number;
+  velY: number;
+  velZ: number;
+  baseScale: number;
+};
+
+const respawnSmoke = (p: SmokeParticle, fresh: boolean) => {
+  p.age = 0;
+  p.life = 2.0 + Math.random() * 0.8;
+  p.offX = (Math.random() - 0.5) * 0.08;
+  p.offZ = (Math.random() - 0.5) * 0.08;
+  p.offY = 0;
+  const ang = Math.random() * Math.PI * 2;
+  const drift = 0.22 + Math.random() * 0.18;
+  p.velX = Math.cos(ang) * drift;
+  p.velZ = Math.sin(ang) * drift;
+  // Click-driven respawns are slightly faster and bigger so each click
+  // reads as a visible puff against the steady column.
+  p.velY = (fresh ? 1.4 : 0.95) + Math.random() * 0.5;
+  p.baseScale = fresh ? 0.45 : 0.32;
+};
+
+const ChimneySmokeColumn = ({
+  egg,
+  chimney,
+}: {
+  egg: EasterEgg;
+  chimney: { x: number; y: number; z: number };
+}) => {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tmpColor = useMemo(() => new THREE.Color(), []);
+  // Initialise to the current click count rather than 0 — without this,
+  // a cabin that was already clicked (e.g. via load-of-progress someday)
+  // would burst on first frame.
+  const lastClickRef = useRef(egg.clickCount);
+  const particlesRef = useRef<SmokeParticle[] | null>(null);
+  if (particlesRef.current === null) {
+    const arr: SmokeParticle[] = [];
+    // Each slot is initialised through respawnSmoke so it gets non-zero
+    // velocities from the start; a plain `velY: 0` init would leave the
+    // first generation of particles stuck at the chimney until they hit
+    // `age > life` and respawned naturally (~2.6s in).
+    //
+    // Negative starting ages then stagger the column build-up so it
+    // emerges gradually over the first ~2s rather than popping in.
+    for (let i = 0; i < SMOKE_PARTICLE_COUNT; i++) {
+      const p: SmokeParticle = {
+        age: 0,
+        life: 0,
+        offX: 0,
+        offY: 0,
+        offZ: 0,
+        velX: 0,
+        velY: 0,
+        velZ: 0,
+        baseScale: 0.12,
+      };
+      respawnSmoke(p, false);
+      p.age = -i * 0.11;
+      arr.push(p);
+    }
+    particlesRef.current = arr;
+  }
+
+  useFrame((_, dt) => {
+    const mesh = meshRef.current;
+    const ps = particlesRef.current;
+    if (!mesh || !ps) return;
+
+    // No clicks yet → nothing to render. Mounted unconditionally so we
+    // notice the very first click even when it doesn't change React
+    // state (e.g. on a re-run where the achievement was already unlocked,
+    // the click handler ends with `set({})` and never re-renders).
+    if (egg.clickCount === 0) {
+      mesh.count = 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      return;
+    }
+
+    // The store mutates egg.clickCount in place and then sometimes calls
+    // `set({})`, which doesn't trigger a React re-render — so we can't
+    // rely on a useEffect on a prop to detect repeat clicks. Read the
+    // live value here each frame and compare against a ref instead.
+    if (egg.clickCount > lastClickRef.current) {
+      lastClickRef.current = egg.clickCount;
+      // Refresh the 4 oldest slots as a fresh, slightly faster puff so
+      // the column visibly thickens on each click.
+      const sorted = ps.map((p, i) => ({ p, i, age: p.age })).sort((a, b) => b.age - a.age);
+      for (let i = 0; i < 4 && i < sorted.length; i++) {
+        respawnSmoke(sorted[i].p, true);
+      }
+    }
+
+    const step = Math.min(dt, 0.05);
+    let n = 0;
+    for (const p of ps) {
+      p.age += step;
+      if (p.age < 0) continue;
+      if (p.age > p.life) {
+        respawnSmoke(p, false);
+      }
+      // Kinematics: gentle horizontal drift, slow vertical damping.
+      p.offX += p.velX * step;
+      p.offY += p.velY * step;
+      p.offZ += p.velZ * step;
+      p.velX *= 1 - 0.45 * step;
+      p.velZ *= 1 - 0.45 * step;
+      p.velY *= 1 - 0.04 * step;
+
+      const t = Math.min(1, p.age / p.life);
+      const grow = p.baseScale + t * 0.55;
+      // Hold full size most of life, then taper to zero in the last 30%
+      // so dying particles vanish instead of popping out.
+      const fade = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      const scale = grow * fade;
+      if (scale <= 0.001) continue;
+
+      dummy.position.set(chimney.x + p.offX, chimney.y + p.offY, chimney.z + p.offZ);
+      dummy.scale.setScalar(scale);
+      dummy.rotation.set(0, t * Math.PI, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(n, dummy.matrix);
+
+      // Wood-fire smoke: dark grey at the chimney, lifting toward the
+      // bright snow background as it disperses. Without enough contrast
+      // up front the column blends invisibly into the white ground.
+      const r = 0.18 + t * 0.42;
+      const g = 0.2 + t * 0.42;
+      const b = 0.24 + t * 0.42;
+      tmpColor.setRGB(r, g, b);
+      mesh.setColorAt(n, tmpColor);
+      n++;
+    }
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, SMOKE_PARTICLE_COUNT]}>
+      <sphereGeometry args={[1, 8, 8]} />
+      <meshBasicMaterial toneMapped={false} transparent opacity={0.85} depthWrite={false} />
+    </instancedMesh>
+  );
+};
+
+const chimneyLocal = (
+  offset: ChimneyOffset,
+  scale: number,
+  yModel: number,
+): { x: number; y: number; z: number } => ({
+  x: offset.x * scale,
+  y: yModel + offset.y * scale,
+  z: offset.z * scale,
+});
 
 const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const { scene, animations } = useGLTF(def.model);
@@ -208,6 +385,9 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       <group ref={innerRef} position={[0, yModel, 0]} scale={scale}>
         <primitive object={clone} />
       </group>
+      {def.chimneyOffset ? (
+        <ChimneySmokeColumn egg={egg} chimney={chimneyLocal(def.chimneyOffset, scale, yModel)} />
+      ) : null}
       <mesh position={[0, hitY, 0]}>
         <sphereGeometry args={[hitRadius, 12, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />

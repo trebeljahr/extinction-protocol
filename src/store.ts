@@ -880,23 +880,30 @@ export const useGame = create<GameStore>((set, get) => ({
     const def = EASTER_EGG_BY_ID[egg.defId];
     if (!def) return;
     egg.clickCount++;
-    spawnParticles(
-      w,
-      egg.pos,
-      def.effect.particleCount,
-      def.effect.particleColor,
-      def.effect.particleSpeed,
-      def.effect.particleLife,
-    );
-    if (def.effect.secondary) {
+    // Eggs with a chimney offset (the cabin) render their own per-egg
+    // smoke column in the renderer, anchored to the chimney top. The
+    // default ground-plane puff would just plume out around the cabin's
+    // base and visually fight the column, so suppress it here. The
+    // renderer reacts to `clickCount` for repeat-click feedback too.
+    if (!def.chimneyOffset) {
       spawnParticles(
         w,
         egg.pos,
-        def.effect.secondary.count,
-        def.effect.secondary.color,
-        def.effect.secondary.speed,
-        def.effect.secondary.life,
+        def.effect.particleCount,
+        def.effect.particleColor,
+        def.effect.particleSpeed,
+        def.effect.particleLife,
       );
+      if (def.effect.secondary) {
+        spawnParticles(
+          w,
+          egg.pos,
+          def.effect.secondary.count,
+          def.effect.secondary.color,
+          def.effect.secondary.speed,
+          def.effect.secondary.life,
+        );
+      }
     }
     const updates: Partial<GameStore> = {};
     if (egg.clickCount >= def.clickThreshold && !egg.triggered) {
