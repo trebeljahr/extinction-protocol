@@ -12,14 +12,12 @@ export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
 };
 
 export const ENEMY_DESCRIPTION: Record<EnemyKind, string> = {
-  raptor: "Fast pack hunter. Low HP but keeps coming — electric chains chew through them.",
-  swarm: "Tiny and fragile, but never alone. Electric arcs and AoE shred entire packs.",
-  para: "The hollow crest rings under chain damage — but vents flame harmlessly.",
-  allosaur: "Apex predator. Balanced resistances — nothing crushes it, but nothing fails either.",
-  stego: "Plated hide shrugs off kinetic and explosive. Electric cracks the plates.",
-  armored:
-    "Juggernaut. Hardened against shock and blast — no clear weakness, kinetic and cold both creep through. Heavy slow resistance leaves cryo without its slow.",
-  titan:
-    "Colossus. Resists nearly everything except cold. Heavy slow resistance — every step costs lives.",
-  boss: "Apex matriarch. Shrugs off kinetic, explosive, and flame — only cryo cuts deep. Heavy slow resistance keeps her marching. Pays out a fortune when she falls.",
+  raptor: "Fast pack hunter. Low HP, high count. Vulnerable to electric.",
+  swarm: "Tiny and fragile. Never travels alone. Vulnerable to electric and explosive.",
+  para: "Crested runner. Vulnerable to electric, resists flame.",
+  allosaur: "Apex predator. Balanced resistance across all damage types.",
+  stego: "Plated hide. Resists kinetic and explosive. Vulnerable to electric.",
+  armored: "Juggernaut. Hardened against shock and blast. Heavy slow resistance.",
+  titan: "Colossus. Resists nearly everything except cold. Heavy slow resistance.",
+  boss: "Apex matriarch. Resists nearly everything except cold. Heavy slow resistance. High bounty.",
 };
