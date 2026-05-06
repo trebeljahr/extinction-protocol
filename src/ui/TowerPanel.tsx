@@ -19,6 +19,7 @@ import {
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { HiveDronePanel } from "./HiveDronePanel";
+import { TowerPreview } from "./TowerPreview";
 
 const ENEMY_ORDER: EnemyKind[] = [
   "raptor",
@@ -55,7 +56,7 @@ export const TowerPanel = () => {
     return (
       <div className="tower-panel">
         <div className="panel-header">
-          <div className={`tower-swatch kind-${tower.kind}`} />
+          <TowerPreview kind={tower.kind} />
           <div className="panel-title">
             <div className="panel-name">
               {TOWER_LABEL[tower.kind]}
@@ -108,7 +109,7 @@ export const TowerPanel = () => {
   return (
     <div className="tower-panel">
       <div className="panel-header">
-        <div className={`tower-swatch kind-${tower.kind}`} />
+        <TowerPreview kind={tower.kind} />
         <div className="panel-title">
           <div className="panel-name">
             {TOWER_LABEL[tower.kind]}
