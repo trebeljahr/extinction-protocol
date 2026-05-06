@@ -8,15 +8,16 @@ Single-player roguelite tower defense: deploy sci-fi turrets, hold collapsing ou
 - Six tower types: Pulse Rifle, Chain Coil, Pyre, Hive Swarm, Mortar, and Cryo Emitter.
 - Seven enemy species with distinct speeds, health pools, rewards, damage, and resistances.
 - Per-level star progress, achievements, enemy compendium, audio/music, hit feedback, screenshake, and upgrade/sell/targeting controls.
-- Web build for development/deployment, plus a Tauri v2 desktop shell.
+- Web build for development/deployment, a Tauri v2 desktop shell (Steam-shippable), and a Capacitor mobile shell (iOS + Android).
 
-Long-form design notes live in [DESIGN.md](DESIGN.md). Keep this README focused on setup, controls, and repository orientation.
+Long-form design notes live in [DESIGN.md](DESIGN.md). Distribution flow (Steam, App Store, Play) lives in [DISTRIBUTION.md](DISTRIBUTION.md). Keep this README focused on setup, controls, and repository orientation.
 
 ## Prerequisites
 
 - Node.js 24+
 - pnpm 10+
 - Rust toolchain and Tauri prerequisites for desktop builds: <https://tauri.app/start/prerequisites/>
+- For mobile builds: Xcode 15+ (iOS) and JDK 17+ + Android SDK (Android). See [DISTRIBUTION.md](DISTRIBUTION.md).
 
 ## Install
 
@@ -38,11 +39,20 @@ For the desktop shell:
 pnpm tauri dev
 ```
 
+For mobile (after `pnpm build`):
+
+```bash
+npx cap sync       # sync the web bundle into ios/ and android/
+npx cap open ios   # open in Xcode
+npx cap open android  # open in Android Studio
+```
+
 ## Build And Check
 
 ```bash
 pnpm build         # type-check and build the web bundle
-pnpm tauri build   # build desktop bundles
+pnpm tauri build   # build desktop bundles (DMG, MSI, NSIS, AppImage, deb)
+npx cap sync       # sync the web bundle into ios/ and android/
 pnpm lint          # Biome lint
 pnpm check         # Biome check with fixes
 pnpm format        # format the repo
@@ -83,7 +93,9 @@ public/
   audio/           bundled SFX and music
   models/          bundled GLB models and environment props
 scripts/           asset and wave-analysis utilities
-src-tauri/         Tauri v2 desktop wrapper
+src-tauri/         Tauri v2 desktop wrapper (Steam target)
+ios/               Capacitor iOS shell (open with `npx cap open ios`)
+android/           Capacitor Android shell (open with `npx cap open android`)
 ```
 
 ## License
