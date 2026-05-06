@@ -2568,69 +2568,113 @@
   }
 
   /* === Save-slot picker ===
-     Sits on the standard .overlay scrim. Card layout mirrors the
-     achievements panel pattern (header + grid) so the visual language
-     is consistent across modal screens. */
-  .save-slots-overlay {
+     Full-bleed: a 3D diorama covers the entire viewport, with the title
+     floating up top and the slot tiles anchored along the bottom. The
+     scene rotates slowly behind everything; tiles are translucent so
+     the dinosaurs read through them. */
+  .save-slots-screen {
+    position: fixed;
+    inset: 0;
     z-index: 30;
-    padding: 32px;
-    background: radial-gradient(ellipse at center, #0e1622 0%, #060a10 70%, #03070b 100%);
-  }
-
-  .save-slots-card {
-    background: rgba(14, 20, 28, 0.97);
-    border: 1px solid rgba(120, 160, 200, 0.2);
-    border-radius: 14px;
-    width: 100%;
-    max-width: 980px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
-    pointer-events: auto;
+    background: #060a10;
   }
 
-  .save-slots-header {
-    padding: 24px 28px 16px;
-    border-bottom: 1px solid rgba(120, 160, 200, 0.14);
-    text-align: center;
+  .save-slots-bg {
+    position: absolute;
+    inset: 0;
+    /* Sits behind the UI but still receives no pointer events itself —
+       the canvas should not eat clicks meant for the slot buttons. */
+    pointer-events: none;
   }
-  .save-slots-header h1 {
+  .save-slots-bg canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Vertical gradient that darkens the bottom (where slot tiles sit) and
+     the very top (where the title sits) without obscuring the dinosaurs
+     in the middle band. Pure CSS — cheaper than a postprocessing pass. */
+  .save-slots-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(6, 10, 16, 0.55) 0%,
+      rgba(6, 10, 16, 0.0) 18%,
+      rgba(6, 10, 16, 0.0) 55%,
+      rgba(6, 10, 16, 0.7) 92%,
+      rgba(6, 10, 16, 0.92) 100%
+    );
+  }
+
+  .save-slots-title {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .save-slots-title h1 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: var(--fs-2xl);
+    font-size: clamp(36px, 6vw, 64px);
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    color: var(--color-fg);
+    text-transform: uppercase;
+    text-shadow:
+      0 2px 12px rgba(0, 0, 0, 0.7),
+      0 0 36px rgba(159, 216, 255, 0.18);
   }
   .save-slots-subtitle {
-    margin-top: 4px;
+    margin-top: 8px;
     font-size: var(--fs-md);
-    letter-spacing: 0.18em;
+    letter-spacing: 0.32em;
     color: var(--color-fg-dim);
     text-transform: uppercase;
   }
 
   .save-slots-grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 28px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
-    padding: 22px 24px 26px;
-    overflow-y: auto;
+    grid-template-columns: repeat(3, minmax(240px, 300px));
+    justify-content: center;
+    gap: 18px;
+    padding: 0 32px;
+    z-index: 2;
   }
 
   .save-slot-tile {
-    background: rgba(8, 12, 18, 0.55);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 10px;
+    background: rgba(10, 16, 22, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(120, 160, 200, 0.22);
+    border-radius: 12px;
     padding: 16px 18px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-height: 220px;
+    min-height: 200px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
   }
   .save-slot-tile.filled {
-    border-color: rgba(255, 214, 106, 0.4);
-    background: rgba(26, 22, 12, 0.55);
+    border-color: rgba(255, 214, 106, 0.42);
+    background: rgba(22, 18, 10, 0.78);
+  }
+
+  .save-slot-tile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   .save-slot-id {
@@ -2641,6 +2685,32 @@
   }
   .save-slot-tile.filled .save-slot-id {
     color: var(--color-gold);
+  }
+
+  /* Difficulty pill — small caps lockup in the slot's difficulty colour.
+     One class per difficulty so the colour token can stay a CSS var. */
+  .save-slot-difficulty {
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid currentColor;
+    background: rgba(8, 12, 18, 0.6);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .save-slot-difficulty--easy {
+    color: var(--color-mint);
+  }
+  .save-slot-difficulty--medium {
+    color: var(--color-blue);
+  }
+  .save-slot-difficulty--hard {
+    color: var(--color-orange);
+  }
+  .save-slot-difficulty--extinction {
+    color: var(--color-red);
   }
 
   .save-slot-name {
@@ -2688,12 +2758,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .save-slot-date {
-    font-size: var(--fs-xs);
-    letter-spacing: 0.06em;
-    color: #8a9bad;
-  }
-
   .save-slot-empty-text {
     font-size: var(--fs-sm);
     color: var(--color-fg-muted);
@@ -2707,21 +2771,6 @@
     margin-top: auto;
   }
 
-  .save-slot-rename input {
-    width: 100%;
-    background: rgba(8, 12, 18, 0.6);
-    border: 1px solid rgba(120, 160, 200, 0.4);
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-family: inherit;
-    font-size: var(--fs-md);
-    color: var(--color-fg);
-  }
-  .save-slot-rename input:focus {
-    outline: none;
-    border-color: var(--color-blue);
-    box-shadow: 0 0 0 1px var(--color-blue);
-  }
   .save-slot-row {
     display: flex;
     gap: 6px;
@@ -2732,5 +2781,33 @@
     font-size: var(--fs-sm);
     color: var(--color-pink);
     line-height: 1.4;
+  }
+
+  /* On narrower viewports the 3-up bottom row would overflow — fall back
+     to a single-column stack centred above the bottom edge. */
+  @media (max-width: 780px) {
+    .save-slots-grid {
+      position: static;
+      grid-template-columns: 1fr;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 0 20px 20px;
+      bottom: auto;
+    }
+    .save-slots-screen {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .save-slots-title {
+      position: static;
+      padding: 36px 20px 20px;
+    }
+    .save-slots-bg {
+      position: fixed;
+    }
+    .save-slot-tile {
+      min-height: 0;
+    }
   }
 }

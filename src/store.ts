@@ -18,7 +18,6 @@ import {
   markEncountered,
   minDifficulty,
   recordLevelResult,
-  renameSlot as renameSlotStorage,
   saveSlot,
   setDifficulty as setDifficultyOnProgress,
   starsForLives,
@@ -289,7 +288,6 @@ type GameStore = {
   dismissSplash: () => void;
   goToSlots: () => void;
   selectSlot: (id: SlotId) => void;
-  renameSlot: (id: SlotId, name: string) => void;
   deleteSlot: (id: SlotId) => void;
 
   startLevel: (id: number) => void;
@@ -509,12 +507,6 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       ...buildWorldForLevel(getLevel(1), progress.difficulty),
     });
-  },
-
-  renameSlot: (id, name) => {
-    renameSlotStorage(id, name);
-    // SaveSlots forces its own refresh after calling this action — the
-    // store doesn't mirror slot metadata, so nothing else to update.
   },
 
   deleteSlot: (id) => {

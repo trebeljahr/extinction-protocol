@@ -252,17 +252,6 @@ export const saveSlot = (id: SlotId, progress: ProgressData, name?: string): voi
   });
 };
 
-export const renameSlot = (id: SlotId, name: string): void => {
-  const trimmed = name.trim().slice(0, NAME_MAX_LEN);
-  if (trimmed === "") return;
-  const payload = readSlotRaw(id);
-  if (!payload) return;
-  writeSlotRaw(id, {
-    meta: { name: trimmed, lastPlayed: payload.meta.lastPlayed },
-    progress: payload.progress,
-  });
-};
-
 export const deleteSlot = (id: SlotId): void => {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
