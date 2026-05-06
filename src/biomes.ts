@@ -438,8 +438,9 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 // belong here — man-made wooden props (Barrel, Chest) were swapped for
 // sci-fi machine/satellite variants so non-nature biomes read as post-
 // human tech, not woodwork. NOTHING tree-sized in this list — anything
-// that reads as a placement-blocker silhouette (DeadTree, Tree_Light,
-// Crystal1) lives in BIOME_LAYERS with `blocks: true` so it's removable.
+// that reads as a placement-blocker silhouette (DeadTree, Tree_Light)
+// lives in BIOME_LAYERS with `blocks: true` so it's removable. Tiny accent
+// shards like Crystal1 stay here so they never block placement.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
   forest: [
     "/models/landmarks/forest/Mushroom.glb",
