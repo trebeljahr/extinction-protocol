@@ -307,10 +307,17 @@ const wastelandLayers = (): BiomeLayer[] => [
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 4, 5151),
 ];
 
+const BLUE_CRYSTAL_BLOCKER_URLS = [
+  "/models/biomes/alien/Crystal_Large_1.glb",
+  "/models/biomes/alien/Crystal_Large_2.glb",
+  "/models/biomes/alien/Crystal_Medium_1.glb",
+  "/models/biomes/alien/Crystal_Medium_2.glb",
+];
+
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
-// slightly larger, reading as volcanic boulders and slag heaps. Adds a
-// crystal-rock blocker layer so every clearable obstacle has a readable
-// silhouette without saturating lava maps with random clutter.
+// slightly larger, reading as volcanic boulders and slag heaps. Adds the same
+// blue-crystal pack used by alien so every clearable obstacle has a readable
+// silhouette without falling back to the sci-fi rock/crystal hybrid.
 const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -331,13 +338,14 @@ const lavaLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: ["/models/scifi/rock_crystalsLargeA.glb"],
+    urls: BLUE_CRYSTAL_BLOCKER_URLS,
     count: 7,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.55,
-    maxScale: 1.0,
+    minScale: 0.11,
+    maxScale: 0.18,
     castShadow: true,
     blocks: true,
+    footprint: 0.82,
     cluster: { seeds: 3, sigma: 2.5 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
@@ -390,12 +398,7 @@ const alienLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: [
-      "/models/biomes/alien/Crystal_Large_1.glb",
-      "/models/biomes/alien/Crystal_Large_2.glb",
-      "/models/biomes/alien/Crystal_Medium_1.glb",
-      "/models/biomes/alien/Crystal_Medium_2.glb",
-    ],
+    urls: BLUE_CRYSTAL_BLOCKER_URLS,
     count: 10,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.11,
