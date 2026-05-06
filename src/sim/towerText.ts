@@ -35,7 +35,7 @@ export const TOWER_MATCHUPS: Record<TowerKind, string> = {
   pulse:
     "Strong against Triceratops. Workable against Parasaurs, Raptors, and T-Rex. Falls off against other heavies. T3 Annihilator's armor pierce strips resist-chip immunity.",
   chain:
-    "Dedicated swarm-killer. Strong against Swarm, Stegosaur, and Raptor. Minimal effect on Triceratops, Apatosaur, and Matriarch.",
+    "Dedicated swarm-killer. Strong against Swarm, Parasaur, Stegosaur, and Raptor. Minimal effect on Triceratops, Apatosaur, and Matriarch.",
   cryo: "Cold is the only effective damage type against Apatosaur and Matriarch. Slow is reduced against Stegosaur, Triceratops, Apatosaur, and Matriarch.",
   mortar:
     "Built for Swarms. Falls off against heavy targets. T3 Singularity is the primary shield-cracker.",
