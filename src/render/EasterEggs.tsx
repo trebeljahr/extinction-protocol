@@ -256,6 +256,26 @@ const chimneyLocal = (
   z: offset.z * scale,
 });
 
+// Eggs must out-priority every other clickable (dinos, rocks, trees, the
+// placement plane) even when they sit *behind* one in screen space. R3F
+// dispatches pointer events in ascending intersection.distance order and
+// honors stopPropagation, so the front-most hit normally wins. We run the
+// real sphere intersection, then subtract a large constant from the
+// reported distance — eggs sort to the front of the merged hit list while
+// preserving relative order between two overlapping eggs.
+const EGG_PRIORITY_OFFSET = 1000;
+const eggPriorityRaycast: THREE.Mesh["raycast"] = function (
+  this: THREE.Mesh,
+  raycaster,
+  intersects,
+) {
+  const before = intersects.length;
+  THREE.Mesh.prototype.raycast.call(this, raycaster, intersects);
+  for (let i = before; i < intersects.length; i++) {
+    intersects[i].distance -= EGG_PRIORITY_OFFSET;
+  }
+};
+
 const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const { scene, animations } = useGLTF(def.model);
   const clickEasterEgg = useGame((s) => s.clickEasterEgg);
@@ -391,7 +411,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       {def.chimneyOffset ? (
         <ChimneySmokeColumn egg={egg} chimney={chimneyLocal(def.chimneyOffset, scale, yModel)} />
       ) : null}
-      <mesh position={[0, hitY, 0]}>
+      <mesh position={[0, hitY, 0]} raycast={eggPriorityRaycast}>
         <sphereGeometry args={[hitRadius, 12, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
