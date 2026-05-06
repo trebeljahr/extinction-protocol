@@ -108,12 +108,12 @@ export const TowerPanel = () => {
         </div>
 
         <div className="text-[11px] leading-snug text-fg-muted mb-3 px-2 py-2 rounded-[5px] border border-border-faint bg-surface-faint">
-          Each drone flies to a tower you assign and adds{" "}
+          Each drone adds{" "}
           <span style={{ color: "#bbffc8" }}>
             +{Math.round(tower.serviceBuff * 100)}% fire rate
           </span>{" "}
-          while servicing it. Multiple drones on one tower stack. Click "Pick" on a slot below, then
-          click any tower on the map to assign.
+          to its assigned tower. Multiple drones on one tower stack. Click "Pick" on a slot, then
+          click a tower on the map to assign.
         </div>
 
         <HiveDronePanel hive={tower} />

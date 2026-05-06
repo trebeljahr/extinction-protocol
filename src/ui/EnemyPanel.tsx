@@ -154,7 +154,7 @@ export const EnemyPanel = () => {
                 borderColor: "rgba(255,178,102,0.5)",
                 background: "rgba(255,178,102,0.10)",
               }}
-              title="Adapted — evolved resistance to specific damage types. Diversify your portfolio."
+              title="Adapted — evolved resistance to specific damage types."
             >
               Adapted
             </span>
