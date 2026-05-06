@@ -15,7 +15,7 @@ const MAX_REGEN = 128;
 // actual healing state — players see the icon "go dark" right after a
 // hit and "come back" once regen resumes.
 
-const TEX_SIZE = 64;
+const TEX_SIZE = 128;
 
 const buildPlusTexture = () => {
   const c = document.createElement("canvas");
@@ -24,32 +24,76 @@ const buildPlusTexture = () => {
   const ctx = c.getContext("2d");
   if (!ctx) return new THREE.CanvasTexture(c);
   ctx.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+
+  const cx = TEX_SIZE / 2;
+  const cy = TEX_SIZE / 2;
+  const armLen = 36;
+  const armHalf = 8;
+
   // Soft outer halo so the "+" reads against busy biome textures.
-  const grd = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
-  grd.addColorStop(0, "rgba(126,255,138,0.35)");
-  grd.addColorStop(1, "rgba(126,255,138,0)");
-  ctx.fillStyle = grd;
+  // Brighter, multi-stop gradient so the bloom pass picks it up.
+  const halo = ctx.createRadialGradient(cx, cy, 2, cx, cy, 58);
+  halo.addColorStop(0.0, "rgba(225,255,232,0.95)");
+  halo.addColorStop(0.28, "rgba(150,255,170,0.55)");
+  halo.addColorStop(0.6, "rgba(96,230,128,0.22)");
+  halo.addColorStop(1.0, "rgba(80,220,120,0)");
+  ctx.fillStyle = halo;
   ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
-  // Solid plus glyph on top.
-  ctx.fillStyle = "#bbffc8";
-  ctx.strokeStyle = "#2da64a";
-  ctx.lineWidth = 3;
-  // Horizontal bar
-  ctx.fillRect(14, 28, 36, 8);
-  ctx.strokeRect(14, 28, 36, 8);
-  // Vertical bar
-  ctx.fillRect(28, 14, 8, 36);
-  ctx.strokeRect(28, 14, 8, 36);
+
+  // Build the "+" as a single 12-vertex closed path. Two overlapping
+  // rectangles produced strokes that crossed *through* the intersection
+  // — a single outline strokes only the exterior, so the centre is
+  // perfectly solid and symmetric on the origin.
+  ctx.beginPath();
+  ctx.moveTo(cx - armHalf, cy - armLen);
+  ctx.lineTo(cx + armHalf, cy - armLen);
+  ctx.lineTo(cx + armHalf, cy - armHalf);
+  ctx.lineTo(cx + armLen, cy - armHalf);
+  ctx.lineTo(cx + armLen, cy + armHalf);
+  ctx.lineTo(cx + armHalf, cy + armHalf);
+  ctx.lineTo(cx + armHalf, cy + armLen);
+  ctx.lineTo(cx - armHalf, cy + armLen);
+  ctx.lineTo(cx - armHalf, cy + armHalf);
+  ctx.lineTo(cx - armLen, cy + armHalf);
+  ctx.lineTo(cx - armLen, cy - armHalf);
+  ctx.lineTo(cx - armHalf, cy - armHalf);
+  ctx.closePath();
+
+  ctx.fillStyle = "#eaffee";
+  ctx.fill();
+  ctx.lineJoin = "miter";
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#1c8a3a";
+  ctx.stroke();
+
+  // Hot core highlight along the cross — additive blend pushes the centre
+  // past the bloom luminance threshold so it gets a real glow halo.
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const core = ctx.createRadialGradient(cx, cy, 1, cx, cy, 18);
+  core.addColorStop(0, "rgba(255,255,255,0.95)");
+  core.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+  ctx.restore();
+
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
 };
+
+// HDR-tinted multiplier — values >1 push the bright cross/halo pixels past
+// the App.tsx bloom threshold (0.82) so the badge actually blooms rather
+// than just sitting flat against the scene.
+const buildMaterialColor = () => new THREE.Color().setRGB(1.0, 1.55, 1.1);
 
 export const RegenBadges = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const tex = useMemo(buildPlusTexture, []);
+  const matColor = useMemo(buildMaterialColor, []);
 
   useFrame(({ camera }) => {
     const mesh = meshRef.current;
@@ -92,6 +136,7 @@ export const RegenBadges = () => {
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial
         map={tex}
+        color={matColor}
         transparent
         depthWrite={false}
         toneMapped={false}
