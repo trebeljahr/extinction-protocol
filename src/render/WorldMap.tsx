@@ -1,13 +1,10 @@
-import { Environment, OrbitControls, OrthographicCamera } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
-import * as THREE from "three";
-import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { Environment, OrthographicCamera } from "@react-three/drei";
 import { LEVELS } from "../levels";
 import { BiomeGround } from "./BiomeGround";
 import { BiomeProps } from "./BiomeProps";
 import { LevelNode } from "./LevelNode";
 import { MapRoute } from "./MapRoute";
+import { MapOrbitControls } from "./useMapGestures";
 
 // Level node bounds span x: [-24, 22], y: [-14, 26] — content grew taller
 // after the 6-biome-band layout (alien band tops out at y=26).
@@ -42,65 +39,6 @@ const FOG = "#4a5868";
 const HEMI_TOP = "#d6e6f4";
 const HEMI_BOTTOM = "#7a6848";
 
-const ClampedControls = () => {
-  const ref = useRef<OrbitControlsImpl | null>(null);
-  // Avoid feedback loop: only shift camera by the clamp delta once per frame.
-  useFrame(() => {
-    const c = ref.current;
-    if (!c) return;
-    const t = c.target;
-    const cx = THREE.MathUtils.clamp(t.x, -PAN_LIMIT_X, PAN_LIMIT_X);
-    const cz = THREE.MathUtils.clamp(t.z, -PAN_LIMIT_Z, PAN_LIMIT_Z);
-    // Lock the target to the ground plane. screenSpacePanning is off below
-    // so this should stay at 0 already, but defensive: any future control
-    // tweak that lets target.y drift would push the camera up/down and the
-    // bottom rays would miss the ground entirely, exposing BG.
-    const dx = cx - t.x;
-    const dy = -t.y;
-    const dz = cz - t.z;
-    if (dx !== 0 || dy !== 0 || dz !== 0) {
-      t.x = cx;
-      t.y = 0;
-      t.z = cz;
-      c.object.position.x += dx;
-      c.object.position.y += dy;
-      c.object.position.z += dz;
-    }
-  });
-  return (
-    <OrbitControls
-      ref={ref}
-      makeDefault
-      enablePan
-      enableRotate={false}
-      enableZoom
-      mouseButtons={{
-        LEFT: THREE.MOUSE.PAN,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: THREE.MOUSE.PAN,
-      }}
-      // Touch defaults are ROTATE/DOLLY_PAN, but rotation is disabled
-      // and the world map needs single-finger pan to feel right on
-      // mobile. Two fingers still pinch-zoom + pan, matching the mouse
-      // wheel + drag combo.
-      touches={{
-        ONE: THREE.TOUCH.PAN,
-        TWO: THREE.TOUCH.DOLLY_PAN,
-      }}
-      panSpeed={1.6}
-      zoomSpeed={0.8}
-      minZoom={MIN_ZOOM}
-      maxZoom={MAX_ZOOM}
-      // World-horizontal panning — drag-up/down maps to forward/back along
-      // the ground plane (no Y drift), so the camera height stays fixed at
-      // 30 and bottom rays always hit the ground. screenSpacePanning=true
-      // tilted the pan axis with the camera and let target.y drift, which
-      // pushed the camera below the plane on extreme drags and revealed BG.
-      screenSpacePanning={false}
-    />
-  );
-};
-
 export const WorldMapScene = () => (
   <>
     <color attach="background" args={[BG]} />
@@ -118,7 +56,14 @@ export const WorldMapScene = () => (
     */}
     <OrthographicCamera makeDefault position={[0, 30, 11.36]} zoom={18} near={0.1} far={200} />
 
-    <ClampedControls />
+    <MapOrbitControls
+      panLimitX={PAN_LIMIT_X}
+      panLimitZ={PAN_LIMIT_Z}
+      minZoom={MIN_ZOOM}
+      maxZoom={MAX_ZOOM}
+      panSpeed={1.6}
+      zoomSpeed={0.8}
+    />
 
     <Environment preset="park" background={false} environmentIntensity={0.6} />
 
