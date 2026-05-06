@@ -55,7 +55,7 @@ export const LavaFeatures = () => {
         </mesh>
       ))}
       {decorated.bridges.map((b) => (
-        <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]} rotation={[0, b.rotY, 0]}>
+        <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]} rotation={[0, -b.rotY, 0]}>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[b.length, 0.18, bridgeWidth]} />
             <meshStandardMaterial color={palette.bridgeDeck} roughness={1} />
