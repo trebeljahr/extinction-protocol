@@ -28,6 +28,16 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3286,
       strictPort: true,
+      // Bind to all interfaces so LAN devices (phone/tablet) can hit the
+      // dev server by IP. `--host` on the CLI flips the same switch.
+      host: true,
+      // Vite 5+ rejects requests whose Host header doesn't match localhost,
+      // returning 403 for every asset (incl. /models/*.glb). Without this
+      // mobile testing on the LAN sees broken GLBs, which then crash the
+      // r3f scene with "Cannot read properties of undefined (reading 'max')"
+      // out of useGLTF -> meshSource. Allow the typical LAN ranges + *.local
+      // mDNS names; production builds never read this field.
+      allowedHosts: ["192.168.1.*", "192.168.0.*", "10.0.0.*", "*.local", "localhost"],
     },
     build: {
       target: "es2022",
