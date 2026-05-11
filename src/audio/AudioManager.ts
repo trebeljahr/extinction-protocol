@@ -310,9 +310,9 @@ export class AudioManager {
     osc.stop(now + clickDur);
   }
 
-  // Synthesised flamethrower whoosh: filtered white noise with an envelope
-  // and a frequency sweep. Played once per damage tick — overlapping bursts
-  // stack into a continuous roar while the tower is firing.
+  // Synthesised flame: broadband noise with amplitude jitter for crackle,
+  // high-shifted spectrum for sizzle (not the watery low-mid bandpass it
+  // used to be). Overlapping bursts stack into a continuous roar.
   private lastWhooshAt = 0;
   private activeWhooshes = new Set<AudioBufferSourceNode>();
   playWhoosh(volumeScale = 0.35, durationSec = 0.45) {
@@ -329,30 +329,50 @@ export class AudioManager {
     const length = Math.ceil(durationSec * sampleRate);
     const buf = ctx.createBuffer(1, length, sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    // Random-walk amplitude on white noise gives the irregular crackle of
+    // flame instead of the smooth hiss of a water jet. Rare sharp spikes
+    // mimic pops.
+    let amp = 0.6;
+    for (let i = 0; i < length; i++) {
+      amp += (Math.random() - 0.5) * 0.18;
+      if (amp < 0.2) amp = 0.2;
+      else if (amp > 1.0) amp = 1.0;
+      let s = (Math.random() * 2 - 1) * amp;
+      if (Math.random() < 0.0015) s *= 2.2;
+      data[i] = s;
+    }
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
 
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.Q.value = 1.4;
-    bp.frequency.setValueAtTime(260, now);
-    bp.frequency.exponentialRampToValueAtTime(1400, now + durationSec * 0.45);
-    bp.frequency.exponentialRampToValueAtTime(700, now + durationSec);
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 450;
+
+    const peakF = ctx.createBiquadFilter();
+    peakF.type = "peaking";
+    peakF.frequency.value = 1800;
+    peakF.Q.value = 0.7;
+    peakF.gain.value = 5;
 
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 2400;
+    lp.frequency.setValueAtTime(4200, now);
+    lp.frequency.exponentialRampToValueAtTime(2400, now + durationSec);
 
     const gain = ctx.createGain();
-    const peak = Math.min(0.5, volumeScale);
+    const peakG = Math.min(0.5, volumeScale);
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(peak, now + 0.04);
-    gain.gain.linearRampToValueAtTime(peak * 0.7, now + durationSec * 0.6);
+    gain.gain.linearRampToValueAtTime(peakG, now + 0.025);
+    const wobbleSteps = 5;
+    for (let s = 1; s <= wobbleSteps; s++) {
+      const t = now + (durationSec - 0.06) * (s / wobbleSteps);
+      const v = peakG * (0.55 + Math.random() * 0.4);
+      gain.gain.linearRampToValueAtTime(v, t);
+    }
     gain.gain.linearRampToValueAtTime(0, now + durationSec);
 
-    src.connect(bp).connect(lp).connect(gain).connect(towersGain);
+    src.connect(hp).connect(peakF).connect(lp).connect(gain).connect(towersGain);
     this.activeWhooshes.add(src);
     src.onended = () => {
       this.activeWhooshes.delete(src);
