@@ -418,14 +418,43 @@ const HIVE_ORBIT_SPEED = 0.55; // rad/s
 // neighbours without poaching towers across the map.
 export const HIVE_AUTO_ASSIGN_RANGE = 10;
 
-// On placement, attach the closest hive's free drone to the new tower
-// so the player doesn't have to drill into the hive panel for every
-// neighbour. Manual assignments (existing non-null slots) are left
-// alone — only an idle slot is filled. No-op when the new tower is
-// itself a hive, or when no hive within range has a free drone.
+// On placement, auto-wire idle drones so the player doesn't have to
+// drill into the hive panel for every neighbour.
+//
+// Two directions:
+//  1. Non-hive tower placed near an existing hive → grab closest
+//     hive's first idle drone.
+//  2. Hive placed near existing non-hive towers → fill idle slots
+//     with the closest unserviced neighbours.
+//
+// Manual assignments are left untouched — only idle (null) slots are
+// filled.
 export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean => {
-  if (tower.kind === "hive") return false;
   const rangeSq = HIVE_AUTO_ASSIGN_RANGE * HIVE_AUTO_ASSIGN_RANGE;
+
+  if (tower.kind === "hive") {
+    // Gather nearby non-hive towers sorted by distance, then fill
+    // idle drone slots closest-first.
+    const nearby: { id: number; d2: number }[] = [];
+    for (const t of world.towers) {
+      if (t === tower || t.kind === "hive") continue;
+      const d2 = distSq(t.pos, tower.pos);
+      if (d2 <= rangeSq) nearby.push({ id: t.id, d2 });
+    }
+    if (nearby.length === 0) return false;
+    nearby.sort((a, b) => a.d2 - b.d2);
+
+    let assigned = false;
+    let ni = 0;
+    for (let i = 0; i < tower.droneCount && ni < nearby.length; i++) {
+      if (tower.droneAssignments[i] !== null) continue;
+      tower.droneAssignments[i] = nearby[ni++].id;
+      assigned = true;
+    }
+    return assigned;
+  }
+
+  // Non-hive tower: find the closest hive with a free slot.
   let bestHive: Tower | null = null;
   let bestDroneIdx = -1;
   let bestDistSq = rangeSq;
