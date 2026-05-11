@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { measureVisibleBox } from "./measureModel";
 
 // Decorative-only background scene for the save-slot picker. Models are
 // loaded directly via useGLTF/useMemo and posed statically so this file
@@ -42,7 +43,7 @@ const StaticModel = ({ url, position, rotationY = 0, scale, groundAlign = true }
   // Compute baseline + center on the SHARED scene at scale=1, then we'll
   // multiply by our caller-supplied scale to convert to world units.
   const { baseY, centerXZ } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
+    const box = measureVisibleBox(scene);
     const center = box.getCenter(new THREE.Vector3());
     return {
       baseY: groundAlign ? box.min.y : center.y,
@@ -96,7 +97,7 @@ const AnimatedModel = ({
   const { scene, animations } = useGLTF(url);
 
   const { baseY, centerXZ } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
+    const box = measureVisibleBox(scene);
     const center = box.getCenter(new THREE.Vector3());
     return { baseY: box.min.y, centerXZ: { x: center.x, z: center.z } };
   }, [scene]);

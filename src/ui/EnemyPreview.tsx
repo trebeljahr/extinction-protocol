@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { measureVisibleBox } from "../render/measureModel";
 import type { EnemyKind } from "../sim/types";
 import { ENEMY_MODEL } from "../sim/world";
 
@@ -21,7 +22,7 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
 
   const obj = useMemo(() => {
     const cloned = cloneSkinned(gltf.scene);
-    const box = new THREE.Box3().setFromObject(cloned);
+    const box = measureVisibleBox(cloned);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
@@ -63,34 +64,8 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
     };
   }, [obj, gltf.animations, cfg.clip]);
 
-  // The bind-pose bbox we used for grounding includes bone tips that
-  // can sit far below the actual visible mesh — most obvious on the
-  // Triceratops, whose Idle clip leaves the body floating well above
-  // the ground disc while its shadow still anchors at y=0. After the
-  // first frame of the chosen clip we re-measure against the real
-  // skinned vertices and re-ground.
-  const groundedRef = useRef<EnemyKind | null>(null);
   useFrame((_, delta) => {
-    const mx = mixerRef.current;
-    if (!mx) return;
-    mx.update(delta);
-    if (groundedRef.current === kind) return;
-    groundedRef.current = kind;
-    obj.updateMatrixWorld(true);
-    let minY = Infinity;
-    const v = new THREE.Vector3();
-    obj.traverse((o) => {
-      const sm = o as THREE.SkinnedMesh;
-      if (!(sm as THREE.Mesh).isMesh) return;
-      if (!sm.isSkinnedMesh || !sm.skeleton) return;
-      const pos = sm.geometry.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        sm.getVertexPosition(i, v);
-        v.applyMatrix4(sm.matrixWorld);
-        if (v.y < minY) minY = v.y;
-      }
-    });
-    if (Number.isFinite(minY)) obj.position.y -= minY;
+    mixerRef.current?.update(delta);
   });
 
   return <primitive object={obj} />;

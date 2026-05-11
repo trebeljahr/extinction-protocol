@@ -12,6 +12,7 @@ import {
 } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
 import { useGame } from "../store";
+import { measureVisibleBox } from "./measureModel";
 
 const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
   if (!needle) return null;
@@ -52,8 +53,7 @@ const applyVisual = (root: THREE.Object3D, visual: EasterEggVisual | undefined) 
 const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
   const skinned = def.visual?.skinned ?? false;
   const clone = skinned ? (cloneSkinned(scene) as THREE.Object3D) : scene.clone(true);
-  clone.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(clone);
+  const box = measureVisibleBox(clone);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
   const scale = def.targetSize / maxDim;

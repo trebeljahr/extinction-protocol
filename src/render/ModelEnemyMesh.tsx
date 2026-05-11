@@ -6,6 +6,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import type { EnemyKind } from "../sim/types";
 import { ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
+import { measureVisibleBox } from "./measureModel";
 
 type Props = {
   kind: EnemyKind;
@@ -95,7 +96,7 @@ export const ModelEnemyMesh = ({
   const poolRef = useRef<Item[]>([]);
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
+    const box = measureVisibleBox(scene);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
