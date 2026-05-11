@@ -182,15 +182,15 @@ const forestLayers = (): BiomeLayer[] => [
 // Dead-tree props read as "tree-sized" silhouettes; promoted from cosmetic
 // to a blocking layer so the player can clear them and they don't sit in
 // build slots permanently. Scale overrides exist because the desert
-// DeadTree.glb is authored ~2x the size of the wasteland variant — at the
-// shared 0.7–1.15 it dwarfs nearby bushes/rocks, so desert passes its own
-// smaller range.
+// DeadTree.glb is authored at ~16 units tall — 5–7x larger than other tree
+// models. Defaults are tuned so the rendered size lands around 2–3.5 world
+// units; callers can override for biomes that want them smaller.
 const DEAD_TREE_LAYER = (
   url: string,
   count: number,
   seed: number,
-  minScale = 0.7,
-  maxScale = 1.15,
+  minScale = 0.12,
+  maxScale = 0.21,
 ): BiomeLayer => ({
   seed,
   urls: [url],
@@ -233,7 +233,7 @@ const desertLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 5, sigma: 3.5 },
   },
-  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.25, 0.4),
+  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.09, 0.15),
 ];
 
 const snowLayers = (): BiomeLayer[] => [
@@ -404,8 +404,8 @@ const alienLayers = (): BiomeLayer[] => [
     ],
     count: 24,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.7,
-    maxScale: 1.25,
+    minScale: 0.09,
+    maxScale: 0.16,
     castShadow: true,
     blocks: true,
     cluster: { seeds: 4, sigma: 2.5 },
@@ -420,7 +420,7 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
-  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151),
+  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151, 0.55, 0.85),
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
@@ -498,10 +498,7 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
   lava: ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/wasteland/Crystal1.glb"],
   // Alien plants/bushes are bush-class flora — same convention as the
   // non-blocking bush layers in BIOME_LAYERS, kept here as scattered decor.
-  alien: [
-    "/models/biomes/alien/Crystal_Small_1.glb",
-    "/models/biomes/alien/Crystal_Small_2.glb",
-  ],
+  alien: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
 };
 
 // Visual-role classification + target sizes so props on the world map (and

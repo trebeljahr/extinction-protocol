@@ -15,7 +15,7 @@ import { useGame } from "../store";
 // so we walk the GLB and stand up a separate InstancedMesh per primitive,
 // same pattern as Rocks/Trees/BiomeCosmetics.
 
-const DRONE_URL = "/models/turrets/Drone.glb";
+const DRONE_URL = "/models/turrets/HiveDrone.glb";
 const TARGET_SIZE = 0.95;
 const BOB_AMP = 0.08;
 const BOB_SPEED = 2.2;
