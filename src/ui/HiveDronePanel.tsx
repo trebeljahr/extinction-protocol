@@ -52,28 +52,27 @@ export const HiveDronePanel = ({ hive }: Props) => {
       <div className="text-[11px] font-bold tracking-wide text-fg-muted uppercase mb-1.5">
         Drone slots
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-2 gap-1">
         {slots.map((slot) => {
-          const status = slot.targetName ? `→ ${slot.targetName}` : "Idle";
           const statusColor = slot.targetName ? "#bbffc8" : "var(--color-fg-muted)";
           return (
             <div
               key={slot.key}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-[5px] border border-border-faint bg-surface-faint"
+              className="flex items-center gap-1 px-1.5 py-1 rounded-[5px] border border-border-faint bg-surface-faint min-w-0"
             >
-              <span className="text-[10px] font-bold tracking-wide text-fg-muted w-12">
-                Drone {slot.droneIdx + 1}
+              <span className="text-[10px] font-bold tracking-wide text-fg-muted shrink-0">
+                D{slot.droneIdx + 1}
               </span>
               <span
-                className="text-[12px] flex-1 tabular-nums truncate"
+                className="text-[10px] flex-1 tabular-nums truncate"
                 style={{ color: statusColor }}
               >
-                {status}
+                {slot.targetName ?? "Idle"}
               </span>
               {slot.isPicking ? (
                 <button
                   type="button"
-                  className="text-[10px] font-bold tracking-wide uppercase px-2 py-1 rounded-[4px] border"
+                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border shrink-0"
                   style={{
                     color: "#ffb030",
                     borderColor: "rgba(255,176,48,0.5)",
@@ -87,7 +86,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
               ) : (
                 <button
                   type="button"
-                  className="text-[10px] font-bold tracking-wide uppercase px-2 py-1 rounded-[4px] border border-border-faint hover:border-fg"
+                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border border-border-faint hover:border-fg shrink-0"
                   onClick={() => begin(hive.id, slot.droneIdx)}
                   title="Click a tower on the map to assign"
                 >
@@ -97,7 +96,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
               {slot.targetName && !slot.isPicking && (
                 <button
                   type="button"
-                  className="text-[10px] font-bold tracking-wide uppercase px-2 py-1 rounded-[4px] border border-border-faint hover:border-fg"
+                  className="text-[9px] font-bold px-1 py-0.5 rounded-[4px] border border-border-faint hover:border-fg shrink-0"
                   onClick={() => clear(hive.id, slot.droneIdx)}
                   title="Send this drone home"
                 >
@@ -117,7 +116,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
             background: "rgba(255,176,48,0.10)",
           }}
         >
-          Click a tower to assign Drone {assigning.droneIdx + 1} · click empty ground to cancel
+          Click a tower to assign D{assigning.droneIdx + 1} · click empty ground to cancel
         </div>
       )}
     </div>

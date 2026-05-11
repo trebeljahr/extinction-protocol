@@ -284,6 +284,26 @@
     border: 1px solid var(--color-border);
     pointer-events: auto;
     backdrop-filter: blur(var(--blur-md));
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(120, 160, 200, 0.35) transparent;
+  }
+  .enemy-panel::-webkit-scrollbar,
+  .tree-panel::-webkit-scrollbar,
+  .tower-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  .enemy-panel::-webkit-scrollbar-thumb,
+  .tree-panel::-webkit-scrollbar-thumb,
+  .tower-panel::-webkit-scrollbar-thumb {
+    background: rgba(120, 160, 200, 0.35);
+    border-radius: 3px;
+  }
+  .enemy-panel::-webkit-scrollbar-thumb:hover,
+  .tree-panel::-webkit-scrollbar-thumb:hover,
+  .tower-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 160, 200, 0.55);
   }
 
   .enemy-panel {
