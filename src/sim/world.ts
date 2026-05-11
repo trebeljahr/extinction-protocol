@@ -398,6 +398,7 @@ export const createWorld = (
     speedMul: difficulty.speed,
     goldKillMul: difficulty.goldKill,
     invincible: false,
+    lavaFeatures: lava,
   };
 };
 

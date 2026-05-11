@@ -377,6 +377,7 @@ export type World = {
   // Toggled by the debug menu; always false in production builds (the
   // toggle UI is gated by isDebug + dead-codes out).
   invincible: boolean;
+  lavaFeatures: import("../lavaGeometry").LavaFeatures | null;
 };
 
 export type EasterEgg = {

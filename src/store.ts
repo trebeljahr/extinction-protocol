@@ -4,6 +4,7 @@ import { ACHIEVEMENT_BY_ID, checkAchievements } from "./achievements";
 import { track } from "./analytics";
 import { BIOME_LAYERS, BIOME_TREE_URLS } from "./biomes";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
+import { isOnLavaSurface } from "./lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
@@ -223,6 +224,7 @@ const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
 
 const canPlaceAt = (world: World, pos: Vec2): boolean => {
   if (isOnPath(world, pos, PATH_WIDTH / 2 + 0.4)) return false;
+  if (isOnLavaSurface(world.lavaFeatures, pos.x, pos.y, TOWER_FOOTPRINT * 0.5)) return false;
   const footprintSq = (TOWER_FOOTPRINT + 0.1) * (TOWER_FOOTPRINT + 0.1);
   for (const t of world.towers) {
     if (distSq(t.pos, pos) < footprintSq) return false;
