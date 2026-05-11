@@ -174,6 +174,9 @@ export const SaveSlotsScene = () => (
 
     {/* Slow auto-orbit + drag-to-rotate. The user can grab the backdrop
         and spin the diorama; releasing resumes the gentle drift.
+        Polar angle is pinned to the camera's starting elevation
+        (acos(5.5/√(5.5²+17²)) ≈ 0.4π) so only the yaw axis — the same
+        axis autoRotate uses — is draggable; vertical drags do nothing.
         autoRotateSpeed 0.4 ≈ the previous 0.04 rad/s manual spin
         (rad/s = 2π/60 × speed). */}
     <OrbitControls
@@ -182,8 +185,8 @@ export const SaveSlotsScene = () => (
       enableZoom
       minDistance={10}
       maxDistance={30}
-      minPolarAngle={Math.PI * 0.15}
-      maxPolarAngle={Math.PI * 0.5}
+      minPolarAngle={Math.PI * 0.4}
+      maxPolarAngle={Math.PI * 0.4}
       autoRotate
       autoRotateSpeed={0.4}
       enableDamping
