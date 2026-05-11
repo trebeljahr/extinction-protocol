@@ -7,13 +7,14 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 const execFileAsync = promisify(execFile);
 
 // Resolve the Tailscale identity of this machine (MagicDNS short name,
-// full tailnet hostname, and tailnet IP) so the dev banner can print
-// the URLs a phone on the same tailnet should open. Best-effort —
-// silently returns null if `tailscale` is missing or the daemon is off.
+// full tailnet hostname, tailnet IP, and node ID for the serve-enable
+// URL). Best-effort — silently returns null if `tailscale` is missing
+// or the daemon is off.
 type TailscaleIdentity = {
   shortName: string;
   fullName: string;
   ip: string;
+  nodeId: string | null;
 };
 
 const tailscaleIdentity = async (): Promise<TailscaleIdentity | null> => {
@@ -22,7 +23,7 @@ const tailscaleIdentity = async (): Promise<TailscaleIdentity | null> => {
       timeout: 1500,
     });
     const json = JSON.parse(stdout) as {
-      Self?: { DNSName?: string; TailscaleIPs?: string[] };
+      Self?: { DNSName?: string; TailscaleIPs?: string[]; ID?: string };
     };
     const self = json.Self;
     if (!self?.DNSName || !self.TailscaleIPs?.length) return null;
@@ -30,9 +31,72 @@ const tailscaleIdentity = async (): Promise<TailscaleIdentity | null> => {
     const shortName = fullName.split(".")[0] ?? fullName;
     const ip = self.TailscaleIPs.find((v) => /^\d+\.\d+\.\d+\.\d+$/.test(v)) ?? "";
     if (!ip) return null;
-    return { shortName, fullName, ip };
+    return { shortName, fullName, ip, nodeId: self.ID ?? null };
   } catch {
     return null;
+  }
+};
+
+// Probe `tailscale serve status` to see whether the given local port has
+// an active HTTPS bridge into the tailnet. macOS App Store Tailscale uses
+// the NetworkExtension framework, which means peers CANNOT reach raw TCP
+// ports on the tailnet IP — `tailscale serve` is the only working path.
+// Returns the public HTTPS URL when a bridge exists, otherwise null.
+const tailscaleServeBridgeUrl = async (localPort: number): Promise<string | null> => {
+  try {
+    const { stdout } = await execFileAsync("tailscale", ["serve", "status", "--json"], {
+      timeout: 1500,
+    });
+    const cfg = JSON.parse(stdout) as {
+      Web?: Record<string, { Handlers?: Record<string, { Proxy?: string }> }>;
+    };
+    if (!cfg.Web) return null;
+    for (const [hostport, web] of Object.entries(cfg.Web)) {
+      const handlers = web.Handlers ?? {};
+      for (const handler of Object.values(handlers)) {
+        if (handler.Proxy?.includes(`:${localPort}`)) {
+          const [host, port] = hostport.split(":");
+          const suffix = port === "443" ? "" : `:${port}`;
+          return `https://${host}${suffix}/`;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// Register a tailscale serve bridge for `localPort`. The serve config
+// lives in tailscaled (persistent across vite restarts), so subsequent
+// dev runs see the bridge via tailscaleServeBridgeUrl without re-running.
+// Returns a tagged result so the banner can format the right message.
+type ServeRegisterResult =
+  | { kind: "ok" }
+  | { kind: "needsEnable"; enableUrl: string | null }
+  | { kind: "tailscaleMissing" }
+  | { kind: "other"; message: string };
+
+const tailscaleEnsureServe = async (
+  localPort: number,
+  nodeId: string | null,
+): Promise<ServeRegisterResult> => {
+  try {
+    await execFileAsync(
+      "tailscale",
+      ["serve", "--bg", "--https=443", `http://localhost:${localPort}`],
+      { timeout: 8000 },
+    );
+    return { kind: "ok" };
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr ?? "";
+    const code = (err as { code?: string }).code;
+    if (code === "ENOENT") return { kind: "tailscaleMissing" };
+    if (stderr.includes("Serve is not enabled") || stderr.includes("HTTPS is not enabled")) {
+      const enableUrl = nodeId ? `https://login.tailscale.com/f/serve?node=${nodeId}` : null;
+      return { kind: "needsEnable", enableUrl };
+    }
+    return { kind: "other", message: stderr.split("\n")[0] || "unknown error" };
   }
 };
 
@@ -62,23 +126,66 @@ const tailscaleBanner = (): Plugin => ({
       for (const url of resolved.local) {
         info(`  \x1b[32m➜\x1b[0m  \x1b[1mLocal\x1b[0m:   \x1b[36m${url}\x1b[0m`);
       }
-      // Tailscale identity is async; fire-and-forget so it appends after
-      // the Local line. Banner is best-effort — silently no-ops if tailscale
-      // isn't installed or the daemon is offline.
+      // Tailscale state is async; fire-and-forget so banner appends after
+      // the Local line. Best-effort — silently no-ops if tailscale isn't
+      // installed or the daemon is offline.
+      //
+      // macOS App Store Tailscale runs through a NetworkExtension which
+      // means peers can't reach raw TCP on the tailnet IP — you must
+      // bridge via `tailscale serve`. We probe its state and, if no
+      // bridge exists, register one automatically. Opt out by setting
+      // `VITE_AUTO_TAILSCALE_SERVE=0` in the environment.
       void (async () => {
         const id = await tailscaleIdentity();
         if (!id) return;
         const addr = server.httpServer?.address();
         const port = typeof addr === "object" && addr ? addr.port : null;
         if (port === null) return;
-        const urls = [
-          `http://${id.shortName}:${port}/`,
-          `http://${id.fullName}:${port}/`,
-          `http://${id.ip}:${port}/`,
-        ];
-        for (const url of urls) {
-          info(`  \x1b[32m➜\x1b[0m  \x1b[1mTailscale\x1b[0m: \x1b[36m${url}\x1b[0m`);
+        const label = (text: string) => `\x1b[1mTailscale\x1b[0m: ${text}`;
+        const printActive = (url: string) =>
+          info(`  \x1b[32m➜\x1b[0m  ${label(`\x1b[36m${url}\x1b[0m`)}`);
+
+        const existing = await tailscaleServeBridgeUrl(port);
+        if (existing) {
+          printActive(existing);
+          return;
         }
+        const autoOff = process.env.VITE_AUTO_TAILSCALE_SERVE === "0";
+        if (autoOff) {
+          info(`  \x1b[33m➜\x1b[0m  ${label("No serve bridge (auto-serve disabled).")}`);
+          info(
+            `       Run: \x1b[2mtailscale serve --bg --https=443 http://localhost:${port}\x1b[0m`,
+          );
+          return;
+        }
+        info(`  \x1b[2m➜  Tailscale: registering serve bridge…\x1b[0m`);
+        const result = await tailscaleEnsureServe(port, id.nodeId);
+        if (result.kind === "ok") {
+          const after = await tailscaleServeBridgeUrl(port);
+          if (after) {
+            printActive(after);
+            return;
+          }
+          printActive(`https://${id.fullName}/`);
+          return;
+        }
+        if (result.kind === "needsEnable") {
+          info(`  \x1b[33m➜\x1b[0m  ${label("Serve / HTTPS not enabled on this tailnet.")}`);
+          if (result.enableUrl) {
+            info(`       Enable once: \x1b[36m${result.enableUrl}\x1b[0m`);
+          }
+          info(`       Also enable HTTPS certs in DNS settings, then restart \`pnpm dev\`.`);
+          return;
+        }
+        if (result.kind === "tailscaleMissing") {
+          // Daemon was reachable for `status` but not the CLI subprocess —
+          // weird, but treat as silent no-op rather than scaring the user.
+          return;
+        }
+        info(`  \x1b[33m➜\x1b[0m  ${label(`Serve register failed: ${result.message}`)}`);
+        info(
+          `       Run manually: \x1b[2mtailscale serve --bg --https=443 http://localhost:${port}\x1b[0m`,
+        );
       })();
     };
   },
