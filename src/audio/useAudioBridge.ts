@@ -114,6 +114,9 @@ export const useAudioBridge = () => {
           // "wave incoming" half — keep this short so the two don't blur.
           audio.play("wave-call", "notifications", 0.65, 200);
           break;
+        case "easter-egg-click":
+          audio.play("tower-sell", "ui", 0.65, 60, 0.8);
+          break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();

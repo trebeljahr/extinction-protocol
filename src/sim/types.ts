@@ -315,7 +315,8 @@ export type GameEvent =
   | { type: "tower-sold" }
   | { type: "place-failed"; reason: "gold" | "spot" }
   | { type: "new-enemy" }
-  | { type: "wave-called-early" };
+  | { type: "wave-called-early" }
+  | { type: "easter-egg-click" };
 
 export type Shake = {
   magnitude: number;

@@ -148,6 +148,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     // Click sends the barrel rolling in a random horizontal direction
     // until it leaves the playfield. spinRate is high so the barrel
     // visibly rolls across the ground rather than coasting upright.
+    goldReward: 15,
     clickRoll: { speed: 7, lifetime: 4, spinRate: 14, tumble: true },
   },
   {
