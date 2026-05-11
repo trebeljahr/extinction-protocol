@@ -55,6 +55,7 @@ export const HUD = () => {
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
+  const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   const isMobile = useIsMobile();
   // On mobile the picker collapses to a small handle to free up the
@@ -271,7 +272,7 @@ export const HUD = () => {
       <TreePanel />
       <BossBanner />
 
-      {paused && !compendiumOpen && <PauseMenu onResume={togglePause} />}
+      {paused && !compendiumOpen && !levelIntroVisible && <PauseMenu onResume={togglePause} />}
     </div>
   );
 };

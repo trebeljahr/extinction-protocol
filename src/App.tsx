@@ -9,6 +9,7 @@ import { CanvasFailure } from "./ui/CanvasFailure";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { HUD } from "./ui/HUD";
 import { LandscapeNudge } from "./ui/LandscapeNudge";
+import { LevelIntro } from "./ui/LevelIntro";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { SaveSlots } from "./ui/SaveSlots";
@@ -65,6 +66,7 @@ const dprCap: [number, number] = lowEnd ? [1, 1.5] : [1, 2];
 
 export const App = () => {
   const screen = useGame((s) => s.screen);
+  const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   const achievementsOpen = useGame((s) => s.achievementsOpen);
   const creditsOpen = useGame((s) => s.creditsOpen);
@@ -164,6 +166,7 @@ export const App = () => {
           <DifficultyPicker />
         </Suspense>
       )}
+      {screen === "playing" && levelIntroVisible && <LevelIntro />}
       {screen === "playing" && !modalOpen && <NewEnemyAlert />}
       <AchievementToast />
       <LandscapeNudge />

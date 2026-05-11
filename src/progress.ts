@@ -70,6 +70,7 @@ export type ProgressData = {
   stats: ProgressStats;
   unlocked: Record<string, number>;
   difficulty: Difficulty;
+  seenIntros?: Record<number, true>;
 };
 
 export type SlotMeta = {
@@ -102,6 +103,7 @@ export const emptyProgress = (): ProgressData => ({
   stats: emptyStats(),
   unlocked: {},
   difficulty: DEFAULT_DIFFICULTY,
+  seenIntros: {},
 });
 
 const defaultName = (id: SlotId) => `Save ${id}`;
@@ -133,6 +135,10 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
         ? (raw.unlocked as Record<string, number>)
         : {},
     difficulty: isDifficulty(raw.difficulty) ? raw.difficulty : DEFAULT_DIFFICULTY,
+    seenIntros:
+      raw.seenIntros && typeof raw.seenIntros === "object"
+        ? (raw.seenIntros as Record<number, true>)
+        : {},
   };
 };
 

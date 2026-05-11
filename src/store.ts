@@ -6,6 +6,7 @@ import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS } from "./levels";
+import { LEVEL_BRIEFING } from "./levels/briefings";
 import type { Difficulty, ProgressData, SlotId, Stars } from "./progress";
 import {
   DEFAULT_DIFFICULTY,
@@ -284,6 +285,7 @@ type GameStore = {
   achievementToasts: AchievementToast[];
   newEnemyQueue: EnemyKind[];
   autoPausedForNewEnemy: boolean;
+  levelIntroVisible: boolean;
   treeClickCounts: Record<number, number>;
   rockClickCounts: Record<number, number>;
 
@@ -350,6 +352,7 @@ type GameStore = {
   clearInspectedEnemy: () => void;
 
   dismissNewEnemy: () => void;
+  dismissLevelIntro: () => void;
 
   onEvent: (fn: (e: GameEvent) => void) => () => void;
 
@@ -448,6 +451,7 @@ export const useGame = create<GameStore>((set, get) => ({
   achievementToasts: [],
   newEnemyQueue: [],
   autoPausedForNewEnemy: false,
+  levelIntroVisible: false,
   treeClickCounts: {},
   rockClickCounts: {},
 
@@ -462,6 +466,8 @@ export const useGame = create<GameStore>((set, get) => ({
     // Carry the debug invincibility flag across level starts/retries so a
     // toggled-on tester doesn't have to flip it again every restart.
     built.world.invincible = s.invincible;
+    const showIntro = !!LEVEL_BRIEFING[id] && !progress.seenIntros?.[id];
+    if (showIntro) built.world.status = "paused";
     set({
       ...built,
       selectedKind: null,
@@ -472,6 +478,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
+      levelIntroVisible: showIntro,
       screen: "playing",
       treeClickCounts: {},
       rockClickCounts: {},
@@ -494,6 +501,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
+      levelIntroVisible: false,
       runMinDifficulty: null,
     });
   },
@@ -516,6 +524,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedLevelId: null,
       newEnemyQueue: [],
       autoPausedForNewEnemy: false,
+      levelIntroVisible: false,
     });
   },
 
@@ -790,6 +799,26 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
+    });
+  },
+
+  dismissLevelIntro: () => {
+    const s = get();
+    if (!s.levelIntroVisible) return;
+    const levelId = s.selectedLevelId;
+    s.world.status = "running";
+    let progress = s.progress;
+    if (levelId !== null) {
+      progress = {
+        ...progress,
+        seenIntros: { ...progress.seenIntros, [levelId]: true as const },
+      };
+      persistProgress(s.activeSlot, progress);
+    }
+    set({
+      levelIntroVisible: false,
+      progress,
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
     });
   },
 
