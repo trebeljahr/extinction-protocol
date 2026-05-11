@@ -88,7 +88,7 @@ export const useAudioBridge = () => {
           audio.play("impact", "enemies", 0.25, 60, 1.0);
           break;
         case "death":
-          audio.play("death", "enemies", 0.3, 60);
+          audio.playSplat();
           break;
         case "wave-start":
           audio.startMusic(pickTrack());

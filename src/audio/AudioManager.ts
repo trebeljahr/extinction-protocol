@@ -118,7 +118,6 @@ export class AudioManager {
       ["shoot-cryo", `${base}audio/shoot-cryo.mp3`],
       ["shoot-mortar", `${base}audio/shoot-mortar.mp3`],
       ["impact", `${base}audio/impact.mp3`],
-      ["death", `${base}audio/death.mp3`],
       ["wave-start", `${base}audio/wave-start.mp3`],
       ["wave-clear", `${base}audio/wave-clear.mp3`],
       ["life-lost", `${base}audio/life-lost.mp3`],
@@ -263,6 +262,76 @@ export class AudioManager {
     };
     src.start(now);
     src.stop(now + durationSec);
+  }
+
+  // Wet "mush" splat for enemy deaths: a short noise burst bandpassed from
+  // bright-and-wet down to dull-and-low, paired with a sub-bass thump that
+  // pitches down. Reads as a creature's body bursting rather than a clean
+  // hit. Synthesised because real splat samples loop poorly when many
+  // enemies die at once on wave clears.
+  private lastSplatAt = 0;
+  private activeSplats = new Set<AudioScheduledSourceNode>();
+  playSplat(volumeScale = 0.55) {
+    const enemiesGain = this.busGains.enemies;
+    if (!this.ctx || !enemiesGain || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const wallNow = performance.now();
+    if (wallNow - this.lastSplatAt < 25) return;
+    if (this.activeSplats.size >= 10) return;
+    this.lastSplatAt = wallNow;
+
+    const duration = 0.22;
+    const sampleRate = ctx.sampleRate;
+    const length = Math.ceil(duration * sampleRate);
+
+    const noiseBuf = ctx.createBuffer(1, length, sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 0.9;
+    bp.frequency.setValueAtTime(900, now);
+    bp.frequency.exponentialRampToValueAtTime(180, now + duration);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 2200;
+
+    const noiseGain = ctx.createGain();
+    const peak = Math.min(0.7, volumeScale);
+    noiseGain.gain.setValueAtTime(0, now);
+    noiseGain.gain.linearRampToValueAtTime(peak, now + 0.006);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    noise.connect(bp).connect(lp).connect(noiseGain).connect(enemiesGain);
+
+    const startHz = 90 + Math.random() * 18;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(startHz, now);
+    osc.frequency.exponentialRampToValueAtTime(34, now + duration * 0.55);
+
+    const oscGain = ctx.createGain();
+    const oscPeak = peak * 0.6;
+    oscGain.gain.setValueAtTime(0, now);
+    oscGain.gain.linearRampToValueAtTime(oscPeak, now + 0.005);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.75);
+
+    osc.connect(oscGain).connect(enemiesGain);
+
+    this.activeSplats.add(noise);
+    this.activeSplats.add(osc);
+    noise.onended = () => this.activeSplats.delete(noise);
+    osc.onended = () => this.activeSplats.delete(osc);
+
+    noise.start(now);
+    noise.stop(now + duration);
+    osc.start(now);
+    osc.stop(now + duration);
   }
 
   ui(kind: "click" | "tab" | "open" | "close" | "error" | "select") {
