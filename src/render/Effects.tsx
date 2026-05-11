@@ -88,13 +88,12 @@ export const Effects = () => {
         const life = Math.max(0, (p.expiresAt - now) / p.maxLife);
         dummy.position.set(p.pos.x, 0.55, -p.pos.y);
         dummy.rotation.set(0, 0, 0);
-        // grow fast, fade slow
-        dummy.scale.setScalar(0.08 + (1 - life) * 0.22 + life * 0.15);
+        const fade = life < 0.15 ? life / 0.15 : 1;
+        dummy.scale.setScalar((0.08 + (1 - life) * 0.22 + life * 0.15) * fade);
         dummy.updateMatrix();
         pMesh.setMatrixAt(i, dummy.matrix);
         color.set(p.color);
-        // brighten early in life for hot-core feel
-        const boost = 0.6 + life * 1.6;
+        const boost = (0.4 + life * 1.0) * fade;
         color.multiplyScalar(boost);
         pMesh.setColorAt(i, color);
         i++;
@@ -288,19 +287,23 @@ export const Effects = () => {
 
   return (
     <group>
-      <instancedMesh ref={particleRef} args={[undefined, undefined, MAX_PARTICLES]}>
+      <instancedMesh ref={particleRef} args={[undefined, undefined, MAX_PARTICLES]} renderOrder={2}>
         <sphereGeometry args={[1, 8, 8]} />
         <meshBasicMaterial
           ref={particleMatRef}
           toneMapped={false}
           transparent
-          opacity={0.9}
+          opacity={0.55}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </instancedMesh>
 
-      <instancedMesh ref={explosionRef} args={[undefined, undefined, MAX_EXPLOSIONS]}>
+      <instancedMesh
+        ref={explosionRef}
+        args={[undefined, undefined, MAX_EXPLOSIONS]}
+        renderOrder={2}
+      >
         <sphereGeometry args={[1, 20, 20]} />
         <meshBasicMaterial
           ref={explosionMatRef}
@@ -312,7 +315,7 @@ export const Effects = () => {
         />
       </instancedMesh>
 
-      <instancedMesh ref={flashRef} args={[undefined, undefined, MAX_EXPLOSIONS]}>
+      <instancedMesh ref={flashRef} args={[undefined, undefined, MAX_EXPLOSIONS]} renderOrder={2}>
         <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           ref={flashMatRef}
@@ -324,7 +327,11 @@ export const Effects = () => {
         />
       </instancedMesh>
 
-      <instancedMesh ref={cryoHaloRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
+      <instancedMesh
+        ref={cryoHaloRef}
+        args={[undefined, undefined, MAX_CRYO_WAVES]}
+        renderOrder={2}
+      >
         <ringGeometry args={[0.78, 1.0, 64]} />
         <meshBasicMaterial
           toneMapped={false}
@@ -336,7 +343,11 @@ export const Effects = () => {
         />
       </instancedMesh>
 
-      <instancedMesh ref={cryoWaveRef} args={[undefined, undefined, MAX_CRYO_WAVES]}>
+      <instancedMesh
+        ref={cryoWaveRef}
+        args={[undefined, undefined, MAX_CRYO_WAVES]}
+        renderOrder={2}
+      >
         <ringGeometry args={[0.94, 1.0, 64]} />
         <meshBasicMaterial
           toneMapped={false}
@@ -348,7 +359,7 @@ export const Effects = () => {
         />
       </instancedMesh>
 
-      <group ref={beamsGroupRef} />
+      <group ref={beamsGroupRef} renderOrder={2} />
     </group>
   );
 };

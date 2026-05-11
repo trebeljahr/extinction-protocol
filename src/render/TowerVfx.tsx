@@ -88,31 +88,31 @@ export const TowerVfx = () => {
 
   return (
     <group>
-      <instancedMesh ref={chainOrbRef} args={[orbGeom, undefined, MAX_PER_KIND]}>
+      <instancedMesh ref={chainOrbRef} args={[orbGeom, undefined, MAX_PER_KIND]} renderOrder={1}>
         <meshBasicMaterial
           color="#9fd8ff"
           transparent
-          opacity={0.9}
+          opacity={0.6}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
         />
       </instancedMesh>
-      <instancedMesh ref={chainArcARef} args={[arcGeom, undefined, MAX_PER_KIND]}>
+      <instancedMesh ref={chainArcARef} args={[arcGeom, undefined, MAX_PER_KIND]} renderOrder={1}>
         <meshBasicMaterial
           color="#c48cff"
           transparent
-          opacity={0.85}
+          opacity={0.55}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
         />
       </instancedMesh>
-      <instancedMesh ref={chainArcBRef} args={[arcGeom, undefined, MAX_PER_KIND]}>
+      <instancedMesh ref={chainArcBRef} args={[arcGeom, undefined, MAX_PER_KIND]} renderOrder={1}>
         <meshBasicMaterial
           color="#bdf0ff"
           transparent
-          opacity={0.85}
+          opacity={0.55}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
