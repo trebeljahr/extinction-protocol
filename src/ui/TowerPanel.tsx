@@ -34,14 +34,24 @@ const ENEMY_ORDER: EnemyKind[] = [
 
 const LowHpIcon = () => (
   <svg
-    width="12"
-    height="6"
-    viewBox="0 0 12 6"
+    width="16"
+    height="10"
+    viewBox="0 0 16 10"
     aria-hidden="true"
-    style={{ marginRight: 4, verticalAlign: "middle" }}
+    style={{ marginRight: 3, verticalAlign: "middle" }}
   >
-    <rect x="0.5" y="0.5" width="11" height="5" rx="1" fill="none" stroke="currentColor" />
-    <rect x="2" y="2" width="2" height="2" fill="currentColor" />
+    <rect
+      x="0.5"
+      y="1"
+      width="13"
+      height="8"
+      rx="1.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1"
+    />
+    <rect x="14" y="3.5" width="1.5" height="3" rx="0.5" fill="currentColor" />
+    <rect x="2" y="2.5" width="3" height="5" rx="0.5" fill="#e05050" />
   </svg>
 );
 
