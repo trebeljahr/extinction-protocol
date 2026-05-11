@@ -34,6 +34,7 @@ export class AudioManager {
   };
   private musicGain: GainNode | null = null;
   private samples = new Map<string, Sample>();
+  private trimmedKeys = new Set<string>();
   private music: { src: AudioBufferSourceNode; gain: GainNode; key: MusicTrack } | null = null;
   private currentMusicKey: MusicTrack | null = null;
   private musicUrls: Record<MusicTrack, string> | null = null;
@@ -140,6 +141,29 @@ export class AudioManager {
       ["wave-call", `${base}audio/wave-call.mp3`],
     ];
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));
+  }
+
+  // Strip leading/trailing silence (MP3 encoder padding) so loop = true is gapless.
+  private trimBuffer(buf: AudioBuffer): AudioBuffer {
+    if (!this.ctx) return buf;
+    const ch0 = buf.getChannelData(0);
+    const len = ch0.length;
+    const threshold = 0.002;
+    const maxTrim = Math.ceil(buf.sampleRate * 0.1);
+
+    let start = 0;
+    while (start < maxTrim && start < len && Math.abs(ch0[start]) < threshold) start++;
+
+    let end = len;
+    while (end > len - maxTrim && end > start && Math.abs(ch0[end - 1]) < threshold) end--;
+
+    if (start === 0 && end === len) return buf;
+    const trimLen = end - start;
+    const trimmed = this.ctx.createBuffer(buf.numberOfChannels, trimLen, buf.sampleRate);
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      trimmed.copyToChannel(buf.getChannelData(c).subarray(start, end), c);
+    }
+    return trimmed;
   }
 
   private totalVoices(): number {
@@ -378,6 +402,10 @@ export class AudioManager {
     if (this.currentMusicKey !== key) return;
     const sample = this.samples.get(key);
     if (!sample?.buffer) return;
+    if (!this.trimmedKeys.has(key)) {
+      sample.buffer = this.trimBuffer(sample.buffer);
+      this.trimmedKeys.add(key);
+    }
     const ctx = this.ctx;
     const now = ctx.currentTime;
 
