@@ -16,7 +16,7 @@ import { useGame } from "../store";
 // same pattern as Rocks/Trees/BiomeCosmetics.
 
 const DRONE_URL = "/models/turrets/HiveDrone.glb";
-const TARGET_SIZE = 0.95;
+const TARGET_SIZE = 0.7;
 const BOB_AMP = 0.08;
 const BOB_SPEED = 2.2;
 const MAX_DRONES = 256;
