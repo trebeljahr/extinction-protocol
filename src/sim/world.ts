@@ -199,6 +199,8 @@ const buildRocks = (
   const rocks: Rock[] = [];
   const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
   const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
+  const halfW = MAP_WIDTH * 0.475;
+  const halfH = MAP_HEIGHT * 0.475;
   let nextId = firstId;
 
   const layers = BIOME_LAYERS[biome];
@@ -207,14 +209,60 @@ const buildRocks = (
     if (!spec.blocks) continue;
     const rng = mulberry32(spec.seed);
     const pathR2 = spec.clearance * spec.clearance;
+
+    const clusterCfg = spec.cluster;
+    const clusterSeeds: Vec2[] = [];
+    if (clusterCfg) {
+      const seedMinDistSq = 5.5 * 5.5;
+      let seedTries = 0;
+      while (clusterSeeds.length < clusterCfg.seeds && seedTries < clusterCfg.seeds * 60) {
+        seedTries++;
+        const sx = (rng() - 0.5) * MAP_WIDTH * 0.85;
+        const sy = (rng() - 0.5) * MAP_HEIGHT * 0.85;
+        if (isOnLavaSurface(lava, sx, sy, 1.5)) continue;
+        let seedBlocked = false;
+        for (const path of paths) {
+          for (let i = 0; i < path.length - 1; i++) {
+            if (
+              distPointToSegSq(sx, sy, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2
+            ) {
+              seedBlocked = true;
+              break;
+            }
+          }
+          if (seedBlocked) break;
+        }
+        if (seedBlocked) continue;
+        let tooClose = false;
+        for (const s of clusterSeeds) {
+          const dx = s.x - sx;
+          const dy = s.y - sy;
+          if (dx * dx + dy * dy < seedMinDistSq) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (tooClose) continue;
+        clusterSeeds.push({ x: sx, y: sy });
+      }
+    }
+    const useClusters = clusterCfg !== undefined && clusterSeeds.length > 0;
+
     let tries = 0;
     let placed = 0;
     while (placed < spec.count && tries < spec.count * 40) {
       tries++;
-      const x = (rng() - 0.5) * MAP_WIDTH;
-      const y = (rng() - 0.5) * MAP_HEIGHT;
+      let x: number;
+      let y: number;
+      if (useClusters && clusterCfg) {
+        const anchor = clusterSeeds[Math.floor(rng() * clusterSeeds.length)];
+        x = Math.max(-halfW, Math.min(halfW, anchor.x + gaussian(rng, clusterCfg.sigma)));
+        y = Math.max(-halfH, Math.min(halfH, anchor.y + gaussian(rng, clusterCfg.sigma)));
+      } else {
+        x = (rng() - 0.5) * MAP_WIDTH;
+        y = (rng() - 0.5) * MAP_HEIGHT;
+      }
       const rawVariant = Math.floor(rng() * spec.urls.length);
-      // Same triangular bias as trees — small/large rocks are accents, not norm.
       const scale = spec.minScale + ((rng() + rng()) / 2) * (spec.maxScale - spec.minScale);
       const rot = rng() * Math.PI * 2;
 

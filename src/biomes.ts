@@ -175,6 +175,7 @@ const forestLayers = (): BiomeLayer[] => [
     maxScale: 1.2,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 5, sigma: 3.0 },
   },
 ];
 
@@ -230,6 +231,7 @@ const desertLayers = (): BiomeLayer[] => [
     maxScale: 1.3,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 5, sigma: 3.5 },
   },
   DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.25, 0.4),
 ];
@@ -271,18 +273,32 @@ const snowLayers = (): BiomeLayer[] => [
     // see into, which reads as a broken mesh (open interior). Rock1 is the
     // solid variant that stays.
     urls: ["/models/biomes/snow/Rock1.glb"],
-    // Thinned to 42 from 55 so trees + bushes + grass + rocks share the
-    // playfield more evenly instead of rocks dominating the silhouette.
     count: 42,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.7,
     maxScale: 1.4,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 4, sigma: 2.8 },
   },
 ];
 
 const wastelandLayers = (): BiomeLayer[] => [
+  {
+    seed: 9001,
+    urls: [
+      "/models/biomes/desert/Bush1.glb",
+      "/models/biomes/desert/Bush2.glb",
+      "/models/biomes/desert/Bush3.glb",
+    ],
+    count: 28,
+    clearance: PATH_WIDTH / 2 + 0.6,
+    minScale: 0.55,
+    maxScale: 1.05,
+    castShadow: false,
+    footprint: 0.5,
+    cluster: { seeds: 4, sigma: 2.5 },
+  },
   {
     seed: 4242,
     urls: [
@@ -298,6 +314,7 @@ const wastelandLayers = (): BiomeLayer[] => [
     maxScale: 1.4,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 7, sigma: 3.2 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 8, 5151),
 ];
@@ -322,16 +339,18 @@ const lavaLayers = (): BiomeLayer[] => [
     maxScale: 1.55,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 8, sigma: 3.0 },
   },
   {
     seed: 7878,
     urls: ["/models/scifi/rock_crystalsLargeA.glb"],
     count: 14,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.45,
+    minScale: 0.55,
     maxScale: 1.0,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 3, sigma: 2.5 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 6, 5151),
 ];
@@ -342,6 +361,24 @@ const lavaLayers = (): BiomeLayer[] => [
 // promoted from cosmetic to a blocking layer so it acts as a removable
 // obstacle rather than non-interactive scenery.
 const alienLayers = (): BiomeLayer[] => [
+  {
+    seed: 9001,
+    urls: [
+      "/models/biomes/alien/Bush_1.gltf",
+      "/models/biomes/alien/Bush_2.gltf",
+      "/models/biomes/alien/Bush_3.gltf",
+      "/models/biomes/alien/Plant_1.gltf",
+      "/models/biomes/alien/Plant_2.gltf",
+      "/models/biomes/alien/Plant_3.gltf",
+    ],
+    count: 50,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.6,
+    maxScale: 1.2,
+    castShadow: false,
+    footprint: 0.5,
+    cluster: { seeds: 6, sigma: 2.2 },
+  },
   {
     seed: 4242,
     urls: [
@@ -355,6 +392,7 @@ const alienLayers = (): BiomeLayer[] => [
     maxScale: 1.35,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 5, sigma: 3.0 },
   },
   {
     seed: 7878,
@@ -364,12 +402,13 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/alien/Crystal_Medium_1.glb",
       "/models/biomes/alien/Crystal_Medium_2.glb",
     ],
-    count: 28,
+    count: 24,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.5,
+    minScale: 0.7,
     maxScale: 1.25,
     castShadow: true,
     blocks: true,
+    cluster: { seeds: 4, sigma: 2.5 },
   },
   {
     seed: 6161,
@@ -460,10 +499,6 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
   // Alien plants/bushes are bush-class flora — same convention as the
   // non-blocking bush layers in BIOME_LAYERS, kept here as scattered decor.
   alien: [
-    "/models/biomes/alien/Bush_1.gltf",
-    "/models/biomes/alien/Bush_2.gltf",
-    "/models/biomes/alien/Plant_1.gltf",
-    "/models/biomes/alien/Plant_2.gltf",
     "/models/biomes/alien/Crystal_Small_1.glb",
     "/models/biomes/alien/Crystal_Small_2.glb",
   ],
