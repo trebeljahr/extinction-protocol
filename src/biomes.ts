@@ -159,11 +159,11 @@ const forestLayers = (): BiomeLayer[] => [
     seed: 9001,
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
     count: 55,
-    clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.75,
-    maxScale: 1.35,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.45,
+    maxScale: 0.75,
     castShadow: false,
-    footprint: 0.6,
+    footprint: 0.35,
     cluster: { seeds: 6, sigma: 2.0 },
   },
   {
@@ -210,13 +210,11 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Bush3.glb",
     ],
     count: 50,
-    clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.7,
-    maxScale: 1.25,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.45,
+    maxScale: 0.75,
     castShadow: false,
-    footprint: 0.6,
-    // Desert bushes huddle near the rare oasis-feel pockets rather than
-    // sprinkling evenly across a featureless sand sheet.
+    footprint: 0.35,
     cluster: { seeds: 5, sigma: 2.4 },
   },
   {
@@ -259,14 +257,12 @@ const snowLayers = (): BiomeLayer[] => [
     // forest bush set: small green shrubs poking through snow give the
     // ground a second silhouette and read as boreal vegetation.
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    // Reduced from 60 + clustered — small tight thickets read as deliberate
-    // shrubs rather than the previous evenly-scattered "white blob" feel.
     count: 36,
-    clearance: PATH_WIDTH / 2 + 0.7,
-    minScale: 0.7,
-    maxScale: 1.2,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.45,
+    maxScale: 0.75,
     castShadow: false,
-    footprint: 0.55,
+    footprint: 0.35,
     cluster: { seeds: 5, sigma: 1.8 },
   },
   {
