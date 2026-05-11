@@ -9,7 +9,7 @@ import {
   type Difficulty,
 } from "../progress";
 import { useGame } from "../store";
-import { DifficultyIcon } from "./DifficultyIcon";
+import { DifficultyModelIcon } from "./DifficultyModelIcon";
 
 const GLOW: Record<Difficulty, string> = {
   easy: "shadow-[0_0_24px_rgba(180,255,201,0.18)]",
@@ -91,7 +91,7 @@ export const DifficultyPicker = () => {
                 <div
                   className={`w-full aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
                 >
-                  <DifficultyIcon difficulty={d} className={`w-3/4 h-3/4 ${accent.text}`} />
+                  <DifficultyModelIcon difficulty={d} className="w-3/4 h-3/4" />
                 </div>
                 <div className={`text-base font-bold ${accent.text} tracking-mid`}>
                   {DIFFICULTY_LABEL[d]}
