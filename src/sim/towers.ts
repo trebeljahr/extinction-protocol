@@ -6,10 +6,13 @@ import {
   createBeam,
   createCryoWave,
   createProjectile,
+  ELITE_RESIST_FLATTEN,
+  ENEMY_RESIST,
   emit,
   HIVE_MAX_DRONES,
   HIVE_MAX_DRONES_PER_TOWER,
   spawnParticles,
+  TOWER_DAMAGE_TYPE,
 } from "./world";
 
 // Effective fire rate factors in any service buff currently applied to
@@ -27,6 +30,16 @@ const scoreEnemy = (tower: Tower, e: Enemy): number => {
     // a shield while damaged unshielded enemies are nearby.
     const effHp = e.shield > 0 ? e.maxHp : e.hp;
     return -effHp;
+  }
+  if (tower.targetingMode === "vulnerable") {
+    const dmgType = TOWER_DAMAGE_TYPE[tower.kind];
+    let mul = ENEMY_RESIST[e.kind][dmgType];
+    if (e.elite) mul += (1 - mul) * ELITE_RESIST_FLATTEN;
+    const rawExtra = e.extraResists[dmgType] ?? 1;
+    const extra = tower.armorPierce && rawExtra < 1 ? 1 : rawExtra;
+    mul *= extra;
+    // Quantize to 5% steps so near-identical resists tie-break on hp.
+    return Math.round(mul * 20) * 1e8 - e.hp;
   }
   return e.segment + e.segmentT;
 };

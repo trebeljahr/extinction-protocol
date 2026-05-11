@@ -55,6 +55,11 @@ const TARGETING_MODES: {
     label: "Weak",
     title: "Lowest current HP — finish off damaged enemies (ignores shielded)",
   },
+  {
+    mode: "vulnerable",
+    label: "Vuln",
+    title: "Most vulnerable to this tower's damage type — ties broken by lowest HP",
+  },
 ];
 
 export const TowerPanel = () => {
