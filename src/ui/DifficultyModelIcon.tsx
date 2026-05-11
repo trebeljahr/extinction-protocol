@@ -3,13 +3,13 @@ import type { EnemyKind } from "../sim/types";
 import { ENEMY_MODEL } from "../sim/world";
 import { type BakeSpec, useBakedIcon } from "./bakedIcon";
 
-// One representative dinosaur per tier: peaceful long-neck for easy,
-// pack-hunter raptor for medium, apex predator T-Rex for hard, and the
+// One representative dinosaur per tier: nimble raptor for easy,
+// crested parasaur for medium, apex predator T-Rex for hard, and the
 // matriarch apatosaurus for extinction (same mesh used as the boss in
 // world.ts so the silhouette is unmistakable).
 const DIFFICULTY_KIND: Record<Difficulty, EnemyKind> = {
-  easy: "para",
-  medium: "raptor",
+  easy: "raptor",
+  medium: "para",
   hard: "allosaur",
   extinction: "boss",
 };
@@ -32,10 +32,10 @@ const TINT: Record<Difficulty, string> = {
 // reaches ~93% of the frame — visually flush against the tile border
 // with just enough slack to keep antialiased silhouette edges clean.
 const CAM_TUNING: Record<Difficulty, { camDist: number; camY: number; targetY: number }> = {
-  // Parasaur — bipedal grazer, crest pushes head high in frame.
-  easy: { camDist: 2.0, camY: 0.32, targetY: 0.22 },
   // Velociraptor — compact biped, body roughly centered.
-  medium: { camDist: 2.0, camY: 0.3, targetY: 0.2 },
+  easy: { camDist: 2.0, camY: 0.3, targetY: 0.2 },
+  // Parasaur — bipedal grazer, crest pushes head high in frame.
+  medium: { camDist: 2.0, camY: 0.32, targetY: 0.22 },
   // T-Rex — tallest silhouette, head sits high; target nudges up.
   hard: { camDist: 2.0, camY: 0.34, targetY: 0.25 },
   // Apatosaurus — long quadruped, low body; target sits near the spine.
