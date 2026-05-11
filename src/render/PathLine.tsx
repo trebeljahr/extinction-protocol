@@ -12,17 +12,38 @@ export const PathLine = () => {
   const pathDebug = useGame((s) => s.pathDebug);
   const style = BIOME_STYLE[biome];
   const pathsWithIds = useMemo(() => paths.map((path) => ({ id: nanoid(), path })), [paths]);
+
+  // Outline color: the path color darkened so the rim reads as a sunken
+  // border without clashing with the biome palette.
+  const outlineColor = useMemo(() => {
+    const c = new THREE.Color(style.pathColor);
+    c.multiplyScalar(0.55);
+    return `#${c.getHexString()}`;
+  }, [style.pathColor]);
+
+  // Two-pass render so overlapping paths merge cleanly:
+  //   1. Outlines first (wider ribbon, dark color, lower Y).
+  //   2. Inner fills after (PATH_WIDTH ribbon, path color, higher Y).
+  // Any inner fill covers any outline it crosses, so only the union's
+  // outer perimeter ends up showing the rim. Both layers share their Y
+  // across all paths, so same-color z-fighting is invisible.
   return (
     <group>
-      {pathsWithIds.map(({ id, path }, idx) => (
-        <SinglePath
-          key={id}
-          path={path}
-          pathIndex={idx}
-          pathColor={style.pathColor}
-          startColor={style.startRing}
-        />
-      ))}
+      <group>
+        {pathsWithIds.map(({ id, path }) => (
+          <PathOutline key={`out-${id}`} path={path} color={outlineColor} />
+        ))}
+      </group>
+      <group>
+        {pathsWithIds.map(({ id, path }) => (
+          <PathInner
+            key={`in-${id}`}
+            path={path}
+            pathColor={style.pathColor}
+            startColor={style.startRing}
+          />
+        ))}
+      </group>
       {pathDebug &&
         pathsWithIds.map(({ id, path }, idx) => (
           <PathDebugOverlay key={`dbg-${id}`} path={path} pathIndex={idx} />
@@ -89,43 +110,6 @@ const PathDebugOverlay = ({ path, pathIndex }: { path: Vec2[]; pathIndex: number
   );
 };
 
-// Soft inner gradient on the strip — slightly darker at the edges so the
-// ribbon reads as "carved into the ground" rather than a flat decal. Cached
-// as a single 1×N grayscale texture; the material multiplies its color by
-// the texel, so 1.0 = full pathColor and < 1.0 = darker.
-let edgeGradientTex: THREE.CanvasTexture | null = null;
-const getEdgeGradientTexture = (): THREE.CanvasTexture => {
-  if (edgeGradientTex) return edgeGradientTex;
-  const N = 64;
-  const cv = document.createElement("canvas");
-  cv.width = 1;
-  cv.height = N;
-  const g = cv.getContext("2d");
-  if (g) {
-    const grad = g.createLinearGradient(0, 0, 0, N);
-    // V=0 / V=1 are ribbon edges, V=0.5 is the centerline. Slight inset
-    // shading at the rim helps the ribbon settle into the terrain instead
-    // of looking like a hard rectangle stamped on top.
-    grad.addColorStop(0.0, "rgb(140,140,140)");
-    grad.addColorStop(0.12, "rgb(195,195,195)");
-    grad.addColorStop(0.5, "rgb(255,255,255)");
-    grad.addColorStop(0.88, "rgb(195,195,195)");
-    grad.addColorStop(1.0, "rgb(140,140,140)");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 1, N);
-  }
-  const tex = new THREE.CanvasTexture(cv);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  // sRGB so the multiply happens in linear space and matches how the
-  // ground colors are sampled — otherwise the gradient looks crushed.
-  tex.colorSpace = THREE.SRGBColorSpace;
-  edgeGradientTex = tex;
-  return tex;
-};
-
 // Build a ribbon (triangle strip) mesh that runs along the path centerline
 // with constant perpendicular width. Corners use a bisector miter so the
 // edges meet cleanly without overlapping decals or visible seams. `path`
@@ -143,8 +127,9 @@ const buildRibbonGeometry = (path: Vec2[], width: number, y: number): THREE.Buff
   // ever bites at the original waypoints near tight turns.
   const MAX_MITER_RATIO = 2.4;
 
-  // Cumulative arc length for U coordinate so the gradient texture (if
-  // ever extended along U) doesn't stretch on long segments.
+  // Cumulative arc length normalises U across segments — kept on the
+  // geometry so a future material can sample a texture along the ribbon
+  // without re-walking the path.
   let cumLen = 0;
   const segLens: number[] = [];
   for (let i = 0; i < n - 1; i++) {
@@ -220,8 +205,8 @@ const buildRibbonGeometry = (path: Vec2[], width: number, y: number): THREE.Buff
     positions[li + 4] = Y;
     positions[li + 5] = -(p.y - offY);
 
-    // U runs along the path (cumulative length / total); V is 0 left edge,
-    // 1 right edge — gradient texture maps darkness to V.
+    // U runs along the path (cumulative length / total); V is 0 on the
+    // left edge, 1 on the right.
     const u = cumLen / total;
     uvs[i * 4 + 0] = u;
     uvs[i * 4 + 1] = 0;
@@ -247,46 +232,51 @@ const buildRibbonGeometry = (path: Vec2[], width: number, y: number): THREE.Buff
   return geom;
 };
 
-// Y plane: lifted slightly above ground but below tower bases. Each path
-// gets a sub-millimeter stagger so two ribbons at a crossing don't z-fight
-// — invisible at the gameplay camera angle, but enough to win the depth
-// test along the overlap seam.
-const PATH_Y_BASE = 0.02;
-const PATH_Y_STAGGER = 0.0015;
+// Y planes: outline sits just below the inner fill so the depth test
+// reliably hides any outline crossed by another path's fill. Both planes
+// are shared across all paths — same color overlaps never z-fight visibly.
+const PATH_Y_OUTLINE = 0.019;
+const PATH_Y_INNER = 0.021;
 
-const SinglePath = ({
+// Outline ring beyond the walking ribbon. Tuned to read at the gameplay
+// camera angle without making the path look like a bordered tile.
+const PATH_OUTLINE_THICKNESS = 0.22;
+
+const PathOutline = ({ path, color }: { path: Vec2[]; color: string }) => {
+  const geometry = useMemo(
+    () => buildRibbonGeometry(path, PATH_WIDTH + 2 * PATH_OUTLINE_THICKNESS, PATH_Y_OUTLINE),
+    [path],
+  );
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  if (path.length < 2) return null;
+  return (
+    <mesh geometry={geometry} receiveShadow>
+      <meshStandardMaterial color={color} roughness={1} />
+    </mesh>
+  );
+};
+
+const PathInner = ({
   path,
-  pathIndex,
   pathColor,
   startColor,
 }: {
   path: Vec2[];
-  pathIndex: number;
   pathColor: string;
   startColor: string;
 }) => {
-  const y = PATH_Y_BASE + pathIndex * PATH_Y_STAGGER;
-  const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH, y), [path, y]);
-  const gradientTex = useMemo(() => getEdgeGradientTexture(), []);
-
-  // Geometry is built per-level and replaced when paths change; dispose
-  // the previous one to avoid leaking GPU buffers across resets.
+  const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH, PATH_Y_INNER), [path]);
   useEffect(() => () => geometry.dispose(), [geometry]);
-
   if (path.length < 2) return null;
-
   return (
     <group>
       <mesh geometry={geometry} receiveShadow>
-        <meshStandardMaterial color={pathColor} roughness={1} map={gradientTex} />
+        <meshStandardMaterial color={pathColor} roughness={1} />
       </mesh>
       <mesh position={[path[0].x, 0.04, -path[0].y]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={startColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
-      {/* End ring removed — the HQ turret (see HQTurret.tsx) sits at the
-          path endpoint and serves as the visual anchor for where enemies
-          are headed. */}
     </group>
   );
 };
