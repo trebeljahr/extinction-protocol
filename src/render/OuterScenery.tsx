@@ -6,11 +6,12 @@ import {
   BIOME_LAYERS,
   BIOME_TREE_URLS,
   type Biome,
+  type BiomeLayer,
   classifyPropUrl,
-  TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
+import { TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
 import { useGame } from "../store";
 
 // Decorative scenery in the band *outside* the playable rectangle. Pure
@@ -115,24 +116,35 @@ const pickUrlForTheme = (
   return pool[Math.floor(rng() * pool.length)];
 };
 
-// Per-role scale jitter — trees in the fringe occasionally lean small
-// (saplings, distant silhouettes), rocks vary more. Biome-author scale
-// ranges aren't directly reused because they're tuned for the inner play
-// area where size hierarchy matters more.
-const scaleForUrl = (url: string, rng: () => number): number => {
-  const role = classifyPropUrl(url);
-  switch (role) {
-    case "tree":
-      // Triangular distribution biased mid-size, with occasional small
-      // edge trees and the rare large hero.
-      return 0.55 + ((rng() + rng()) / 2) * 0.65;
-    case "rock":
-      return 0.6 + rng() * 0.75;
-    case "bush":
-      return 0.5 + rng() * 0.55;
-    default:
-      return 0.7 + rng() * 0.4;
+// Find the BIOME_LAYERS spec that owns a given URL so the outer band
+// reuses the exact same min/max scale the inner play area uses. Without
+// this the band normalizes to TARGET_SIZE_BY_ROLE while the inner area
+// uses raw GLTF scale × layer multiplier, and the outer props read
+// noticeably smaller than the inner ones using the same mesh.
+const layerForUrl = (biome: Biome, url: string): BiomeLayer | undefined => {
+  for (const layer of BIOME_LAYERS[biome]) {
+    if (layer.urls.includes(url)) return layer;
   }
+  return undefined;
+};
+
+const scaleForUrl = (biome: Biome, url: string, rng: () => number): number => {
+  const role = classifyPropUrl(url);
+  // Trees come from BIOME_TREE_URLS, not BIOME_LAYERS, so they use the
+  // global tree scale window (the same range Trees.tsx renders with).
+  if (role === "tree") {
+    return TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
+  }
+  const layer = layerForUrl(biome, url);
+  if (layer) {
+    // Triangular distribution mid-biases the size so the fringe doesn't
+    // look like equal-thirds large/medium/small — most props mid-range
+    // with the occasional small/large outlier.
+    return layer.minScale + ((rng() + rng()) / 2) * (layer.maxScale - layer.minScale);
+  }
+  // Fallback for URLs not present in BIOME_LAYERS (shouldn't happen with
+  // the current pools, but keeps the function total).
+  return 0.7 + rng() * 0.4;
 };
 
 // Sample a position uniformly inside the band (outer rect minus inner rect).
@@ -252,7 +264,7 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
       out.push({
         url,
         pos,
-        scale: scaleForUrl(url, rng),
+        scale: scaleForUrl(biome, url, rng),
         rotY: rng() * Math.PI * 2,
         // Disable shadows for the fringe — the directional light's shadow
         // camera spans the playable rectangle; outer trees would clip the
@@ -307,12 +319,10 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
       continue;
     }
     const url = pool[Math.floor(rng() * pool.length)];
-    // Loners trend smaller — they're meant to look like distant outliers.
-    const baseScale = scaleForUrl(url, rng);
     out.push({
       url,
       pos,
-      scale: baseScale * (0.7 + rng() * 0.35),
+      scale: scaleForUrl(biome, url, rng),
       rotY: rng() * Math.PI * 2,
       castShadow: false,
     });
@@ -327,13 +337,17 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 // full. Same pattern as BiomeCosmetics/Trees/Rocks.
 
 type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type Source = { parts: Part[]; minY: number; baseScale: number };
+type Source = { parts: Part[]; minY: number };
 
-const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
+// Match the inner renderers (Trees.tsx, Rocks.tsx, Ground.tsx) — they
+// render the raw GLTF transform × instance scale, with no role-target
+// normalization. Normalizing here used to make outer-band silhouettes
+// noticeably smaller than the inner-area silhouettes drawn from the same
+// mesh URL.
+const collectSource = (scene: THREE.Object3D): Source | null => {
   scene.updateMatrixWorld(true);
   const parts: Part[] = [];
-  const union = new THREE.Box3();
-  let unionSet = false;
+  let minY = Number.POSITIVE_INFINITY;
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
@@ -342,28 +356,19 @@ const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
-      if (geom.boundingBox) {
-        if (!unionSet) {
-          union.copy(geom.boundingBox);
-          unionSet = true;
-        } else union.union(geom.boundingBox);
-      }
+      if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
       parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
     }
   });
-  if (parts.length === 0 || !unionSet) return null;
-  const size = union.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const role = classifyPropUrl(url);
-  const target = TARGET_SIZE_BY_ROLE[role];
-  return { parts, minY: union.min.y, baseScale: target / maxDim };
+  if (parts.length === 0) return null;
+  return { parts, minY: Number.isFinite(minY) ? minY : 0 };
 };
 
 const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectSource(scene, url), [scene, url]);
+  const source = useMemo(() => collectSource(scene), [scene]);
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -373,7 +378,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       if (!im) continue;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const s = source.baseScale * it.scale;
+        const s = it.scale;
         dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
         dummy.rotation.set(0, it.rotY, 0);
         dummy.scale.setScalar(s);
