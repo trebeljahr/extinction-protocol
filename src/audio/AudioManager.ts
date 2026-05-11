@@ -139,7 +139,6 @@ export class AudioManager {
       ["new-enemy", `${base}audio/new-enemy.mp3`],
       ["victory", `${base}audio/victory.mp3`],
       ["defeat", `${base}audio/defeat.mp3`],
-      ["wave-call", `${base}audio/wave-call.mp3`],
     ];
     await Promise.all(entries.map(([k, u]) => this.load(k, u)));
   }

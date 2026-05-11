@@ -83,9 +83,6 @@ export const useAudioBridge = () => {
           // assets shipped with this change.
           audio.play("new-enemy", "notifications", 0.85, 500, 2.5);
           break;
-        case "wave-clear":
-          audio.play("wave-clear", "notifications", 0.6, 500);
-          break;
         case "boss-defeated":
           // Takedown sting — repurpose victory horn as an in-run windfall
           // cue. Distinct from wave-clear so a boss kill doesn't blur
@@ -108,11 +105,7 @@ export const useAudioBridge = () => {
           audio.ui("error");
           break;
         case "wave-called-early":
-          // Coin-purchase chime: early-call trades wait time for a gold
-          // bonus, so a "transaction" cue reads better than a horn. The
-          // wave-start sting follows ~one frame later and carries the
-          // "wave incoming" half — keep this short so the two don't blur.
-          audio.play("wave-call", "notifications", 0.65, 200);
+          audio.play("wave-clear", "notifications", 0.6, 500);
           break;
         case "easter-egg-click":
           audio.play("tower-sell", "ui", 0.65, 60, 0.8);
