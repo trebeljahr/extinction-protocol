@@ -46,7 +46,10 @@ export class AudioManager {
     notifications: DEFAULT_SFX_VOLUME,
   };
   private musicVolume = DEFAULT_MUSIC_VOLUME;
-  private muted = false;
+  // Default-mute in Claude Code's preview browser (UA contains "Claude/")
+  // so dev previews don't play music at whoever is nearby. Real users
+  // get the persisted/default unmuted state via loadAudioPrefs().
+  private muted = typeof navigator !== "undefined" && /Claude\//.test(navigator.userAgent);
 
   async init() {
     if (this.ctx) return;

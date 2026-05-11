@@ -62,12 +62,25 @@ const migrateFromV1 = (raw: string): AudioPrefs | null => {
   }
 };
 
+// Force-mute in Claude Code's preview browser — its UA contains
+// "Claude/" — so dev previews don't randomly start playing sound at
+// whoever's nearby. Persisted prefs aren't modified; this only
+// overrides the loaded value at runtime.
+const isClaudePreview = (): boolean => {
+  try {
+    return /Claude\//.test(navigator.userAgent);
+  } catch {
+    return false;
+  }
+};
+
 export const loadAudioPrefs = (): AudioPrefs => {
+  const muteOverride = isClaudePreview();
   try {
     const v2 = localStorage.getItem(STORAGE_KEY_V2);
     if (v2) {
       const parsed = parseV2(v2);
-      if (parsed) return parsed;
+      if (parsed) return muteOverride ? { ...parsed, muted: true } : parsed;
     }
     const v1 = localStorage.getItem(STORAGE_KEY_V1);
     if (v1) {
@@ -79,13 +92,13 @@ export const loadAudioPrefs = (): AudioPrefs => {
         } catch {
           /* ignore */
         }
-        return migrated;
+        return muteOverride ? { ...migrated, muted: true } : migrated;
       }
     }
   } catch {
     /* ignore */
   }
-  return { ...DEFAULTS };
+  return { ...DEFAULTS, muted: muteOverride || DEFAULTS.muted };
 };
 
 export const saveAudioPrefs = (p: AudioPrefs) => {
