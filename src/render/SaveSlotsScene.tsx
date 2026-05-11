@@ -172,8 +172,8 @@ export const SaveSlotsScene = () => (
       intensity={2.0}
       color="#fff4dc"
       castShadow
-      shadow-mapSize-width={1024}
-      shadow-mapSize-height={1024}
+      shadow-mapSize-width={2048}
+      shadow-mapSize-height={2048}
       shadow-camera-left={-18}
       shadow-camera-right={18}
       shadow-camera-top={18}
@@ -236,7 +236,7 @@ export const SaveSlotsScene = () => (
       {/* Tree ring softens the perimeter and gives parallax depth. */}
       <StaticModel url="/models/nature/Tree2.glb" position={[-13, 0, 1]} scale={0.7} />
       <StaticModel
-        url="/models/nature/Tree3.glb"
+        url="/models/nature/Tree1.glb"
         position={[12, 0, 2]}
         rotationY={0.4}
         scale={0.95}
@@ -260,7 +260,7 @@ export const SaveSlotsScene = () => (
         scale={0.8}
       />
       <StaticModel
-        url="/models/nature/Tree3.glb"
+        url="/models/nature/Tree4.glb"
         position={[-9.5, 0, 8]}
         rotationY={-1.4}
         scale={0.85}
@@ -302,7 +302,6 @@ useGLTF.preload("/models/Triceratops.glb");
 useGLTF.preload("/models/Stegosaurus.glb");
 useGLTF.preload("/models/nature/Tree1.glb");
 useGLTF.preload("/models/nature/Tree2.glb");
-useGLTF.preload("/models/nature/Tree3.glb");
 useGLTF.preload("/models/nature/Tree4.glb");
 useGLTF.preload("/models/nature/Rock1.glb");
 useGLTF.preload("/models/nature/Rock2.glb");
