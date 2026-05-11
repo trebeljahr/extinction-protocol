@@ -1,6 +1,10 @@
-import { ENEMY_DESCRIPTION } from "../sim/enemyText";
+import { ENEMY_DESCRIPTION, MATRIARCH_DESCRIPTION } from "../sim/enemyText";
 import type { DamageType, EnemyChip } from "../sim/types";
 import {
+  BOSS_VARIANT_LABEL,
+  BOSS_VARIANT_RESIST,
+  BOSS_VARIANT_SLOW_RESIST,
+  BOSS_VARIANT_STATS,
   DAMAGE_TYPE_COLOR,
   DAMAGE_TYPE_LABEL,
   ELITE_RESIST_FLATTEN,
@@ -63,6 +67,7 @@ const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
 
 export const EnemyPanel = () => {
   const kind = useGame((s) => s.ui.inspectedEnemyKind);
+  const bossVariant = useGame((s) => s.ui.inspectedBossVariant);
   const hp = useGame((s) => s.ui.inspectedEnemyHp);
   const maxHp = useGame((s) => s.ui.inspectedEnemyMaxHp);
   const alive = useGame((s) => s.ui.inspectedEnemyAlive);
@@ -76,10 +81,21 @@ export const EnemyPanel = () => {
 
   if (kind === null) return null;
 
+  // Matriarch variants route their base resists / slow resist / damage
+  // through BOSS_VARIANT_* so the panel shows the queen's actual
+  // damage taken and 20-life leak warning, not the generic boss row.
+  const isMatriarch = kind === "boss" && bossVariant !== null;
+  const variantStats = isMatriarch ? BOSS_VARIANT_STATS[bossVariant] : null;
+  const baseResist = isMatriarch ? BOSS_VARIANT_RESIST[bossVariant] : ENEMY_RESIST[kind];
+  const baseSlowResist = isMatriarch
+    ? BOSS_VARIANT_SLOW_RESIST[bossVariant]
+    : ENEMY_SLOW_RESIST[kind];
+  const label = isMatriarch ? BOSS_VARIANT_LABEL[bossVariant] : ENEMY_LABEL[kind];
+  const description = isMatriarch ? MATRIARCH_DESCRIPTION[bossVariant] : ENEMY_DESCRIPTION[kind];
+
   const hpPct = hp !== null && maxHp ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const shieldPct =
     shield !== null && maxShield > 0 ? Math.max(0, Math.min(1, shield / maxShield)) : 0;
-  const baseResist = ENEMY_RESIST[kind];
   // Elite chip flattens the resist spread toward 1×, then the resists
   // chip multiplies on top. Mirrors applyDamage so the panel reflects
   // the real damage taken in-flight.
@@ -93,7 +109,6 @@ export const EnemyPanel = () => {
     }),
   ) as Record<DamageType, number>;
   const hasAdaptation = Object.keys(extraResists).length > 0;
-  const baseSlowResist = ENEMY_SLOW_RESIST[kind];
   const slowResist = elite
     ? Math.min(ELITE_SLOW_RESIST_CAP, baseSlowResist + ELITE_SLOW_RESIST_BONUS)
     : baseSlowResist;
@@ -109,16 +124,20 @@ export const EnemyPanel = () => {
     <div className="enemy-panel">
       <div className="panel-header">
         <div className={`enemy-swatch kind-${kind}`}>
-          <EnemyIcon kind={kind} />
+          {isMatriarch ? (
+            <EnemyIcon kind="boss" bossVariant={bossVariant} />
+          ) : (
+            <EnemyIcon kind={kind} />
+          )}
         </div>
         <div className="panel-title">
           <div className="panel-name">
-            {ENEMY_LABEL[kind]}
+            {label}
             <span className={`enemy-status ${alive ? "alive" : "dead"}`}>
               {alive ? "ALIVE" : "KILLED"}
             </span>
           </div>
-          <div className="panel-stats">{ENEMY_DESCRIPTION[kind]}</div>
+          <div className="panel-stats">{description}</div>
         </div>
         <button
           type="button"
@@ -195,6 +214,17 @@ export const EnemyPanel = () => {
           <div className="text-[11px] text-fg-muted mt-1 tabular-nums tracking-tight opacity-65 italic">
             Max HP this wave · {maxHp ?? "—"}
           </div>
+        </div>
+      )}
+
+      {isMatriarch && variantStats !== null && (
+        <div className="flex items-center gap-2.5 px-2.5 py-1.5 mb-3 rounded-md bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
+          <span className="text-[9px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
+            Leak damage
+          </span>
+          <span className="ml-auto text-[#ffb39a] text-[12px] font-semibold tabular-nums">
+            {variantStats.damage} lives — instant loss
+          </span>
         </div>
       )}
 

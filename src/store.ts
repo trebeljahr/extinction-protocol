@@ -42,6 +42,7 @@ import type {
   DamageType,
   EnemyKind,
   GameEvent,
+  NewSightingId,
   Rock,
   RunStatus,
   TargetingMode,
@@ -101,6 +102,10 @@ type UiSnapshot = {
   treeVersion: number;
   inspectedEnemyId: number | null;
   inspectedEnemyKind: EnemyKind | null;
+  // Matriarch variant when the inspected enemy is a biome-themed queen.
+  // Null for any non-boss kind. Drives the variant label / stats /
+  // resists / 20-life damage warning in the EnemyPanel.
+  inspectedBossVariant: BossVariant | null;
   inspectedEnemyHp: number | null;
   inspectedEnemyMaxHp: number | null;
   inspectedEnemyAlive: boolean;
@@ -119,7 +124,12 @@ const snapshot = (
   w: World,
   towerVersion: number,
   treeVersion: number,
-  inspect: { id: number | null; kind: EnemyKind | null; maxHp: number | null },
+  inspect: {
+    id: number | null;
+    kind: EnemyKind | null;
+    maxHp: number | null;
+    bossVariant: BossVariant | null;
+  },
 ): UiSnapshot => {
   let hp: number | null = null;
   let alive = false;
@@ -160,6 +170,7 @@ const snapshot = (
     treeVersion,
     inspectedEnemyId: inspect.id,
     inspectedEnemyKind: inspect.kind,
+    inspectedBossVariant: inspect.bossVariant,
     inspectedEnemyHp: hp,
     inspectedEnemyMaxHp: inspect.maxHp,
     inspectedEnemyAlive: alive,
@@ -189,6 +200,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.treeVersion === b.treeVersion &&
   a.inspectedEnemyId === b.inspectedEnemyId &&
   a.inspectedEnemyKind === b.inspectedEnemyKind &&
+  a.inspectedBossVariant === b.inspectedBossVariant &&
   a.inspectedEnemyHp === b.inspectedEnemyHp &&
   a.inspectedEnemyMaxHp === b.inspectedEnemyMaxHp &&
   a.inspectedEnemyAlive === b.inspectedEnemyAlive &&
@@ -261,7 +273,12 @@ const treeById = (world: World, id: number): Tree | null =>
 const rockById = (world: World, id: number): Rock | null =>
   world.rocks.find((r) => r.id === id) ?? null;
 
-type InspectState = { id: number | null; kind: EnemyKind | null; maxHp: number | null };
+type InspectState = {
+  id: number | null;
+  kind: EnemyKind | null;
+  maxHp: number | null;
+  bossVariant: BossVariant | null;
+};
 
 type GameStore = {
   world: World;
@@ -293,7 +310,7 @@ type GameStore = {
   achievementsOpen: boolean;
   creditsOpen: boolean;
   achievementToasts: AchievementToast[];
-  newEnemyQueue: EnemyKind[];
+  newEnemyQueue: NewSightingId[];
   autoPausedForNewEnemy: boolean;
   levelIntroVisible: boolean;
   treeClickCounts: Record<number, number>;
@@ -358,7 +375,12 @@ type GameStore = {
 
   clickEasterEgg: (id: number) => void;
 
-  inspectEnemy: (id: number, kind: EnemyKind, maxHp: number) => void;
+  inspectEnemy: (
+    id: number,
+    kind: EnemyKind,
+    maxHp: number,
+    bossVariant: BossVariant | null,
+  ) => void;
   clearInspectedEnemy: () => void;
 
   dismissNewEnemy: () => void;
@@ -400,7 +422,7 @@ type GameStore = {
   debugResetProgress: () => void;
 };
 
-const emptyInspect: InspectState = { id: null, kind: null, maxHp: null };
+const emptyInspect: InspectState = { id: null, kind: null, maxHp: null, bossVariant: null };
 
 let nextToastKey = 1;
 
@@ -663,12 +685,21 @@ export const useGame = create<GameStore>((set, get) => ({
         if (e.bossVariant !== undefined) variants.add(e.bossVariant);
       }
       const kindList = Array.from(kinds);
-      const newlySeen = kindList.filter((k) => !progress.encountered[k]);
+      // Don't queue a generic "Matriarch" popup when a variant is on
+      // screen — the per-variant popup below replaces it. The boss kind
+      // still gets marked encountered so legacy code paths keep working.
+      const newlySeenSpecies = kindList.filter(
+        (k) => !progress.encountered[k] && !(k === "boss" && variants.size > 0),
+      );
       const nextProgress = markEncountered(progress, kindList);
       if (nextProgress) {
         progress = nextProgress;
-        const alreadyQueued = new Set(newEnemyQueue);
-        const toQueue = newlySeen.filter((k) => !alreadyQueued.has(k));
+        const alreadyQueued = new Set(
+          newEnemyQueue.filter((q) => q.tag === "species").map((q) => q.species),
+        );
+        const toQueue: NewSightingId[] = newlySeenSpecies
+          .filter((k) => !alreadyQueued.has(k))
+          .map((k) => ({ tag: "species" as const, species: k }));
         if (toQueue.length > 0) newEnemyQueue = [...newEnemyQueue, ...toQueue];
         // Auto-pause on first sighting so the popup isn't buried under action.
         // Track that WE caused the pause, so dismiss won't unpause a manual pause.
@@ -678,12 +709,31 @@ export const useGame = create<GameStore>((set, get) => ({
         }
         runChecks(null);
       }
-      // Boss-variant encounter tracking. Matriarch unlocks are silent (no
-      // pause popup) — the boss-wave banner already announces the wave,
-      // and stacking another modal on top buried the matriarch's arrival.
+      // Per-variant matriarch encounter — fires a NewEnemyAlert popup
+      // and auto-pauses on first sighting, same as a species debut.
+      // Each biome's queen gets her own dossier popup so the player
+      // sees the variant tint + 20-life damage warning up front.
       if (variants.size > 0) {
+        const newlySeenVariants = Array.from(variants).filter(
+          (v) => !progress.matriarchsEncountered[v],
+        );
         const variantProgress = markMatriarchsEncountered(progress, Array.from(variants));
         if (variantProgress) progress = variantProgress;
+        if (newlySeenVariants.length > 0) {
+          const alreadyQueued = new Set(
+            newEnemyQueue.filter((q) => q.tag === "matriarch").map((q) => q.variant),
+          );
+          const toQueue: NewSightingId[] = newlySeenVariants
+            .filter((v) => !alreadyQueued.has(v))
+            .map((v) => ({ tag: "matriarch" as const, variant: v }));
+          if (toQueue.length > 0) {
+            newEnemyQueue = [...newEnemyQueue, ...toQueue];
+            if (s.world.status === "running") {
+              s.world.status = "paused";
+              autoPaused = true;
+            }
+          }
+        }
       }
     }
 
@@ -804,10 +854,10 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
-  inspectEnemy: (id, kind, maxHp) => {
+  inspectEnemy: (id, kind, maxHp, bossVariant) => {
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
-    const inspect: InspectState = { id, kind, maxHp };
+    const inspect: InspectState = { id, kind, maxHp, bossVariant };
     set({
       selectedKind: null,
       selectedTreeId: null,

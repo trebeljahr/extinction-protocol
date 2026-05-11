@@ -255,6 +255,16 @@ const EnemySectionView = ({
                 <div className="compendium-detail-subtitle">{entrySubtitle(selected)}</div>
               </div>
               <p className="compendium-detail-desc">{entryDescription(selected)}</p>
+              {selected.kind === "matriarch" && (
+                <div className="flex items-center gap-2.5 px-3 py-2 mb-2 rounded-lg bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
+                  <span className="text-[10px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
+                    Leak damage
+                  </span>
+                  <span className="ml-auto text-[#ffb39a] text-[13px] font-semibold tabular-nums">
+                    {BOSS_VARIANT_STATS[selected.variant].damage} lives — instant loss
+                  </span>
+                </div>
+              )}
               <EnemyStatRow entry={selected} />
               <EnemyResistRow entry={selected} />
             </>

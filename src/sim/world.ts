@@ -642,26 +642,60 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
 // boss wave reads as "the queen of this biome's pack" instead of a
 // generic apatosaurus every time. Picked by the level's wave spec.
 
+// Matriarchs all deal MATRIARCH_DAMAGE on leak (= STARTING_LIVES, so a
+// single matriarch leak is an instant game-over). Tied to the lives
+// constant so a future startLives bump propagates without per-variant
+// edits.
+const MATRIARCH_DAMAGE = STARTING_LIVES;
+
 export const BOSS_VARIANT_STATS: Record<BossVariant, EnemyBaseStats> = {
   // Forest debut (L5). Fast and lighter than the apex — but the constant
   // raptor stream behind her shreds gold-strapped early defenses if the
   // player doesn't bring AoE.
-  raptor: { kind: "boss", hp: 2400, maxHp: 2400, speed: 1.2, bounty: 160, damage: 8 },
+  raptor: {
+    kind: "boss",
+    hp: 2400,
+    maxHp: 2400,
+    speed: 1.2,
+    bounty: 160,
+    damage: MATRIARCH_DAMAGE,
+  },
   // Snow (L10). Slow tank queen. Spawned stego dribble behind her takes
   // forever to clear so the player has to actually break her armor.
-  stego: { kind: "boss", hp: 3800, maxHp: 3800, speed: 0.55, bounty: 220, damage: 12 },
+  stego: {
+    kind: "boss",
+    hp: 3800,
+    maxHp: 3800,
+    speed: 0.55,
+    bounty: 220,
+    damage: MATRIARCH_DAMAGE,
+  },
   // Desert (L15). Crested runner — fast and tall, vents heat. Para
   // children pile up if the player wasn't ready for chain shielding.
-  para: { kind: "boss", hp: 3400, maxHp: 3400, speed: 1.0, bounty: 200, damage: 12 },
+  para: { kind: "boss", hp: 3400, maxHp: 3400, speed: 1.0, bounty: 200, damage: MATRIARCH_DAMAGE },
   // Wasteland (L20). Apex predator. Damage spike makes leaks hurt.
-  allosaur: { kind: "boss", hp: 4400, maxHp: 4400, speed: 0.7, bounty: 240, damage: 14 },
+  allosaur: {
+    kind: "boss",
+    hp: 4400,
+    maxHp: 4400,
+    speed: 0.7,
+    bounty: 240,
+    damage: MATRIARCH_DAMAGE,
+  },
   // Lava (L25). Heaviest plates. Armored children stack up if cold/elec
   // coverage is thin — and her chain-resist makes a single coil insufficient.
-  armored: { kind: "boss", hp: 5200, maxHp: 5200, speed: 0.55, bounty: 280, damage: 12 },
+  armored: {
+    kind: "boss",
+    hp: 5200,
+    maxHp: 5200,
+    speed: 0.55,
+    bounty: 280,
+    damage: MATRIARCH_DAMAGE,
+  },
   // Alien (L30). The original matriarch — no child stream because the
   // L30 wave already runs heavy entourage+trickle. Mass and resists are
   // the threat, not pack pressure.
-  apex: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
+  apex: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: MATRIARCH_DAMAGE },
 };
 
 export const BOSS_VARIANT_RESIST: Record<BossVariant, Record<DamageType, number>> = {

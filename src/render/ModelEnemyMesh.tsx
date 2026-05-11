@@ -400,7 +400,12 @@ export const ModelEnemyMesh = ({
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
     e.stopPropagation();
-    state.inspectEnemy(obj.userData.enemyId as number, kind, obj.userData.enemyMaxHp as number);
+    state.inspectEnemy(
+      obj.userData.enemyId as number,
+      kind,
+      obj.userData.enemyMaxHp as number,
+      bossVariant ?? null,
+    );
   };
 
   return <group ref={groupRef} onClick={handleClick} />;

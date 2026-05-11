@@ -19,6 +19,13 @@ export type EnemyKind =
 // original apatosaurus matriarch — the final-wave threat.
 export type BossVariant = "raptor" | "stego" | "para" | "allosaur" | "armored" | "apex";
 
+// New-sighting popup queue item. The NewEnemyAlert pops one of these
+// per first encounter — species and matriarch variants each fire their
+// own popup so the player meets every queen as a distinct creature.
+export type NewSightingId =
+  | { tag: "species"; species: EnemyKind }
+  | { tag: "matriarch"; variant: BossVariant };
+
 // Composable per-enemy buffs — any combination can be layered on any
 // kind. See `chipBountyMul` in world.ts for the per-chip bounty scaling.
 //
