@@ -162,10 +162,7 @@ export const ModelEnemyMesh = ({
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
-    // Freeze skeletal animation while paused — sim ticks are gated on
-    // status === "running" in the engine, so without this the dinos keep
-    // walking/idling on top of a frozen world.
-    const paused = world.status === "paused";
+    const frozen = world.status !== "running";
 
     const live = new Set<number>();
     for (const e of world.enemies) {
@@ -243,7 +240,7 @@ export const ModelEnemyMesh = ({
 
       const slowed = world.time < e.slowUntil;
       item.mixer.timeScale = slowed ? e.slowFactor : 1;
-      if (!paused) item.mixer.update(delta);
+      if (!frozen) item.mixer.update(delta);
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
       const a = path[e.segment];
