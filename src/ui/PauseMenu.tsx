@@ -6,7 +6,7 @@ import { getLevel } from "../levels";
 import { DIFFICULTY_LABEL, type Difficulty } from "../progress";
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
-import { DifficultyIcon } from "./DifficultyIcon";
+import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
@@ -83,7 +83,7 @@ export const PauseMenu = ({ onResume }: Props) => {
           aria-label="Change difficulty"
           title="Change difficulty"
         >
-          <DifficultyIcon difficulty={difficulty} className={`w-7 h-7 ${accent}`} />
+          <DifficultyModelIcon difficulty={difficulty} className="w-8 h-8" />
           <div className="flex flex-col items-start flex-1">
             <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
               Difficulty

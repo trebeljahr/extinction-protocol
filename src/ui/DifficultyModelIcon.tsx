@@ -25,15 +25,21 @@ const TINT: Record<Difficulty, string> = {
 };
 
 // Side-view framing, same coordinate space as EnemyIcon (the baker
-// normalizes every model to a 1×1×1 box). Apatosaurus is a long
-// quadruped — once length is normalized to 1, the body silhouette only
-// reaches ~Y=0.3, so the extinction camera both sits lower and pulls
-// back to fit the long body in frame.
+// normalizes every model to a 1×1×1 box, bottom at y=0). With FOV 30°
+// the visible window at the target plane is 0.536 × camDist, so a
+// length-normalized dino (max-dim = 1) needs camDist ≥ ~2.3 just to
+// fit edge-to-edge; below that, tail and head clip the frame. All four
+// share camDist = 2.4 (~13% margin per side); per-dino targetY shifts
+// the body vertically so head/feet don't kiss the top/bottom edges.
 const CAM_TUNING: Record<Difficulty, { camDist: number; camY: number; targetY: number }> = {
-  easy: { camDist: 1.55, camY: 0.55, targetY: 0.5 },
-  medium: { camDist: 1.5, camY: 0.5, targetY: 0.45 },
-  hard: { camDist: 1.55, camY: 0.55, targetY: 0.5 },
-  extinction: { camDist: 2.3, camY: 0.28, targetY: 0.18 },
+  // Parasaur — bipedal grazer, crest pushes head high in frame.
+  easy: { camDist: 2.4, camY: 0.32, targetY: 0.22 },
+  // Velociraptor — compact biped, body roughly centered.
+  medium: { camDist: 2.4, camY: 0.3, targetY: 0.2 },
+  // T-Rex — tallest silhouette, head sits high; target nudges up.
+  hard: { camDist: 2.4, camY: 0.34, targetY: 0.25 },
+  // Apatosaurus — long quadruped, low body; target sits near the spine.
+  extinction: { camDist: 2.4, camY: 0.22, targetY: 0.15 },
 };
 
 const specFor = (d: Difficulty): BakeSpec => {
