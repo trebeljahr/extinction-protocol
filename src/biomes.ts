@@ -265,36 +265,6 @@ const desertLayers = (): BiomeLayer[] => [
 
 const snowLayers = (): BiomeLayer[] => [
   {
-    seed: 1337,
-    // Forest grass tufts read as patchy tundra grass poking through the
-    // snow — adds a second small-silhouette layer so the ground isn't
-    // 100% white. Tight clusters in a few pockets, not blanket coverage.
-    urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
-    count: 70,
-    clearance: PATH_WIDTH / 2 + 0.3,
-    minScale: 0.5,
-    maxScale: 0.95,
-    castShadow: false,
-    footprint: 0.28,
-    cluster: { seeds: 5, sigma: 1.6 },
-  },
-  {
-    seed: 9001,
-    // The Quaternius "snow bush" assets render as solid-white layered discs
-    // — indistinguishable from the snow rocks at top-down camera distance,
-    // so the level reads as a sea of identical white blobs. Swapped for the
-    // forest bush set: small green shrubs poking through snow give the
-    // ground a second silhouette and read as boreal vegetation.
-    urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    count: 36,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.45,
-    maxScale: 0.75,
-    castShadow: false,
-    footprint: 0.35,
-    cluster: { seeds: 5, sigma: 1.8 },
-  },
-  {
     seed: 4242,
     // Rock2 + Rock3 pulled — both render as hollow/shelf half-domes you can
     // see into, which reads as a broken mesh (open interior). Rock1 is the
