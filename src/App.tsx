@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
 import { lazy, Suspense, useEffect } from "react";
+import { useAudioBridge } from "./audio/useAudioBridge";
 import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
 import { AchievementToast } from "./ui/AchievementToast";
@@ -74,6 +75,7 @@ export const App = () => {
   const selectedKind = useGame((s) => s.selectedKind);
   const modalOpen = compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen;
   const isMobile = useIsMobile();
+  useAudioBridge();
 
   // Drive the cursor from gameplay state. Crosshair on the canvas
   // while a tower kind is selected, default everywhere else. Buttons

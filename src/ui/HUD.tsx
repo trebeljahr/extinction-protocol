@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useAudioBridge } from "../audio/useAudioBridge";
 import { getLevel } from "../levels";
 import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
 import type { TowerKind } from "../sim/types";
@@ -32,7 +31,6 @@ const HOTKEYS: Record<TowerKind, string> = {
 };
 
 export const HUD = () => {
-  useAudioBridge();
   // Atomic selectors so a single tick ticking down `nextWaveIn` doesn't
   // re-render the whole tower picker (and its 6 Canvas previews).
   const gold = useGame((s) => s.ui.gold);
