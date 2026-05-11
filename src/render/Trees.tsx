@@ -240,7 +240,9 @@ const TreeHitTargets = ({
     const dummy = new THREE.Object3D();
     for (let i = 0; i < trees.length; i++) {
       const t = trees[i];
-      const r = (sources[t.variant]?.xzRadius ?? 0.9) * t.scale;
+      const baseR = sources[t.variant]?.baseXzRadius ?? 0.2;
+      const bboxR = sources[t.variant]?.xzRadius ?? 0.9;
+      const r = Math.min(bboxR, baseR * 3) * t.scale;
       dummy.position.set(t.pos.x, 0.015, -t.pos.y);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
       dummy.scale.setScalar(r);
