@@ -38,8 +38,7 @@ type Instance = GroupItem & { url: string };
 const baseScaleFor = (source: MeshSource, url: string): number => {
   const def = BASE_PROPS.find((p) => p.url === url);
   const target = def?.targetHeight ?? 0.8;
-  const h = source.boundingBox.max.y - source.minY || 1;
-  return target / h;
+  return target / source.height;
 };
 
 const HQBasePad = ({ position, yaw }: { position: [number, number]; yaw: number }) => (

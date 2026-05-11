@@ -20,8 +20,8 @@ type VariantSource = {
   baseXzRadius: number;
 };
 
-const computeBaseXzRadius = (parts: MeshPart[], boundingBox: THREE.Box3): number => {
-  const sliceTop = boundingBox.min.y + (boundingBox.max.y - boundingBox.min.y) * 0.1;
+const computeBaseXzRadius = (parts: MeshPart[], minY: number, height: number): number => {
+  const sliceTop = minY + height * 0.1;
   let baseXzMax = 0;
   for (const part of parts) {
     const pos = part.geom.getAttribute("position");
@@ -54,7 +54,7 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
         const source = collectMeshSource(scene);
         if (!source) return null;
         const xzRadius = source.xzRadius || 0.9;
-        const baseRaw = computeBaseXzRadius(source.parts, source.boundingBox);
+        const baseRaw = computeBaseXzRadius(source.parts, source.minY, source.height);
         const baseXzRadius = baseRaw || xzRadius * 0.2;
         meshXZRadii.set(urls[si], xzRadius);
         return { id: nanoid(), parts: source.parts, minY: source.minY, xzRadius, baseXzRadius };

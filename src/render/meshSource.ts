@@ -21,6 +21,13 @@ export type MeshSource = {
   // Smallest Y across the union AABB — used to plant a glTF on the
   // ground regardless of its authored origin.
   minY: number;
+  // Largest Y across the union AABB. Precomputed so consumers can derive
+  // the model's height without re-reading `boundingBox.max` (which has
+  // crashed on mobile Safari when a malformed Box3 slips through).
+  maxY: number;
+  // Vertical extent of the union AABB (maxY - minY, floored at a tiny
+  // positive to avoid divide-by-zero downstream).
+  height: number;
   // Largest axis-aligned dimension across the union — input for
   // TARGET_SIZE_BY_ROLE normalization.
   maxDim: number;
@@ -62,13 +69,21 @@ const collect = (scene: THREE.Object3D): MeshSource | null => {
   if (parts.length === 0 || !unionSet) return null;
   const size = union.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const xzRadius = Math.max(
-    Math.abs(union.min.x),
-    Math.abs(union.max.x),
-    Math.abs(union.min.z),
-    Math.abs(union.max.z),
-  );
-  return { parts, boundingBox: union, minY: union.min.y, maxDim, xzRadius };
+  // Read min/max through accessors that tolerate a partially-initialised
+  // Box3. iOS Safari has surfaced "Cannot read properties of undefined
+  // (reading 'max')" through this chain when a model finishes parsing
+  // under memory pressure with a Box3 missing its .max Vector3.
+  const minVec = union.min;
+  const maxVec = union.max;
+  const minX = minVec?.x ?? -size.x / 2;
+  const maxX = maxVec?.x ?? size.x / 2;
+  const minY = minVec?.y ?? 0;
+  const maxY = maxVec?.y ?? size.y;
+  const minZ = minVec?.z ?? -size.z / 2;
+  const maxZ = maxVec?.z ?? size.z / 2;
+  const xzRadius = Math.max(Math.abs(minX), Math.abs(maxX), Math.abs(minZ), Math.abs(maxZ));
+  const height = Math.max(maxY - minY, 0.001);
+  return { parts, boundingBox: union, minY, maxY, height, maxDim, xzRadius };
 };
 
 export const collectMeshSource = (scene: THREE.Object3D): MeshSource | null => {
