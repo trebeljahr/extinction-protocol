@@ -97,47 +97,67 @@ export const poissonDiskSample = (cfg: PoissonConfig): Vec2[] => {
     }
   }
 
-  while (active.length > 0 && points.length < maxCount) {
-    const aIdx = Math.floor(rng() * active.length);
-    const pIdx = active[aIdx];
-    const p = points[pIdx];
-    const pr = radii[pIdx];
+  // Heavily-constrained domains (zig-zag paths, tight lakes) can drain
+  // the active frontier before maxCount is reached — Bridson can't
+  // expand out of an isolated pocket once every candidate from the
+  // current frontier hits a path or another disc. After the inner loop
+  // empties active, inject more random seeds and resume. Capped so a
+  // truly full domain doesn't loop forever.
+  const reseedBudget = Math.max(200, maxCount * 8);
+  let reseedTries = 0;
 
-    let placed = false;
-    for (let i = 0; i < k; i++) {
-      const c = sampleInAnnulus(rng, p.x, p.y, pr, 2 * pr);
-      if (c.x < bounds.minX || c.x > bounds.maxX || c.y < bounds.minY || c.y > bounds.maxY)
-        continue;
-      if (!isValid(c.x, c.y)) continue;
-      const cr = radiusAt(c.x, c.y);
+  while (points.length < maxCount && reseedTries <= reseedBudget) {
+    while (active.length > 0 && points.length < maxCount) {
+      const aIdx = Math.floor(rng() * active.length);
+      const pIdx = active[aIdx];
+      const p = points[pIdx];
+      const pr = radii[pIdx];
 
-      let conflict = false;
-      for (let qi = 0; qi < points.length; qi++) {
-        const q = points[qi];
-        const dx = c.x - q.x;
-        const dy = c.y - q.y;
-        const qr = radii[qi];
-        // Forbid distance under max(r(c), r(q)) so each point reserves
-        // its own territory regardless of neighbour radius.
-        const minR = cr > qr ? cr : qr;
-        if (dx * dx + dy * dy < minR * minR) {
-          conflict = true;
-          break;
+      let placed = false;
+      for (let i = 0; i < k; i++) {
+        const c = sampleInAnnulus(rng, p.x, p.y, pr, 2 * pr);
+        if (c.x < bounds.minX || c.x > bounds.maxX || c.y < bounds.minY || c.y > bounds.maxY)
+          continue;
+        if (!isValid(c.x, c.y)) continue;
+        const cr = radiusAt(c.x, c.y);
+
+        let conflict = false;
+        for (let qi = 0; qi < points.length; qi++) {
+          const q = points[qi];
+          const dx = c.x - q.x;
+          const dy = c.y - q.y;
+          const qr = radii[qi];
+          // Forbid distance under max(r(c), r(q)) so each point reserves
+          // its own territory regardless of neighbour radius.
+          const minR = cr > qr ? cr : qr;
+          if (dx * dx + dy * dy < minR * minR) {
+            conflict = true;
+            break;
+          }
         }
+        if (conflict) continue;
+
+        points.push(c);
+        radii.push(cr);
+        active.push(points.length - 1);
+        placed = true;
+        break;
       }
-      if (conflict) continue;
 
-      points.push(c);
-      radii.push(cr);
-      active.push(points.length - 1);
-      placed = true;
-      break;
+      if (!placed) {
+        active[aIdx] = active[active.length - 1];
+        active.pop();
+      }
     }
 
-    if (!placed) {
-      active[aIdx] = active[active.length - 1];
-      active.pop();
-    }
+    if (points.length >= maxCount) break;
+    // Active frontier is empty but we still need points — try a new
+    // random seed in the bounds. Some will land inside path-clearance
+    // and bounce; the reseed budget covers that.
+    reseedTries++;
+    const x = bounds.minX + rng() * (bounds.maxX - bounds.minX);
+    const y = bounds.minY + rng() * (bounds.maxY - bounds.minY);
+    tryAcceptPoint(x, y);
   }
 
   return points;
