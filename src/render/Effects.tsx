@@ -91,12 +91,23 @@ export const Effects = () => {
         // direction, so they get silhouette-clipped by geometry instead of
         // producing hard polygon-intersection edges like 3D spheres did.
         dummy.quaternion.copy(state.camera.quaternion);
-        const fade = life < 0.15 ? life / 0.15 : 1;
-        dummy.scale.setScalar((0.08 + (1 - life) * 0.22 + life * 0.15) * fade);
+        const fadeOut = life < 0.15 ? life / 0.15 : 1;
+        // Fade size IN over the first ~30% of life so a particle spawned at
+        // a tower muzzle (which sits just inside the body's bounding sphere)
+        // doesn't paint an additive disc over the tower silhouette before it
+        // travels clear of the body. By the time the particle hits full size
+        // it has moved far enough forward that depth-test clipping handles the
+        // rest. Without this, every billboard's center-depth is in front of
+        // the tower body at the muzzle, so depth-test passes for the whole
+        // disc and the bright additive ring bleeds over the chassis.
+        const age = 1 - life;
+        const grow = Math.min(1, age * 3.3);
+        const fadeIn = grow;
+        dummy.scale.setScalar((0.06 + grow * 0.24 + life * 0.06 * fadeIn) * fadeOut);
         dummy.updateMatrix();
         pMesh.setMatrixAt(i, dummy.matrix);
         color.set(p.color);
-        const boost = (0.4 + life * 1.0) * fade;
+        const boost = (0.4 + life * 1.0) * fadeOut;
         color.multiplyScalar(boost);
         pMesh.setColorAt(i, color);
         i++;
