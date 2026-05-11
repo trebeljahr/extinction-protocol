@@ -96,7 +96,7 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
   return out;
 };
 
-const WAVE_GAP_SECONDS = 2;
+const WAVE_GAP_SECONDS = 20;
 const EARLY_CALL_THRESHOLD = 1 / 2;
 const MIDWAVE_PER_ENEMY_SEC = 0.4;
 const MIDWAVE_BUFFER_SEC = 1.0;
@@ -274,7 +274,7 @@ export const spawnerTick = (world: World, dt: number) => {
     }
   }
 
-  if (world.spawnQueue.length === 0 && world.enemies.length === 0) {
+  if (world.spawnQueue.length === 0 && world.bossTrickleStreams.length === 0) {
     world.waveActive = false;
     world.nextWaveIn = WAVE_GAP_SECONDS;
     world.midwaveTimer = 0;
