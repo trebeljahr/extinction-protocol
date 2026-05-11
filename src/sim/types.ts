@@ -12,6 +12,13 @@ export type EnemyKind =
   | "titan"
   | "boss";
 
+// Biome-themed matriarch variants. Each variant inherits the `boss` kind
+// (same death-bonus payout shape, same boss-wave hooks) but overrides
+// stats, model, resists, and gets a child-spawn config that drips their
+// namesake species behind them as they walk down the path. `apex` is the
+// original apatosaurus matriarch — the final-wave threat.
+export type BossVariant = "raptor" | "stego" | "para" | "allosaur" | "armored" | "apex";
+
 // Composable per-enemy buffs — any combination can be layered on any
 // kind. See `chipBountyMul` in world.ts for the per-chip bounty scaling.
 //
@@ -75,6 +82,17 @@ export type Enemy = {
   // the `elite` chip (which flattens base resists toward 1.0); resists
   // is per-damage-type and per-spawn.
   extraResists: Partial<Record<DamageType, number>>;
+  // Only meaningful when kind === "boss". Picks the biome-themed matriarch
+  // variant (raptor / stego / para / allosaur / armored / apex). Controls
+  // stats, resists, model, and the species spawned by the child-spawn
+  // tick below. Undefined falls back to the apex matriarch.
+  bossVariant?: BossVariant;
+  // Matriarch child-spawn timer — set on spawn from BOSS_VARIANT_CHILD.
+  // While > 0 and the matriarch is alive, ticks down every frame; on
+  // reaching 0 spawns one child enemy at her current path position and
+  // resets to the variant's interval. Undefined = matriarch doesn't
+  // spawn children.
+  childSpawnAt?: number;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -237,6 +255,7 @@ export type SpawnRequest = {
   // for that spawn, { electric: 0.4 } = 60% electric resist on top of
   // base. Layered on the chip system as a sixth orthogonal modifier.
   resists?: Partial<Record<DamageType, number>>;
+  bossVariant?: BossVariant;
 };
 
 export type EnemySpec = {
@@ -254,6 +273,8 @@ export type EnemySpec = {
   // { electric: 0.4 } = 60% reduction). Stacks on top of base resists
   // and the elite-flatten effect, before T3 anti-modifier upgrades fire.
   resists?: Partial<Record<DamageType, number>>;
+  // Only honored when kind === "boss". Picks the biome-themed matriarch.
+  bossVariant?: BossVariant;
 };
 
 export type WaveArchetype =

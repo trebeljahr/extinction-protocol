@@ -14,6 +14,7 @@ import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
 import type {
   Beam,
+  BossVariant,
   CryoWave,
   DamageType,
   EasterEgg,
@@ -502,7 +503,10 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
 // Swarm units are too small to support a visible bubble — they always
 // run unshielded regardless of spec flags.
 export const SHIELD_BY_KIND: Record<EnemyKind, number> = {
-  raptor: 10,
+  // Bumped from 10 — the early-wave bubble was popping too fast for the
+  // "shield first, body second" lesson to register before the body was
+  // also gone in the same volley. 20 takes a second pulse-shot to crack.
+  raptor: 20,
   allosaur: 35,
   stego: 80,
   swarm: 0,
@@ -633,6 +637,109 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
   boss: "Matriarch",
 };
 
+// Biome-themed matriarch variants. Each entry below overrides the base
+// `boss` stats / model / resists so the species you're fighting on a
+// boss wave reads as "the queen of this biome's pack" instead of a
+// generic apatosaurus every time. Picked by the level's wave spec.
+
+export const BOSS_VARIANT_STATS: Record<BossVariant, EnemyBaseStats> = {
+  // Forest debut (L5). Fast and lighter than the apex — but the constant
+  // raptor stream behind her shreds gold-strapped early defenses if the
+  // player doesn't bring AoE.
+  raptor: { kind: "boss", hp: 2400, maxHp: 2400, speed: 1.2, bounty: 160, damage: 8 },
+  // Snow (L10). Slow tank queen. Spawned stego dribble behind her takes
+  // forever to clear so the player has to actually break her armor.
+  stego: { kind: "boss", hp: 3800, maxHp: 3800, speed: 0.55, bounty: 220, damage: 12 },
+  // Desert (L15). Crested runner — fast and tall, vents heat. Para
+  // children pile up if the player wasn't ready for chain shielding.
+  para: { kind: "boss", hp: 3400, maxHp: 3400, speed: 1.0, bounty: 200, damage: 12 },
+  // Wasteland (L20). Apex predator. Damage spike makes leaks hurt.
+  allosaur: { kind: "boss", hp: 4400, maxHp: 4400, speed: 0.7, bounty: 240, damage: 14 },
+  // Lava (L25). Heaviest plates. Armored children stack up if cold/elec
+  // coverage is thin — and her chain-resist makes a single coil insufficient.
+  armored: { kind: "boss", hp: 5200, maxHp: 5200, speed: 0.55, bounty: 280, damage: 12 },
+  // Alien (L30). The original matriarch — no child stream because the
+  // L30 wave already runs heavy entourage+trickle. Mass and resists are
+  // the threat, not pack pressure.
+  apex: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
+};
+
+export const BOSS_VARIANT_RESIST: Record<BossVariant, Record<DamageType, number>> = {
+  // Pack-leader hide — vulnerable to electric like her swarm, modest
+  // kinetic/cold resistance from sheer mass.
+  raptor: { kinetic: 0.85, electric: 1.4, cold: 0.75, explosive: 0.55, flame: 0.55 },
+  // Same plate logic as base stego, dialed up: kinetic and blast slide off,
+  // electric rings through the dorsal fin.
+  stego: { kinetic: 0.3, electric: 1.6, cold: 1.0, explosive: 0.45, flame: 0.45 },
+  // Hollow resonator crest: chain damage rings through (1.7×), flame vents
+  // off (0.4). Otherwise reasonably soft for a matriarch.
+  para: { kinetic: 0.9, electric: 1.7, cold: 0.95, explosive: 0.8, flame: 0.4 },
+  // Allosaur's flat resists, scaled down — there's no free win, but no
+  // hard counter either.
+  allosaur: { kinetic: 0.75, electric: 0.8, cold: 0.85, explosive: 0.7, flame: 0.7 },
+  // Triceratops queen — chrome-plated. Electric is the only real lever.
+  armored: { kinetic: 1.1, electric: 0.4, cold: 0.9, explosive: 0.3, flame: 0.3 },
+  // Original matriarch resists — cold is the only real lever.
+  apex: { kinetic: 0.45, electric: 0.85, cold: 1.5, explosive: 0.3, flame: 0.3 },
+};
+
+export const BOSS_VARIANT_SLOW_RESIST: Record<BossVariant, number> = {
+  raptor: 0.4,
+  stego: 0.55,
+  para: 0.3,
+  allosaur: 0.4,
+  armored: 0.8,
+  apex: 0.6,
+};
+
+export const BOSS_VARIANT_MODEL: Record<
+  BossVariant,
+  { url: string; targetSize: number; clip?: string }
+> = {
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 4.5 },
+  stego: { url: "/models/Stegosaurus.glb", targetSize: 5.0 },
+  para: { url: "/models/Parasaurolophus.glb", targetSize: 4.6 },
+  allosaur: { url: "/models/Trex.glb", targetSize: 5.5 },
+  armored: { url: "/models/Triceratops.glb", targetSize: 5.4 },
+  apex: { url: "/models/Apatosaurus.glb", targetSize: 18.0, clip: "Walk" },
+};
+
+// Per-variant elite-tint colour. Reused by the body-tint pass when the
+// matriarch is also flagged elite (rare — boss waves don't typically
+// stack the chip, but the renderer falls back to this for visual
+// distinction across variants).
+export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
+  raptor: "#ff3a30",
+  stego: "#3affb0",
+  para: "#a25aff",
+  allosaur: "#ffb030",
+  armored: "#5ad6ff",
+  apex: "#ff2a55",
+};
+
+// Child-spawn config — every variant except apex drops a steady drip of
+// her namesake species behind her as she walks. Interval tuned per
+// species HP so the total HP added over a ~60s wave roughly matches the
+// pressure the old generic boss-trickle was applying. Apex has no child
+// stream because the L30 wave already runs its own heavy entourage.
+export type BossChildSpawn = { kind: EnemyKind; interval: number };
+export const BOSS_VARIANT_CHILD: Partial<Record<BossVariant, BossChildSpawn>> = {
+  raptor: { kind: "raptor", interval: 1.4 },
+  stego: { kind: "stego", interval: 6.0 },
+  para: { kind: "para", interval: 2.2 },
+  allosaur: { kind: "allosaur", interval: 3.8 },
+  armored: { kind: "armored", interval: 7.5 },
+};
+
+export const BOSS_VARIANT_LABEL: Record<BossVariant, string> = {
+  raptor: "Raptor Matriarch",
+  stego: "Stegosaur Matriarch",
+  para: "Parasaur Matriarch",
+  allosaur: "T-Rex Matriarch",
+  armored: "Triceratops Matriarch",
+  apex: "Apex Matriarch",
+};
+
 // Per-kind elite material tint — a distinct palette per species so the
 // elite chip reads as "this kind, but the dangerous variant" rather
 // than a uniform red wash. Read by ModelEnemyMesh.
@@ -707,7 +814,13 @@ export const applyDamage = (
     }
   }
 
-  const baseMul = ENEMY_RESIST[enemy.kind][type];
+  // Bosses route through the variant resist table so each biome-themed
+  // matriarch has her own hard counter / hard resist. Falls back to the
+  // base ENEMY_RESIST for everyone else.
+  const baseMul =
+    enemy.kind === "boss" && enemy.bossVariant !== undefined
+      ? BOSS_VARIANT_RESIST[enemy.bossVariant][type]
+      : ENEMY_RESIST[enemy.kind][type];
   // Elite chip flattens the resist spread toward 1.0 — fewer hard
   // counters, fewer free wins. A stego with the elite chip still
   // resists kinetic, just less.
@@ -798,6 +911,10 @@ export type SpawnOptions = {
   // Per-damage-type adaptation — values < 1 reduce damage taken,
   // values > 1 increase. Stacks on top of base resists and elite-flatten.
   resists?: Partial<Record<DamageType, number>>;
+  // Boss-only — picks the biome-themed matriarch variant. Ignored for
+  // non-boss kinds. When kind === "boss" and bossVariant is unset, the
+  // apex matriarch is used.
+  bossVariant?: BossVariant;
 };
 
 export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {}): Enemy => {
@@ -810,8 +927,15 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     elite = false,
     fierce = false,
     resists,
+    bossVariant,
   } = opts;
-  const base = ENEMY_STATS[kind];
+  // Bosses route through the variant table for HP/speed/damage/bounty so
+  // each biome's matriarch reads as a distinct adversary. Non-boss kinds
+  // ignore the variant. Unset variant defaults to apex (the original).
+  const effectiveVariant: BossVariant | undefined =
+    kind === "boss" ? (bossVariant ?? "apex") : undefined;
+  const base =
+    effectiveVariant !== undefined ? BOSS_VARIANT_STATS[effectiveVariant] : ENEMY_STATS[kind];
   const path = world.paths[pathIndex] ?? world.paths[0];
   const start = path[0];
   const maxHp = Math.ceil(base.hp * hpMul);
@@ -837,6 +961,11 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   // clusters near 0 visually when there are only a handful on screen.
   const range = LATERAL_OFFSET_BY_KIND[kind];
   const lateralOffset = (Math.random() * 2 - 1) * range;
+  // Matriarch variants drip a steady stream of their namesake species
+  // behind them — seed the timer so the first child appears one interval
+  // after she enters the field rather than immediately at spawn.
+  const childCfg =
+    effectiveVariant !== undefined ? BOSS_VARIANT_CHILD[effectiveVariant] : undefined;
   const enemy: Enemy = {
     id: world.nextEntityId++,
     kind: base.kind,
@@ -864,6 +993,8 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     fierce,
     regenPausedUntil: 0,
     extraResists: resists ? { ...resists } : {},
+    bossVariant: effectiveVariant,
+    childSpawnAt: childCfg ? world.time + childCfg.interval : undefined,
   };
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);
@@ -1153,7 +1284,10 @@ export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
   samplePath(world.paths[enemy.pathIndex], enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
-  const baseResist = ENEMY_SLOW_RESIST[enemy.kind];
+  const baseResist =
+    enemy.kind === "boss" && enemy.bossVariant !== undefined
+      ? BOSS_VARIANT_SLOW_RESIST[enemy.bossVariant]
+      : ENEMY_SLOW_RESIST[enemy.kind];
   const resist = enemy.elite
     ? Math.min(ELITE_SLOW_RESIST_CAP, baseResist + ELITE_SLOW_RESIST_BONUS)
     : baseResist;

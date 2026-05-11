@@ -25,9 +25,12 @@
 
 import { LEVELS } from "../src/levels";
 import { pathLength } from "../src/sim/path";
-import type { EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
+import type { EnemyKind, EnemySpec, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
+  BOSS_VARIANT_CHILD,
+  BOSS_VARIANT_RESIST,
+  BOSS_VARIANT_STATS,
   ENEMY_RESIST,
   ENEMY_STATS,
   TOWER_COST,
@@ -36,6 +39,18 @@ import {
   type TowerBaseStats,
 } from "../src/sim/world";
 import { coverageFraction, pathCoverage } from "./lib/coverage";
+
+// Resolve the effective base stats for a spawn entry. Bosses route
+// through the variant table so each biome-themed matriarch contributes
+// her actual HP/speed/bounty to the wave breakdown, not the default
+// boss row of ENEMY_STATS.
+const specStats = (s: EnemySpec) =>
+  s.kind === "boss" && s.bossVariant ? BOSS_VARIANT_STATS[s.bossVariant] : ENEMY_STATS[s.kind];
+
+const specResist = (s: EnemySpec, dmgType: import("../src/sim/types").DamageType): number =>
+  s.kind === "boss" && s.bossVariant
+    ? BOSS_VARIANT_RESIST[s.bossVariant][dmgType]
+    : ENEMY_RESIST[s.kind][dmgType];
 
 // ------- Tower modeling -------
 
@@ -127,18 +142,34 @@ type WaveBreakdown = {
   slowestSpeed: number;
 };
 
-const analyzeWave = (spec: WaveSpec, levelHpScale: number): WaveBreakdown => {
+const analyzeWave = (spec: WaveSpec, levelHpScale: number, longestPath: number): WaveBreakdown => {
   const hpMul = (spec.hpMul ?? 1) * levelHpScale;
   const counts: Partial<Record<EnemyKind, number>> = {};
   let totalHp = 0;
   let totalEnemies = 0;
   let slowestSpeed = Number.POSITIVE_INFINITY;
   for (const s of spec.spawns) {
-    const stats = ENEMY_STATS[s.kind];
+    const stats = specStats(s);
     counts[s.kind] = (counts[s.kind] ?? 0) + s.count;
     totalHp += stats.hp * hpMul * s.count;
     totalEnemies += s.count;
     if (stats.speed < slowestSpeed) slowestSpeed = stats.speed;
+    // Matriarch child-spawn: estimate how many children she drops while
+    // crossing the longest path and fold them into the wave breakdown.
+    // Children inherit hpMul through their stats * matriarch's effective
+    // scale, so the late-game variants don't get under-counted.
+    if (s.kind === "boss" && s.bossVariant) {
+      const child = BOSS_VARIANT_CHILD[s.bossVariant];
+      if (child) {
+        const lifetime = longestPath / stats.speed;
+        const childCount = Math.max(0, Math.floor(lifetime / child.interval)) * s.count;
+        const childStats = ENEMY_STATS[child.kind];
+        counts[child.kind] = (counts[child.kind] ?? 0) + childCount;
+        totalHp += childStats.hp * hpMul * childCount;
+        totalEnemies += childCount;
+        if (childStats.speed < slowestSpeed) slowestSpeed = childStats.speed;
+      }
+    }
   }
   return {
     totalHp,
@@ -148,8 +179,19 @@ const analyzeWave = (spec: WaveSpec, levelHpScale: number): WaveBreakdown => {
   };
 };
 
-const waveBounty = (spec: WaveSpec): number =>
-  spec.spawns.reduce((n, s) => n + ENEMY_STATS[s.kind].bounty * s.count, 0);
+const waveBounty = (spec: WaveSpec, longestPath: number): number =>
+  spec.spawns.reduce((n, s) => {
+    let total = specStats(s).bounty * s.count;
+    if (s.kind === "boss" && s.bossVariant) {
+      const child = BOSS_VARIANT_CHILD[s.bossVariant];
+      if (child) {
+        const lifetime = longestPath / specStats(s).speed;
+        const childCount = Math.max(0, Math.floor(lifetime / child.interval)) * s.count;
+        total += ENEMY_STATS[child.kind].bounty * childCount;
+      }
+    }
+    return n + total;
+  }, 0);
 
 // Spawn spacing matches spawner.ts:87
 const spawnSpacing = (spec: WaveSpec, waveNumber: number): number =>
@@ -171,17 +213,35 @@ const combatWindow = (
  * Effective single-tower DPS vs a wave's enemy mix.
  * Weight resist by HP share so tanky enemies (stego/titan) dominate correctly.
  */
-const effectiveDpsVsWave = (cfg: TowerConfig, wave: WaveBreakdown): number => {
+const effectiveDpsVsWave = (
+  cfg: TowerConfig,
+  wave: WaveBreakdown,
+  spec: WaveSpec,
+  longestPath: number,
+): number => {
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
   let weightedResist = 0;
   let totalHp = 0;
-  for (const k of Object.keys(wave.counts) as EnemyKind[]) {
-    const count = wave.counts[k] ?? 0;
-    if (!count) continue;
-    // resistance weighting is scale-invariant — raw hp is fine here
-    const hp = ENEMY_STATS[k].hp * count;
-    weightedResist += ENEMY_RESIST[k][dmgType] * hp;
+  // Walk the raw spec so boss spawns use their variant resists, and so
+  // matriarch children get folded in once (analyzeWave's wave.counts
+  // already includes them, but we re-derive here to keep the per-variant
+  // resists on the boss row separate from the per-kind resists on the
+  // children).
+  for (const s of spec.spawns) {
+    const stats = specStats(s);
+    const hp = stats.hp * s.count;
+    weightedResist += specResist(s, dmgType) * hp;
     totalHp += hp;
+    if (s.kind === "boss" && s.bossVariant) {
+      const child = BOSS_VARIANT_CHILD[s.bossVariant];
+      if (child) {
+        const lifetime = longestPath / stats.speed;
+        const childCount = Math.max(0, Math.floor(lifetime / child.interval)) * s.count;
+        const childHp = ENEMY_STATS[child.kind].hp * childCount;
+        weightedResist += ENEMY_RESIST[child.kind][dmgType] * childHp;
+        totalHp += childHp;
+      }
+    }
   }
   const avgResist = totalHp > 0 ? weightedResist / totalHp : 1;
   const aoe = aoeMultiplier(cfg.kind, cfg, Math.min(wave.totalEnemies, 10));
@@ -222,16 +282,18 @@ type WaveRow = {
  */
 const bestSetup = (
   wave: WaveBreakdown,
+  spec: WaveSpec,
   budget: number,
   dur: number,
   paths: Vec2[][],
+  longestPath: number,
 ): TowerPick[] => {
   const picks: TowerPick[] = [];
   for (const cfg of ALL_CONFIGS) {
     if (cfg.damage <= 0) continue;
     const count = Math.floor(budget / cfg.cost);
     if (count === 0) continue;
-    const perTowerDps = effectiveDpsVsWave(cfg, wave);
+    const perTowerDps = effectiveDpsVsWave(cfg, wave, spec, longestPath);
     // Multi-path coverage: one tower may only reach a fraction of the
     // enemy stream if paths don't converge near any valid placement.
     // Optimistic: assumes the player picks the best spot for this kind's range.
@@ -275,11 +337,11 @@ const analyzeLevel = (levelIdx: number) => {
   for (let i = 0; i < level.waves.length; i++) {
     const spec = level.waves[i];
     const waveNumber = i + 1;
-    const wave = analyzeWave(spec, hpScale);
+    const wave = analyzeWave(spec, hpScale, longestPath);
     const dur = combatWindow(spec, waveNumber, wave, longestPath);
     const budget = level.startGold + cumulativeBounty + cumulativeBonus;
     const requiredDps = wave.totalHp / dur;
-    const top = bestSetup(wave, budget, dur, level.paths);
+    const top = bestSetup(wave, spec, budget, dur, level.paths, longestPath);
 
     rows.push({
       wave: waveNumber,
@@ -293,7 +355,7 @@ const analyzeLevel = (levelIdx: number) => {
       top3: top,
     });
 
-    cumulativeBounty += waveBounty(spec);
+    cumulativeBounty += waveBounty(spec, longestPath);
     cumulativeBonus += 5 + waveNumber;
   }
 

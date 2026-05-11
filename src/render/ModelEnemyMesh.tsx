@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { smoothDirection } from "../sim/path";
-import type { EnemyKind } from "../sim/types";
-import { ELITE_TINT_BY_KIND } from "../sim/world";
+import type { BossVariant, EnemyKind } from "../sim/types";
+import { BOSS_VARIANT_TINT, ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
 
@@ -17,6 +17,10 @@ type Props = {
   baseRotY?: number;
   bob?: boolean;
   clip?: string;
+  // Only matched when kind === "boss". Lets Scene.tsx mount one mesh per
+  // biome-themed matriarch variant (each loads a different GLB) so the
+  // renderer doesn't need to swap models per-enemy at runtime.
+  bossVariant?: BossVariant;
 };
 
 // Frost tint target — pale ice blue. Enemies lerp from their base color
@@ -84,13 +88,19 @@ export const ModelEnemyMesh = ({
   baseRotY = 0,
   bob = false,
   clip = "Run",
+  bossVariant,
 }: Props) => {
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, Item>>(new Map());
   // Stable per-kind elite color — built once and reused for the body
   // lerp every frame so we don't allocate THREE.Color in the inner loop.
-  const eliteTint = useMemo(() => new THREE.Color(ELITE_TINT_BY_KIND[kind]), [kind]);
+  // Variant-tagged boss meshes route through the variant tint table so
+  // each biome's matriarch has her own elite glow.
+  const eliteTint = useMemo(
+    () => new THREE.Color(bossVariant ? BOSS_VARIANT_TINT[bossVariant] : ELITE_TINT_BY_KIND[kind]),
+    [kind, bossVariant],
+  );
   // Free list of skinned clones from dead-but-recyclable enemies. Reusing
   // is significantly cheaper than another `cloneSkinned + AnimationMixer`,
   // which matters for swarms.
@@ -169,6 +179,11 @@ export const ModelEnemyMesh = ({
     const live = new Set<number>();
     for (const e of world.enemies) {
       if (e.kind !== kind) continue;
+      // Boss meshes are partitioned by variant: each variant owns its own
+      // GLB, so the apex apatosaurus mesh shouldn't claim a raptor
+      // matriarch entity. When `bossVariant` is unset on Props (kind !==
+      // "boss"), this branch is a no-op.
+      if (bossVariant !== undefined && e.bossVariant !== bossVariant) continue;
       if (!e.alive) continue;
       live.add(e.id);
       let item = itemsRef.current.get(e.id);

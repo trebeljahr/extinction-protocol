@@ -1,10 +1,51 @@
 import { advanceAlongPath, smoothDirection } from "./path";
 import type { World } from "./types";
-import { addShake, emit } from "./world";
+import { addShake, BOSS_VARIANT_CHILD, BOSS_VARIANT_STATS, emit, spawnEnemy } from "./world";
 
 export const updateEnemies = (world: World, dt: number) => {
+  // Collect matriarch child-spawn requests during the tick. Deferred so
+  // we don't mutate world.enemies while iterating it — the new child
+  // will be picked up by the next tick instead.
+  type DeferredChild = {
+    kind: import("./types").EnemyKind;
+    pathIndex: number;
+    hpMul: number;
+    segment: number;
+    segmentT: number;
+  };
+  const childSpawns: DeferredChild[] = [];
+
   for (const e of world.enemies) {
     if (!e.alive) continue;
+
+    // Matriarch child-spawn — variant matriarchs drip their namesake
+    // species behind them every BOSS_VARIANT_CHILD interval. Disabled
+    // while she's slowed (cryo "freezes" her brood in place) so cold
+    // becomes a way to suppress the spawn stream, not just slow her HP.
+    if (
+      e.kind === "boss" &&
+      e.bossVariant !== undefined &&
+      e.childSpawnAt !== undefined &&
+      world.time >= e.childSpawnAt &&
+      world.time >= e.slowUntil
+    ) {
+      const cfg = BOSS_VARIANT_CHILD[e.bossVariant];
+      if (cfg) {
+        // Inherit the wave's hpMul from the matriarch herself so children
+        // scale with level difficulty without us having to thread the
+        // multiplier through Enemy. Late-game raptor children should be
+        // late-game-tough, not L5 chaff.
+        const variantHp = BOSS_VARIANT_STATS[e.bossVariant].hp;
+        childSpawns.push({
+          kind: cfg.kind,
+          pathIndex: e.pathIndex,
+          hpMul: e.maxHp / variantHp,
+          segment: e.segment,
+          segmentT: e.segmentT,
+        });
+        e.childSpawnAt = world.time + cfg.interval;
+      }
+    }
 
     if (world.time >= e.slowUntil && e.slowFactor !== 1) {
       e.slowFactor = 1;
@@ -68,4 +109,18 @@ export const updateEnemies = (world: World, dt: number) => {
     }
   }
   arr.length = w;
+
+  // Drop matriarch-spawned children at her current path position so
+  // they read as trailing behind her rather than teleporting in at the
+  // path origin. Done after the swap-and-pop above so the new entries
+  // don't get scanned by the dead-cull pass on this same tick.
+  for (const c of childSpawns) {
+    const child = spawnEnemy(world, c.kind, { pathIndex: c.pathIndex, hpMul: c.hpMul });
+    // Plant the child a notch behind the matriarch's current progress
+    // so she appears to be leading the pack, not surrounded by it. The
+    // small backoff (0.5 of a segment) keeps the child on the painted
+    // lane instead of clipping into the matriarch's body.
+    child.segment = c.segment;
+    child.segmentT = Math.max(0, c.segmentT - 0.5);
+  }
 };

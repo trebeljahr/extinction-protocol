@@ -1,5 +1,6 @@
 import type {
   BossTrickleStream,
+  BossVariant,
   EnemyKind,
   EnemySpec,
   Vec2,
@@ -175,11 +176,26 @@ const partShielded = (
   ],
 });
 
+// EnemySpec shorthand for the biome-themed matriarch variants. Each
+// boss-wave spawn must route through here so the runtime picks up the
+// per-variant HP/resists/model and the child-spawn stream from
+// BOSS_VARIANT_*. `count` defaults to 1; multi-lane boss waves call
+// this once per lane with the same variant.
+const bossSpawn = (variant: BossVariant, pathIndex = 0, count = 1): EnemySpec => ({
+  kind: "boss",
+  count,
+  pathIndex,
+  bossVariant: variant,
+});
+
 // Boss wave — escort entourage leads, then the boss. The bossWave flag
 // triggers the on-screen banner, audio sting, and bonus gold on kill.
 // Single-path; multi-path boss waves are authored inline so the boss
-// placement per lane is explicit.
+// placement per lane is explicit. `variant` picks the biome-themed
+// matriarch — required so the boss wave reads as that biome's queen
+// rather than a generic apatosaurus on every boss event.
 const bossWave = (
+  variant: BossVariant,
   entourage: EnemyCounts,
   bosses = 1,
   spacing = 0.55,
@@ -189,7 +205,7 @@ const bossWave = (
   archetype: "convoy",
   spacing,
   bossWave: true,
-  spawns: [...toSpawns(entourage, pathIndex), ...toSpawns({ boss: bosses }, pathIndex)],
+  spawns: [...toSpawns(entourage, pathIndex), bossSpawn(variant, pathIndex, bosses)],
   ...(bossTrickle ? { bossTrickle } : {}),
 });
 
@@ -298,14 +314,13 @@ export const LEVELS: LevelConfig[] = [
       rush(65, 12),
       heavy({ armored: 5, stego: 3, allosaur: 2 }),
       mixed({ raptor: 20, swarm: 14, para: 4, allosaur: 5, stego: 2 }),
-      // Boss wave: the matriarch's debut. Light entourage so she's the
-      // focus — players who didn't bring cryo will struggle to chip
-      // through her resists in time. A slow swarm+raptor drip behind her
-      // gives the player gold to react with while she crawls forward.
-      bossWave({ raptor: 10, allosaur: 3, stego: 1 }, 1, 0.55, 0, [
-        trickleStream(0, ["swarm", "raptor"], 1.6, 2.3, 5),
-        trickleStream(0, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 15),
-        trickleStream(0, ["raptor", "allosaur", "para"], 0.8, 1.3, 25),
+      // Boss wave: the Raptor Matriarch's debut. She's fast and lighter
+      // than later matriarchs but constantly drips raptors behind her as
+      // she sprints down the path — the player learns "the matriarch
+      // leads her own pack" here. Trickle is dialed back to a single
+      // sparse stream since her own spawn handles most of the pressure.
+      bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55, 0, [
+        trickleStream(0, ["swarm", "raptor"], 1.8, 2.6, 8),
       ]),
     ],
   },
@@ -430,14 +445,14 @@ export const LEVELS: LevelConfig[] = [
       rush(120, 26),
       heavy({ armored: 11, stego: 6, allosaur: 5 }),
       mixed({ raptor: 26, swarm: 20, allosaur: 10, stego: 6, armored: 3 }),
-      // Boss wave: matriarch flanked by armored escorts and a titan
-      // wingman — first time the player has to crack a heavy entourage
-      // while she lumbers forward. A steadier drip of small chaff feeds
-      // the player gold while heavy fire is locked onto the matriarch.
-      bossWave({ allosaur: 6, stego: 4, armored: 3, titan: 1 }, 1, 0.7, 0, [
-        trickleStream(0, ["swarm", "raptor"], 1.4, 2.0, 5),
-        trickleStream(0, ["swarm", "raptor", "allosaur", "para"], 0.9, 1.5, 14),
-        trickleStream(0, ["raptor", "allosaur", "stego", "para"], 0.7, 1.2, 24),
+      // Boss wave: the Stegosaur Matriarch. Heaviest plates yet, slow
+      // crawl, and she calves a fresh stego every six seconds. The
+      // entourage is lightened from the original generic-matriarch wave
+      // because her child drip is doing the heavy-lifting now —
+      // electric is the only real lever (her plates eat kinetic/blast).
+      bossWave("stego", { allosaur: 4, armored: 2, titan: 1 }, 1, 0.7, 0, [
+        trickleStream(0, ["swarm", "raptor"], 1.6, 2.2, 6),
+        trickleStream(0, ["swarm", "raptor", "allosaur"], 1.0, 1.6, 18),
       ]),
     ],
   },
@@ -731,26 +746,25 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
         ],
       },
-      // Boss wave: elite-armored escort leads, then the matriarch with
-      // an elite-regen stego at her flank. The chip-stacked entourage
-      // forces the player to commit anti-modifier T3s before she gets
-      // close to the gate.
+      // Boss wave: the Parasaur Matriarch. Crested resonator — chain
+      // damage rings through her at 1.7× but her sprint is fast enough
+      // that the player has to commit slow + AoE early. Para children
+      // pile up every 2.2 seconds; bring shield-busters or watch the
+      // chain coils tickle the bubbles forever. Elite-fierce armored
+      // still leads to keep the anti-modifier T3 lesson alive.
       {
         archetype: "convoy",
         spacing: 0.55,
         bossWave: true,
         spawns: [
           ...toSpawns({ armored: 2 }, 0, { elite: true, fierce: true }),
-          ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
+          ...toSpawns({ allosaur: 3, stego: 2, armored: 2 }),
           ...toSpawns({ stego: 1 }, 0, { elite: true, regen: true }),
-          ...toSpawns({ boss: 1 }),
+          bossSpawn("para", 0),
         ],
         bossTrickle: [
-          trickleStream(0, ["swarm", "raptor", "allosaur"], 1.3, 1.9, 6),
-          trickleStream(0, ["raptor", "allosaur", "para", "stego"], 0.8, 1.4, 16),
-          trickleStream(0, ["raptor", "allosaur", "armored", "para"], 0.6, 1.1, 26, {
-            fierce: true,
-          }),
+          trickleStream(0, ["swarm", "raptor", "allosaur"], 1.4, 2.0, 6),
+          trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 22, { fierce: true }),
         ],
       },
     ],
@@ -1101,26 +1115,27 @@ export const LEVELS: LevelConfig[] = [
         [0, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
         [1, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
       ),
-      // Boss wave: twin matriarchs, one per lane, flanked by titan+armored
-      // entourages. The two-path map means the player can't focus-fire one
-      // boss without leaving the other unchecked.
+      // Boss wave: twin T-Rex Matriarchs, one per lane, flanked by
+      // titan+armored entourages. The two-path map means the player
+      // can't focus-fire one boss without leaving the other unchecked.
+      // Each matriarch drops an allosaur every 3.8s — split coverage
+      // becomes critical fast. Trickle is trimmed to one stream per
+      // lane because the apex-predator child stream is doing the work.
       {
         archetype: "convoy",
         spacing: 0.5,
         bossWave: true,
         spawns: [
-          ...toSpawns({ stego: 6, armored: 7, titan: 3 }, 0),
-          ...toSpawns({ stego: 6, armored: 7, titan: 3 }, 1),
-          ...toSpawns({ boss: 1 }, 0),
-          ...toSpawns({ boss: 1 }, 1),
+          ...toSpawns({ stego: 4, armored: 5, titan: 2 }, 0),
+          ...toSpawns({ stego: 4, armored: 5, titan: 2 }, 1),
+          bossSpawn("allosaur", 0),
+          bossSpawn("allosaur", 1),
         ],
         bossTrickle: [
-          trickleStream(0, ["swarm", "raptor"], 1.3, 1.9, 6),
-          trickleStream(0, ["swarm", "raptor", "allosaur", "para"], 0.8, 1.3, 16),
-          trickleStream(0, ["raptor", "allosaur", "stego", "armored"], 0.6, 1.1, 26),
-          trickleStream(1, ["swarm", "raptor"], 1.3, 1.9, 7),
-          trickleStream(1, ["swarm", "raptor", "allosaur", "para"], 0.8, 1.3, 17),
-          trickleStream(1, ["raptor", "allosaur", "stego", "armored"], 0.6, 1.1, 27),
+          trickleStream(0, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 6),
+          trickleStream(0, ["raptor", "allosaur", "para", "stego"], 0.8, 1.3, 22),
+          trickleStream(1, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 7),
+          trickleStream(1, ["raptor", "allosaur", "para", "stego"], 0.8, 1.3, 23),
         ],
       },
     ],
@@ -1586,28 +1601,28 @@ export const LEVELS: LevelConfig[] = [
         [3, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
         [4, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
       ),
-      // Boss wave: matriarchs on the outer two lanes, heavy titan+armored
-      // entourages on the inner three. Five-wide map so coverage breadth
-      // is the bottleneck — focus-firing one boss leaves the other lanes
-      // bleeding lives.
+      // Boss wave: twin Triceratops Matriarchs on the outer lanes,
+      // heavy titan+armored entourages on the inner three. Their child
+      // drip is the slowest of any variant (7.5s) because each armored
+      // child is 300 HP — bring electric coverage on the outer lanes or
+      // their pack stacks up. Inner-lane trickle is preserved so all
+      // five lanes pressure the player simultaneously.
       {
         archetype: "convoy",
         spacing: 0.45,
         bossWave: true,
         spawns: [
-          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 0),
+          ...toSpawns({ stego: 5, armored: 4, titan: 2 }, 0),
           ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 1),
           ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 2),
           ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 3),
-          ...toSpawns({ stego: 6, armored: 5, titan: 2 }, 4),
-          ...toSpawns({ boss: 1 }, 0),
-          ...toSpawns({ boss: 1 }, 4),
+          ...toSpawns({ stego: 5, armored: 4, titan: 2 }, 4),
+          bossSpawn("armored", 0),
+          bossSpawn("armored", 4),
         ],
         bossTrickle: [
-          trickleStream(0, ["swarm", "raptor"], 1.4, 2.1, 6),
-          trickleStream(0, ["swarm", "raptor", "allosaur"], 0.9, 1.5, 18),
-          trickleStream(4, ["swarm", "raptor"], 1.4, 2.1, 7),
-          trickleStream(4, ["swarm", "raptor", "allosaur"], 0.9, 1.5, 19),
+          trickleStream(0, ["swarm", "raptor"], 1.6, 2.3, 8),
+          trickleStream(4, ["swarm", "raptor"], 1.6, 2.3, 9),
           trickleStream(1, ["swarm", "raptor", "allosaur"], 1.2, 1.8, 5),
           trickleStream(1, ["raptor", "allosaur", "para", "stego"], 0.7, 1.2, 17),
           trickleStream(2, ["swarm", "raptor", "allosaur"], 1.2, 1.8, 6),
@@ -2189,9 +2204,11 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
         [2, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
       ),
-      // Final Extinction: a triumvirate of matriarchs, one per lane,
-      // riding in on a wall of titans and armored. The campaign's true
-      // boss event — a player making it here has earned the spectacle.
+      // Final Extinction: a triumvirate of Apex Matriarchs, one per
+      // lane, riding in on a wall of titans and armored. The apex
+      // variant deliberately has no child-spawn stream — the campaign
+      // finale leans on entourage + the multi-stream trickle below, so
+      // adding a fourth pressure source would tip it past feasibility.
       {
         archetype: "convoy",
         spacing: 0.45,
@@ -2200,9 +2217,9 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 0),
           ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 1),
           ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 2),
-          ...toSpawns({ boss: 1 }, 0),
-          ...toSpawns({ boss: 1 }, 1),
-          ...toSpawns({ boss: 1 }, 2),
+          bossSpawn("apex", 0),
+          bossSpawn("apex", 1),
+          bossSpawn("apex", 2),
         ],
         bossTrickle: [
           trickleStream(0, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 5),

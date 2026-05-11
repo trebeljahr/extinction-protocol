@@ -1,4 +1,4 @@
-import type { DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
+import type { BossVariant, DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
 import { addShake, emit, spawnEnemy } from "./world";
 
 export type { WaveArchetype };
@@ -63,6 +63,7 @@ type RosterEntry = {
   elite: boolean;
   fierce: boolean;
   resists?: Partial<Record<DamageType, number>>;
+  bossVariant?: BossVariant;
 };
 
 const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
@@ -84,6 +85,7 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
         elite,
         fierce,
         resists: s.resists,
+        bossVariant: s.bossVariant,
       });
     }
   }
@@ -137,6 +139,7 @@ export const startWave = (world: World) => {
       elite: entry.elite,
       fierce: entry.fierce,
       resists: entry.resists,
+      bossVariant: entry.bossVariant,
     });
   }
   if (spec.bossTrickle) {
@@ -254,6 +257,7 @@ export const spawnerTick = (world: World, dt: number) => {
       elite: req.elite,
       fierce: req.fierce,
       resists: req.resists,
+      bossVariant: req.bossVariant,
     });
   }
 
