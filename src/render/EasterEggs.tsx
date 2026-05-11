@@ -306,10 +306,14 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const { clone, scale, minY, minX } = useMemo(() => buildInstance(scene, def), [scene, def]);
   const rollLift = Math.max(-minX, 0) * scale;
 
+  // Triggered eggs with motion (the freed parasaur) swap their idle clip
+  // for the triggeredClip so the run cycle plays as they sprint away.
+  const isFleeing = egg.vel != null && def.visual?.triggeredClip != null;
+  const activeClipName = isFleeing ? def.visual?.triggeredClip : def.visual?.clip;
+
   useEffect(() => {
-    const clipName = def.visual?.clip;
-    if (!clipName && animations.length === 0) return;
-    const clip = findClip(animations, clipName) ?? animations[0] ?? null;
+    if (!activeClipName && animations.length === 0) return;
+    const clip = findClip(animations, activeClipName) ?? animations[0] ?? null;
     if (!clip) return;
     const mixer = new THREE.AnimationMixer(clone);
     mixer.clipAction(clip).play();
@@ -319,7 +323,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       mixer.uncacheRoot(clone);
       mixerRef.current = null;
     };
-  }, [clone, animations, def.visual?.clip]);
+  }, [clone, animations, activeClipName]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -369,6 +373,10 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
         innerRef.current.quaternion.multiplyQuaternions(_rollQ, _barrelTipQ);
       } else {
         innerRef.current.rotation.set(egg.rollPitch, 0, 0);
+        // Non-tumble eggs that have started moving (the freed parasaur)
+        // rise out of any burial offset so they don't drag through the
+        // ground while running.
+        if (egg.vel != null) innerRef.current.position.y = 0;
       }
     }
 

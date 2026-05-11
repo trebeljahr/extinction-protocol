@@ -45,6 +45,10 @@ export type EasterEggVisual = {
   tint?: string; // hex color — multiplied into materials
   opacity?: number; // 0..1 → transparent=true, opacity=value
   clip?: string; // animation clip name; falls back to first clip
+  // Animation clip to switch to once the egg has been triggered into
+  // motion (egg.vel != null). Used by the buried parasaur to swap from
+  // Idle to Run when it claws free and bolts off the map.
+  triggeredClip?: string;
   yOffset?: number; // extra world-units on Y (negative = buried)
   skinned?: boolean; // true for animated skinned meshes (dinosaurs)
 };
@@ -355,7 +359,11 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleLife: 0.7,
       secondary: { color: "#aaf0ff", count: 14, speed: [1.5, 3.5], life: 0.5 },
     },
-    visual: { yOffset: -0.9, skinned: true, clip: "Idle" },
+    // Buried under the snow with just the head and dorsal ridge poking
+    // out. Five frantic clicks free it; clickRoll then hurls it toward
+    // the nearest map edge at full sprint with the Run animation.
+    visual: { yOffset: -0.5, skinned: true, clip: "Idle", triggeredClip: "Run" },
+    clickRoll: { speed: 14, lifetime: 4, spinRate: 0 },
   },
   {
     id: "ghost_trike",
