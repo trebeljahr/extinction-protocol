@@ -1033,7 +1033,6 @@ export const useGame = create<GameStore>((set, get) => ({
   tryPlaceOrSelect: (pos) => {
     const s = get();
     const w = s.world;
-    if (w.status !== "running") return;
 
     const hit = towerAt(w, pos);
     if (hit) {
@@ -1102,6 +1101,10 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       return;
     }
+    // Tower placement spends gold and adds entities — only allowed during
+    // an active wave. Selection/deselection above is fine in any state
+    // (auto-pause on new-enemy sighting is a common moment to deselect).
+    if (w.status !== "running") return;
     const cost = TOWER_COST[s.selectedKind];
     // Debug "free towers" mode skips both the affordability check and
     // the spend; lets a tester sanity-check matchups without grinding.
