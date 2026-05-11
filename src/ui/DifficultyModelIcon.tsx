@@ -35,7 +35,9 @@ const CAM_TUNING: Record<Difficulty, { camDist: number; camY: number; targetY: n
   // Velociraptor — compact biped, body roughly centered.
   easy: { camDist: 2.0, camY: 0.3, targetY: 0.2 },
   // Parasaur — bipedal grazer, crest pushes head high in frame.
-  medium: { camDist: 2.0, camY: 0.32, targetY: 0.22 },
+  // Pulled back vs the others: its long tail otherwise reads chunkier
+  // than the apex predators in the harder slots.
+  medium: { camDist: 2.3, camY: 0.32, targetY: 0.22 },
   // T-Rex — tallest silhouette, head sits high; target nudges up.
   hard: { camDist: 2.0, camY: 0.34, targetY: 0.25 },
   // Apatosaurus — long quadruped, low body; target sits near the spine.
