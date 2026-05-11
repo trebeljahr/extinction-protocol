@@ -44,14 +44,17 @@ float ripple(vec2 p) {
 }
 
 void main() {
-  // 0 = center, 1 = edge
+  // 0 = center, 1 = edge (cross-river for segments, radial for joints)
   float edge = uIsJoint > 0.5
     ? clamp(length(vUv - 0.5) * 2.0, 0.0, 1.0)
     : abs(vUv.y - 0.5) * 2.0;
 
   // Scrolling world-space ripple
-  vec2 sp = vWorldPos.xz + vec2(uTime * 0.06, uTime * 0.025);
+  vec2 sp = vWorldPos.xz * 1.4 + vec2(uTime * 0.32, uTime * 0.14);
   float r = ripple(sp);
+  // Second layer at a different scale/speed so motion reads clearly
+  float r2 = ripple(vWorldPos.xz * 2.6 + vec2(-uTime * 0.22, uTime * 0.30));
+  r = r * 0.65 + r2 * 0.45;
 
   // Bridge wake disruption
   float wake = 0.0;
@@ -68,10 +71,10 @@ void main() {
 
   // Deep center -> shallow edge gradient
   vec3 col = mix(DEEP, SHALLOW, edge * edge);
-  col += r * 0.035;
+  col += r * 0.09;
 
-  // Edge foam with animated breakup
-  float foam = smoothstep(0.72, 0.94, edge);
+  // Edge foam — only on segment banks (joint rims would look like rings)
+  float foam = (uIsJoint > 0.5) ? 0.0 : smoothstep(0.72, 0.94, edge);
   float foamBreak = sin(vWorldPos.x * 12.0 + uTime * 0.7)
                   * sin(vWorldPos.z * 12.0 + uTime * 0.5);
   foam *= max(0.0, 0.5 + 0.5 * foamBreak);
