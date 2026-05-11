@@ -752,6 +752,10 @@ export const applyDamage = (
 ) => {
   if (!enemy.alive) return;
   let dmg = amount;
+  // Running tally of damage actually applied to this enemy on this
+  // call. Shield absorption + HP reduction (clamped to remaining HP so
+  // overkill doesn't inflate the per-tower stat).
+  let dealt = 0;
 
   // Shields absorb damage flat (ignoring damage type) before HP, unless
   // the source flagged itself as shield-piercing. The resist multiplier
@@ -763,6 +767,7 @@ export const applyDamage = (
     const shieldDmg = dmg * shieldMul;
     const absorbed = Math.min(enemy.shield, shieldDmg);
     enemy.shield -= absorbed;
+    dealt += absorbed;
     // Convert shield-attributed damage back to "raw" units so HP bleed
     // isn't double-counted by the multiplier.
     dmg -= absorbed / shieldMul;
@@ -773,7 +778,13 @@ export const applyDamage = (
       // Visible "break" pop — light blue energy burst around the enemy.
       spawnParticles(world, enemy.pos, 12, "#7fc8ff", [3, 6], 0.45);
     }
-    if (dmg <= 0) return;
+    if (dmg <= 0) {
+      if (hitOpts?.attackerTowerId !== undefined && hitOpts.attackerTowerId !== null) {
+        const attacker = world.towerById.get(hitOpts.attackerTowerId);
+        if (attacker) attacker.damageDealt += dealt;
+      }
+      return;
+    }
   }
 
   const baseMul = ENEMY_RESIST[enemy.kind][type];
@@ -787,7 +798,12 @@ export const applyDamage = (
   const rawExtra = enemy.extraResists[type] ?? 1;
   const extraMul = hitOpts?.armorPierce && rawExtra < 1 ? 1 : rawExtra;
   mul *= extraMul;
-  enemy.hp -= dmg * mul;
+  const hpDmg = dmg * mul;
+  // Clamp the attributed portion to remaining HP so a 1k-damage shot
+  // into a 50-HP enemy reads as 50 dealt, not 1k — overkill shouldn't
+  // pad the stat.
+  dealt += Math.max(0, Math.min(enemy.hp, hpDmg));
+  enemy.hp -= hpDmg;
   enemy.flashUntil = world.time + 0.08;
   // Regen chip self-heal pauses on every damage tick. Pyre T3 extends
   // the pause window further per hit; without T3 the default
@@ -802,14 +818,18 @@ export const applyDamage = (
   if (hitOpts?.resistStrip && hitOpts.resistStrip > 0 && rawExtra < 1) {
     enemy.extraResists[type] = Math.min(1, rawExtra + hitOpts.resistStrip);
   }
+  // Damage attribution mirrors kill attribution — chain ricochets,
+  // cryo/flame ticks, and projectile splash all funnel through here
+  // with attackerTowerId set by the firing tower. The tower may have
+  // been sold between fire and impact, so a missing lookup is silently
+  // ignored.
+  if (hitOpts?.attackerTowerId !== undefined && hitOpts.attackerTowerId !== null) {
+    const attacker = world.towerById.get(hitOpts.attackerTowerId);
+    if (attacker) attacker.damageDealt += dealt;
+  }
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
-    // Kill credit goes to whichever tower delivered the killing blow —
-    // chain ricochets, cryo/flame ticks, and projectile splash all funnel
-    // through here with attackerTowerId set by the firing tower. The
-    // tower may have been sold between fire and impact, so a missing
-    // lookup is silently ignored.
     if (hitOpts?.attackerTowerId !== undefined && hitOpts.attackerTowerId !== null) {
       const attacker = world.towerById.get(hitOpts.attackerTowerId);
       if (attacker) attacker.kills += 1;
@@ -1016,6 +1036,11 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
 // hard cap so the assignment array can be statically sized.
 export const HIVE_BASE_DRONES = 3;
 export const HIVE_MAX_DRONES = 6;
+// Max drones (summed across every hive) that can be assigned to a
+// single target tower. Distinct from HIVE_MAX_DRONES — that caps one
+// hive's roster; this caps stacking on one buffed tower so a player
+// with three hives can't pile all 18 drones onto one mortar.
+export const HIVE_MAX_DRONES_PER_TOWER = 6;
 // Default fire-rate buff each assigned drone confers to its target.
 // Path B upgrades scale this — see upgrades.ts.
 export const HIVE_BASE_SERVICE_BUFF = 0.3;
@@ -1076,6 +1101,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     regenSuppressOnHit: 0,
     freezeBlocksRegen: false,
     kills: 0,
+    damageDealt: 0,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);

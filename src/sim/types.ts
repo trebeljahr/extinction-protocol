@@ -133,6 +133,10 @@ export type Tower = {
   // blow — chain ricochets and cryo/flame ticks attribute to the
   // firing tower, not the enemy chain link they died on.
   kills: number;
+  // Total damage this tower has dealt this run, attributed in
+  // applyDamage. Counts shield absorption and HP reduction (clamped to
+  // the enemy's remaining HP so overkill doesn't inflate the stat).
+  damageDealt: number;
 };
 
 export type Tree = {

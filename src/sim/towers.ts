@@ -8,6 +8,7 @@ import {
   createProjectile,
   emit,
   HIVE_MAX_DRONES,
+  HIVE_MAX_DRONES_PER_TOWER,
   spawnParticles,
 } from "./world";
 
@@ -15,7 +16,7 @@ import {
 // the tower by hive drones. We compute it on demand instead of caching
 // because the bonus is recomputed at the top of every tick — caching
 // would just add a state field that has to stay in sync.
-const effectiveFireRate = (t: Tower): number => t.fireRate * (1 + t.serviceFireRateBonus);
+export const effectiveFireRate = (t: Tower): number => t.fireRate * (1 + t.serviceFireRateBonus);
 
 const scoreEnemy = (tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
@@ -418,6 +419,20 @@ const HIVE_ORBIT_SPEED = 0.55; // rad/s
 // neighbours without poaching towers across the map.
 export const HIVE_AUTO_ASSIGN_RANGE = 10;
 
+// How many drones (from every hive on the map) are currently servicing
+// the given target tower. Used to enforce HIVE_MAX_DRONES_PER_TOWER so
+// stacking is bounded regardless of how many hives the player owns.
+export const countDronesOnTower = (world: World, towerId: number): number => {
+  let n = 0;
+  for (const h of world.towers) {
+    if (h.kind !== "hive") continue;
+    for (let i = 0; i < h.droneCount; i++) {
+      if (h.droneAssignments[i] === towerId) n++;
+    }
+  }
+  return n;
+};
+
 // On placement, auto-wire idle drones so the player doesn't have to
 // drill into the hive panel for every neighbour.
 //
@@ -428,18 +443,22 @@ export const HIVE_AUTO_ASSIGN_RANGE = 10;
 //     with the closest unserviced neighbours.
 //
 // Manual assignments are left untouched — only idle (null) slots are
-// filled.
+// filled. Stacking is capped at HIVE_MAX_DRONES_PER_TOWER per target.
 export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean => {
   const rangeSq = HIVE_AUTO_ASSIGN_RANGE * HIVE_AUTO_ASSIGN_RANGE;
 
   if (tower.kind === "hive") {
-    // Gather nearby non-hive towers sorted by distance, then fill
-    // idle drone slots closest-first.
-    const nearby: { id: number; d2: number }[] = [];
+    // Gather nearby non-hive towers sorted by distance, skipping any
+    // already at the stacking cap, then fill idle drone slots
+    // closest-first.
+    const nearby: { id: number; d2: number; stacked: number }[] = [];
     for (const t of world.towers) {
       if (t === tower || t.kind === "hive") continue;
       const d2 = distSq(t.pos, tower.pos);
-      if (d2 <= rangeSq) nearby.push({ id: t.id, d2 });
+      if (d2 > rangeSq) continue;
+      const stacked = countDronesOnTower(world, t.id);
+      if (stacked >= HIVE_MAX_DRONES_PER_TOWER) continue;
+      nearby.push({ id: t.id, d2, stacked });
     }
     if (nearby.length === 0) return false;
     nearby.sort((a, b) => a.d2 - b.d2);
@@ -448,13 +467,20 @@ export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean =
     let ni = 0;
     for (let i = 0; i < tower.droneCount && ni < nearby.length; i++) {
       if (tower.droneAssignments[i] !== null) continue;
-      tower.droneAssignments[i] = nearby[ni++].id;
+      // Re-check stacking per drone — earlier drones in this same
+      // call may have filled the candidate up to the cap.
+      while (ni < nearby.length && nearby[ni].stacked >= HIVE_MAX_DRONES_PER_TOWER) ni++;
+      if (ni >= nearby.length) break;
+      tower.droneAssignments[i] = nearby[ni].id;
+      nearby[ni].stacked++;
       assigned = true;
     }
     return assigned;
   }
 
-  // Non-hive tower: find the closest hive with a free slot.
+  // Non-hive tower: find the closest hive with a free slot, but only
+  // if this tower isn't already at the stacking cap.
+  if (countDronesOnTower(world, tower.id) >= HIVE_MAX_DRONES_PER_TOWER) return false;
   let bestHive: Tower | null = null;
   let bestDroneIdx = -1;
   let bestDistSq = rangeSq;

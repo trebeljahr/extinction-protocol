@@ -1,4 +1,5 @@
 import { type ComponentType, useEffect, useState } from "react";
+import { effectiveFireRate } from "../sim/towers";
 import type { EnemyKind, TargetingMode, Tower } from "../sim/types";
 import {
   formatStat,
@@ -20,6 +21,14 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { HiveDronePanel } from "./HiveDronePanel";
 import { TowerPreview } from "./TowerPreview";
+
+// Compact number formatter — keeps stat lines short once damage totals
+// climb into the tens of thousands. 1234 → "1.2k", 1_500_000 → "1.5M".
+const fmtCompact = (n: number): string => {
+  if (n < 1000) return Math.round(n).toString();
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
+  return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0)}M`;
+};
 
 const ENEMY_ORDER: EnemyKind[] = [
   "raptor",
@@ -122,7 +131,7 @@ export const TowerPanel = () => {
           <span style={{ color: "#bbffc8" }}>
             +{Math.round(tower.serviceBuff * 100)}% fire rate
           </span>{" "}
-          to its assigned tower. Multiple drones on one tower stack. Click "Pick" on a slot, then
+          to its assigned tower. Up to 6 drones can stack on one tower. Click "Pick" on a slot, then
           click a tower on the map to assign.
         </div>
 
@@ -160,7 +169,8 @@ export const TowerPanel = () => {
           </div>
           <div className="panel-stats">
             DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG{" "}
-            {tower.range.toFixed(1)} · KILLS {tower.kills}
+            {tower.range.toFixed(1)} · DPS {(tower.damage * effectiveFireRate(tower)).toFixed(1)} ·
+            KILLS {tower.kills} · DEALT {fmtCompact(tower.damageDealt)}
             {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
             {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
             {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}

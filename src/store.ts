@@ -34,7 +34,7 @@ import {
   callWaveEarly as simCallWaveEarly,
   startWave,
 } from "./sim/spawner";
-import { autoAssignDroneToNewTower } from "./sim/towers";
+import { autoAssignDroneToNewTower, countDronesOnTower } from "./sim/towers";
 import type {
   DamageType,
   EnemyKind,
@@ -54,6 +54,7 @@ import {
   createTower,
   createWorld,
   emit,
+  HIVE_MAX_DRONES_PER_TOWER,
   meshXZRadii,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
@@ -1235,6 +1236,18 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!target || target.kind === "hive") {
       set({ assigningDroneSlot: null });
       return;
+    }
+    // Cap drones-per-target. The currently-picked slot may already
+    // point at the same tower (re-confirming an existing assignment is
+    // a no-op), so subtract that from the cap check to avoid spurious
+    // rejections when the slot count is exactly at the limit.
+    const currentAssignment = hive.droneAssignments[slot.droneIdx];
+    if (currentAssignment !== towerId) {
+      const stacked = countDronesOnTower(s.world, towerId);
+      if (stacked >= HIVE_MAX_DRONES_PER_TOWER) {
+        set({ assigningDroneSlot: null });
+        return;
+      }
     }
     hive.droneAssignments[slot.droneIdx] = towerId;
     const newVersion = s.towerVersion + 1;
