@@ -11,6 +11,7 @@ import {
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
+import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
 
 // Render-only decorative cosmetics scattered across the playable level.
@@ -292,6 +293,7 @@ export const BiomeCosmetics = () => {
   const levelId = useGame((s) => s.world.levelId);
   const trees = useGame((s) => s.world.trees);
   const rocks = useGame((s) => s.world.rocks);
+  const towers = useGame((s) => s.world.towers);
 
   const groups = useMemo(() => {
     // Block cosmetics from spawning on top of trees/rocks that already exist.
@@ -310,9 +312,30 @@ export const BiomeCosmetics = () => {
     return Array.from(byUrl.entries());
   }, [biome, paths, levelId, trees, rocks]);
 
+  // Cull cosmetics that overlap a tower so the base sits on clean ground.
+  // Filtered at render-time to keep placement stable as towers come/go.
+  const culledGroups = useMemo(() => {
+    if (towers.length === 0) return groups;
+    const towerR = TOWER_FOOTPRINT * 0.5;
+    const cosmeticR = 0.3;
+    const lim = towerR + cosmeticR;
+    const limSq = lim * lim;
+    return groups.map(([url, items]): [string, Instance[]] => {
+      const filtered = items.filter((it) => {
+        for (const t of towers) {
+          const dx = t.pos.x - it.pos.x;
+          const dy = t.pos.y - it.pos.y;
+          if (dx * dx + dy * dy < limSq) return false;
+        }
+        return true;
+      });
+      return [url, filtered];
+    });
+  }, [groups, towers]);
+
   return (
     <group>
-      {groups.map(([url, items]) => (
+      {culledGroups.map(([url, items]) => (
         <InstanceGroup key={url} url={url} items={items} />
       ))}
     </group>

@@ -11,7 +11,7 @@ import {
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { Rock, Tree, Vec2 } from "../sim/types";
-import { ROCK_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
+import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
 
 const mulberry32 = (seed: number) => {
@@ -289,6 +289,7 @@ export const Ground = () => {
   const levelId = useGame((s) => s.world.levelId);
   const trees = useGame((s) => s.world.trees);
   const rocks = useGame((s) => s.world.rocks);
+  const towers = useGame((s) => s.world.towers);
   const style = BIOME_STYLE[biome];
   const specs = useMemo(() => BIOME_LAYERS[biome].filter((s) => !s.blocks), [biome]);
 
@@ -309,6 +310,29 @@ export const Ground = () => {
     }));
   }, [paths, specs, biome, levelId, trees, rocks]);
 
+  // Cull any decor instance the player has built a tower on top of, so the
+  // tower base sits on clean ground instead of poking through a mushroom
+  // or grass tuft. Done at render-time so placement stays deterministic.
+  const culledLayers = useMemo(() => {
+    if (towers.length === 0) return layers;
+    const towerR = TOWER_FOOTPRINT * 0.5;
+    return layers.map(({ spec, buckets }) => ({
+      spec,
+      buckets: buckets.map(({ id, placements }) => ({
+        id,
+        placements: placements.filter((p) => {
+          for (const t of towers) {
+            const dx = t.pos.x - p.x;
+            const dy = t.pos.y - p.y;
+            const lim = towerR + p.r;
+            if (dx * dx + dy * dy < lim * lim) return false;
+          }
+          return true;
+        }),
+      })),
+    }));
+  }, [layers, towers]);
+
   return (
     <group>
       {/* Oversized so the plane edge is always off-screen at any
@@ -321,7 +345,7 @@ export const Ground = () => {
         <meshStandardMaterial color={style.groundColor} roughness={0.98} metalness={0} />
       </mesh>
 
-      {layers.flatMap(({ spec, buckets }) =>
+      {culledLayers.flatMap(({ spec, buckets }) =>
         buckets.map(({ id, placements }, vi) => (
           <NatureInstances
             key={id}

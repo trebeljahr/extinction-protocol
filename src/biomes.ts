@@ -180,15 +180,15 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 6464,
     // Mushroom.glb authored 0.78 max-dim; 0.65–1.25 → ~0.5–1.0 world units.
-    // Previously rendered as non-clickable cosmetic at the same visible
-    // size, which read as a small obstacle but couldn't be removed.
+    // Small enough to read as ground decor rather than an obstacle, so
+    // it's non-blocking — towers placed on top auto-cull them visually.
     urls: ["/models/landmarks/forest/Mushroom.glb"],
     count: 10,
     clearance: PATH_WIDTH / 2 + 0.5,
     minScale: 0.65,
     maxScale: 1.25,
     castShadow: true,
-    blocks: true,
+    footprint: 0.4,
     cluster: { seeds: 3, sigma: 2.0 },
   },
 ];

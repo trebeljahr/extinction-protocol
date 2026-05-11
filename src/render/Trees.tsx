@@ -150,11 +150,13 @@ export const Trees = () => {
       {hovered &&
         hovered.id !== selectedTreeId &&
         (() => {
-          const r = (sources[hovered.variant]?.baseXzRadius ?? 0.2) * hovered.scale;
+          // Floor so very small trunks still get a visible ring instead of
+          // an invisible sliver around a thin stem.
+          const r = Math.max(0.22, (sources[hovered.variant]?.baseXzRadius ?? 0.2) * hovered.scale);
           return (
             <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <ringGeometry args={[Math.max(0.01, r - 0.04), r + 0.08, 32]} />
+                <ringGeometry args={[r - 0.05, r + 0.08, 32]} />
                 <meshBasicMaterial
                   color={canAfford ? "#ff8a5a" : "#6a6a6a"}
                   transparent
@@ -169,11 +171,14 @@ export const Trees = () => {
         })()}
       {selected &&
         (() => {
-          const r = (sources[selected.variant]?.baseXzRadius ?? 0.2) * selected.scale;
+          const r = Math.max(
+            0.22,
+            (sources[selected.variant]?.baseXzRadius ?? 0.2) * selected.scale,
+          );
           return (
             <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <ringGeometry args={[Math.max(0.01, r - 0.04), r + 0.12, 40]} />
+                <ringGeometry args={[r - 0.05, r + 0.12, 40]} />
                 <meshBasicMaterial
                   color="#ffd66a"
                   transparent
