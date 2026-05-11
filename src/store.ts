@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AchievementId } from "./achievements";
 import { ACHIEVEMENT_BY_ID, checkAchievements } from "./achievements";
 import { track } from "./analytics";
+import { BIOME_LAYERS, BIOME_TREE_URLS } from "./biomes";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
@@ -53,6 +54,7 @@ import {
   createTower,
   createWorld,
   emit,
+  meshXZRadii,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
   spawnEnemy,
@@ -224,14 +226,17 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
   for (const t of world.towers) {
     if (distSq(t.pos, pos) < footprintSq) return false;
   }
-  const treeBlockSq =
-    (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5) * (TREE_FOOTPRINT * 0.5 + TOWER_FOOTPRINT * 0.5);
+  const treeUrls = BIOME_TREE_URLS[world.biome];
   for (const tr of world.trees) {
-    if (distSq(tr.pos, pos) < treeBlockSq) return false;
+    const base = meshXZRadii.get(treeUrls[tr.variant]) ?? TREE_FOOTPRINT;
+    const blockR = base * tr.scale + TOWER_FOOTPRINT * 0.5;
+    if (distSq(tr.pos, pos) < blockR * blockR) return false;
   }
+  const layers = BIOME_LAYERS[world.biome];
   for (const r of world.rocks) {
-    const rockRadius = ROCK_FOOTPRINT * r.scale;
-    const blockR = rockRadius + TOWER_FOOTPRINT * 0.5;
+    const url = layers[r.layerIndex]?.urls[r.variant];
+    const base = url ? (meshXZRadii.get(url) ?? ROCK_FOOTPRINT) : ROCK_FOOTPRINT;
+    const blockR = base * r.scale + TOWER_FOOTPRINT * 0.5;
     if (distSq(r.pos, pos) < blockR * blockR) return false;
   }
   return true;

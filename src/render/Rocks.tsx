@@ -3,25 +3,31 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { BIOME_LAYERS } from "../biomes";
+import { BIOME_LAYERS, type Biome } from "../biomes";
 import type { Rock } from "../sim/types";
-import { ROCK_REMOVE_COST } from "../sim/world";
+import { meshXZRadii, ROCK_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
 
 type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type Source = { parts: Part[]; minY: number };
+type Source = { parts: Part[]; minY: number; xzRadius: number };
 
-// Scales with rock size but stays inside ROCK_MIN_SPACING (1.5) even at
-// max scale, so adjacent rocks stay individually clickable.
-const rockHitRadius = (scale: number) => 0.55 + 0.25 * scale;
+const rockUrl = (biome: Biome, rock: Rock): string | undefined =>
+  BIOME_LAYERS[biome][rock.layerIndex]?.urls[rock.variant];
+
+const rockEffectiveRadius = (biome: Biome, rock: Rock): number => {
+  const url = rockUrl(biome, rock);
+  const base = url ? (meshXZRadii.get(url) ?? 0.7) : 0.7;
+  return base * rock.scale;
+};
 
 // Collect every primitive under the scene — many Quaternius rocks/bushes
 // are authored as a single mesh with 2+ primitives (body + Snow cap),
 // which GLTFLoader flattens into multiple Three.Meshes under the scene.
-const collectParts = (scene: THREE.Object3D): Source | null => {
+const collectParts = (url: string, scene: THREE.Object3D): Source | null => {
   scene.updateMatrixWorld(true);
   const parts: Part[] = [];
   let minY = Number.POSITIVE_INFINITY;
+  let xzMax = 0;
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
@@ -30,12 +36,24 @@ const collectParts = (scene: THREE.Object3D): Source | null => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
-      if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
+      if (geom.boundingBox) {
+        minY = Math.min(minY, geom.boundingBox.min.y);
+        const bb = geom.boundingBox;
+        xzMax = Math.max(
+          xzMax,
+          Math.abs(bb.min.x),
+          Math.abs(bb.max.x),
+          Math.abs(bb.min.z),
+          Math.abs(bb.max.z),
+        );
+      }
       parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
     }
   });
   if (parts.length === 0) return null;
-  return { parts, minY: Number.isFinite(minY) ? minY : 0 };
+  const xzRadius = xzMax || 0.7;
+  meshXZRadii.set(url, xzRadius);
+  return { parts, minY: Number.isFinite(minY) ? minY : 0, xzRadius };
 };
 
 // Pointer events go to the hit discs, not the model silhouette.
@@ -43,7 +61,7 @@ const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectParts(scene), [scene]);
+  const source = useMemo(() => collectParts(url, scene), [url, scene]);
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -133,12 +151,17 @@ export const Rocks = () => {
         <RockGroup key={url} url={url} rocks={group} />
       ))}
 
-      <RockHitTargets rocks={rocks} hoveredId={hoveredId} setHoveredId={setHoveredId} />
+      <RockHitTargets
+        rocks={rocks}
+        biome={biome}
+        hoveredId={hoveredId}
+        setHoveredId={setHoveredId}
+      />
 
       {hovered && hovered.id !== selectedRockId && (
         <RockRing
           pos={hovered.pos}
-          radius={rockHitRadius(hovered.scale)}
+          radius={rockEffectiveRadius(biome, hovered)}
           color={canAfford ? "#ff8a5a" : "#6a6a6a"}
           thickness={0.22}
           y={0.02}
@@ -148,7 +171,7 @@ export const Rocks = () => {
       {selected && (
         <RockRing
           pos={selected.pos}
-          radius={rockHitRadius(selected.scale) + 0.08}
+          radius={rockEffectiveRadius(biome, selected) + 0.08}
           color="#ffd66a"
           thickness={0.28}
           y={0.03}
@@ -195,10 +218,12 @@ const RockRing = ({
 
 const RockHitTargets = ({
   rocks,
+  biome,
   hoveredId,
   setHoveredId,
 }: {
   rocks: Rock[];
+  biome: Biome;
   hoveredId: number | null;
   setHoveredId: (id: number | null) => void;
 }) => {
@@ -224,13 +249,13 @@ const RockHitTargets = ({
       const r = rocks[i];
       dummy.position.set(r.pos.x, 0.015, -r.pos.y);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.setScalar(rockHitRadius(r.scale));
+      dummy.scale.setScalar(rockEffectiveRadius(biome, r));
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
     }
     im.count = rocks.length;
     im.instanceMatrix.needsUpdate = true;
-  }, [rocks]);
+  }, [rocks, biome]);
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.instanceId == null) return;

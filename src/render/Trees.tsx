@@ -5,14 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIOME_TREE_URLS } from "../biomes";
 import type { Tree } from "../sim/types";
-import { TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
+import { meshXZRadii, TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import { useGame } from "../store";
 
 type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type VariantSource = { id: string; parts: Part[]; minY: number };
-
-// Fat disc so the slender trunk isn't the actual click target.
-const TREE_HIT_RADIUS = 0.9;
+type VariantSource = { id: string; parts: Part[]; minY: number; xzRadius: number };
 
 // Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
 // primitives) come in from GLTFLoader as multiple Meshes under the scene.
@@ -30,10 +27,11 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: scenes array is derived from useGLTF hooks above, references change only with urls
   return useMemo(
     () =>
-      scenes.map((scene) => {
+      scenes.map((scene, si) => {
         scene.updateMatrixWorld(true);
         const parts: Part[] = [];
         let minY = Number.POSITIVE_INFINITY;
+        let xzMax = 0;
         scene.traverse((o) => {
           const m = o as THREE.Mesh;
           if (!m.isMesh) return;
@@ -42,12 +40,24 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
             const geom = m.geometry.clone();
             geom.applyMatrix4(m.matrixWorld);
             geom.computeBoundingBox();
-            if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
+            if (geom.boundingBox) {
+              minY = Math.min(minY, geom.boundingBox.min.y);
+              const bb = geom.boundingBox;
+              xzMax = Math.max(
+                xzMax,
+                Math.abs(bb.min.x),
+                Math.abs(bb.max.x),
+                Math.abs(bb.min.z),
+                Math.abs(bb.max.z),
+              );
+            }
             parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
           }
         });
         if (parts.length === 0) return null;
-        return { id: nanoid(), parts, minY: Number.isFinite(minY) ? minY : 0 };
+        const xzRadius = xzMax || 0.9;
+        meshXZRadii.set(urls[si], xzRadius);
+        return { id: nanoid(), parts, minY: Number.isFinite(minY) ? minY : 0, xzRadius };
       }),
     // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
     scenes,
@@ -102,29 +112,52 @@ export const Trees = () => {
         return <VariantGroup key={src.id} bucket={bucket} source={src} />;
       })}
 
-      <TreeHitTargets trees={trees} hoveredId={hoveredId} setHoveredId={setHoveredId} />
+      <TreeHitTargets
+        trees={trees}
+        sources={sources}
+        hoveredId={hoveredId}
+        setHoveredId={setHoveredId}
+      />
 
-      {hovered && hovered.id !== selectedTreeId && (
-        <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.55, 0.78, 32]} />
-            <meshBasicMaterial
-              color={canAfford ? "#ff8a5a" : "#6a6a6a"}
-              transparent
-              opacity={0.9}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        </group>
-      )}
-      {selected && (
-        <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.62, 0.9, 40]} />
-            <meshBasicMaterial color="#ffd66a" transparent opacity={0.95} side={THREE.DoubleSide} />
-          </mesh>
-        </group>
-      )}
+      {hovered &&
+        hovered.id !== selectedTreeId &&
+        (() => {
+          const r = (sources[hovered.variant]?.xzRadius ?? 0.9) * hovered.scale;
+          return (
+            <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
+                <ringGeometry args={[r - 0.22, r, 32]} />
+                <meshBasicMaterial
+                  color={canAfford ? "#ff8a5a" : "#6a6a6a"}
+                  transparent
+                  opacity={0.9}
+                  side={THREE.DoubleSide}
+                  depthTest={false}
+                  depthWrite={false}
+                />
+              </mesh>
+            </group>
+          );
+        })()}
+      {selected &&
+        (() => {
+          const r = (sources[selected.variant]?.xzRadius ?? 0.9) * selected.scale;
+          return (
+            <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
+                <ringGeometry args={[r - 0.2, r + 0.08, 40]} />
+                <meshBasicMaterial
+                  color="#ffd66a"
+                  transparent
+                  opacity={0.95}
+                  side={THREE.DoubleSide}
+                  depthTest={false}
+                  depthWrite={false}
+                />
+              </mesh>
+            </group>
+          );
+        })()}
     </group>
   );
 };
@@ -172,15 +205,17 @@ const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const TreeHitTargets = ({
   trees,
+  sources,
   hoveredId,
   setHoveredId,
 }: {
   trees: Tree[];
+  sources: (VariantSource | null)[];
   hoveredId: number | null;
   setHoveredId: (id: number | null) => void;
 }) => {
   const ref = useRef<THREE.InstancedMesh | null>(null);
-  const geom = useMemo(() => new THREE.CircleGeometry(TREE_HIT_RADIUS, 24), []);
+  const geom = useMemo(() => new THREE.CircleGeometry(1, 24), []);
   const material = useMemo(
     () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     [],
@@ -199,15 +234,16 @@ const TreeHitTargets = ({
     const dummy = new THREE.Object3D();
     for (let i = 0; i < trees.length; i++) {
       const t = trees[i];
+      const r = (sources[t.variant]?.xzRadius ?? 0.9) * t.scale;
       dummy.position.set(t.pos.x, 0.015, -t.pos.y);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.setScalar(1);
+      dummy.scale.setScalar(r);
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
     }
     im.count = trees.length;
     im.instanceMatrix.needsUpdate = true;
-  }, [trees]);
+  }, [trees, sources]);
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.instanceId == null) return;

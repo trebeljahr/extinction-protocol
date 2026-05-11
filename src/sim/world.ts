@@ -52,6 +52,10 @@ export const ROCK_FOOTPRINT = 0.65;
 export const ROCK_MIN_SPACING = 1.5;
 export const ROCK_REMOVE_COST = 15;
 
+// Per-URL XZ radius cache — populated by render components (Trees.tsx,
+// Rocks.tsx) when GLBs load, read by canPlaceAt for placement blocking.
+export const meshXZRadii = new Map<string, number>();
+
 const mulberry32 = (seed: number) => {
   let a = seed >>> 0;
   return () => {
