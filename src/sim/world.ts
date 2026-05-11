@@ -104,6 +104,10 @@ const buildTrees = (
     isValid,
     maxCount: TREE_COUNT,
     seed: seed * 31 + 17,
+    // Seed Bridson with each grove centre so the placement spreads
+    // across all groves rather than packing TREE_COUNT trees around
+    // the first one the algorithm walks into.
+    initialPoints: worley.features,
   });
 
   // Variant/scale/rot stream is independent so changes to count/spacing
@@ -201,6 +205,10 @@ const buildRocks = (
       isValid,
       maxCount: spec.count,
       seed: spec.seed * 31 + layerIndex * 7 + 17,
+      // Seed Bridson with each Worley feature so every rock pile gets
+      // its own frontier instead of all `spec.count` rocks stacking
+      // around the first feature the algorithm reaches.
+      initialPoints: worley.features,
     });
 
     const detailRng = mulberry32(spec.seed * 53 + 91);

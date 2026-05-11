@@ -122,6 +122,10 @@ const buildLayer = (
     isValid,
     maxCount: spec.count,
     seed: spec.seed * 31 + layerIndex * 7 + 23,
+    // Seed Bridson with each Worley cluster centre so the layer
+    // spreads across all clusters instead of packing every prop
+    // around the first cluster the algorithm reaches.
+    initialPoints: worley.features,
   });
 
   const detailRng = mulberry32(spec.seed * 53 + 91);

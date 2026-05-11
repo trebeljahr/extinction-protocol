@@ -14,7 +14,7 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
-import { TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
+import { TREE_FOOTPRINT, TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
 import { worleyFieldFromFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
@@ -37,7 +37,38 @@ const OUTER_HALF_H = MAP_HEIGHT / 2 + 9; // 21 from center
 const INNER_HALF_W = MAP_WIDTH / 2 - 0.5;
 const INNER_HALF_H = MAP_HEIGHT / 2 - 0.5;
 
-const PROP_MIN_SPACING = 0.6;
+// Slack on top of summed prop radii — matches Ground.tsx's PROP_SPACING_SLACK
+// so the rim and the inner area share the same "neighbours can almost
+// touch, but not visually overlap" convention.
+const PROP_SPACING_SLACK = 0.15;
+// Sparse-region Poisson radius is r_min × this. >1 spreads outliers out
+// between Worley features instead of packing every prop into the densest
+// pocket. Matches Ground.tsx's DECOR_MAX_SPACING_MUL.
+const DECOR_MAX_SPACING_MUL = 2.0;
+
+// Footprint guess for BiomeLayer specs that don't set `footprint`
+// explicitly — same heuristic Ground.tsx uses so the rim and inner-area
+// spacing for the same URL family agree.
+const defaultFootprint = (url: string): number => {
+  const f = url.toLowerCase();
+  if (/grass/.test(f)) return 0.28;
+  if (/bush/.test(f)) return 0.6;
+  if (/rock/.test(f)) return 0.55;
+  return 0.5;
+};
+
+const layerFootprint = (layer: BiomeLayer): number =>
+  layer.footprint ?? defaultFootprint(layer.urls[0] ?? "");
+
+// Compute per-layer Poisson rMin from footprint × avg scale × 2 (two
+// halves touching) + slack. Previously the rim used a flat 0.6 unit
+// spacing for everything, which let max-scale rocks (~0.9 unit visual
+// radius) pack tight enough to render as a single overlapping pile.
+const layerMinSpacing = (layer: BiomeLayer): number => {
+  const footprint = layerFootprint(layer);
+  const avgScale = (layer.minScale + layer.maxScale) / 2;
+  return 2 * footprint * avgScale + PROP_SPACING_SLACK;
+};
 
 // Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
 // scale band; the inner BiomeCosmetics renderer normalizes them to
@@ -131,7 +162,9 @@ const OUTER_BOUNDS = {
 };
 
 // Mirror one BIOME_LAYER on the band at proportional count using the
-// layer's own cluster config (now Worley-driven). Spacing-checks
+// layer's own cluster config (now Worley-driven). Spacing is derived
+// from the layer's footprint × scale so rocks don't pile on top of each
+// other and grass doesn't waste space between blades. Spacing-checks
 // against the running `out` list so previously-placed layers don't
 // collide.
 const placeLayerInBand = (
@@ -151,22 +184,31 @@ const placeLayerInBand = (
   const sigma = layer.cluster?.sigma ?? 2.0;
   const featureRadius = sigma * 2.0;
   const featureCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
-  const worley = worleyFieldFromFeatures(pickBandFeatures(featureRng, featureCount), featureRadius);
+  const features = pickBandFeatures(featureRng, featureCount);
+  const worley = worleyFieldFromFeatures(features, featureRadius);
 
-  const rMin = PROP_MIN_SPACING;
-  const rMax = PROP_MIN_SPACING * 2.0;
+  const rMin = layerMinSpacing(layer);
+  const rMax = rMin * DECOR_MAX_SPACING_MUL;
   const radiusAt = (x: number, y: number): number => {
     const d = worley.density(x, y);
     return rMin + (1 - d) * (rMax - rMin);
   };
 
+  // Conservative footprint for the cross-layer check — use this layer's
+  // max-scale instance so a worst-case sibling at the candidate position
+  // can't graze a previously-placed (possibly different-family) prop.
+  const candidateR = layerFootprint(layer) * layer.maxScale;
+
   const isValid = (x: number, y: number): boolean => {
     if (insideInner(x, y)) return false;
-    // Earlier-layer items are blockers — keep cross-layer min spacing.
     for (const o of out) {
       const dx = o.pos.x - x;
       const dy = o.pos.y - y;
-      if (dx * dx + dy * dy < rMin * rMin) return false;
+      // Both candidate and existing instances carry their own size, but
+      // we don't track per-instance footprint here. Approximate with the
+      // larger of the two candidate radii — keeps it conservative.
+      const min = candidateR + PROP_SPACING_SLACK;
+      if (dx * dx + dy * dy < min * min) return false;
     }
     return true;
   };
@@ -177,6 +219,10 @@ const placeLayerInBand = (
     isValid,
     maxCount: targetCount,
     seed: seedBase + 7,
+    // Seed one Bridson frontier per Worley feature so clusters
+    // populate together rather than stacking around the first feature
+    // the algorithm happens to hit.
+    initialPoints: features,
   });
 
   const detailRng = mulberry32(seedBase + 13);
@@ -194,17 +240,17 @@ const placeLayerInBand = (
 // Place uniform Poisson scatter for things that don't have a
 // BIOME_LAYERS entry — trees (BIOME_TREE_URLS) and cosmetics
 // (BIOME_COSMETICS). No Worley modulation, just a flat density at the
-// given min-spacing.
+// given min-spacing. `minSep` is the centre-to-centre distance both
+// for Poisson sampling and the cross-layer check against `out`.
 const placeUniformInBand = (
   out: Instance[],
   seed: number,
   pool: string[],
   count: number,
   scaleFn: (rng: () => number) => number,
-  spacingMult: number,
+  minSep: number,
 ): void => {
   if (count === 0 || pool.length === 0) return;
-  const minSep = PROP_MIN_SPACING * spacingMult;
 
   const isValid = (x: number, y: number): boolean => {
     if (insideInner(x, y)) return false;
@@ -249,20 +295,26 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 
   // 2) Trees aren't in BIOME_LAYERS. Inner sim spawns INNER_TREE_COUNT
   //    clickable trees; the rim adds proportional non-blocking silhouettes.
+  //    Spacing matches sim/world.ts buildTrees: 2 × TREE_FOOTPRINT × avg-scale + slack.
   const trees = BIOME_TREE_URLS[biome];
   if (trees.length > 0) {
+    const avgTreeScale = (TREE_MIN_SCALE + TREE_MAX_SCALE) / 2;
+    const treeMinSep = 2 * TREE_FOOTPRINT * avgTreeScale + PROP_SPACING_SLACK;
     placeUniformInBand(
       out,
       levelId * 9281 + 137,
       trees,
       Math.round(INNER_TREE_COUNT * BAND_RATIO),
       treeScale,
-      3,
+      treeMinSep,
     );
   }
 
   // 3) Cosmetics (forest BushFlowers etc.) rendered separately on the
-  //    inner via BiomeCosmetics.tsx; mirror at proportional count.
+  //    inner via BiomeCosmetics.tsx; mirror at proportional count. The
+  //    inner BiomeCosmetics renderer normalizes max-dim to ~0.5 world
+  //    units, so even at the upper jitter (~1.4×) one prop spans ~0.7;
+  //    1.1 spacing keeps them visually distinct without big gaps.
   const cosmetics = BIOME_COSMETICS[biome];
   if (cosmetics.length > 0) {
     placeUniformInBand(
@@ -271,7 +323,7 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
       cosmetics,
       Math.round(INNER_COSMETIC_COUNT * BAND_RATIO),
       cosmeticScale,
-      1.8,
+      1.1,
     );
   }
 

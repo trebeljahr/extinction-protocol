@@ -22,6 +22,13 @@ export type PoissonConfig = {
   // External rejection (path, lava, blockers, custom shape mask). Called
   // for the initial seed and every candidate before spacing checks.
   isValid?: (x: number, y: number) => boolean;
+  // Optional pre-seed positions. Bridson's classic algorithm starts
+  // from a single random point and walks outward — fine for uniform
+  // density, but when `radiusAt` is driven by a Worley field with
+  // multiple feature centres the walk tends to fill ONE feature before
+  // reaching others. Pre-seeding with a point near each feature gives
+  // every cluster a starting frontier so the placement spreads.
+  initialPoints?: ReadonlyArray<Vec2>;
 };
 
 const sampleInAnnulus = (
@@ -50,16 +57,44 @@ export const poissonDiskSample = (cfg: PoissonConfig): Vec2[] => {
   const radii: number[] = [];
   const active: number[] = [];
 
-  // Initial seed. A handful of tries is plenty for an unconstrained
-  // rect; tighter shapes may need more.
-  for (let tries = 0; tries < 200; tries++) {
-    const x = bounds.minX + rng() * (bounds.maxX - bounds.minX);
-    const y = bounds.minY + rng() * (bounds.maxY - bounds.minY);
-    if (!isValid(x, y)) continue;
+  // Try to accept a pre-seed; same conflict check the main loop uses so
+  // callers can pass clustered features without worrying about whether
+  // two are too close.
+  const tryAcceptPoint = (x: number, y: number): boolean => {
+    if (x < bounds.minX || x > bounds.maxX || y < bounds.minY || y > bounds.maxY) return false;
+    if (!isValid(x, y)) return false;
+    const cr = radiusAt(x, y);
+    for (let qi = 0; qi < points.length; qi++) {
+      const q = points[qi];
+      const dx = x - q.x;
+      const dy = y - q.y;
+      const qr = radii[qi];
+      const minR = cr > qr ? cr : qr;
+      if (dx * dx + dy * dy < minR * minR) return false;
+    }
     points.push({ x, y });
-    radii.push(radiusAt(x, y));
-    active.push(0);
-    break;
+    radii.push(cr);
+    active.push(points.length - 1);
+    return true;
+  };
+
+  // Caller-provided pre-seeds first — each becomes a separate Bridson
+  // frontier so clustered density fields get explored evenly.
+  if (cfg.initialPoints) {
+    for (const p of cfg.initialPoints) {
+      if (points.length >= cfg.maxCount) break;
+      tryAcceptPoint(p.x, p.y);
+    }
+  }
+
+  // Fallback random seed if nothing accepted yet. A handful of tries is
+  // plenty for an unconstrained rect; tighter shapes may need more.
+  if (points.length === 0) {
+    for (let tries = 0; tries < 200; tries++) {
+      const x = bounds.minX + rng() * (bounds.maxX - bounds.minX);
+      const y = bounds.minY + rng() * (bounds.maxY - bounds.minY);
+      if (tryAcceptPoint(x, y)) break;
+    }
   }
 
   while (active.length > 0 && points.length < maxCount) {

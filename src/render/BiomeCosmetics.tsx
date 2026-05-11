@@ -89,6 +89,10 @@ const buildInstances = (
     isValid,
     maxCount: COUNT_PER_LEVEL,
     seed: levelId * 8147 + 211,
+    // Seed Bridson with each grove centre so the algorithm visits
+    // every feature instead of packing all COUNT_PER_LEVEL cosmetics
+    // around the first feature it walks into.
+    initialPoints: worley.features,
   });
 
   // Per-instance URL bias: pick the nearest feature, then 70% chance to
