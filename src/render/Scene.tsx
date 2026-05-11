@@ -12,6 +12,7 @@ import { Ground } from "./Ground";
 import { HealAuras } from "./HealAuras";
 import { HealthBars } from "./HealthBars";
 import { HiveDrones } from "./HiveDrones";
+import { HQBase } from "./HQBase";
 import { HQTurrets } from "./HQTurret";
 import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
@@ -70,6 +71,7 @@ export const PlayScene = () => {
       <Placement />
       <PathLine />
       <HQTurrets />
+      <HQBase />
 
       <ModelEnemyMesh kind="raptor" url="/models/Velociraptor.glb" targetSize={1.6} />
       <ModelEnemyMesh kind="swarm" url="/models/Velociraptor.glb" targetSize={0.8} />
