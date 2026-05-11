@@ -1,4 +1,3 @@
-import { nanoid } from "nanoid";
 import * as THREE from "three";
 
 // GLTFLoader flattens multi-primitive nodes into multiple THREE.Mesh
@@ -9,7 +8,6 @@ import * as THREE from "three";
 // each part to its own InstancedMesh.
 
 export type MeshPart = {
-  id: string;
   geom: THREE.BufferGeometry;
   material: THREE.Material;
 };
@@ -58,7 +56,7 @@ const collect = (scene: THREE.Object3D): MeshSource | null => {
           unionSet = true;
         } else union.union(geom.boundingBox);
       }
-      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
+      parts.push({ geom, material: mat as THREE.Material });
     }
   });
   if (parts.length === 0 || !unionSet) return null;

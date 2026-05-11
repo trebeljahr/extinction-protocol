@@ -62,7 +62,8 @@ export const InstancedGroup = <T extends GroupItem>({
     <group>
       {source.parts.map((part, pi) => (
         <instancedMesh
-          key={part.id}
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts array is stable per scene
+          key={pi}
           ref={(el: THREE.InstancedMesh | null) => {
             partRefs.current[pi] = el;
           }}
