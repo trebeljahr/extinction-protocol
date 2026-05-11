@@ -18,16 +18,15 @@ import { useGame } from "../store";
 import { collectMeshSource, type MeshSource } from "./meshSource";
 
 // Decorative scenery in the band *outside* the playable rectangle. Pure
-// flavor — non-blocking, non-clickable, deterministic per level. The
-// camera shows ~MAP+8 wide and can pan out further still, so without
-// this band the fringe reads as flat empty ground stopping at a hard
-// rectangle. Mixed clusters of trees+rocks+bushes give the screen edge
-// a scattered "we are leaving the main scene" look that thins out
-// toward the corners.
+// flavor — non-blocking, non-clickable, deterministic per level. Mirrors
+// every BIOME_LAYER on the band at proportional density so the fringe
+// reads as a continuation of the play area instead of thinning out: forest
+// gets a grass-and-mushroom rim, snow gets a sparse rock rim, etc. The
+// pass uses each layer's own cluster sigma/seeds, then adds proportional
+// passes for trees (BIOME_TREE_URLS) and cosmetics (BIOME_COSMETICS) which
+// aren't part of BIOME_LAYERS.
 
-// Outer rectangle bounds — calibrated so the deepest fringe is roughly
-// where the camera can reach at max pan + fit zoom. Past this the fog
-// + screen edge swallow the props anyway.
+// Outer rectangle bounds — past this the fog + screen edge swallow props anyway.
 const OUTER_HALF_W = MAP_WIDTH / 2 + 11; // 31 from center
 const OUTER_HALF_H = MAP_HEIGHT / 2 + 9; // 21 from center
 // Inner exclusion — slight overlap with the play boundary is fine, but
@@ -35,229 +34,55 @@ const OUTER_HALF_H = MAP_HEIGHT / 2 + 9; // 21 from center
 const INNER_HALF_W = MAP_WIDTH / 2 - 0.5;
 const INNER_HALF_H = MAP_HEIGHT / 2 - 0.5;
 
-const CLUSTER_SIGMA = 1.7;
 const PROP_MIN_SPACING = 0.6;
-// Anchor min separation between cluster centers. With sigma 1.7 clusters
-// span ~5 units, so 3 units between anchors lets dense biomes pack
-// adjacent clusters with overlap — reads as a continuous fringe instead
-// of distinct huddles. Was 4 (forced gaps), which capped how many anchors
-// could fit on a forest map.
-const ANCHOR_MIN_SEPARATION = 3;
-// Cluster/loner totals scale with biome inner-layer density so the rim
-// reads as the same per-square-unit cover as the play area. 130 is the
-// rough mean inner count across biomes (forest 265, wasteland 134, lava
-// 132, alien 127, desert 120, snow 42); at that baseline the rim lands
-// near the original 28-cluster/18-loner values.
-const INNER_COUNT_BASELINE = 130;
 
 // Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
-// scale band and are authored at wildly varying max-dims. The inner
-// BiomeCosmetics renderer normalizes them to TARGET_SIZE_BY_ROLE; we do
-// the same here so they read as small ground dressing rather than
-// scaling up to obstacle size.
+// scale band; the inner BiomeCosmetics renderer normalizes them to
+// TARGET_SIZE_BY_ROLE, and we mirror that here.
 const COSMETIC_ONLY_URLS = (() => {
   const set = new Set<string>();
   for (const list of Object.values(BIOME_COSMETICS)) for (const u of list) set.add(u);
   return set;
 })();
 
+// Inner-sim counts for things that aren't in BIOME_LAYERS — used to size the
+// rim's separate tree/cosmetic passes. Mirrors sim/world.ts TREE_COUNT and
+// BiomeCosmetics COUNT_PER_LEVEL. If those change, bump these too.
+const INNER_TREE_COUNT = 20;
+const INNER_COSMETIC_COUNT = 14;
+
+// Band-to-inner area ratio: rim count = inner count × this. With the current
+// outer/inner bounds it's ~1707 / 960 = 1.78.
+const BAND_AREA = OUTER_HALF_W * 2 * OUTER_HALF_H * 2 - INNER_HALF_W * 2 * INNER_HALF_H * 2;
+const INNER_AREA = MAP_WIDTH * MAP_HEIGHT;
+const BAND_RATIO = BAND_AREA / INNER_AREA;
+
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number; castShadow: boolean };
 
-type FamilyUrls = {
-  trees: string[];
-  rocks: string[];
-  bushes: string[];
-  grass: string[];
-  // Small ground-decor: mushrooms, skulls, bushflowers — anything classified
-  // as "cosmetic" by URL role. Sits between bushes and grass on the scale
-  // ladder and reads as flat dressing, not obstacle.
-  ground: string[];
-};
+// Scale formulas mirror what the inner renderers use:
+// - Trees: TREE_MIN_SCALE..TREE_MAX_SCALE (matches Trees.tsx)
+// - Cosmetics: 0.7..1.4 jitter on top of the TARGET_SIZE_BY_ROLE normalization
+// - Layer props: layer.minScale..maxScale (matches Ground.tsx)
+// Triangular distribution (rng()+rng())/2 mid-biases size so the rim
+// doesn't read as equal-thirds large/medium/small.
+const treeScale = (rng: () => number): number =>
+  TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
 
-const dedupe = (arr: string[]): string[] => Array.from(new Set(arr));
+const cosmeticScale = (rng: () => number): number => 0.7 + ((rng() + rng()) / 2) * 0.7;
 
-// Collect every decoration URL a biome uses and bucket it by role. The
-// inner play area pulls from three sources — BIOME_TREE_URLS (clickable
-// trees), BIOME_LAYERS (rocks/bushes/grass/landmarks/dead trees), and
-// BIOME_COSMETICS (small flat dressing). The outer band reuses all three
-// so the fringe palette matches whatever the player sees inside. Buildings
-// (hangars, structures, tents) are skipped — they're hero focal points and
-// would look wrong scattered in the corners.
-const collectFamilyUrls = (biome: Biome): FamilyUrls => {
-  const trees: string[] = [...BIOME_TREE_URLS[biome]];
-  const rocks: string[] = [];
-  const bushes: string[] = [];
-  const grass: string[] = [];
-  const ground: string[] = [];
-  for (const layer of BIOME_LAYERS[biome]) {
-    for (const u of layer.urls) {
-      const role = classifyPropUrl(u);
-      if (role === "tree") trees.push(u);
-      else if (role === "rock") rocks.push(u);
-      else if (role === "bush") bushes.push(u);
-      else if (role === "grass") grass.push(u);
-      else if (role === "cosmetic") ground.push(u);
-      // role === "building" intentionally skipped
-    }
-  }
-  for (const u of BIOME_COSMETICS[biome]) ground.push(u);
-  return {
-    trees: dedupe(trees),
-    rocks: dedupe(rocks),
-    bushes: dedupe(bushes),
-    grass: dedupe(grass),
-    ground: dedupe(ground),
-  };
-};
-
-// "Theme" of a cluster — biases the prop URL toward one family while
-// still mixing in some of the others (real ecosystems aren't monocultures).
-type ClusterTheme = "tree" | "rock" | "bush" | "mixed" | "ground";
-// "ground" theme appears 3× so the rim composition leans grass+small-decor,
-// matching the inner BIOME_LAYERS (forest is 160 grass + 10 mushrooms out of
-// 265 inner-layer props — 64% small). Without this the rim's old tree-heavy
-// mix made forest fringes look like a tree wall against a grass-covered map.
-const THEMES: ClusterTheme[] = [
-  "tree",
-  "tree",
-  "rock",
-  "bush",
-  "mixed",
-  "ground",
-  "ground",
-  "ground",
-];
-type Family = keyof FamilyUrls;
-const ALL_FAMILIES: Family[] = ["trees", "rocks", "bushes", "grass", "ground"];
-
-// Per-theme weights across the five families. Theme's primary gets the
-// lion's share; the other big-silhouette families fill the middle; grass
-// and ground decor fill the gaps. Real nature clusters aren't monocultures
-// — a stand of trees comes with bushes near the roots and tufts of grass
-// underfoot.
-const THEME_WEIGHTS: Record<ClusterTheme, Record<Family, number>> = {
-  tree: { trees: 0.5, rocks: 0.12, bushes: 0.15, grass: 0.13, ground: 0.1 },
-  rock: { trees: 0.15, rocks: 0.5, bushes: 0.1, grass: 0.12, ground: 0.13 },
-  bush: { trees: 0.12, rocks: 0.1, bushes: 0.5, grass: 0.18, ground: 0.1 },
-  mixed: { trees: 0.25, rocks: 0.2, bushes: 0.2, grass: 0.2, ground: 0.15 },
-  // Grass-dominant patch — mirrors the inner BIOME_LAYERS grass layer, which
-  // is the single biggest decoration on grass-rich biomes (160 of 265 forest
-  // props). On biomes with no grass family (snow rocks-only), pickUrlForTheme
-  // gracefully redistributes the weight to whatever families exist.
-  ground: { trees: 0.05, rocks: 0.08, bushes: 0.12, grass: 0.6, ground: 0.15 },
-};
-
-// Sum of BIOME_LAYERS counts for a biome — proxy for "how dense should the
-// inner area read." Drives rim sizing so per-square-unit density on the
-// band matches the inner area.
-const innerLayerCount = (biome: Biome): number => {
-  let total = 0;
-  for (const layer of BIOME_LAYERS[biome]) total += layer.count;
-  return total;
-};
-
-// Biome-scaled rim sizing. The band is ~1.78× the inner area, so the target
-// prop budget is `innerCount × that ratio`. Cluster count and props-per-
-// cluster both scale with sqrt(density factor) so dense biomes get more *and*
-// fuller clusters without needing absurdly many anchors; loners scale
-// linearly because they live in the outer corners which need uniform fill.
-type RimSizing = {
-  totalClusters: number;
-  propsMin: number;
-  propsMax: number;
-  loners: number;
-};
-const rimSizing = (biome: Biome): RimSizing => {
-  const factor = innerLayerCount(biome) / INNER_COUNT_BASELINE;
-  const sqrtFactor = Math.sqrt(factor);
-  return {
-    totalClusters: Math.max(8, Math.round(28 * sqrtFactor * 1.27)),
-    propsMin: Math.max(3, Math.round(4 * sqrtFactor)),
-    propsMax: Math.max(6, Math.round(8 * sqrtFactor)),
-    loners: Math.max(10, Math.round(18 * factor)),
-  };
-};
-
-const pickUrlForTheme = (
-  theme: ClusterTheme,
-  fams: FamilyUrls,
-  rng: () => number,
-): string | null => {
-  // Weighted family pick, only sampling families that actually have URLs
-  // (otherwise an empty family steals probability mass from one that
-  // could have rendered).
-  const weights = THEME_WEIGHTS[theme];
-  let total = 0;
-  for (const fam of ALL_FAMILIES) if (fams[fam].length > 0) total += weights[fam];
-  if (total <= 0) return null;
-  let r = rng() * total;
-  for (const fam of ALL_FAMILIES) {
-    if (fams[fam].length === 0) continue;
-    r -= weights[fam];
-    if (r <= 0) {
-      const pool = fams[fam];
-      return pool[Math.floor(rng() * pool.length)];
-    }
-  }
-  // Numerical fallback — pick the last non-empty family.
-  for (let i = ALL_FAMILIES.length - 1; i >= 0; i--) {
-    const pool = fams[ALL_FAMILIES[i]];
-    if (pool.length > 0) return pool[Math.floor(rng() * pool.length)];
-  }
-  return null;
-};
-
-// Find the BIOME_LAYERS spec that owns a given URL so the outer band
-// reuses the exact same min/max scale the inner play area uses. Without
-// this the band normalizes to TARGET_SIZE_BY_ROLE while the inner area
-// uses raw GLTF scale × layer multiplier, and the outer props read
-// noticeably smaller than the inner ones using the same mesh.
-const layerForUrl = (biome: Biome, url: string): BiomeLayer | undefined => {
-  for (const layer of BIOME_LAYERS[biome]) {
-    if (layer.urls.includes(url)) return layer;
-  }
-  return undefined;
-};
-
-const scaleForUrl = (biome: Biome, url: string, rng: () => number): number => {
-  // If the URL appears in a BIOME_LAYERS spec, reuse that layer's scale
-  // band — matches the inner play area exactly. This branch covers
-  // rocks, bushes, grass, mushrooms, skulls, dead trees, crystals, etc.
-  const layer = layerForUrl(biome, url);
-  if (layer) {
-    // Triangular distribution mid-biases the size so the fringe doesn't
-    // look like equal-thirds large/medium/small — most props mid-range
-    // with the occasional small/large outlier.
-    return layer.minScale + ((rng() + rng()) / 2) * (layer.maxScale - layer.minScale);
-  }
-  const role = classifyPropUrl(url);
-  // Trees from BIOME_TREE_URLS (clickable in the inner sim) use the
-  // global tree scale window the inner Trees.tsx renders with.
-  if (role === "tree") {
-    return TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
-  }
-  // BIOME_COSMETICS URLs (BushFlowers etc.) — the renderer normalizes
-  // these to TARGET_SIZE_BY_ROLE so the multiplier here is per-instance
-  // size jitter on top of the normalized target. Mirrors the spread
-  // BiomeCosmetics.tsx uses on the inner area.
-  if (role === "cosmetic") {
-    return 0.7 + ((rng() + rng()) / 2) * 0.7;
-  }
-  return 0.7 + rng() * 0.4;
-};
+const layerScale = (rng: () => number, layer: BiomeLayer): number =>
+  layer.minScale + ((rng() + rng()) / 2) * (layer.maxScale - layer.minScale);
 
 // Sample a position uniformly inside the band (outer rect minus inner rect).
-// Weighting toward the inner edge happens in the acceptance step.
+// Pick which side of the band by area weight, then sample uniformly inside
+// that side. Sides overlap at corners; that's fine.
 const sampleBandPoint = (rng: () => number): Vec2 => {
-  // Pick which side of the band to land in by area weight, then sample
-  // uniformly inside that side. Sides overlap at corners; that's fine.
   const horizontalArea = OUTER_HALF_W * 2 * (OUTER_HALF_H - INNER_HALF_H);
   const verticalArea = (OUTER_HALF_W - INNER_HALF_W) * INNER_HALF_H * 2;
   const totalArea = 2 * horizontalArea + 2 * verticalArea;
   const r = rng() * totalArea;
   let acc = horizontalArea;
   if (r < acc) {
-    // Top strip (y > INNER_HALF_H, full outer width)
     return {
       x: (rng() - 0.5) * 2 * OUTER_HALF_W,
       y: INNER_HALF_H + rng() * (OUTER_HALF_H - INNER_HALF_H),
@@ -265,7 +90,6 @@ const sampleBandPoint = (rng: () => number): Vec2 => {
   }
   acc += horizontalArea;
   if (r < acc) {
-    // Bottom strip
     return {
       x: (rng() - 0.5) * 2 * OUTER_HALF_W,
       y: -INNER_HALF_H - rng() * (OUTER_HALF_H - INNER_HALF_H),
@@ -273,30 +97,15 @@ const sampleBandPoint = (rng: () => number): Vec2 => {
   }
   acc += verticalArea;
   if (r < acc) {
-    // Left strip (x < -INNER_HALF_W, mid-height only)
     return {
       x: -INNER_HALF_W - rng() * (OUTER_HALF_W - INNER_HALF_W),
       y: (rng() - 0.5) * 2 * INNER_HALF_H,
     };
   }
-  // Right strip
   return {
     x: INNER_HALF_W + rng() * (OUTER_HALF_W - INNER_HALF_W),
     y: (rng() - 0.5) * 2 * INNER_HALF_H,
   };
-};
-
-// Quadratic falloff toward the outer edge. 1 at the inner boundary,
-// ~0.3 at the outer boundary. Used to thin out far-corner density.
-const innerEdgeAffinity = (pos: Vec2): number => {
-  const overshootX = Math.max(0, Math.abs(pos.x) - INNER_HALF_W);
-  const overshootY = Math.max(0, Math.abs(pos.y) - INNER_HALF_H);
-  const bandX = OUTER_HALF_W - INNER_HALF_W;
-  const bandY = OUTER_HALF_H - INNER_HALF_H;
-  const tx = bandX > 0 ? overshootX / bandX : 0;
-  const ty = bandY > 0 ? overshootY / bandY : 0;
-  const t = Math.max(tx, ty); // 0 at inner edge, 1 at outer edge
-  return 1 - 0.7 * t * t; // quadratic; never falls below 0.3
 };
 
 const insideOuter = (pos: Vec2): boolean =>
@@ -305,152 +114,161 @@ const insideOuter = (pos: Vec2): boolean =>
 const insideInner = (pos: Vec2): boolean =>
   Math.abs(pos.x) < INNER_HALF_W && Math.abs(pos.y) < INNER_HALF_H;
 
-const totalUrls = (fams: FamilyUrls): number =>
-  fams.trees.length +
-  fams.rocks.length +
-  fams.bushes.length +
-  fams.grass.length +
-  fams.ground.length;
-
-const buildInstances = (biome: Biome, levelId: number): Instance[] => {
-  const fams = collectFamilyUrls(biome);
-  if (totalUrls(fams) === 0) return [];
-  const rng = mulberry32(levelId * 17389 + 991);
-  const out: Instance[] = [];
-  const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
-  const sizing = rimSizing(biome);
-  const anchorMinSepSq = ANCHOR_MIN_SEPARATION * ANCHOR_MIN_SEPARATION;
-
-  // 1) Pick cluster anchors with inner-edge bias.
-  const anchors: { pos: Vec2; theme: ClusterTheme }[] = [];
+// Pick K cluster seed points in the band with a minimum separation so the
+// gaussian halos around each seed don't pile on top of each other.
+const pickBandSeeds = (rng: () => number, count: number): Vec2[] => {
+  const seeds: Vec2[] = [];
+  const minSepSq = 4 * 4;
   let tries = 0;
-  while (anchors.length < sizing.totalClusters && tries < sizing.totalClusters * 30) {
+  while (seeds.length < count && tries < count * 70) {
     tries++;
     const candidate = sampleBandPoint(rng);
-    // Reject with probability proportional to distance-from-inner-edge.
-    if (rng() > innerEdgeAffinity(candidate)) continue;
-    // Minimum anchor separation — relaxed enough that dense biomes can pack
-    // overlapping clusters into a continuous fringe.
     let tooClose = false;
-    for (const a of anchors) {
-      const dx = a.pos.x - candidate.x;
-      const dy = a.pos.y - candidate.y;
-      if (dx * dx + dy * dy < anchorMinSepSq) {
+    for (const s of seeds) {
+      const dx = s.x - candidate.x;
+      const dy = s.y - candidate.y;
+      if (dx * dx + dy * dy < minSepSq) {
         tooClose = true;
         break;
       }
     }
-    if (tooClose) continue;
-    anchors.push({ pos: candidate, theme: THEMES[Math.floor(rng() * THEMES.length)] });
+    if (!tooClose) seeds.push(candidate);
   }
+  return seeds;
+};
 
-  // 2) Place props per cluster.
-  for (const anchor of anchors) {
-    const propCount = sizing.propsMin + Math.floor(rng() * (sizing.propsMax - sizing.propsMin + 1));
-    let placed = 0;
-    let attempts = 0;
-    while (placed < propCount && attempts < propCount * 12) {
-      attempts++;
-      const px = anchor.pos.x + gaussian(rng, CLUSTER_SIGMA);
-      const py = anchor.pos.y + gaussian(rng, CLUSTER_SIGMA);
-      const pos: Vec2 = { x: px, y: py };
-      if (!insideOuter(pos)) continue;
-      if (insideInner(pos)) continue; // keep clear of playable rectangle
-      let blocked = false;
-      for (const o of out) {
-        const dx = o.pos.x - px;
-        const dy = o.pos.y - py;
-        if (dx * dx + dy * dy < spacingSq) {
-          blocked = true;
-          break;
-        }
-      }
-      if (blocked) continue;
-      const url = pickUrlForTheme(anchor.theme, fams, rng);
-      if (!url) continue;
-      out.push({
-        url,
-        pos,
-        scale: scaleForUrl(biome, url, rng),
-        rotY: rng() * Math.PI * 2,
-        // Disable shadows for the fringe — the directional light's shadow
-        // camera spans the playable rectangle; outer trees would clip the
-        // shadow map edge. The visual cost is small at this distance and
-        // fog softens the loss.
-        castShadow: false,
-      });
-      placed++;
-    }
-  }
+// Mirror one BIOME_LAYER on the band at proportional count using the layer's
+// own cluster config. Spacing-checks against the running `out` list so
+// previously-placed layers don't collide.
+const placeLayerInBand = (
+  out: Instance[],
+  layer: BiomeLayer,
+  levelId: number,
+  layerIndex: number,
+): void => {
+  // Buildings are hero focal points; don't sprinkle them in the corners.
+  if (layer.urls.every((u) => classifyPropUrl(u) === "building")) return;
 
-  // 3) Scattered loners near the outer edge — biased to corners where
-  // anchor density runs out. Mostly trees + the occasional rock, which
-  // read as distant silhouettes "drifting off" the screen.
-  let loners = 0;
-  let loneTries = 0;
-  while (loners < sizing.loners && loneTries < sizing.loners * 25) {
-    loneTries++;
-    // Sample biased toward the outer edge by squaring the band coord.
-    const side = Math.floor(rng() * 4);
-    const u = rng();
-    const tFar = u * u; // 0 → inner, 1 → outer; biased toward outer
-    const px =
-      side === 0 || side === 1
-        ? (rng() - 0.5) * 2 * OUTER_HALF_W
-        : side === 2
-          ? -(INNER_HALF_W + tFar * (OUTER_HALF_W - INNER_HALF_W))
-          : INNER_HALF_W + tFar * (OUTER_HALF_W - INNER_HALF_W);
-    const py =
-      side === 0
-        ? INNER_HALF_H + tFar * (OUTER_HALF_H - INNER_HALF_H)
-        : side === 1
-          ? -(INNER_HALF_H + tFar * (OUTER_HALF_H - INNER_HALF_H))
-          : (rng() - 0.5) * 2 * OUTER_HALF_H;
+  const targetCount = Math.round(layer.count * BAND_RATIO);
+  if (targetCount === 0) return;
+
+  const rng = mulberry32(layer.seed * 17 + levelId * 4451 + layerIndex * 991);
+  const sigma = layer.cluster?.sigma ?? 2.0;
+  const seedCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
+  const seeds = pickBandSeeds(rng, seedCount);
+  if (seeds.length === 0) seeds.push(sampleBandPoint(rng));
+
+  const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
+  let placed = 0;
+  let attempts = 0;
+  while (placed < targetCount && attempts < targetCount * 25) {
+    attempts++;
+    const seed = seeds[Math.floor(rng() * seeds.length)];
+    const px = seed.x + gaussian(rng, sigma);
+    const py = seed.y + gaussian(rng, sigma);
     const pos: Vec2 = { x: px, y: py };
     if (!insideOuter(pos) || insideInner(pos)) continue;
+
     let blocked = false;
     for (const o of out) {
       const dx = o.pos.x - px;
       const dy = o.pos.y - py;
-      if (dx * dx + dy * dy < PROP_MIN_SPACING * 1.4 * (PROP_MIN_SPACING * 1.4)) {
+      if (dx * dx + dy * dy < spacingSq) {
         blocked = true;
         break;
       }
     }
     if (blocked) continue;
-    // Loners lean to large silhouettes (trees, rocks) — small bushes and
-    // grass barely read this far from the camera anyway. Falls back through
-    // smaller families when the biome doesn't have one of the big ones.
-    const lonerPicks: Family[] = ["trees", "trees", "rocks", "bushes", "ground"];
-    let pool: string[] = [];
-    for (let i = 0; i < lonerPicks.length; i++) {
-      const fam = lonerPicks[Math.floor(rng() * lonerPicks.length)];
-      if (fams[fam].length > 0) {
-        pool = fams[fam];
+
+    const url = layer.urls[Math.floor(rng() * layer.urls.length)];
+    out.push({
+      url,
+      pos,
+      scale: layerScale(rng, layer),
+      rotY: rng() * Math.PI * 2,
+      // The directional light's shadow camera spans the playable rect;
+      // outer-band shadows would clip the shadow map edge anyway.
+      castShadow: false,
+    });
+    placed++;
+  }
+};
+
+// Place uniform scatter for things that don't have a BIOME_LAYERS entry —
+// trees (BIOME_TREE_URLS) and cosmetics (BIOME_COSMETICS).
+const placeUniformInBand = (
+  out: Instance[],
+  rng: () => number,
+  pool: string[],
+  count: number,
+  scaleFn: (rng: () => number) => number,
+  spacingMult: number,
+): void => {
+  if (count === 0 || pool.length === 0) return;
+  const minSep = PROP_MIN_SPACING * spacingMult;
+  const minSepSq = minSep * minSep;
+  let placed = 0;
+  let attempts = 0;
+  while (placed < count && attempts < count * 25) {
+    attempts++;
+    const pos = sampleBandPoint(rng);
+    if (!insideOuter(pos) || insideInner(pos)) continue;
+
+    let blocked = false;
+    for (const o of out) {
+      const dx = o.pos.x - pos.x;
+      const dy = o.pos.y - pos.y;
+      if (dx * dx + dy * dy < minSepSq) {
+        blocked = true;
         break;
       }
     }
-    if (pool.length === 0) {
-      for (const fam of ALL_FAMILIES) {
-        if (fams[fam].length > 0) {
-          pool = fams[fam];
-          break;
-        }
-      }
-    }
-    if (pool.length === 0) {
-      loners++;
-      continue;
-    }
+    if (blocked) continue;
+
     const url = pool[Math.floor(rng() * pool.length)];
     out.push({
       url,
       pos,
-      scale: scaleForUrl(biome, url, rng),
+      scale: scaleFn(rng),
       rotY: rng() * Math.PI * 2,
       castShadow: false,
     });
-    loners++;
+    placed++;
+  }
+};
+
+const buildInstances = (biome: Biome, levelId: number): Instance[] => {
+  const out: Instance[] = [];
+
+  // 1) Mirror every BIOME_LAYER on the band. The composition naturally
+  //    matches the inner area: forest gets grass-dominant clusters (160 ×
+  //    1.78 ≈ 285 grass props), snow stays rock-only at proportional count.
+  const layers = BIOME_LAYERS[biome];
+  for (let li = 0; li < layers.length; li++) {
+    placeLayerInBand(out, layers[li], levelId, li);
+  }
+
+  // 2) Trees aren't in BIOME_LAYERS. Inner sim spawns INNER_TREE_COUNT
+  //    clickable trees; the rim adds proportional non-blocking silhouettes.
+  const trees = BIOME_TREE_URLS[biome];
+  if (trees.length > 0) {
+    const rng = mulberry32(levelId * 9281 + 137);
+    placeUniformInBand(out, rng, trees, Math.round(INNER_TREE_COUNT * BAND_RATIO), treeScale, 3);
+  }
+
+  // 3) Cosmetics (forest BushFlowers etc.) rendered separately on the
+  //    inner via BiomeCosmetics.tsx; mirror at proportional count.
+  const cosmetics = BIOME_COSMETICS[biome];
+  if (cosmetics.length > 0) {
+    const rng = mulberry32(levelId * 5113 + 313);
+    placeUniformInBand(
+      out,
+      rng,
+      cosmetics,
+      Math.round(INNER_COSMETIC_COUNT * BAND_RATIO),
+      cosmeticScale,
+      1.8,
+    );
   }
 
   return out;
