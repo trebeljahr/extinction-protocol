@@ -37,11 +37,11 @@ import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
 
-export const TREE_COUNT = 20;
+export const TREE_COUNT = 55;
 // Trees clump into a handful of groves rather than evenly speckling the
 // map. The Worley field plants this many "grove centres"; Poisson then
 // fills around them at variable spacing.
-const TREE_GROVE_COUNT = 5;
+const TREE_GROVE_COUNT = 12;
 const TREE_GROVE_RADIUS = 4.8;
 // Looser-than-min spacing in low-density (between-grove) regions.
 const TREE_MAX_SPACING = 5.5;
@@ -72,8 +72,8 @@ const buildTrees = (
 ): { trees: Tree[]; nextId: number } => {
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
   const pathR2 = clearance * clearance;
-  const halfW = MAP_WIDTH * 0.475;
-  const halfH = MAP_HEIGHT * 0.475;
+  const halfW = MAP_WIDTH / 2 + 11;
+  const halfH = MAP_HEIGHT / 2 + 9;
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
 
   // Worley field: scatter TREE_GROVE_COUNT "grove centres" — density is
@@ -144,12 +144,13 @@ const buildRocks = (
   const rocks: Rock[] = [];
   const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
   const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
-  const halfW = MAP_WIDTH * 0.475;
-  const halfH = MAP_HEIGHT * 0.475;
+  const halfW = MAP_WIDTH / 2 + 11;
+  const halfH = MAP_HEIGHT / 2 + 9;
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
   let nextId = firstId;
 
   const layers = BIOME_LAYERS[biome];
+  const areaRatio = (halfW * 2 * halfH * 2) / (MAP_WIDTH * MAP_HEIGHT);
   for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
     const spec = layers[layerIndex];
     if (!spec.blocks) continue;
@@ -159,7 +160,10 @@ const buildRocks = (
     // pile centre and a crystal-cluster centre don't always line up.
     const sigma = spec.cluster?.sigma ?? 2.5;
     const featureRadius = sigma * 2.0;
-    const featureCount = spec.cluster?.seeds ?? 5;
+    const featureCount = Math.max(
+      spec.cluster?.seeds ?? 5,
+      Math.round((spec.cluster?.seeds ?? 5) * Math.sqrt(areaRatio)),
+    );
     const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
     const rMin = ROCK_MIN_SPACING;
     const rMax = ROCK_MIN_SPACING * ROCK_MAX_SPACING_MUL;
@@ -203,7 +207,7 @@ const buildRocks = (
       bounds,
       radiusAt,
       isValid,
-      maxCount: spec.count,
+      maxCount: Math.round(spec.count * areaRatio),
       seed: spec.seed * 31 + layerIndex * 7 + 17,
       // Seed Bridson with each Worley feature so every rock pile gets
       // its own frontier instead of all `spec.count` rocks stacking

@@ -4,7 +4,6 @@ import type * as THREE from "three";
 import {
   BIOME_COSMETICS,
   BIOME_LAYERS,
-  BIOME_TREE_URLS,
   type Biome,
   type BiomeLayer,
   classifyPropUrl,
@@ -14,27 +13,15 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
-import {
-  ROCK_FOOTPRINT,
-  ROCK_MIN_SPACING,
-  TREE_FOOTPRINT,
-  TREE_MAX_SCALE,
-  TREE_MIN_SCALE,
-  TREE_MIN_SPACING,
-} from "../sim/world";
 import { worleyFieldFromFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
 
-// Decorative scenery in the band *outside* the playable rectangle. Pure
-// flavor — non-blocking, non-clickable, deterministic per level. Mirrors
-// every BIOME_LAYER on the band at proportional density so the fringe
-// reads as a continuation of the play area instead of thinning out: forest
-// gets a grass-and-mushroom rim, snow gets a sparse rock rim, etc. The
-// pass uses each layer's own cluster sigma/seeds, then adds proportional
-// passes for trees (BIOME_TREE_URLS) and cosmetics (BIOME_COSMETICS) which
-// aren't part of BIOME_LAYERS.
+// Decorative scenery in the band *outside* the playable rectangle —
+// non-blocking ground layers (grass etc.) and cosmetics (flowers etc.).
+// Trees and blocking rocks are spawned by buildTrees/buildRocks in
+// world.ts with expanded bounds so they're deconstructable.
 
 // Outer rectangle bounds — past this the fog + screen edge swallow props anyway.
 const OUTER_HALF_W = MAP_WIDTH / 2 + 11; // 31 from center
@@ -53,40 +40,19 @@ const PROP_SPACING_SLACK = 0.15;
 // pocket. Matches Ground.tsx's DECOR_MAX_SPACING_MUL.
 const DECOR_MAX_SPACING_MUL = 2.0;
 
-// Footprint guess for BiomeLayer specs that don't set `footprint`
-// explicitly. Rock footprint matches sim/world.ts ROCK_FOOTPRINT so a
-// rim rock and a sim rock at the same URL respect the same min gap;
-// the older defaultFootprint('rock') = 0.55 was tuned for Ground.tsx's
-// non-blocking-layer use case, which doesn't get blocking layers.
 const defaultFootprint = (url: string): number => {
   const f = url.toLowerCase();
   if (/grass/.test(f)) return 0.28;
   if (/bush/.test(f)) return 0.6;
-  if (/rock|crystal|skull|meteor/.test(f)) return ROCK_FOOTPRINT;
   return 0.5;
 };
 
 const layerFootprint = (layer: BiomeLayer): number =>
   layer.footprint ?? defaultFootprint(layer.urls[0] ?? "");
 
-// Per-layer Poisson rMin. Three changes from the earlier formula that
-// produced visible piles in the user-reported Canyon Run screenshot:
-//
-// 1. Use maxScale, not avgScale. Two max-scale neighbours need 2 ×
-//    footprint × maxScale to touch — avg-scale spacing left max-scale
-//    rocks overlapping by ~0.3 units in dense Worley pockets.
-// 2. Floor blocking layers at ROCK_MIN_SPACING so they respect the
-//    same minimum gap the inner sim's buildRocks enforces — the
-//    spec's per-instance footprint can underestimate the mesh's true
-//    visual radius (Quaternius rocks render larger than their tower-
-//    blocking footprint suggests).
-// 3. Same slack convention as Ground.tsx so the same URL renders at
-//    the same spacing whether it lands inside or just outside the play
-//    rectangle.
 const layerMinSpacing = (layer: BiomeLayer): number => {
   const footprint = layerFootprint(layer);
-  const fromFootprint = 2 * footprint * layer.maxScale + PROP_SPACING_SLACK;
-  return layer.blocks ? Math.max(fromFootprint, ROCK_MIN_SPACING) : fromFootprint;
+  return 2 * footprint * layer.maxScale + PROP_SPACING_SLACK;
 };
 
 // Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
@@ -98,10 +64,6 @@ const COSMETIC_ONLY_URLS = (() => {
   return set;
 })();
 
-// Inner-sim counts for things that aren't in BIOME_LAYERS — used to size the
-// rim's separate tree/cosmetic passes. Mirrors sim/world.ts TREE_COUNT and
-// BiomeCosmetics COUNT_PER_LEVEL. If those change, bump these too.
-const INNER_TREE_COUNT = 20;
 const INNER_COSMETIC_COUNT = 14;
 
 // Band-to-inner area ratio: rim count = inner count × this. With the current
@@ -111,15 +73,6 @@ const INNER_AREA = MAP_WIDTH * MAP_HEIGHT;
 const BAND_RATIO = BAND_AREA / INNER_AREA;
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
-
-// Scale formulas mirror what the inner renderers use:
-// - Trees: TREE_MIN_SCALE..TREE_MAX_SCALE (matches Trees.tsx)
-// - Cosmetics: 0.7..1.4 jitter on top of the TARGET_SIZE_BY_ROLE normalization
-// - Layer props: layer.minScale..maxScale (matches Ground.tsx)
-// Triangular distribution (rng()+rng())/2 mid-biases size so the rim
-// doesn't read as equal-thirds large/medium/small.
-const treeScale = (rng: () => number): number =>
-  TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
 
 const cosmeticScale = (rng: () => number): number => 0.7 + ((rng() + rng()) / 2) * 0.7;
 
@@ -256,11 +209,8 @@ const placeLayerInBand = (
   }
 };
 
-// Place uniform Poisson scatter for things that don't have a
-// BIOME_LAYERS entry — trees (BIOME_TREE_URLS) and cosmetics
-// (BIOME_COSMETICS). No Worley modulation, just a flat density at the
-// given min-spacing. `minSep` is the centre-to-centre distance both
-// for Poisson sampling and the cross-layer check against `out`.
+// Uniform Poisson scatter for cosmetics that don't have a BIOME_LAYERS
+// entry. No Worley modulation, just a flat density at the given spacing.
 const placeUniformInBand = (
   out: Instance[],
   seed: number,
@@ -304,41 +254,18 @@ const placeUniformInBand = (
 const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   const out: Instance[] = [];
 
-  // 1) Mirror every BIOME_LAYER on the band. The composition naturally
-  //    matches the inner area: forest gets grass-dominant clusters (160 ×
-  //    1.78 ≈ 285 grass props), snow stays rock-only at proportional count.
+  // Non-blocking ground layers (grass, etc.) in the outer band. Blocking
+  // layers (rocks) and trees are now spawned by buildRocks/buildTrees in
+  // world.ts with expanded bounds, so they live in world.rocks/world.trees
+  // and are deconstructable like the inner ones.
   const layers = BIOME_LAYERS[biome];
   for (let li = 0; li < layers.length; li++) {
+    if (layers[li].blocks) continue;
     placeLayerInBand(out, layers[li], levelId, li);
   }
 
-  // 2) Trees aren't in BIOME_LAYERS. Inner sim spawns INNER_TREE_COUNT
-  //    clickable trees; the rim adds proportional non-blocking silhouettes.
-  //    Use TREE_MIN_SPACING — the same min gap the inner sim's buildTrees
-  //    enforces — floored against the max-scale footprint so two huge
-  //    trees still can't touch. Earlier the rim used avg-scale, which
-  //    let max-scale tree canopies overlap.
-  const trees = BIOME_TREE_URLS[biome];
-  if (trees.length > 0) {
-    const treeMinSep = Math.max(
-      TREE_MIN_SPACING,
-      2 * TREE_FOOTPRINT * TREE_MAX_SCALE + PROP_SPACING_SLACK,
-    );
-    placeUniformInBand(
-      out,
-      levelId * 9281 + 137,
-      trees,
-      Math.round(INNER_TREE_COUNT * BAND_RATIO),
-      treeScale,
-      treeMinSep,
-    );
-  }
-
-  // 3) Cosmetics (forest BushFlowers etc.) rendered separately on the
-  //    inner via BiomeCosmetics.tsx; mirror at proportional count. The
-  //    inner BiomeCosmetics renderer normalizes max-dim to ~0.5 world
-  //    units, so even at the upper jitter (~1.4×) one prop spans ~0.7;
-  //    1.1 spacing keeps them visually distinct without big gaps.
+  // Cosmetics (forest BushFlowers etc.) rendered separately on the
+  // inner via BiomeCosmetics.tsx; mirror at proportional count.
   const cosmetics = BIOME_COSMETICS[biome];
   if (cosmetics.length > 0) {
     placeUniformInBand(
@@ -399,16 +326,10 @@ export const OuterScenery = () => {
   );
 };
 
-// All URLs we might use across biomes — preload so a biome switch mid-run
-// doesn't stutter. BIOME_TREE_URLS and BIOME_LAYERS are already preloaded
-// by Trees.tsx/Rocks.tsx/Ground.tsx, but calling preload a second time is
-// a no-op so this stays safe.
+// Preload non-blocking layer + cosmetic URLs across biomes.
 const allUrls = new Set<string>();
-for (const biome of Object.keys(BIOME_TREE_URLS) as Biome[]) {
-  for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
-}
 for (const layers of Object.values(BIOME_LAYERS)) {
-  for (const l of layers) for (const u of l.urls) allUrls.add(u);
+  for (const l of layers) if (!l.blocks) for (const u of l.urls) allUrls.add(u);
 }
 for (const list of Object.values(BIOME_COSMETICS)) for (const u of list) allUrls.add(u);
 for (const u of allUrls) useGLTF.preload(u);
