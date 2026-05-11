@@ -109,13 +109,11 @@ export const App = () => {
     void enterFullscreen();
   }, [screen, isMobile]);
 
-  // World-map ground gets pushed past the play-scene bloom threshold by
-  // the strong directional light (lit snow albedo runs ~1.7-1.9 in linear).
-  // The mipmap bloom pass then smears it into a halo at the canvas edge.
-  // Lift the threshold for the world map so the entire lit ground sits
-  // comfortably below the bloom range — only HDR effects (additive VFX,
-  // toneMapped:false particles) ever exceed 2.5 in linear, so emissives
-  // we want to keep glowing in play still bloom there.
+  // World-map ground can push past the play-scene bloom threshold under
+  // the strong directional light (lit snow albedo ~1.0-1.2 in linear after
+  // palette darkening). Lift the threshold for the world map so the ground
+  // sits below the bloom range — only HDR effects (additive VFX,
+  // toneMapped:false particles) ever exceed 2.5 in linear.
   const bloomThreshold = screen === "worldMap" ? 2.5 : 0.82;
   const bloomSmoothing = screen === "worldMap" ? 0.05 : 0.18;
 
