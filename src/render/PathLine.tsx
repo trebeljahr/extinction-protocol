@@ -14,10 +14,11 @@ export const PathLine = () => {
   const pathsWithIds = useMemo(() => paths.map((path) => ({ id: nanoid(), path })), [paths]);
   return (
     <group>
-      {pathsWithIds.map(({ id, path }) => (
+      {pathsWithIds.map(({ id, path }, idx) => (
         <SinglePath
           key={id}
           path={path}
+          pathIndex={idx}
           pathColor={style.pathColor}
           startColor={style.startRing}
           endColor={style.endRing}
@@ -132,7 +133,7 @@ const getEdgeGradientTexture = (): THREE.CanvasTexture => {
 // is the same smoothed polyline the sim walks (smoothPath in sim/path.ts
 // runs once at createWorld), so anything within ±width/2 of the centerline
 // is guaranteed to render inside the visible ribbon.
-const buildRibbonGeometry = (path: Vec2[], width: number): THREE.BufferGeometry => {
+const buildRibbonGeometry = (path: Vec2[], width: number, y: number): THREE.BufferGeometry => {
   const n = path.length;
   const half = width / 2;
   const positions = new Float32Array(n * 2 * 3);
@@ -152,8 +153,7 @@ const buildRibbonGeometry = (path: Vec2[], width: number): THREE.BufferGeometry 
   }
   const total = segLens.reduce((a, b) => a + b, 1e-6);
 
-  // Y plane height: lifted slightly above ground but below tower bases.
-  const Y = 0.02;
+  const Y = y;
 
   for (let i = 0; i < n; i++) {
     const p = path[i];
@@ -248,18 +248,28 @@ const buildRibbonGeometry = (path: Vec2[], width: number): THREE.BufferGeometry 
   return geom;
 };
 
+// Y plane: lifted slightly above ground but below tower bases. Each path
+// gets a sub-millimeter stagger so two ribbons at a crossing don't z-fight
+// — invisible at the gameplay camera angle, but enough to win the depth
+// test along the overlap seam.
+const PATH_Y_BASE = 0.02;
+const PATH_Y_STAGGER = 0.0015;
+
 const SinglePath = ({
   path,
+  pathIndex,
   pathColor,
   startColor,
   endColor,
 }: {
   path: Vec2[];
+  pathIndex: number;
   pathColor: string;
   startColor: string;
   endColor: string;
 }) => {
-  const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH), [path]);
+  const y = PATH_Y_BASE + pathIndex * PATH_Y_STAGGER;
+  const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH, y), [path, y]);
   const gradientTex = useMemo(() => getEdgeGradientTexture(), []);
 
   // Geometry is built per-level and replaced when paths change; dispose
