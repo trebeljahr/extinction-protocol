@@ -56,6 +56,46 @@ export const pathLength = (path: Vec2[]): number => {
 export const samplePath = (path: Vec2[], segment: number, t: number): Vec2 =>
   lerp(path[segment], path[segment + 1], t);
 
+// Direction blended with adjacent segments so it rotates continuously through
+// bends instead of snapping at micro-segment boundaries. The lateral offset
+// normal and render-layer yaw both derive from this so enemies don't jitter
+// sideways when crossing a waypoint on a curve.
+export const smoothDirection = (path: Vec2[], segment: number, t: number): Vec2 => {
+  const a = path[segment];
+  const b = path[segment + 1];
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  if (len <= 1e-6) return { x: 0, y: 0 };
+  dx /= len;
+  dy /= len;
+
+  if (t < 0.5 && segment > 0) {
+    const prev = path[segment - 1];
+    const pdx = a.x - prev.x;
+    const pdy = a.y - prev.y;
+    const plen = Math.hypot(pdx, pdy);
+    if (plen > 1e-6) {
+      const w = t + 0.5;
+      dx = pdx / plen + (dx - pdx / plen) * w;
+      dy = pdy / plen + (dy - pdy / plen) * w;
+    }
+  } else if (t >= 0.5 && segment + 2 < path.length) {
+    const next = path[segment + 2];
+    const ndx = next.x - b.x;
+    const ndy = next.y - b.y;
+    const nlen = Math.hypot(ndx, ndy);
+    if (nlen > 1e-6) {
+      const w = t - 0.5;
+      dx += (ndx / nlen - dx) * w;
+      dy += (ndy / nlen - dy) * w;
+    }
+  }
+
+  const rlen = Math.hypot(dx, dy);
+  return rlen > 1e-6 ? { x: dx / rlen, y: dy / rlen } : { x: 0, y: 0 };
+};
+
 export type PathAdvance = {
   segment: number;
   segmentT: number;

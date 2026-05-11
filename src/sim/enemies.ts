@@ -1,4 +1,4 @@
-import { advanceAlongPath } from "./path";
+import { advanceAlongPath, smoothDirection } from "./path";
 import type { World } from "./types";
 import { addShake, emit } from "./world";
 
@@ -29,17 +29,11 @@ export const updateEnemies = (world: World, dt: number) => {
     // normal is the segment direction rotated 90° — computed per-tick
     // so the offset tracks the path through corners.
     if (e.lateralOffset !== 0 && !adv.finished) {
-      const a = path[adv.segment];
-      const b = path[adv.segment + 1];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const len = Math.hypot(dx, dy);
-      if (len > 1e-6) {
-        const nx = -dy / len;
-        const ny = dx / len;
+      const dir = smoothDirection(path, adv.segment, adv.segmentT);
+      if (dir.x * dir.x + dir.y * dir.y > 1e-12) {
         e.pos = {
-          x: adv.pos.x + nx * e.lateralOffset,
-          y: adv.pos.y + ny * e.lateralOffset,
+          x: adv.pos.x + -dir.y * e.lateralOffset,
+          y: adv.pos.y + dir.x * e.lateralOffset,
         };
       } else {
         e.pos = adv.pos;

@@ -3,6 +3,7 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { smoothDirection } from "../sim/path";
 import type { EnemyKind } from "../sim/types";
 import { ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
@@ -244,11 +245,9 @@ export const ModelEnemyMesh = ({
       if (!frozen) item.mixer.update(delta);
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
-      const a = path[e.segment];
-      const b = path[e.segment + 1] ?? a;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const targetYaw = dx * dx + dy * dy > 1e-6 ? Math.atan2(dx, -dy) : item.visYaw;
+      const dir = smoothDirection(path, e.segment, e.segmentT);
+      const targetYaw =
+        dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
 
       const targetX = e.pos.x;
       const targetZ = -e.pos.y;
