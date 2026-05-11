@@ -718,7 +718,7 @@ export const ENEMY_LABEL: Record<EnemyKind, string> = {
 // than a uniform red wash. Read by ModelEnemyMesh.
 export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
   raptor: "#ff3a30", // bright crimson — predator pack alpha
-  swarm: "#ff8a3a", // burnt orange — angrier wasp tone
+  swarm: "#ff8a3a", // burnt orange — feral hatchling tint
   para: "#a25aff", // royal purple — runner with shimmering crest
   allosaur: "#ffb030", // gold — apex-of-apex
   stego: "#3affb0", // jade — carved jade plates
