@@ -226,7 +226,11 @@ export const BiomeCosmetics = () => {
   const levelId = useGame((s) => s.world.levelId);
   const trees = useGame((s) => s.world.trees);
   const rocks = useGame((s) => s.world.rocks);
-  const towers = useGame((s) => s.world.towers);
+  // world.towers is mutated in place on placement (push), so subscribing to
+  // the array reference wouldn't notify React. towerVersion bumps on every
+  // place/sell — that's the trigger; the array is read via getState.
+  const towerVersion = useGame((s) => s.ui.towerVersion);
+  const towers = useGame.getState().world.towers;
 
   const groups = useMemo(() => {
     // Block cosmetics from spawning on top of trees/rocks that already exist.
@@ -247,6 +251,7 @@ export const BiomeCosmetics = () => {
 
   // Cull cosmetics that overlap a tower so the base sits on clean ground.
   // Filtered at render-time to keep placement stable as towers come/go.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
   const culledGroups = useMemo(() => {
     if (towers.length === 0) return groups;
     const towerR = TOWER_FOOTPRINT * 0.5;
@@ -264,7 +269,7 @@ export const BiomeCosmetics = () => {
       });
       return [url, filtered];
     });
-  }, [groups, towers]);
+  }, [groups, towers, towerVersion]);
 
   return (
     <group>

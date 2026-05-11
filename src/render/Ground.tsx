@@ -250,7 +250,11 @@ export const Ground = () => {
   const levelId = useGame((s) => s.world.levelId);
   const trees = useGame((s) => s.world.trees);
   const rocks = useGame((s) => s.world.rocks);
-  const towers = useGame((s) => s.world.towers);
+  // world.towers is mutated in place on placement (push), so subscribing to
+  // the array reference wouldn't notify React. towerVersion bumps on every
+  // place/sell — that's the trigger; the array is read via getState.
+  const towerVersion = useGame((s) => s.ui.towerVersion);
+  const towers = useGame.getState().world.towers;
   const style = BIOME_STYLE[biome];
   const specs = useMemo(() => BIOME_LAYERS[biome].filter((s) => !s.blocks), [biome]);
 
@@ -274,6 +278,7 @@ export const Ground = () => {
   // Cull any decor instance the player has built a tower on top of, so the
   // tower base sits on clean ground instead of poking through a mushroom
   // or grass tuft. Done at render-time so placement stays deterministic.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
   const culledLayers = useMemo(() => {
     if (towers.length === 0) return layers;
     const towerR = TOWER_FOOTPRINT * 0.5;
@@ -292,7 +297,7 @@ export const Ground = () => {
         }),
       })),
     }));
-  }, [layers, towers]);
+  }, [layers, towers, towerVersion]);
 
   return (
     <group>
