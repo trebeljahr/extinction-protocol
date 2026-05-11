@@ -1,6 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useState } from "react";
-import { audio } from "../audio/AudioManager";
+import { Suspense, useState } from "react";
 import { LEVELS } from "../levels";
 import {
   DIFFICULTY_ACCENT,
@@ -26,10 +25,6 @@ export const SaveSlots = () => {
 
   void revision;
   const slots = listSlots();
-
-  useEffect(() => {
-    audio.ui("open");
-  }, []);
 
   const totalLevels = LEVELS.length;
 
