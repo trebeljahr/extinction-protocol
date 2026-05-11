@@ -75,7 +75,7 @@ export const Effects = () => {
     };
   }, [beamPairs]);
 
-  useFrame(() => {
+  useFrame((state) => {
     const { world } = useGame.getState();
     const now = world.time;
 
@@ -87,7 +87,10 @@ export const Effects = () => {
         if (i >= MAX_PARTICLES) break;
         const life = Math.max(0, (p.expiresAt - now) / p.maxLife);
         dummy.position.set(p.pos.x, 0.55, -p.pos.y);
-        dummy.rotation.set(0, 0, 0);
+        // Camera-facing billboard. Flat planes have no thickness in the camera
+        // direction, so they get silhouette-clipped by geometry instead of
+        // producing hard polygon-intersection edges like 3D spheres did.
+        dummy.quaternion.copy(state.camera.quaternion);
         const fade = life < 0.15 ? life / 0.15 : 1;
         dummy.scale.setScalar((0.08 + (1 - life) * 0.22 + life * 0.15) * fade);
         dummy.updateMatrix();
@@ -288,7 +291,7 @@ export const Effects = () => {
   return (
     <group>
       <instancedMesh ref={particleRef} args={[undefined, undefined, MAX_PARTICLES]} renderOrder={2}>
-        <sphereGeometry args={[1, 8, 8]} />
+        <circleGeometry args={[1, 10]} />
         <meshBasicMaterial
           ref={particleMatRef}
           toneMapped={false}
@@ -296,6 +299,7 @@ export const Effects = () => {
           opacity={0.55}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </instancedMesh>
 
