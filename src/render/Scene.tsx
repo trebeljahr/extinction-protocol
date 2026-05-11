@@ -15,6 +15,7 @@ import { HiveDrones } from "./HiveDrones";
 import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
+import { OuterScenery } from "./OuterScenery";
 import { PathLine } from "./PathLine";
 import { Placement } from "./Placement";
 import { ProjectileMesh } from "./ProjectileMesh";
@@ -59,6 +60,7 @@ export const PlayScene = () => {
       <SimTicker />
       <ShaderPrewarm />
       <Ground />
+      <OuterScenery />
       <LavaFeatures />
       <Rocks />
       <Trees />
