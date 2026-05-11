@@ -55,10 +55,16 @@ const SECTIONS: CreditSection[] = [
         url: "https://quaternius.com/packs/medievalvillagepack.html",
       },
       {
-        name: "Alien biome vegetation (biomes/alien/*)",
+        name: "Alien biome vegetation (biomes/alien/Tree_*, Bush_*, Plant_*)",
         creator: "Quaternius",
         license: "CC0 1.0",
         url: "https://quaternius.com/packs/ultimatespacekit.html",
+      },
+      {
+        name: "Crystal Pack — blue crystal formations (biomes/alien/Crystal_*)",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/crystalpack.html",
       },
       {
         name: "Stylized nature props — Bush, Grass, Rock, Tree (nature/*)",

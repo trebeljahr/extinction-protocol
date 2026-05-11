@@ -308,8 +308,8 @@ const wastelandLayers = (): BiomeLayer[] => [
 
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
 // slightly larger, reading as volcanic boulders and slag heaps. Adds a
-// blue-crystal blocker layer with the large crystal mesh so every clearable
-// obstacle has a readable silhouette.
+// crystal-rock blocker layer so every clearable obstacle has a readable
+// silhouette.
 const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -340,11 +340,11 @@ const lavaLayers = (): BiomeLayer[] => [
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 6, 5151),
 ];
 
-// Alien leans on large crystal shards + wasteland rock skeletons. Crystal1
-// is authored as a tiny shard, so it stays render-only in BIOME_COSMETICS
-// instead of becoming a hard-to-see placement blocker. Tree_Light is promoted
-// from cosmetic to a blocking layer so it acts as a removable obstacle rather
-// than non-interactive scenery.
+// Alien uses Quaternius Crystal Pack blue crystals as the signature
+// blocking element. Large + medium variants give readable silhouettes;
+// small shards stay in BIOME_COSMETICS as scatter decor. Tree_Light is
+// promoted from cosmetic to a blocking layer so it acts as a removable
+// obstacle rather than non-interactive scenery.
 const alienLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -362,7 +362,12 @@ const alienLayers = (): BiomeLayer[] => [
   },
   {
     seed: 7878,
-    urls: ["/models/scifi/rock_crystalsLargeA.glb"],
+    urls: [
+      "/models/biomes/alien/Crystal_Large_1.glb",
+      "/models/biomes/alien/Crystal_Large_2.glb",
+      "/models/biomes/alien/Crystal_Medium_1.glb",
+      "/models/biomes/alien/Crystal_Medium_2.glb",
+    ],
     count: 28,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.5,
@@ -463,7 +468,8 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/biomes/alien/Bush_2.gltf",
     "/models/biomes/alien/Plant_1.gltf",
     "/models/biomes/alien/Plant_2.gltf",
-    "/models/landmarks/wasteland/Crystal1.glb",
+    "/models/biomes/alien/Crystal_Small_1.glb",
+    "/models/biomes/alien/Crystal_Small_2.glb",
   ],
 };
 
@@ -500,8 +506,7 @@ export const classifyPropUrl = (url: string): PropRole => {
   if (/grass/.test(f)) return "grass";
   // Meteors read as rocks — similar role in a scene.
   if (/rock|meteor/.test(f)) return "rock";
-  // skull, torch, barrel, mushroom, crystal, chest, machine_*, rover,
-  // turret_single, barrels, satellitedish (small) — small cosmetic items.
+  if (/crystal_(?:large|medium)/.test(f)) return "rock";
   return "cosmetic";
 };
 
