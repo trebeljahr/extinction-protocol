@@ -134,8 +134,8 @@ export const HUD = () => {
           </button>
         ) : (
           <Stat
-            label={waveActive ? "WAVE" : "NEXT"}
-            value={waveActive ? "ACTIVE" : `${nextWaveIn}s`}
+            label={waveActive || wave >= totalWaves ? "WAVE" : "NEXT"}
+            value={waveActive ? "ACTIVE" : wave >= totalWaves ? "FINAL" : `${nextWaveIn}s`}
             accentClass="text-mint"
           />
         )}

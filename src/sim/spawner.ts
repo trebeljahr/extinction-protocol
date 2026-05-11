@@ -276,7 +276,7 @@ export const spawnerTick = (world: World, dt: number) => {
 
   if (world.spawnQueue.length === 0 && world.bossTrickleStreams.length === 0) {
     world.waveActive = false;
-    world.nextWaveIn = WAVE_GAP_SECONDS;
+    world.nextWaveIn = world.wave < world.totalWaves ? WAVE_GAP_SECONDS : 0;
     world.midwaveTimer = 0;
     world.midwaveTimerMax = 0;
     const bonus = 5 + world.wave;
