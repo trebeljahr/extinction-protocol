@@ -1,6 +1,7 @@
 import type { ThreeEvent } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
+import { audio } from "../audio/AudioManager";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
 import { useGame } from "../store";
@@ -28,7 +29,9 @@ export const Placement = () => {
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    useGame.getState().tryPlaceOrSelect({ x: e.point.x, y: -e.point.z });
+    const pos = { x: e.point.x, y: -e.point.z };
+    if (useGame.getState().towerAtPos(pos)) audio.ui("click");
+    useGame.getState().tryPlaceOrSelect(pos);
   };
 
   const hoveredTower = hover !== null ? useGame.getState().towerAtPos(hover) : null;
