@@ -126,7 +126,11 @@ export const useAudioBridge = () => {
           audio.ui("error");
           break;
         case "wave-called-early":
-          audio.play("wave-call", "notifications", 0.6, 200, 1.5);
+          // Calling a wave early grants a gold bonus, so reuse the
+          // tower-sell ka-ching — same coin cue the player already hears
+          // whenever the gold counter ticks up. The wave-start sting
+          // follows ~one frame later and carries the "wave incoming" half.
+          audio.play("tower-sell", "notifications", 0.75, 200);
           break;
         case "game-over":
           audio.stopAllSfx();
