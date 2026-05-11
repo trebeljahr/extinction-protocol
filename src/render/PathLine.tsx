@@ -21,7 +21,6 @@ export const PathLine = () => {
           pathIndex={idx}
           pathColor={style.pathColor}
           startColor={style.startRing}
-          endColor={style.endRing}
         />
       ))}
       {pathDebug &&
@@ -260,13 +259,11 @@ const SinglePath = ({
   pathIndex,
   pathColor,
   startColor,
-  endColor,
 }: {
   path: Vec2[];
   pathIndex: number;
   pathColor: string;
   startColor: string;
-  endColor: string;
 }) => {
   const y = PATH_Y_BASE + pathIndex * PATH_Y_STAGGER;
   const geometry = useMemo(() => buildRibbonGeometry(path, PATH_WIDTH, y), [path, y]);
@@ -278,8 +275,6 @@ const SinglePath = ({
 
   if (path.length < 2) return null;
 
-  const last = path[path.length - 1];
-
   return (
     <group>
       <mesh geometry={geometry} receiveShadow>
@@ -289,10 +284,9 @@ const SinglePath = ({
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={startColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[last.x, 0.04, -last.y]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.6, 1.0, 24]} />
-        <meshBasicMaterial color={endColor} transparent opacity={0.6} side={THREE.DoubleSide} />
-      </mesh>
+      {/* End ring removed — the HQ turret (see HQTurret.tsx) sits at the
+          path endpoint and serves as the visual anchor for where enemies
+          are headed. */}
     </group>
   );
 };

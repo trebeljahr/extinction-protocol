@@ -706,14 +706,16 @@ export const useGame = create<GameStore>((set, get) => ({
           if (ev.won) {
             screen = "results";
           } else {
-            // Hold the results screen back briefly so the loss-rumble in
-            // CameraRig is visible before the overlay covers the world.
+            // Hold the results screen back so the HQ destruction
+            // cinematic in HQTurret.tsx (tilt + sink + bright flash, ~1.1s)
+            // can complete before the overlay covers the world. The
+            // loss-rumble in CameraRig is timed to the same window.
             setTimeout(() => {
               const cur = useGame.getState();
               if (cur.world.status === "lost" && cur.screen !== "results") {
                 set({ screen: "results" });
               }
-            }, 600);
+            }, 1300);
           }
           if (ev.won) {
             track("level_complete", {
