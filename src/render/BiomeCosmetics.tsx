@@ -1,6 +1,5 @@
 import { useGLTF } from "@react-three/drei";
-import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import { useMemo } from "react";
 import { BIOME_COSMETICS, type Biome, classifyPropUrl, TARGET_SIZE_BY_ROLE } from "../biomes";
 import {
   buildLavaFeatures,
@@ -14,7 +13,8 @@ import type { Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
-import { collectMeshSource } from "./meshSource";
+import { InstancedGroup } from "./InstancedGroup";
+import type { MeshSource } from "./meshSource";
 
 // Render-only decorative cosmetics scattered across the playable level.
 // Deterministic per-level via PRNG seeded on levelId. These don't live in
@@ -170,55 +170,11 @@ const buildInstances = (
   return out;
 };
 
-const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
-  const { scene } = useGLTF(url);
-  const source = useMemo(() => collectMeshSource(scene), [scene]);
-  // Cosmetic URLs come from packs with wildly varying authored max-dims;
-  // normalize to TARGET_SIZE_BY_ROLE so a BushFlowers patch reads the
-  // same size whether the source GLB is 1.97 or 0.5 units tall.
-  const baseScale = useMemo(
-    () => (source ? TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim : 1),
-    [source, url],
-  );
-  const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
-
-  useEffect(() => {
-    if (!source) return;
-    const dummy = new THREE.Object3D();
-    for (const im of partRefs.current) {
-      if (!im) continue;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        const s = baseScale * it.scale;
-        dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
-        dummy.rotation.set(0, it.rotY, 0);
-        dummy.scale.setScalar(s);
-        dummy.updateMatrix();
-        im.setMatrixAt(i, dummy.matrix);
-      }
-      im.count = items.length;
-      im.instanceMatrix.needsUpdate = true;
-    }
-  }, [items, source, baseScale]);
-
-  if (!source || items.length === 0) return null;
-
-  return (
-    <group>
-      {source.parts.map((part, pi) => (
-        <instancedMesh
-          key={part.id}
-          ref={(el: THREE.InstancedMesh | null) => {
-            partRefs.current[pi] = el;
-          }}
-          args={[part.geom, part.material, items.length]}
-          castShadow
-          receiveShadow
-        />
-      ))}
-    </group>
-  );
-};
+// Cosmetic URLs come from packs with wildly varying authored max-dims;
+// normalize to TARGET_SIZE_BY_ROLE so a BushFlowers patch reads the
+// same size whether the source GLB is 1.97 or 0.5 units tall.
+const computeBaseScale = (source: MeshSource, url: string): number =>
+  TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
 
 export const BiomeCosmetics = () => {
   const biome = useGame((s) => s.world.biome);
@@ -274,7 +230,7 @@ export const BiomeCosmetics = () => {
   return (
     <group>
       {culledGroups.map(([url, items]) => (
-        <InstanceGroup key={url} url={url} items={items} />
+        <InstancedGroup key={url} url={url} items={items} baseScaleFor={computeBaseScale} />
       ))}
     </group>
   );

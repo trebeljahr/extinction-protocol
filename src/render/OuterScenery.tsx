@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
-import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import { useMemo } from "react";
+import type * as THREE from "three";
 import {
   BIOME_COSMETICS,
   BIOME_LAYERS,
@@ -15,7 +15,8 @@ import { gaussian, mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
 import { useGame } from "../store";
-import { collectMeshSource, type MeshSource } from "./meshSource";
+import { InstancedGroup } from "./InstancedGroup";
+import type { MeshSource } from "./meshSource";
 
 // Decorative scenery in the band *outside* the playable rectangle. Pure
 // flavor — non-blocking, non-clickable, deterministic per level. Mirrors
@@ -57,7 +58,7 @@ const BAND_AREA = OUTER_HALF_W * 2 * OUTER_HALF_H * 2 - INNER_HALF_W * 2 * INNER
 const INNER_AREA = MAP_WIDTH * MAP_HEIGHT;
 const BAND_RATIO = BAND_AREA / INNER_AREA;
 
-type Instance = { url: string; pos: Vec2; scale: number; rotY: number; castShadow: boolean };
+type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 
 // Scale formulas mirror what the inner renderers use:
 // - Trees: TREE_MIN_SCALE..TREE_MAX_SCALE (matches Trees.tsx)
@@ -186,9 +187,6 @@ const placeLayerInBand = (
       pos,
       scale: layerScale(rng, layer),
       rotY: rng() * Math.PI * 2,
-      // The directional light's shadow camera spans the playable rect;
-      // outer-band shadows would clip the shadow map edge anyway.
-      castShadow: false,
     });
     placed++;
   }
@@ -231,7 +229,6 @@ const placeUniformInBand = (
       pos,
       scale: scaleFn(rng),
       rotY: rng() * Math.PI * 2,
-      castShadow: false,
     });
     placed++;
   }
@@ -279,57 +276,12 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 // they match. BIOME_COSMETICS-only URLs (BushFlowers etc.) normalize to
 // TARGET_SIZE_BY_ROLE so the outer-band size matches the inner cosmetic
 // size for those URLs too.
-const computeRenderBase = (url: string, source: MeshSource): number => {
+const computeBaseScale = (source: MeshSource, url: string): number => {
   if (!COSMETIC_ONLY_URLS.has(url)) return 1;
   return TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
 };
 
 const neverRaycast: THREE.Mesh["raycast"] = () => {};
-
-const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
-  const { scene } = useGLTF(url);
-  const source = useMemo(() => collectMeshSource(scene), [scene]);
-  const renderBase = useMemo(() => (source ? computeRenderBase(url, source) : 1), [source, url]);
-  const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
-
-  useEffect(() => {
-    if (!source) return;
-    const dummy = new THREE.Object3D();
-    for (const im of partRefs.current) {
-      if (!im) continue;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        const s = renderBase * it.scale;
-        dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
-        dummy.rotation.set(0, it.rotY, 0);
-        dummy.scale.setScalar(s);
-        dummy.updateMatrix();
-        im.setMatrixAt(i, dummy.matrix);
-      }
-      im.count = items.length;
-      im.instanceMatrix.needsUpdate = true;
-    }
-  }, [items, source, renderBase]);
-
-  if (!source || items.length === 0) return null;
-
-  return (
-    <group>
-      {source.parts.map((part, pi) => (
-        <instancedMesh
-          key={part.id}
-          ref={(el: THREE.InstancedMesh | null) => {
-            partRefs.current[pi] = el;
-          }}
-          args={[part.geom, part.material, items.length]}
-          castShadow={false}
-          receiveShadow
-          raycast={neverRaycast}
-        />
-      ))}
-    </group>
-  );
-};
 
 export const OuterScenery = () => {
   const biome = useGame((s) => s.world.biome);
@@ -349,7 +301,16 @@ export const OuterScenery = () => {
   return (
     <group>
       {groups.map(([url, items]) => (
-        <InstanceGroup key={url} url={url} items={items} />
+        <InstancedGroup
+          key={url}
+          url={url}
+          items={items}
+          baseScaleFor={computeBaseScale}
+          // The directional light's shadow camera spans the playable rect;
+          // outer-band shadows would clip the shadow map edge anyway.
+          castShadow={false}
+          raycast={neverRaycast}
+        />
       ))}
     </group>
   );
