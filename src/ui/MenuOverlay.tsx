@@ -50,7 +50,6 @@ export const MenuOverlay = ({
         <button
           type="button"
           className="btn-close absolute top-3 right-3"
-          data-ui-sound="close"
           onClick={onClose}
           title={closeTitle ?? closeLabel}
           aria-label={closeLabel}

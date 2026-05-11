@@ -77,7 +77,7 @@ export const Compendium = () => {
   const [selectedMech, setSelectedMech] = useState<MechanicId>(MECHANIC_ORDER[0]);
 
   useEffect(() => {
-    audio.ui("open");
+    audio.ui("click");
   }, []);
 
   useEffect(() => {

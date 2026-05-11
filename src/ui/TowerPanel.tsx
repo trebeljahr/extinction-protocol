@@ -93,7 +93,6 @@ export const TowerPanel = () => {
           <button
             type="button"
             className="btn-close"
-            data-ui-sound="close"
             onClick={() => useGame.getState().selectTower(null)}
             aria-label="close"
           >
@@ -163,7 +162,6 @@ export const TowerPanel = () => {
         <button
           type="button"
           className="btn-close"
-          data-ui-sound="close"
           onClick={() => useGame.getState().selectTower(null)}
           aria-label="close"
         >
@@ -198,7 +196,6 @@ export const TowerPanel = () => {
                 type="button"
                 key={mode}
                 className={`targeting-btn ${tower.targetingMode === mode ? "active" : ""}`}
-                data-ui-sound="tab"
                 onClick={() => useGame.getState().setTargetingMode(mode)}
                 title={title}
               >
@@ -209,7 +206,6 @@ export const TowerPanel = () => {
               <button
                 type="button"
                 className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
-                data-ui-sound="tab"
                 onClick={() => useGame.getState().setTargetingMode("spot")}
                 title="Fire only at a fixed map spot — click the map to set it"
               >

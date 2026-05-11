@@ -84,13 +84,7 @@ export const TreePanel = () => {
             Remove this {label.toLowerCase()} to free up buildable ground.
           </div>
         </div>
-        <button
-          type="button"
-          className="btn-close"
-          data-ui-sound="close"
-          onClick={selection.clear}
-          aria-label="close"
-        >
+        <button type="button" className="btn-close" onClick={selection.clear} aria-label="close">
           ×
         </button>
       </div>

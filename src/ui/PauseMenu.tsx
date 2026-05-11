@@ -25,7 +25,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
 
   useEffect(() => {
-    audio.ui("open");
+    audio.ui("click");
   }, []);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";

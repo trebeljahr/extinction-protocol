@@ -319,7 +319,7 @@ export const CreditsPanel = () => {
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
 
   useEffect(() => {
-    audio.ui("open");
+    audio.ui("click");
   }, []);
 
   useEffect(() => {

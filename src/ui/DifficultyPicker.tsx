@@ -33,7 +33,7 @@ export const DifficultyPicker = () => {
   const setOpen = useGame((s) => s.setDifficultyPickerOpen);
 
   useEffect(() => {
-    audio.ui("open");
+    audio.ui("click");
   }, []);
 
   useEffect(() => {

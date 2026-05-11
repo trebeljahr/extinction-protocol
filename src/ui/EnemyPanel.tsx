@@ -123,7 +123,6 @@ export const EnemyPanel = () => {
         <button
           type="button"
           className="btn-close"
-          data-ui-sound="close"
           onClick={() => useGame.getState().clearInspectedEnemy()}
           aria-label="close"
         >

@@ -9,7 +9,7 @@ export const AchievementsPanel = () => {
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
 
   useEffect(() => {
-    audio.ui("open");
+    audio.ui("click");
   }, []);
 
   useEffect(() => {
