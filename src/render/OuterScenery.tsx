@@ -1,5 +1,4 @@
 import { useGLTF } from "@react-three/drei";
-import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -12,9 +11,11 @@ import {
   TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { gaussian, mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
 import { useGame } from "../store";
+import { collectMeshSource, type MeshSource } from "./meshSource";
 
 // Decorative scenery in the band *outside* the playable rectangle. Pure
 // flavor — non-blocking, non-clickable, deterministic per level. The
@@ -55,24 +56,6 @@ const COSMETIC_ONLY_URLS = (() => {
 })();
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number; castShadow: boolean };
-
-const mulberry32 = (seed: number) => {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-// Box–Muller normal sample for cluster offsets.
-const gaussian = (rng: () => number, sigma: number): number => {
-  const u = Math.max(rng(), 1e-9);
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
-};
 
 type FamilyUrls = {
   trees: string[];
@@ -417,56 +400,22 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   return out;
 };
 
-// --- Rendering: collect every primitive so multi-part GLBs (Quaternius
-// snow trees: trunk + cap, sci-fi rocks: body + crystal vein) render in
-// full. Same pattern as BiomeCosmetics/Trees/Rocks.
-
-type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
 // renderBase is 1 for everything that matches an inner-area renderer
 // (Trees.tsx, Rocks.tsx, Ground.tsx — all use raw GLTF transform × instance
 // scale). For BIOME_COSMETICS-only URLs (BushFlowers etc.) it's the same
 // TARGET_SIZE_BY_ROLE / maxDim factor BiomeCosmetics.tsx applies, so the
 // outer-band size matches the inner cosmetic size for those URLs too.
-type Source = { parts: Part[]; minY: number; renderBase: number };
-
-const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
-  scene.updateMatrixWorld(true);
-  const parts: Part[] = [];
-  const union = new THREE.Box3();
-  let unionSet = false;
-  scene.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    const mats = Array.isArray(m.material) ? m.material : [m.material];
-    for (const mat of mats) {
-      const geom = m.geometry.clone();
-      geom.applyMatrix4(m.matrixWorld);
-      geom.computeBoundingBox();
-      if (geom.boundingBox) {
-        if (!unionSet) {
-          union.copy(geom.boundingBox);
-          unionSet = true;
-        } else union.union(geom.boundingBox);
-      }
-      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
-    }
-  });
-  if (parts.length === 0 || !unionSet) return null;
-  const minY = union.min.y;
-  let renderBase = 1;
-  if (COSMETIC_ONLY_URLS.has(url)) {
-    const size = union.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    renderBase = TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / maxDim;
-  }
-  return { parts, minY, renderBase };
+const computeRenderBase = (url: string, source: MeshSource): number => {
+  if (!COSMETIC_ONLY_URLS.has(url)) return 1;
+  return TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
 };
 
 const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectSource(scene, url), [scene, url]);
+  const source = useMemo(() => collectMeshSource(scene), [scene]);
+  const renderBase = useMemo(() => (source ? computeRenderBase(url, source) : 1), [source, url]);
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -476,7 +425,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       if (!im) continue;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const s = source.renderBase * it.scale;
+        const s = renderBase * it.scale;
         dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
         dummy.rotation.set(0, it.rotY, 0);
         dummy.scale.setScalar(s);
@@ -486,7 +435,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       im.count = items.length;
       im.instanceMatrix.needsUpdate = true;
     }
-  }, [items, source]);
+  }, [items, source, renderBase]);
 
   if (!source || items.length === 0) return null;
 

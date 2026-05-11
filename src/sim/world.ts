@@ -10,6 +10,7 @@ import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
 import { samplePath, smoothPath } from "./path";
+import { gaussian, mulberry32 } from "./random";
 import type {
   Beam,
   CryoWave,
@@ -56,17 +57,6 @@ export const ROCK_REMOVE_COST = 15;
 // Rocks.tsx) when GLBs load, read by canPlaceAt for placement blocking.
 export const meshXZRadii = new Map<string, number>();
 
-const mulberry32 = (seed: number) => {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
 const distPointToSegSq = (
   px: number,
   py: number,
@@ -86,13 +76,6 @@ const distPointToSegSq = (
   const dx = px - cx;
   const dy = py - cy;
   return dx * dx + dy * dy;
-};
-
-// Box–Muller normal sample for cluster offsets.
-const gaussian = (rng: () => number, sigma: number): number => {
-  const u = Math.max(rng(), 1e-9);
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
 };
 
 const buildTrees = (

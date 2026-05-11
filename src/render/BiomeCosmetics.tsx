@@ -1,5 +1,4 @@
 import { useGLTF } from "@react-three/drei";
-import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BIOME_COSMETICS, type Biome, classifyPropUrl, TARGET_SIZE_BY_ROLE } from "../biomes";
@@ -10,9 +9,11 @@ import {
   type LavaFeatures,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
+import { gaussian, mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
+import { collectMeshSource } from "./meshSource";
 
 // Render-only decorative cosmetics scattered across the playable level.
 // Deterministic per-level via PRNG seeded on levelId. These don't live in
@@ -32,17 +33,6 @@ const CLUSTER_SIGMA = 1.6;
 // the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.3;
-
-const mulberry32 = (seed: number) => {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
 
 const distPointToSegSq = (
   px: number,
@@ -66,14 +56,6 @@ const distPointToSegSq = (
 };
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
-
-// Box–Muller normal sample: clustered offsets read as "huddled together"
-// instead of the gridlock you get from uniform random.
-const gaussian = (rng: () => number, sigma: number): number => {
-  const u = Math.max(rng(), 1e-9);
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
-};
 
 // Pick K cluster seed points well-distributed across the playable area and
 // well-clear of paths/blockers/lava. Each seed becomes the anchor for a
@@ -208,45 +190,16 @@ const buildInstances = (
   return out;
 };
 
-type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type Source = { parts: Part[]; minY: number; baseScale: number };
-
-// Walk every Mesh in the scene so multi-primitive GLBs (Kenney space-kit
-// machines have 2+ primitives — chassis, cables, lights) render in full.
-// Same pattern as Rocks/Trees.
-const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
-  scene.updateMatrixWorld(true);
-  const parts: Part[] = [];
-  const union = new THREE.Box3();
-  let unionSet = false;
-  scene.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    const mats = Array.isArray(m.material) ? m.material : [m.material];
-    for (const mat of mats) {
-      const geom = m.geometry.clone();
-      geom.applyMatrix4(m.matrixWorld);
-      geom.computeBoundingBox();
-      if (geom.boundingBox) {
-        if (!unionSet) {
-          union.copy(geom.boundingBox);
-          unionSet = true;
-        } else union.union(geom.boundingBox);
-      }
-      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
-    }
-  });
-  if (parts.length === 0 || !unionSet) return null;
-  const size = union.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const role = classifyPropUrl(url);
-  const target = TARGET_SIZE_BY_ROLE[role];
-  return { parts, minY: union.min.y, baseScale: target / maxDim };
-};
-
 const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectSource(scene, url), [scene, url]);
+  const source = useMemo(() => collectMeshSource(scene), [scene]);
+  // Cosmetic URLs come from packs with wildly varying authored max-dims;
+  // normalize to TARGET_SIZE_BY_ROLE so a BushFlowers patch reads the
+  // same size whether the source GLB is 1.97 or 0.5 units tall.
+  const baseScale = useMemo(
+    () => (source ? TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim : 1),
+    [source, url],
+  );
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -256,7 +209,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       if (!im) continue;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const s = source.baseScale * it.scale;
+        const s = baseScale * it.scale;
         dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
         dummy.rotation.set(0, it.rotY, 0);
         dummy.scale.setScalar(s);
@@ -266,7 +219,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       im.count = items.length;
       im.instanceMatrix.needsUpdate = true;
     }
-  }, [items, source]);
+  }, [items, source, baseScale]);
 
   if (!source || items.length === 0) return null;
 

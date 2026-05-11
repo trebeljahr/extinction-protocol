@@ -10,29 +10,10 @@ import {
   type LavaFeatures,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { gaussian, mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
-
-const mulberry32 = (seed: number) => {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-// Box–Muller normal sample. Identical formula to BiomeCosmetics; kept
-// local so this file doesn't pull in the full cosmetics module just for
-// a five-line helper.
-const gaussian = (rng: () => number, sigma: number): number => {
-  const u = Math.max(rng(), 1e-9);
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
-};
 
 const distPointToSegSq = (
   px: number,
