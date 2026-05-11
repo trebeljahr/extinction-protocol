@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
+import { SettingsMenu } from "./SettingsMenu";
 
 const MIN_DISPLAY_MS = 1200;
 // Hard cap so a hung audio fetch never strands the user on the splash.
@@ -73,6 +74,7 @@ export const Splash = () => {
 
   return (
     <div className={`splash ${exiting ? "splash-exit" : ""}`}>
+      <SettingsMenu />
       <div className="splash-card">
         <div className="splash-mark" aria-hidden>
           <img src="/icons/icon.png" alt="" />

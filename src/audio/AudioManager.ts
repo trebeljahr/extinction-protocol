@@ -488,6 +488,27 @@ export class AudioManager {
     if (!this.ctx || !this.musicGain) return;
     if (this.currentMusicKey === key && this.music) return;
     this.currentMusicKey = key;
+
+    // Fade out the current track immediately, before awaiting the new
+    // track's load. Biome MP3s are 5-13MB and can take seconds on first
+    // fetch — if we waited, the lobby track would keep playing well into
+    // the level. Setting this.music to null also frees the slot for the
+    // new track without re-fading the same source twice.
+    if (this.music) {
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      const old = this.music;
+      old.gain.gain.cancelScheduledValues(now);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, now);
+      old.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
+      try {
+        old.src.stop(now + fadeSec + 0.05);
+      } catch {
+        /* ok */
+      }
+      this.music = null;
+    }
+
     const ok = await this.ensureMusicLoaded(key);
     if (!ok) return;
     // Aborted: another track was requested while we were loading.
@@ -511,19 +532,6 @@ export class AudioManager {
     src.loop = true;
     src.connect(newGain);
     src.start(0);
-
-    if (this.music) {
-      const old = this.music;
-      old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, now);
-      old.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
-      const stopAt = now + fadeSec + 0.05;
-      try {
-        old.src.stop(stopAt);
-      } catch {
-        /* ok */
-      }
-    }
 
     this.music = { src, gain: newGain, key };
   }

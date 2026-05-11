@@ -11,6 +11,7 @@ import {
 import { SaveSlotsScene } from "../render/SaveSlotsScene";
 import { useGame } from "../store";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
+import { SettingsMenu } from "./SettingsMenu";
 
 export const SaveSlots = () => {
   const selectSlot = useGame((s) => s.selectSlot);
@@ -52,6 +53,8 @@ export const SaveSlots = () => {
       </div>
 
       <div className="save-slots-vignette" aria-hidden />
+
+      <SettingsMenu />
 
       <header className="save-slots-title">
         <h1>Extinction Protocol</h1>
