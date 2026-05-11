@@ -1,12 +1,19 @@
 import type { Vec2 } from "./types";
 import { dist, lerp } from "./vec2";
 
-// Centripetal-style Catmull–Rom subdivision. Endpoints are reflected to give
-// the first/last spans a tangent. Returns a denser polyline that passes
-// through every original waypoint but bends through them instead of
-// cornering. Run this once at world build so sim + render + placement
-// + lava bridges all walk the exact same polyline — otherwise enemies
-// cut corners that the painted lane curves around.
+// Centripetal Catmull–Rom subdivision (alpha = 0.5). Endpoints are
+// reflected to give the first/last spans a tangent. Returns a denser
+// polyline that passes through every original waypoint but bends
+// through them instead of cornering. Run this once at world build so
+// sim + render + placement + lava bridges all walk the exact same
+// polyline — otherwise enemies cut corners that the painted lane curves
+// around.
+//
+// Centripetal parameterisation (vs uniform) guarantees the curve never
+// self-intersects or overshoots at sharp corners. With uniform t the
+// spline can loop back on itself when two original waypoints sit close
+// together at a tight bend, which renders as a folded ribbon ("dark
+// wedge" artefact) at the outside of the corner.
 export const smoothPath = (path: Vec2[], subdivisions = 10): Vec2[] => {
   if (path.length < 2) return path.slice();
   const ext: Vec2[] = [];
@@ -16,29 +23,46 @@ export const smoothPath = (path: Vec2[], subdivisions = 10): Vec2[] => {
   const prev = path[path.length - 2];
   ext.push({ x: 2 * last.x - prev.x, y: 2 * last.y - prev.y });
 
+  // t spacing between knots = ||p_{i+1} - p_i||^alpha. alpha=0.5 is the
+  // centripetal variant; an epsilon floor keeps coincident waypoints
+  // from collapsing the knot interval to zero.
+  const knotDelta = (a: Vec2, b: Vec2): number => {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    return Math.max(1e-4, Math.sqrt(d));
+  };
+
   const out: Vec2[] = [];
   for (let i = 1; i < ext.length - 2; i++) {
     const p0 = ext[i - 1];
     const p1 = ext[i];
     const p2 = ext[i + 1];
     const p3 = ext[i + 2];
+
+    const t0 = 0;
+    const t1 = t0 + knotDelta(p0, p1);
+    const t2 = t1 + knotDelta(p1, p2);
+    const t3 = t2 + knotDelta(p2, p3);
+
     const steps = i === ext.length - 3 ? subdivisions + 1 : subdivisions;
     for (let j = 0; j < steps; j++) {
-      const t = j / subdivisions;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const x =
-        0.5 *
-        (2 * p1.x +
-          (-p0.x + p2.x) * t +
-          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
-          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
-      const y =
-        0.5 *
-        (2 * p1.y +
-          (-p0.y + p2.y) * t +
-          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
-          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+      const t = t1 + (j / subdivisions) * (t2 - t1);
+
+      // Barry–Goldman pyramidal evaluation of a non-uniform Catmull–Rom
+      // segment between (p1,t1) and (p2,t2) with neighbours p0,p3.
+      const a1x = ((t1 - t) * p0.x + (t - t0) * p1.x) / (t1 - t0);
+      const a1y = ((t1 - t) * p0.y + (t - t0) * p1.y) / (t1 - t0);
+      const a2x = ((t2 - t) * p1.x + (t - t1) * p2.x) / (t2 - t1);
+      const a2y = ((t2 - t) * p1.y + (t - t1) * p2.y) / (t2 - t1);
+      const a3x = ((t3 - t) * p2.x + (t - t2) * p3.x) / (t3 - t2);
+      const a3y = ((t3 - t) * p2.y + (t - t2) * p3.y) / (t3 - t2);
+
+      const b1x = ((t2 - t) * a1x + (t - t0) * a2x) / (t2 - t0);
+      const b1y = ((t2 - t) * a1y + (t - t0) * a2y) / (t2 - t0);
+      const b2x = ((t3 - t) * a2x + (t - t1) * a3x) / (t3 - t1);
+      const b2y = ((t3 - t) * a2y + (t - t1) * a3y) / (t3 - t1);
+
+      const x = ((t2 - t) * b1x + (t - t1) * b2x) / (t2 - t1);
+      const y = ((t2 - t) * b1y + (t - t1) * b2y) / (t2 - t1);
       out.push({ x, y });
     }
   }
