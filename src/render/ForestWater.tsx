@@ -1,5 +1,4 @@
 import { useFrame } from "@react-three/fiber";
-import { nanoid } from "nanoid";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { Bridge } from "../lavaGeometry";
@@ -44,7 +43,7 @@ float ripple(vec2 p) {
 }
 
 void main() {
-  // 0 = center, 1 = edge (cross-river for segments, radial for joints)
+  // 0 = center, 1 = edge (cross-river for rivers, radial for lakes)
   float edge = uIsJoint > 0.5
     ? clamp(length(vUv - 0.5) * 2.0, 0.0, 1.0)
     : abs(vUv.y - 0.5) * 2.0;
@@ -73,9 +72,7 @@ void main() {
   vec3 col = mix(DEEP, SHALLOW, edge * edge);
   col += r * 0.09;
 
-  // Edge foam — segment banks and lake rims. River joints sit below segments
-  // (see RiverSegments y offsets), so any visible foam from joints is just the
-  // corner-gap sliver and naturally aligns with the segment bank line.
+  // Edge foam — river banks (uIsJoint=0) and lake rims (uIsJoint=1).
   float foam = smoothstep(0.72, 0.94, edge);
   float foamBreak = sin(vWorldPos.x * 12.0 + uTime * 0.7)
                   * sin(vWorldPos.z * 12.0 + uTime * 0.5);
@@ -163,13 +160,7 @@ export const ForestWaterGroup = ({
   return (
     <group>
       {rivers.map((river) => (
-        <RiverSegments
-          key={river.id}
-          points={river.points}
-          width={river.width}
-          segMat={segMat}
-          jointMat={jointMat}
-        />
+        <RiverSegments key={river.id} points={river.points} width={river.width} segMat={segMat} />
       ))}
       {lakes.map((l) => (
         <mesh
@@ -186,55 +177,119 @@ export const ForestWaterGroup = ({
   );
 };
 
+// Build a single continuous ribbon mesh that follows the river path with
+// miter joints at every interior point. Replaces the previous segments +
+// circle-joint composition, which left circular halos at every path point
+// and triangular gaps on the outside of sharp bends where the circle-disc
+// rim didn't reach the segment endcap corners.
 const RiverSegments = ({
   points,
   width,
   segMat,
-  jointMat,
 }: {
   points: Vec2[];
   width: number;
   segMat: THREE.ShaderMaterial;
-  jointMat: THREE.ShaderMaterial;
 }) => {
-  const segs = useMemo(() => {
-    const out: { id: string; pos: [number, number, number]; rotY: number; length: number }[] = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i];
-      const b = points[i + 1];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      out.push({
-        id: nanoid(),
-        pos: [(a.x + b.x) / 2, 0.012, -(a.y + b.y) / 2],
-        rotY: Math.atan2(-dy, dx),
-        length: Math.hypot(dx, dy),
-      });
-    }
-    return out;
-  }, [points]);
+  const geometry = useMemo(() => {
+    const n = points.length;
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    const halfW = width / 2;
+    let cum = 0;
 
-  // Joints sit BELOW segments (0.011 < 0.012) so straight-section overlap
-  // hides the joint disc entirely. Only the small corner-bend gap shows
-  // through, where the joint's rim aligns with the segment bank line.
-  const joints = useMemo(
-    () =>
-      points.map((p) => ({ id: nanoid(), pos: [p.x, 0.011, -p.y] as [number, number, number] })),
-    [points],
-  );
+    for (let i = 0; i < n; i++) {
+      const p = points[i];
+
+      // Miter direction at this vertex — perpendicular to flow, scaled so the
+      // resulting bank line ties smoothly into the adjacent segments.
+      let nx: number;
+      let ny: number;
+      let scale = 1;
+
+      if (i === 0) {
+        const b = points[1];
+        const dx = b.x - p.x;
+        const dy = b.y - p.y;
+        const l = Math.hypot(dx, dy) || 1;
+        nx = -dy / l;
+        ny = dx / l;
+      } else if (i === n - 1) {
+        const a = points[i - 1];
+        const dx = p.x - a.x;
+        const dy = p.y - a.y;
+        const l = Math.hypot(dx, dy) || 1;
+        nx = -dy / l;
+        ny = dx / l;
+      } else {
+        const a = points[i - 1];
+        const b = points[i + 1];
+        const d1x = p.x - a.x;
+        const d1y = p.y - a.y;
+        const l1 = Math.hypot(d1x, d1y) || 1;
+        const p1x = -d1y / l1;
+        const p1y = d1x / l1;
+        const d2x = b.x - p.x;
+        const d2y = b.y - p.y;
+        const l2 = Math.hypot(d2x, d2y) || 1;
+        const p2x = -d2y / l2;
+        const p2y = d2x / l2;
+        let bx = p1x + p2x;
+        let by = p1y + p2y;
+        const bl = Math.hypot(bx, by);
+        if (bl < 1e-4) {
+          // Near-180° turn — bisector degenerates; fall back to one perp.
+          nx = p1x;
+          ny = p1y;
+        } else {
+          bx /= bl;
+          by /= bl;
+          // Miter scale = 1 / cos(half-bend); clamped so an acute bend
+          // doesn't shoot the bank vertex out into the trees.
+          const cosHalf = bx * p1x + by * p1y;
+          scale = Math.min(2.5, 1 / Math.max(0.2, cosHalf));
+          nx = bx;
+          ny = by;
+        }
+      }
+
+      const ox = nx * halfW * scale;
+      const oy = ny * halfW * scale;
+
+      if (i > 0) {
+        const prev = points[i - 1];
+        cum += Math.hypot(p.x - prev.x, p.y - prev.y);
+      }
+
+      const v0 = positions.length / 3;
+      positions.push(p.x + ox, 0.012, -(p.y + oy));
+      positions.push(p.x - ox, 0.012, -(p.y - oy));
+      uvs.push(cum, 0);
+      uvs.push(cum, 1);
+
+      if (i > 0) {
+        // Winding chosen so the mesh's normal is +Y (camera looks straight down,
+        // so the +Y face is the front and we don't get back-face-culled).
+        const vp = v0 - 2;
+        indices.push(vp, v0 + 1, v0);
+        indices.push(vp, vp + 1, v0 + 1);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    return geo;
+  }, [points, width]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <group>
-      {segs.map((s) => (
-        <mesh key={s.id} position={s.pos} rotation={[-Math.PI / 2, 0, -s.rotY]} material={segMat}>
-          <planeGeometry args={[s.length, width]} />
-        </mesh>
-      ))}
-      {joints.map((j) => (
-        <mesh key={j.id} position={j.pos} rotation={[-Math.PI / 2, 0, 0]} material={jointMat}>
-          <circleGeometry args={[width / 2, 16]} />
-        </mesh>
-      ))}
-    </group>
+    <mesh material={segMat}>
+      <primitive object={geometry} attach="geometry" />
+    </mesh>
   );
 };
