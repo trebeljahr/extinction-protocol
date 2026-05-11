@@ -14,7 +14,14 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
-import { TREE_FOOTPRINT, TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
+import {
+  ROCK_FOOTPRINT,
+  ROCK_MIN_SPACING,
+  TREE_FOOTPRINT,
+  TREE_MAX_SCALE,
+  TREE_MIN_SCALE,
+  TREE_MIN_SPACING,
+} from "../sim/world";
 import { worleyFieldFromFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
@@ -47,27 +54,39 @@ const PROP_SPACING_SLACK = 0.15;
 const DECOR_MAX_SPACING_MUL = 2.0;
 
 // Footprint guess for BiomeLayer specs that don't set `footprint`
-// explicitly — same heuristic Ground.tsx uses so the rim and inner-area
-// spacing for the same URL family agree.
+// explicitly. Rock footprint matches sim/world.ts ROCK_FOOTPRINT so a
+// rim rock and a sim rock at the same URL respect the same min gap;
+// the older defaultFootprint('rock') = 0.55 was tuned for Ground.tsx's
+// non-blocking-layer use case, which doesn't get blocking layers.
 const defaultFootprint = (url: string): number => {
   const f = url.toLowerCase();
   if (/grass/.test(f)) return 0.28;
   if (/bush/.test(f)) return 0.6;
-  if (/rock/.test(f)) return 0.55;
+  if (/rock|crystal|skull|meteor/.test(f)) return ROCK_FOOTPRINT;
   return 0.5;
 };
 
 const layerFootprint = (layer: BiomeLayer): number =>
   layer.footprint ?? defaultFootprint(layer.urls[0] ?? "");
 
-// Compute per-layer Poisson rMin from footprint × avg scale × 2 (two
-// halves touching) + slack. Previously the rim used a flat 0.6 unit
-// spacing for everything, which let max-scale rocks (~0.9 unit visual
-// radius) pack tight enough to render as a single overlapping pile.
+// Per-layer Poisson rMin. Three changes from the earlier formula that
+// produced visible piles in the user-reported Canyon Run screenshot:
+//
+// 1. Use maxScale, not avgScale. Two max-scale neighbours need 2 ×
+//    footprint × maxScale to touch — avg-scale spacing left max-scale
+//    rocks overlapping by ~0.3 units in dense Worley pockets.
+// 2. Floor blocking layers at ROCK_MIN_SPACING so they respect the
+//    same minimum gap the inner sim's buildRocks enforces — the
+//    spec's per-instance footprint can underestimate the mesh's true
+//    visual radius (Quaternius rocks render larger than their tower-
+//    blocking footprint suggests).
+// 3. Same slack convention as Ground.tsx so the same URL renders at
+//    the same spacing whether it lands inside or just outside the play
+//    rectangle.
 const layerMinSpacing = (layer: BiomeLayer): number => {
   const footprint = layerFootprint(layer);
-  const avgScale = (layer.minScale + layer.maxScale) / 2;
-  return 2 * footprint * avgScale + PROP_SPACING_SLACK;
+  const fromFootprint = 2 * footprint * layer.maxScale + PROP_SPACING_SLACK;
+  return layer.blocks ? Math.max(fromFootprint, ROCK_MIN_SPACING) : fromFootprint;
 };
 
 // Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
@@ -295,11 +314,16 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 
   // 2) Trees aren't in BIOME_LAYERS. Inner sim spawns INNER_TREE_COUNT
   //    clickable trees; the rim adds proportional non-blocking silhouettes.
-  //    Spacing matches sim/world.ts buildTrees: 2 × TREE_FOOTPRINT × avg-scale + slack.
+  //    Use TREE_MIN_SPACING — the same min gap the inner sim's buildTrees
+  //    enforces — floored against the max-scale footprint so two huge
+  //    trees still can't touch. Earlier the rim used avg-scale, which
+  //    let max-scale tree canopies overlap.
   const trees = BIOME_TREE_URLS[biome];
   if (trees.length > 0) {
-    const avgTreeScale = (TREE_MIN_SCALE + TREE_MAX_SCALE) / 2;
-    const treeMinSep = 2 * TREE_FOOTPRINT * avgTreeScale + PROP_SPACING_SLACK;
+    const treeMinSep = Math.max(
+      TREE_MIN_SPACING,
+      2 * TREE_FOOTPRINT * TREE_MAX_SCALE + PROP_SPACING_SLACK,
+    );
     placeUniformInBand(
       out,
       levelId * 9281 + 137,
