@@ -370,6 +370,16 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
   },
+  {
+    seed: 6161,
+    urls: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
+    count: 2,
+    clearance: PATH_WIDTH / 2 + 2.5,
+    minScale: 0.6,
+    maxScale: 0.85,
+    castShadow: true,
+    blocks: true,
+  },
   DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151),
 ];
 
@@ -456,7 +466,6 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
     "/models/landmarks/wasteland/Crystal1.glb",
   ],
 };
-
 
 // Visual-role classification + target sizes so props on the world map (and
 // in levels) read with a sensible hierarchy:
