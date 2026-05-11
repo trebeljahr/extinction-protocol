@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { LEVEL_BRIEFING } from "../levels/briefings";
 import { useGame } from "../store";
 
-const AUTO_DISMISS_MS = 5000;
 const FADE_MS = 220;
 
 export const LevelIntro = () => {
@@ -24,8 +23,6 @@ export const LevelIntro = () => {
       }, FADE_MS);
     };
 
-    const timer = setTimeout(fadeOut, AUTO_DISMISS_MS);
-
     const onKey = (e: KeyboardEvent) => {
       e.stopPropagation();
       e.preventDefault();
@@ -38,7 +35,6 @@ export const LevelIntro = () => {
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("pointerdown", onClick, true);
     };
@@ -51,7 +47,7 @@ export const LevelIntro = () => {
       <div className="level-intro-card">
         <div className="level-intro-eyebrow">Field Report · Outpost {levelId}</div>
         <p className="level-intro-text">{briefing}</p>
-        <div className="level-intro-hint">press any key to skip</div>
+        <div className="level-intro-hint">press any key to continue</div>
       </div>
     </div>
   );
