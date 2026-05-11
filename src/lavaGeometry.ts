@@ -183,20 +183,30 @@ const buildTributary = (rng: () => number, parent: Vec2[], parentIdx: number): V
 };
 
 // Meandering polyline crossing the map on the chosen axis. Endpoints push
-// past the map edge so rivers visibly run off-screen rather than terminating
-// mid-arena.
+// well past the max-panned viewport (visible half ≈ 24 + pan ≈ 16 = 40 on
+// X) so the river clearly runs off the screen at any zoom/pan. Shape is
+// two smooth sinusoidal octaves — the higher one used to be per-vertex
+// random jitter, but that left a visibly faceted bank silhouette on a
+// 10-segment polyline; a second sine gives the same organic variation
+// without the spikes, and we resample finely enough that adjacent
+// segments are shorter than the river is wide.
 const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
-  const N = 10;
+  const N = 36;
   const out: Vec2[] = [];
   const phase = rng() * Math.PI * 2;
   const amp = 2.4 + rng() * 2;
-  const margin = 3;
+  const phase2 = rng() * Math.PI * 2;
+  const amp2 = 0.3 + rng() * 0.4;
+  const margin = 16;
   if (axis === "h") {
     const baseY = (rng() - 0.5) * MAP_HEIGHT * 0.55;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const x = -MAP_WIDTH / 2 - margin + t * (MAP_WIDTH + 2 * margin);
-      const y = baseY + Math.sin(phase + t * Math.PI * 2.2) * amp + (rng() - 0.5) * 0.6;
+      const y =
+        baseY +
+        Math.sin(phase + t * Math.PI * 2.2) * amp +
+        Math.sin(phase2 + t * Math.PI * 5.1) * amp2;
       out.push({ x, y });
     }
   } else {
@@ -204,7 +214,10 @@ const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const y = -MAP_HEIGHT / 2 - margin + t * (MAP_HEIGHT + 2 * margin);
-      const x = baseX + Math.sin(phase + t * Math.PI * 2.2) * amp + (rng() - 0.5) * 0.6;
+      const x =
+        baseX +
+        Math.sin(phase + t * Math.PI * 2.2) * amp +
+        Math.sin(phase2 + t * Math.PI * 5.1) * amp2;
       out.push({ x, y });
     }
   }
