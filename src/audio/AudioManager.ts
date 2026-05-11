@@ -223,18 +223,91 @@ export class AudioManager {
       this.playWhoosh(0.35, 0.45);
       return;
     }
+    // Pulse + hive use a synthesised crack — short enough to stay discrete
+    // at 2+ shots/sec instead of the old sample that blurred into a tone.
+    if (kind === "pulse" || kind === "hive") {
+      this.playCrack(kind === "hive" ? 0.25 : 0.4);
+      return;
+    }
     const map: Record<TowerKind, [string, number, number, number]> = {
-      pulse: ["shoot-pulse", 0.35, 60, 0.7],
+      pulse: ["shoot-pulse", 0.35, 60, 0.7], // unused — see early return
       chain: ["shoot-chain", 0.35, 90, 0.9],
       cryo: ["shoot-cryo", 0.45, 150, 1.1],
       mortar: ["shoot-mortar", 0.55, 200, 1.4],
       flame: ["shoot-mortar", 0.3, 80, 0.6], // unused — see early return
-      // Hive volley — pulse sfx at lower volume; one tick can fire up to
-      // 3 drones, so we don't want a big stack.
-      hive: ["shoot-pulse", 0.28, 80, 0.7],
+      hive: ["shoot-pulse", 0.28, 80, 0.7], // unused — see early return
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, "towers", vol, cd, maxDur);
+  }
+
+  // Synthesised pulse-rifle crack: a tight mid-high noise burst + sub click.
+  // ~100ms total so each shot stays discrete at 2+ shots/sec.
+  private lastCrackAt = 0;
+  private activeCracks = new Set<AudioScheduledSourceNode>();
+  playCrack(volumeScale = 0.4) {
+    const towersGain = this.busGains.towers;
+    if (!this.ctx || !towersGain || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const wallNow = performance.now();
+    if (wallNow - this.lastCrackAt < 40) return;
+    if (this.activeCracks.size >= 6) return;
+    this.lastCrackAt = wallNow;
+
+    const duration = 0.1;
+    const sampleRate = ctx.sampleRate;
+    const length = Math.ceil(duration * sampleRate);
+
+    // Noise burst — the snappy "tack" transient
+    const noiseBuf = ctx.createBuffer(1, length, sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.8;
+    bp.frequency.setValueAtTime(3200, now);
+    bp.frequency.exponentialRampToValueAtTime(1800, now + duration);
+
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 800;
+
+    const noiseGain = ctx.createGain();
+    const peak = Math.min(0.6, volumeScale);
+    noiseGain.gain.setValueAtTime(0, now);
+    noiseGain.gain.linearRampToValueAtTime(peak, now + 0.0015);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    noise.connect(bp).connect(hp).connect(noiseGain).connect(towersGain);
+
+    // Sub click — brief percussive punch without sustain
+    const clickDur = 0.025;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + clickDur);
+
+    const oscGain = ctx.createGain();
+    const oscPeak = peak * 0.35;
+    oscGain.gain.setValueAtTime(0, now);
+    oscGain.gain.linearRampToValueAtTime(oscPeak, now + 0.001);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
+
+    osc.connect(oscGain).connect(towersGain);
+
+    this.activeCracks.add(noise);
+    this.activeCracks.add(osc);
+    noise.onended = () => this.activeCracks.delete(noise);
+    osc.onended = () => this.activeCracks.delete(osc);
+
+    noise.start(now);
+    noise.stop(now + duration);
+    osc.start(now);
+    osc.stop(now + clickDur);
   }
 
   // Synthesised flamethrower whoosh: filtered white noise with an envelope
