@@ -48,11 +48,19 @@ void main() {
     ? clamp(length(vUv - 0.5) * 2.0, 0.0, 1.0)
     : abs(vUv.y - 0.5) * 2.0;
 
-  // Scrolling world-space ripple
-  vec2 sp = vWorldPos.xz * 1.4 + vec2(uTime * 0.32, uTime * 0.14);
+  // Rivers flow along vUv.x (cumulative length downstream); lakes have no
+  // flow direction and drift in world space. Two layers at different scales
+  // and speeds give the surface motion some parallax.
+  vec2 sp, sp2;
+  if (uIsJoint > 0.5) {
+    sp  = vWorldPos.xz * 1.4 + vec2(uTime * 0.32, uTime * 0.14);
+    sp2 = vWorldPos.xz * 2.6 + vec2(-uTime * 0.22, uTime * 0.30);
+  } else {
+    sp  = vec2(vUv.x * 1.6 - uTime * 1.0, vUv.y * 3.0);
+    sp2 = vec2(vUv.x * 3.0 - uTime * 1.6, vUv.y * 5.0);
+  }
   float r = ripple(sp);
-  // Second layer at a different scale/speed so motion reads clearly
-  float r2 = ripple(vWorldPos.xz * 2.6 + vec2(-uTime * 0.22, uTime * 0.30));
+  float r2 = ripple(sp2);
   r = r * 0.65 + r2 * 0.45;
 
   // Bridge wake disruption
