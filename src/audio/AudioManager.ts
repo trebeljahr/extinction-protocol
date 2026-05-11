@@ -26,6 +26,7 @@ const DEFAULT_MUSIC_VOLUME = 0.25;
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private busGains: Record<SfxBus, GainNode | null> = {
     ui: null,
     towers: null,
@@ -64,7 +65,18 @@ export class AudioManager {
     }
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 1;
-    this.master.connect(this.ctx.destination);
+
+    // Brick-wall-ish limiter targeting a -1 dBTP true-peak ceiling,
+    // matching Spotify / YouTube Music loudness guidelines. Catches the
+    // peaks that arise when many SFX voices sum on wave clears, so the
+    // mix can sit near -14 LUFS program loudness without speaker clipping.
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -1;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.003;
+    this.limiter.release.value = 0.1;
+    this.master.connect(this.limiter).connect(this.ctx.destination);
 
     for (const bus of ["ui", "towers", "enemies", "notifications"] as const) {
       const g = this.ctx.createGain();
@@ -194,7 +206,7 @@ export class AudioManager {
     const src = this.ctx.createBufferSource();
     src.buffer = sample.buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = Math.min(1.2, volumeScale);
+    gain.gain.value = Math.min(1, volumeScale);
     src.connect(gain).connect(busGain);
     keyVoices.add(src);
     src.onended = () => {
