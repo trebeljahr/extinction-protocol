@@ -1531,3 +1531,28 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ progress: empty });
   },
 }));
+
+// ── HMR state preservation ──────────────────────────────────────────
+// When Vite re-evaluates this module the `create()` above builds a
+// fresh store, wiping all game state. We stash the previous store on
+// globalThis so the new module picks up the old state — this works
+// regardless of whether the module self-accepts or the update bubbles
+// to React Fast Refresh consumers.
+const HMR_STORE_KEY = "__EP_GAME_STORE__" as const;
+type HMRGlobal = typeof globalThis & { [K in typeof HMR_STORE_KEY]?: typeof useGame };
+
+if (import.meta.hot) {
+  const prev = (globalThis as HMRGlobal)[HMR_STORE_KEY];
+  if (prev) {
+    const old = prev.getState();
+    const data: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(old)) {
+      if (typeof v === "function") continue;
+      data[k] = v;
+    }
+    data.eventListeners = [];
+    data.engine = new Engine();
+    useGame.setState(data);
+  }
+  (globalThis as HMRGlobal)[HMR_STORE_KEY] = useGame;
+}
