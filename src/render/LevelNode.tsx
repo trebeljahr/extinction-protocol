@@ -95,12 +95,22 @@ export const LevelNode = ({ level }: Props) => {
 
   return (
     <group position={[x, 0, z]}>
-      <group
-        ref={groupRef}
+      {/* Invisible hit cylinder. Stable size so the dome's hover-bump
+          and unplayed pulse don't yank the hover boundary out from
+          under the cursor. Radius matches the outer hover ring (1.95)
+          so the entire visible button area registers as the same
+          target. */}
+      <mesh
+        position={[0, 0.75, 0]}
         onPointerDown={handleClick}
         onPointerOver={handleOver}
         onPointerOut={handleOut}
       >
+        <cylinderGeometry args={[1.95, 1.95, 1.6, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      <group ref={groupRef}>
         <mesh position={[0, 0.5, 0]} castShadow>
           <cylinderGeometry args={[0.9, 1.1, 0.6, 24]} />
           <meshStandardMaterial
