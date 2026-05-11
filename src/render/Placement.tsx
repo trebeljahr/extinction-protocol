@@ -30,7 +30,7 @@ export const Placement = () => {
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     const pos = { x: e.point.x, y: -e.point.z };
-    if (useGame.getState().towerAtPos(pos)) audio.ui("click");
+    if (useGame.getState().towerAtPos(pos)) audio.ui("select");
     useGame.getState().tryPlaceOrSelect(pos);
   };
 
