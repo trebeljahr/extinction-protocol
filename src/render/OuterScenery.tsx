@@ -35,14 +35,20 @@ const OUTER_HALF_H = MAP_HEIGHT / 2 + 9; // 21 from center
 const INNER_HALF_W = MAP_WIDTH / 2 - 0.5;
 const INNER_HALF_H = MAP_HEIGHT / 2 - 0.5;
 
-const TOTAL_CLUSTERS = 28;
-const PROPS_PER_CLUSTER_MIN = 4;
-const PROPS_PER_CLUSTER_MAX = 8;
 const CLUSTER_SIGMA = 1.7;
 const PROP_MIN_SPACING = 0.6;
-// Scattered loners past the cluster band — sells the "fringe" feel in
-// the far corners where dense huddles would look unnatural.
-const LONER_COUNT = 18;
+// Anchor min separation between cluster centers. With sigma 1.7 clusters
+// span ~5 units, so 3 units between anchors lets dense biomes pack
+// adjacent clusters with overlap — reads as a continuous fringe instead
+// of distinct huddles. Was 4 (forced gaps), which capped how many anchors
+// could fit on a forest map.
+const ANCHOR_MIN_SEPARATION = 3;
+// Cluster/loner totals scale with biome inner-layer density so the rim
+// reads as the same per-square-unit cover as the play area. 130 is the
+// rough mean inner count across biomes (forest 265, wasteland 134, lava
+// 132, alien 127, desert 120, snow 42); at that baseline the rim lands
+// near the original 28-cluster/18-loner values.
+const INNER_COUNT_BASELINE = 130;
 
 // Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
 // scale band and are authored at wildly varying max-dims. The inner
@@ -106,8 +112,21 @@ const collectFamilyUrls = (biome: Biome): FamilyUrls => {
 
 // "Theme" of a cluster — biases the prop URL toward one family while
 // still mixing in some of the others (real ecosystems aren't monocultures).
-type ClusterTheme = "tree" | "rock" | "bush" | "mixed";
-const THEMES: ClusterTheme[] = ["tree", "tree", "rock", "bush", "mixed"];
+type ClusterTheme = "tree" | "rock" | "bush" | "mixed" | "ground";
+// "ground" theme appears 3× so the rim composition leans grass+small-decor,
+// matching the inner BIOME_LAYERS (forest is 160 grass + 10 mushrooms out of
+// 265 inner-layer props — 64% small). Without this the rim's old tree-heavy
+// mix made forest fringes look like a tree wall against a grass-covered map.
+const THEMES: ClusterTheme[] = [
+  "tree",
+  "tree",
+  "rock",
+  "bush",
+  "mixed",
+  "ground",
+  "ground",
+  "ground",
+];
 type Family = keyof FamilyUrls;
 const ALL_FAMILIES: Family[] = ["trees", "rocks", "bushes", "grass", "ground"];
 
@@ -121,6 +140,42 @@ const THEME_WEIGHTS: Record<ClusterTheme, Record<Family, number>> = {
   rock: { trees: 0.15, rocks: 0.5, bushes: 0.1, grass: 0.12, ground: 0.13 },
   bush: { trees: 0.12, rocks: 0.1, bushes: 0.5, grass: 0.18, ground: 0.1 },
   mixed: { trees: 0.25, rocks: 0.2, bushes: 0.2, grass: 0.2, ground: 0.15 },
+  // Grass-dominant patch — mirrors the inner BIOME_LAYERS grass layer, which
+  // is the single biggest decoration on grass-rich biomes (160 of 265 forest
+  // props). On biomes with no grass family (snow rocks-only), pickUrlForTheme
+  // gracefully redistributes the weight to whatever families exist.
+  ground: { trees: 0.05, rocks: 0.08, bushes: 0.12, grass: 0.6, ground: 0.15 },
+};
+
+// Sum of BIOME_LAYERS counts for a biome — proxy for "how dense should the
+// inner area read." Drives rim sizing so per-square-unit density on the
+// band matches the inner area.
+const innerLayerCount = (biome: Biome): number => {
+  let total = 0;
+  for (const layer of BIOME_LAYERS[biome]) total += layer.count;
+  return total;
+};
+
+// Biome-scaled rim sizing. The band is ~1.78× the inner area, so the target
+// prop budget is `innerCount × that ratio`. Cluster count and props-per-
+// cluster both scale with sqrt(density factor) so dense biomes get more *and*
+// fuller clusters without needing absurdly many anchors; loners scale
+// linearly because they live in the outer corners which need uniform fill.
+type RimSizing = {
+  totalClusters: number;
+  propsMin: number;
+  propsMax: number;
+  loners: number;
+};
+const rimSizing = (biome: Biome): RimSizing => {
+  const factor = innerLayerCount(biome) / INNER_COUNT_BASELINE;
+  const sqrtFactor = Math.sqrt(factor);
+  return {
+    totalClusters: Math.max(8, Math.round(28 * sqrtFactor * 1.27)),
+    propsMin: Math.max(3, Math.round(4 * sqrtFactor)),
+    propsMax: Math.max(6, Math.round(8 * sqrtFactor)),
+    loners: Math.max(10, Math.round(18 * factor)),
+  };
 };
 
 const pickUrlForTheme = (
@@ -263,21 +318,24 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   const rng = mulberry32(levelId * 17389 + 991);
   const out: Instance[] = [];
   const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
+  const sizing = rimSizing(biome);
+  const anchorMinSepSq = ANCHOR_MIN_SEPARATION * ANCHOR_MIN_SEPARATION;
 
   // 1) Pick cluster anchors with inner-edge bias.
   const anchors: { pos: Vec2; theme: ClusterTheme }[] = [];
   let tries = 0;
-  while (anchors.length < TOTAL_CLUSTERS && tries < TOTAL_CLUSTERS * 30) {
+  while (anchors.length < sizing.totalClusters && tries < sizing.totalClusters * 30) {
     tries++;
     const candidate = sampleBandPoint(rng);
     // Reject with probability proportional to distance-from-inner-edge.
     if (rng() > innerEdgeAffinity(candidate)) continue;
-    // Minimum anchor separation so clusters don't bleed into each other.
+    // Minimum anchor separation — relaxed enough that dense biomes can pack
+    // overlapping clusters into a continuous fringe.
     let tooClose = false;
     for (const a of anchors) {
       const dx = a.pos.x - candidate.x;
       const dy = a.pos.y - candidate.y;
-      if (dx * dx + dy * dy < 4 * 4) {
+      if (dx * dx + dy * dy < anchorMinSepSq) {
         tooClose = true;
         break;
       }
@@ -288,9 +346,7 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 
   // 2) Place props per cluster.
   for (const anchor of anchors) {
-    const propCount =
-      PROPS_PER_CLUSTER_MIN +
-      Math.floor(rng() * (PROPS_PER_CLUSTER_MAX - PROPS_PER_CLUSTER_MIN + 1));
+    const propCount = sizing.propsMin + Math.floor(rng() * (sizing.propsMax - sizing.propsMin + 1));
     let placed = 0;
     let attempts = 0;
     while (placed < propCount && attempts < propCount * 12) {
@@ -332,7 +388,7 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   // read as distant silhouettes "drifting off" the screen.
   let loners = 0;
   let loneTries = 0;
-  while (loners < LONER_COUNT && loneTries < LONER_COUNT * 25) {
+  while (loners < sizing.loners && loneTries < sizing.loners * 25) {
     loneTries++;
     // Sample biased toward the outer edge by squaring the band coord.
     const side = Math.floor(rng() * 4);
