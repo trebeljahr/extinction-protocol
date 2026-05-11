@@ -9,7 +9,13 @@ import { meshXZRadii, TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import { useGame } from "../store";
 
 type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type VariantSource = { id: string; parts: Part[]; minY: number; xzRadius: number };
+type VariantSource = {
+  id: string;
+  parts: Part[];
+  minY: number;
+  xzRadius: number;
+  baseXzRadius: number;
+};
 
 // Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
 // primitives) come in from GLTFLoader as multiple Meshes under the scene.
@@ -31,6 +37,7 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
         scene.updateMatrixWorld(true);
         const parts: Part[] = [];
         let minY = Number.POSITIVE_INFINITY;
+        let maxY = Number.NEGATIVE_INFINITY;
         let xzMax = 0;
         scene.traverse((o) => {
           const m = o as THREE.Mesh;
@@ -42,6 +49,7 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
             geom.computeBoundingBox();
             if (geom.boundingBox) {
               minY = Math.min(minY, geom.boundingBox.min.y);
+              maxY = Math.max(maxY, geom.boundingBox.max.y);
               const bb = geom.boundingBox;
               xzMax = Math.max(
                 xzMax,
@@ -56,8 +64,28 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
         });
         if (parts.length === 0) return null;
         const xzRadius = xzMax || 0.9;
+        // Trunk/base radius: max xz extent of vertices in the bottom 10% of
+        // the model height, so selection rings hug the stem instead of the
+        // foliage shadow.
+        const baseSliceTop = Number.isFinite(minY) ? minY + (maxY - minY) * 0.1 : 0;
+        let baseXzMax = 0;
+        for (const part of parts) {
+          const pos = part.geom.getAttribute("position");
+          if (!pos) continue;
+          for (let i = 0; i < pos.count; i++) {
+            if (pos.getY(i) > baseSliceTop) continue;
+            baseXzMax = Math.max(baseXzMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
+          }
+        }
+        const baseXzRadius = baseXzMax || xzRadius * 0.2;
         meshXZRadii.set(urls[si], xzRadius);
-        return { id: nanoid(), parts, minY: Number.isFinite(minY) ? minY : 0, xzRadius };
+        return {
+          id: nanoid(),
+          parts,
+          minY: Number.isFinite(minY) ? minY : 0,
+          xzRadius,
+          baseXzRadius,
+        };
       }),
     // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
     scenes,
@@ -122,11 +150,11 @@ export const Trees = () => {
       {hovered &&
         hovered.id !== selectedTreeId &&
         (() => {
-          const r = (sources[hovered.variant]?.xzRadius ?? 0.9) * hovered.scale;
+          const r = (sources[hovered.variant]?.baseXzRadius ?? 0.2) * hovered.scale;
           return (
             <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <ringGeometry args={[r - 0.22, r, 32]} />
+                <ringGeometry args={[Math.max(0.01, r - 0.04), r + 0.08, 32]} />
                 <meshBasicMaterial
                   color={canAfford ? "#ff8a5a" : "#6a6a6a"}
                   transparent
@@ -141,11 +169,11 @@ export const Trees = () => {
         })()}
       {selected &&
         (() => {
-          const r = (sources[selected.variant]?.xzRadius ?? 0.9) * selected.scale;
+          const r = (sources[selected.variant]?.baseXzRadius ?? 0.2) * selected.scale;
           return (
             <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <ringGeometry args={[r - 0.2, r + 0.08, 40]} />
+                <ringGeometry args={[Math.max(0.01, r - 0.04), r + 0.12, 40]} />
                 <meshBasicMaterial
                   color="#ffd66a"
                   transparent
