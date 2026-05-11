@@ -13,7 +13,7 @@ import {
 import { useGame } from "../store";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
-import { DifficultyModelIcon } from "./DifficultyModelIcon";
+import { DifficultyTag } from "./DifficultyTag";
 import { EnemyPanel } from "./EnemyPanel";
 import { PauseMenu } from "./PauseMenu";
 import { TowerPanel } from "./TowerPanel";
@@ -149,13 +149,7 @@ export const HUD = () => {
           className={`${difficultyAccent.tint} border ${difficultyAccent.border} rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2`}
           title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]}`}
         >
-          <DifficultyModelIcon difficulty={difficulty} className="w-7 h-7" />
-          <div className="flex flex-col">
-            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">Mode</span>
-            <span className={`text-[13px] font-bold leading-tight ${difficultyAccent.text}`}>
-              {DIFFICULTY_LABEL[difficulty]}
-            </span>
-          </div>
+          <DifficultyTag difficulty={difficulty} label="Mode" size="sm" />
         </div>
       </div>
 

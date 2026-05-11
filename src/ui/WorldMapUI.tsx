@@ -13,7 +13,7 @@ import {
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
-import { DifficultyModelIcon } from "./DifficultyModelIcon";
+import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
@@ -59,15 +59,7 @@ export const WorldMapUI = () => {
           aria-label="Change difficulty"
           title="Change difficulty"
         >
-          <DifficultyModelIcon difficulty={difficulty} className="w-8 h-8" />
-          <div className="flex flex-col items-start">
-            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
-              Difficulty
-            </span>
-            <span className={`text-sm font-bold leading-tight ${accent.text}`}>
-              {DIFFICULTY_LABEL[difficulty]}
-            </span>
-          </div>
+          <DifficultyTag difficulty={difficulty} />
         </button>
         <button
           type="button"

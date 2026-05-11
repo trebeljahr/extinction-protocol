@@ -3,23 +3,15 @@ import { useEffect, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { getLevel } from "../levels";
-import { DIFFICULTY_LABEL, type Difficulty } from "../progress";
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
-import { DifficultyModelIcon } from "./DifficultyModelIcon";
+import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 
 type Props = {
   onResume: () => void;
-};
-
-const DIFFICULTY_COLOR: Record<Difficulty, string> = {
-  easy: "text-mint",
-  medium: "text-blue",
-  hard: "text-orange",
-  extinction: "text-red",
 };
 
 export const PauseMenu = ({ onResume }: Props) => {
@@ -65,8 +57,6 @@ export const PauseMenu = ({ onResume }: Props) => {
     );
   }
 
-  const accent = DIFFICULTY_COLOR[difficulty];
-
   return (
     <MenuOverlay
       title="Paused"
@@ -83,15 +73,7 @@ export const PauseMenu = ({ onResume }: Props) => {
           aria-label="Change difficulty"
           title="Change difficulty"
         >
-          <DifficultyModelIcon difficulty={difficulty} className="w-8 h-8" />
-          <div className="flex flex-col items-start flex-1">
-            <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
-              Difficulty
-            </span>
-            <span className={`text-sm font-bold leading-tight ${accent}`}>
-              {DIFFICULTY_LABEL[difficulty]}
-            </span>
-          </div>
+          <DifficultyTag difficulty={difficulty} textStackClassName="flex-1" />
           <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
         </button>
         <SoundControls />
