@@ -7,20 +7,37 @@ import { BIOME_TREE_URLS } from "../biomes";
 import type { Tree } from "../sim/types";
 import { meshXZRadii, TREE_REMOVE_COST, TREE_VARIANTS } from "../sim/world";
 import { useGame } from "../store";
+import { collectMeshSource, type MeshPart } from "./meshSource";
 
-type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
 type VariantSource = {
   id: string;
-  parts: Part[];
+  parts: MeshPart[];
   minY: number;
   xzRadius: number;
+  // Trunk/base radius: tighter than xzRadius so the click ring hugs the
+  // stem instead of tracing the foliage canopy. Computed from the bottom
+  // 10% of the model's height.
   baseXzRadius: number;
+};
+
+const computeBaseXzRadius = (parts: MeshPart[], boundingBox: THREE.Box3): number => {
+  const sliceTop = boundingBox.min.y + (boundingBox.max.y - boundingBox.min.y) * 0.1;
+  let baseXzMax = 0;
+  for (const part of parts) {
+    const pos = part.geom.getAttribute("position");
+    if (!pos) continue;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) > sliceTop) continue;
+      baseXzMax = Math.max(baseXzMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
+    }
+  }
+  return baseXzMax;
 };
 
 // Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
 // primitives) come in from GLTFLoader as multiple Meshes under the scene.
-// We collect every one of them so each instance renders all pieces, not
-// just the first primitive.
+// collectMeshSource collects every one so each instance renders all pieces,
+// not just the first primitive.
 const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   const a = useGLTF(urls[0]);
   const b = useGLTF(urls[1]);
@@ -34,58 +51,13 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   return useMemo(
     () =>
       scenes.map((scene, si) => {
-        scene.updateMatrixWorld(true);
-        const parts: Part[] = [];
-        let minY = Number.POSITIVE_INFINITY;
-        let maxY = Number.NEGATIVE_INFINITY;
-        let xzMax = 0;
-        scene.traverse((o) => {
-          const m = o as THREE.Mesh;
-          if (!m.isMesh) return;
-          const mats = Array.isArray(m.material) ? m.material : [m.material];
-          for (const mat of mats) {
-            const geom = m.geometry.clone();
-            geom.applyMatrix4(m.matrixWorld);
-            geom.computeBoundingBox();
-            if (geom.boundingBox) {
-              minY = Math.min(minY, geom.boundingBox.min.y);
-              maxY = Math.max(maxY, geom.boundingBox.max.y);
-              const bb = geom.boundingBox;
-              xzMax = Math.max(
-                xzMax,
-                Math.abs(bb.min.x),
-                Math.abs(bb.max.x),
-                Math.abs(bb.min.z),
-                Math.abs(bb.max.z),
-              );
-            }
-            parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
-          }
-        });
-        if (parts.length === 0) return null;
-        const xzRadius = xzMax || 0.9;
-        // Trunk/base radius: max xz extent of vertices in the bottom 10% of
-        // the model height, so selection rings hug the stem instead of the
-        // foliage shadow.
-        const baseSliceTop = Number.isFinite(minY) ? minY + (maxY - minY) * 0.1 : 0;
-        let baseXzMax = 0;
-        for (const part of parts) {
-          const pos = part.geom.getAttribute("position");
-          if (!pos) continue;
-          for (let i = 0; i < pos.count; i++) {
-            if (pos.getY(i) > baseSliceTop) continue;
-            baseXzMax = Math.max(baseXzMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
-          }
-        }
-        const baseXzRadius = baseXzMax || xzRadius * 0.2;
+        const source = collectMeshSource(scene);
+        if (!source) return null;
+        const xzRadius = source.xzRadius || 0.9;
+        const baseRaw = computeBaseXzRadius(source.parts, source.boundingBox);
+        const baseXzRadius = baseRaw || xzRadius * 0.2;
         meshXZRadii.set(urls[si], xzRadius);
-        return {
-          id: nanoid(),
-          parts,
-          minY: Number.isFinite(minY) ? minY : 0,
-          xzRadius,
-          baseXzRadius,
-        };
+        return { id: nanoid(), parts: source.parts, minY: source.minY, xzRadius, baseXzRadius };
       }),
     // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
     scenes,

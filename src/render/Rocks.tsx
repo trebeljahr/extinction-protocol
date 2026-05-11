@@ -1,15 +1,12 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIOME_LAYERS, type Biome } from "../biomes";
 import type { Rock } from "../sim/types";
 import { meshXZRadii, ROCK_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
-
-type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type Source = { parts: Part[]; minY: number; xzRadius: number };
+import { collectMeshSource, type MeshSource } from "./meshSource";
 
 const rockUrl = (biome: Biome, rock: Rock): string | undefined =>
   BIOME_LAYERS[biome][rock.layerIndex]?.urls[rock.variant];
@@ -20,40 +17,15 @@ const rockEffectiveRadius = (biome: Biome, rock: Rock): number => {
   return base * rock.scale;
 };
 
-// Collect every primitive under the scene — many Quaternius rocks/bushes
-// are authored as a single mesh with 2+ primitives (body + Snow cap),
-// which GLTFLoader flattens into multiple Three.Meshes under the scene.
-const collectParts = (url: string, scene: THREE.Object3D): Source | null => {
-  scene.updateMatrixWorld(true);
-  const parts: Part[] = [];
-  let minY = Number.POSITIVE_INFINITY;
-  let xzMax = 0;
-  scene.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    const mats = Array.isArray(m.material) ? m.material : [m.material];
-    for (const mat of mats) {
-      const geom = m.geometry.clone();
-      geom.applyMatrix4(m.matrixWorld);
-      geom.computeBoundingBox();
-      if (geom.boundingBox) {
-        minY = Math.min(minY, geom.boundingBox.min.y);
-        const bb = geom.boundingBox;
-        xzMax = Math.max(
-          xzMax,
-          Math.abs(bb.min.x),
-          Math.abs(bb.max.x),
-          Math.abs(bb.min.z),
-          Math.abs(bb.max.z),
-        );
-      }
-      parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
-    }
-  });
-  if (parts.length === 0) return null;
-  const xzRadius = xzMax || 0.7;
-  meshXZRadii.set(url, xzRadius);
-  return { parts, minY: Number.isFinite(minY) ? minY : 0, xzRadius };
+// Wrap the shared collector to also populate meshXZRadii (read by
+// canPlaceAt for placement blocking) — Trees.tsx does the same on its
+// path. The fallback to 0.7 covers degenerate meshes whose bounding box
+// has no XZ extent.
+const collectRockSource = (url: string, scene: THREE.Object3D): MeshSource | null => {
+  const source = collectMeshSource(scene);
+  if (!source) return null;
+  meshXZRadii.set(url, source.xzRadius || 0.7);
+  return source;
 };
 
 // Pointer events go to the hit discs, not the model silhouette.
@@ -61,7 +33,7 @@ const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectParts(url, scene), [url, scene]);
+  const source = useMemo(() => collectRockSource(url, scene), [url, scene]);
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
