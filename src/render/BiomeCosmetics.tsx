@@ -8,10 +8,12 @@ import {
   type LavaFeatures,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
-import { gaussian, mulberry32 } from "../sim/random";
+import { poissonDiskSample } from "../sim/poisson";
+import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
+import { createWorleyField } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
@@ -27,69 +29,16 @@ import type { MeshSource } from "./meshSource";
 // weight where they land.
 const COUNT_PER_LEVEL = 14;
 const CLUSTER_SEEDS = 5;
-// Standard deviation in world units for prop offset from a cluster seed.
-// Larger = looser cluster; smaller = tight pile.
-const CLUSTER_SIGMA = 1.6;
+// Worley feature radius — how far each cluster centre's influence reaches.
+// Larger = looser groves; smaller = tighter pockets.
+const CLUSTER_RADIUS = 3.2;
 // PATH_WIDTH widened to 2.8, so anything at half-width + 0.5 was clipping
 // the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.3;
+const PROP_MAX_SPACING = 2.6;
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
-
-// Pick K cluster seed points well-distributed across the playable area and
-// well-clear of paths/blockers/lava. Each seed becomes the anchor for a
-// small huddle of props.
-const pickClusterSeeds = (
-  rng: () => number,
-  paths: Vec2[][],
-  blockers: { pos: Vec2; radius: number }[],
-  lava: LavaFeatures | null,
-  count: number,
-): Vec2[] => {
-  const seeds: Vec2[] = [];
-  const pathR2 = (PATH_CLEARANCE + 1.2) * (PATH_CLEARANCE + 1.2);
-  const seedMinDist = 6.5;
-  let tries = 0;
-  while (seeds.length < count && tries < count * 80) {
-    tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.85;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.85;
-    if (isOnLavaSurface(lava, x, y, 1.5)) continue;
-    let blocked = false;
-    for (const path of paths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
-          break;
-        }
-      }
-      if (blocked) break;
-    }
-    if (blocked) continue;
-    for (const b of blockers) {
-      const dx = b.pos.x - x;
-      const dy = b.pos.y - y;
-      const r = b.radius + 1.0;
-      if (dx * dx + dy * dy < r * r) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
-    for (const s of seeds) {
-      const dx = s.x - x;
-      const dy = s.y - y;
-      if (dx * dx + dy * dy < seedMinDist * seedMinDist) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
-    seeds.push({ x, y });
-  }
-  return seeds;
-};
 
 const buildInstances = (
   biome: Biome,
@@ -100,71 +49,73 @@ const buildInstances = (
 ): Instance[] => {
   const urls = BIOME_COSMETICS[biome];
   if (urls.length === 0) return [];
-  const rng = mulberry32(levelId * 6271 + 13);
-  const out: Instance[] = [];
-  const pathR2 = PATH_CLEARANCE * PATH_CLEARANCE;
-  const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
   // Soft bounds so cluster halos don't poke past the visible playfield.
   const halfW = MAP_WIDTH * 0.47;
   const halfH = MAP_HEIGHT * 0.47;
+  const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
+  const pathR2 = PATH_CLEARANCE * PATH_CLEARANCE;
 
-  // Cluster seeds + a per-cluster URL bias (each cluster prefers one or two
-  // prop variants — reads as "this is a grove of X" rather than a salad).
-  const seeds = pickClusterSeeds(rng, paths, blockers, lava, CLUSTER_SEEDS);
-  if (seeds.length === 0) return [];
-  const seedUrl = seeds.map(() => urls[Math.floor(rng() * urls.length)]);
+  // Worley field — each feature is a "grove centre" with a preferred
+  // URL, picked at construction so each grove reads as "a patch of X".
+  const worley = createWorleyField(levelId * 6271 + 13, bounds, CLUSTER_SEEDS, CLUSTER_RADIUS);
+  const urlRng = mulberry32(levelId * 4093 + 71);
+  const featureUrls = worley.features.map(() => urls[Math.floor(urlRng() * urls.length)]);
 
-  let tries = 0;
-  while (out.length < COUNT_PER_LEVEL && tries < COUNT_PER_LEVEL * 50) {
-    tries++;
-    const si = Math.floor(rng() * seeds.length);
-    const seed = seeds[si];
-    const x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, CLUSTER_SIGMA)));
-    const y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, CLUSTER_SIGMA)));
+  const radiusAt = (x: number, y: number): number => {
+    const d = worley.density(x, y);
+    return PROP_MIN_SPACING + (1 - d) * (PROP_MAX_SPACING - PROP_MIN_SPACING);
+  };
 
-    if (isOnLavaSurface(lava, x, y, 0.5)) continue;
-    let blocked = false;
+  const isValid = (x: number, y: number): boolean => {
+    if (isOnLavaSurface(lava, x, y, 0.5)) return false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
         if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
-          break;
+          return false;
         }
       }
-      if (blocked) break;
     }
-    if (blocked) continue;
-
     for (const b of blockers) {
       const dx = b.pos.x - x;
       const dy = b.pos.y - y;
-      if (dx * dx + dy * dy < b.radius * b.radius) {
-        blocked = true;
-        break;
+      if (dx * dx + dy * dy < b.radius * b.radius) return false;
+    }
+    return true;
+  };
+
+  const points = poissonDiskSample({
+    bounds,
+    radiusAt,
+    isValid,
+    maxCount: COUNT_PER_LEVEL,
+    seed: levelId * 8147 + 211,
+  });
+
+  // Per-instance URL bias: pick the nearest feature, then 70% chance to
+  // use its preferred URL. Reads as "this is a grove of X" without
+  // monotony.
+  const detailRng = mulberry32(levelId * 3119 + 29);
+  const out: Instance[] = [];
+  for (const p of points) {
+    let nearestI = 0;
+    let nearestD2 = Infinity;
+    for (let i = 0; i < worley.features.length; i++) {
+      const f = worley.features[i];
+      const dx = p.x - f.x;
+      const dy = p.y - f.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < nearestD2) {
+        nearestD2 = d2;
+        nearestI = i;
       }
     }
-    if (blocked) continue;
-
-    for (const p of out) {
-      const dx = p.pos.x - x;
-      const dy = p.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
-
-    // 70% chance to use this cluster's preferred URL — gives each grove
-    // a clear identity without making it monotone.
-    const url = rng() < 0.7 ? seedUrl[si] : urls[Math.floor(rng() * urls.length)];
+    const url =
+      detailRng() < 0.7 ? featureUrls[nearestI] : urls[Math.floor(detailRng() * urls.length)];
     out.push({
       url,
-      pos: { x, y },
-      // Wider scale jitter (was 0.85–1.30) for more visual variety inside
-      // a single cluster — couple of small siblings and a hero.
-      scale: 0.7 + ((rng() + rng()) / 2) * 0.7,
-      rotY: rng() * Math.PI * 2,
+      pos: { x: p.x, y: p.y },
+      scale: 0.7 + ((detailRng() + detailRng()) / 2) * 0.7,
+      rotY: detailRng() * Math.PI * 2,
     });
   }
   return out;

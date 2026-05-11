@@ -10,7 +10,8 @@ import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
 import { samplePath, smoothPath } from "./path";
-import { gaussian, mulberry32 } from "./random";
+import { poissonDiskSample } from "./poisson";
+import { mulberry32 } from "./random";
 import type {
   Beam,
   CryoWave,
@@ -32,13 +33,18 @@ import type {
   World,
 } from "./types";
 import { distPointToSegSq } from "./vec2";
+import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
 
 export const TREE_COUNT = 20;
-// Trees clump into a handful of groves rather than evenly speckling the map.
-const TREE_CLUSTER_SEEDS = 5;
-const TREE_CLUSTER_SIGMA = 2.4;
+// Trees clump into a handful of groves rather than evenly speckling the
+// map. The Worley field plants this many "grove centres"; Poisson then
+// fills around them at variable spacing.
+const TREE_GROVE_COUNT = 5;
+const TREE_GROVE_RADIUS = 4.8;
+// Looser-than-min spacing in low-density (between-grove) regions.
+const TREE_MAX_SPACING = 5.5;
 export const TREE_VARIANTS = 4;
 export const TREE_CLEARANCE_MARGIN = 2.0;
 // Wider range with a slight central bias gives a more natural mix —
@@ -64,88 +70,51 @@ const buildTrees = (
   firstId: number,
   lava: LavaFeatures | null,
 ): { trees: Tree[]; nextId: number } => {
-  const rng = mulberry32(seed);
-  const trees: Tree[] = [];
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
   const pathR2 = clearance * clearance;
-  const spacingSq = TREE_MIN_SPACING * TREE_MIN_SPACING;
-
-  // Pre-pick cluster seeds clear of the path. Trees grow in groves around
-  // these anchors instead of sprinkling across the map evenly.
-  const seeds: Vec2[] = [];
-  let seedTries = 0;
-  while (seeds.length < TREE_CLUSTER_SEEDS && seedTries < TREE_CLUSTER_SEEDS * 60) {
-    seedTries++;
-    const sx = (rng() - 0.5) * MAP_WIDTH * 0.85;
-    const sy = (rng() - 0.5) * MAP_HEIGHT * 0.85;
-    if (isOnLavaSurface(lava, sx, sy, 1.5)) continue;
-    let blockedSeed = false;
-    for (const path of paths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(sx, sy, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blockedSeed = true;
-          break;
-        }
-      }
-      if (blockedSeed) break;
-    }
-    if (blockedSeed) continue;
-    let tooClose = false;
-    for (const s of seeds) {
-      const dx = s.x - sx;
-      const dy = s.y - sy;
-      if (dx * dx + dy * dy < 6 * 6) {
-        tooClose = true;
-        break;
-      }
-    }
-    if (tooClose) continue;
-    seeds.push({ x: sx, y: sy });
-  }
-  // Fallback to uniform random if we couldn't seed any clusters (very dense paths).
-  const seedFallback = seeds.length === 0;
-
   const halfW = MAP_WIDTH * 0.475;
   const halfH = MAP_HEIGHT * 0.475;
+  const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
 
-  let nextId = firstId;
-  let tries = 0;
-  while (trees.length < TREE_COUNT && tries < TREE_COUNT * 60) {
-    tries++;
-    let x: number;
-    let y: number;
-    if (seedFallback) {
-      x = (rng() - 0.5) * MAP_WIDTH * 0.95;
-      y = (rng() - 0.5) * MAP_HEIGHT * 0.95;
-    } else {
-      const seed = seeds[Math.floor(rng() * seeds.length)];
-      x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, TREE_CLUSTER_SIGMA)));
-      y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, TREE_CLUSTER_SIGMA)));
-    }
-    if (isOnLavaSurface(lava, x, y, TREE_FOOTPRINT)) continue;
-    let blocked = false;
+  // Worley field: scatter TREE_GROVE_COUNT "grove centres" — density is
+  // 1 at a centre, smoothly decaying to 0 at TREE_GROVE_RADIUS. Poisson
+  // packs tight inside groves (TREE_MIN_SPACING), loose between them
+  // (TREE_MAX_SPACING) — natural-looking woodland rather than even mat.
+  const worley = createWorleyField(seed, bounds, TREE_GROVE_COUNT, TREE_GROVE_RADIUS);
+  const radiusAt = (x: number, y: number): number => {
+    const d = worley.density(x, y);
+    return TREE_MIN_SPACING + (1 - d) * (TREE_MAX_SPACING - TREE_MIN_SPACING);
+  };
+
+  const isValid = (x: number, y: number): boolean => {
+    if (isOnLavaSurface(lava, x, y, TREE_FOOTPRINT)) return false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
         if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
-          break;
+          return false;
         }
       }
-      if (blocked) break;
     }
-    if (blocked) continue;
-    for (const t of trees) {
-      const dx = t.pos.x - x;
-      const dy = t.pos.y - y;
-      if (dx * dx + dy * dy < spacingSq) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
+    return true;
+  };
+
+  const points = poissonDiskSample({
+    bounds,
+    radiusAt,
+    isValid,
+    maxCount: TREE_COUNT,
+    seed: seed * 31 + 17,
+  });
+
+  // Variant/scale/rot stream is independent so changes to count/spacing
+  // don't shift these per-tree details when only one factor moves.
+  const rng = mulberry32(seed * 53 + 91);
+  const trees: Tree[] = [];
+  let nextId = firstId;
+  for (const p of points) {
     trees.push({
       id: nextId++,
-      pos: { x, y },
+      pos: { x: p.x, y: p.y },
       variant: Math.floor(rng() * TREE_VARIANTS),
       // Triangular distribution (avg of two uniforms) biases toward mid-size,
       // so saplings and elders are uncommon but visible.
@@ -155,6 +124,11 @@ const buildTrees = (
   }
   return { trees, nextId };
 };
+
+// Per-layer rock-to-rock spacing multiplier — sparse-region Poisson
+// radius is ROCK_MIN_SPACING × this. Tuned so the variation between
+// "rock pile centre" and "loose stones" reads naturally.
+const ROCK_MAX_SPACING_MUL = 2.5;
 
 const buildRocks = (
   biome: Biome,
@@ -168,111 +142,81 @@ const buildRocks = (
   const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
   const halfW = MAP_WIDTH * 0.475;
   const halfH = MAP_HEIGHT * 0.475;
+  const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
   let nextId = firstId;
 
   const layers = BIOME_LAYERS[biome];
   for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
     const spec = layers[layerIndex];
     if (!spec.blocks) continue;
-    const rng = mulberry32(spec.seed);
+
+    // Each blocking layer gets its own Worley field — different layers
+    // in the same biome have independent feature positions so a rock-
+    // pile centre and a crystal-cluster centre don't always line up.
+    const sigma = spec.cluster?.sigma ?? 2.5;
+    const featureRadius = sigma * 2.0;
+    const featureCount = spec.cluster?.seeds ?? 5;
+    const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
+    const rMin = ROCK_MIN_SPACING;
+    const rMax = ROCK_MIN_SPACING * ROCK_MAX_SPACING_MUL;
+    const radiusAt = (x: number, y: number): number => {
+      const d = worley.density(x, y);
+      return rMin + (1 - d) * (rMax - rMin);
+    };
+
     const pathR2 = spec.clearance * spec.clearance;
+    // Snapshot rocks from earlier layers so this layer's Poisson treats
+    // them as fixed blockers (no overlap regardless of within-layer
+    // density variation).
+    const earlierRocks = rocks.slice();
+    // Conservative lava check — use max scale footprint so a max-scale
+    // rock at this position couldn't touch lava either.
+    const lavaFootprint = ROCK_FOOTPRINT * spec.maxScale;
 
-    const clusterCfg = spec.cluster;
-    const clusterSeeds: Vec2[] = [];
-    if (clusterCfg) {
-      const seedMinDistSq = 5.5 * 5.5;
-      let seedTries = 0;
-      while (clusterSeeds.length < clusterCfg.seeds && seedTries < clusterCfg.seeds * 60) {
-        seedTries++;
-        const sx = (rng() - 0.5) * MAP_WIDTH * 0.85;
-        const sy = (rng() - 0.5) * MAP_HEIGHT * 0.85;
-        if (isOnLavaSurface(lava, sx, sy, 1.5)) continue;
-        let seedBlocked = false;
-        for (const path of paths) {
-          for (let i = 0; i < path.length - 1; i++) {
-            if (
-              distPointToSegSq(sx, sy, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2
-            ) {
-              seedBlocked = true;
-              break;
-            }
-          }
-          if (seedBlocked) break;
-        }
-        if (seedBlocked) continue;
-        let tooClose = false;
-        for (const s of clusterSeeds) {
-          const dx = s.x - sx;
-          const dy = s.y - sy;
-          if (dx * dx + dy * dy < seedMinDistSq) {
-            tooClose = true;
-            break;
-          }
-        }
-        if (tooClose) continue;
-        clusterSeeds.push({ x: sx, y: sy });
-      }
-    }
-    const useClusters = clusterCfg !== undefined && clusterSeeds.length > 0;
-
-    let tries = 0;
-    let placed = 0;
-    while (placed < spec.count && tries < spec.count * 40) {
-      tries++;
-      let x: number;
-      let y: number;
-      if (useClusters && clusterCfg) {
-        const anchor = clusterSeeds[Math.floor(rng() * clusterSeeds.length)];
-        x = Math.max(-halfW, Math.min(halfW, anchor.x + gaussian(rng, clusterCfg.sigma)));
-        y = Math.max(-halfH, Math.min(halfH, anchor.y + gaussian(rng, clusterCfg.sigma)));
-      } else {
-        x = (rng() - 0.5) * MAP_WIDTH;
-        y = (rng() - 0.5) * MAP_HEIGHT;
-      }
-      const rawVariant = Math.floor(rng() * spec.urls.length);
-      const scale = spec.minScale + ((rng() + rng()) / 2) * (spec.maxScale - spec.minScale);
-      const rot = rng() * Math.PI * 2;
-
-      if (isOnLavaSurface(lava, x, y, ROCK_FOOTPRINT * scale)) continue;
-      let blocked = false;
+    const isValid = (x: number, y: number): boolean => {
+      if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
       for (const path of paths) {
         for (let i = 0; i < path.length - 1; i++) {
           if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-            blocked = true;
-            break;
+            return false;
           }
         }
-        if (blocked) break;
       }
-      if (blocked) continue;
       for (const tr of trees) {
         const dx = tr.pos.x - x;
         const dy = tr.pos.y - y;
-        if (dx * dx + dy * dy < treeSpacingSq) {
-          blocked = true;
-          break;
-        }
+        if (dx * dx + dy * dy < treeSpacingSq) return false;
       }
-      if (blocked) continue;
-      for (const r of rocks) {
+      for (const r of earlierRocks) {
         const dx = r.pos.x - x;
         const dy = r.pos.y - y;
-        if (dx * dx + dy * dy < rockSpacingSq) {
-          blocked = true;
-          break;
-        }
+        if (dx * dx + dy * dy < rockSpacingSq) return false;
       }
-      if (blocked) continue;
+      return true;
+    };
 
+    const points = poissonDiskSample({
+      bounds,
+      radiusAt,
+      isValid,
+      maxCount: spec.count,
+      seed: spec.seed * 31 + layerIndex * 7 + 17,
+    });
+
+    const detailRng = mulberry32(spec.seed * 53 + 91);
+    for (const p of points) {
+      const variant = Math.floor(detailRng() * spec.urls.length);
+      const scale =
+        spec.minScale + ((detailRng() + detailRng()) / 2) * (spec.maxScale - spec.minScale);
+      const rot = detailRng() * Math.PI * 2;
       rocks.push({
         id: nextId++,
-        pos: { x, y },
+        pos: { x: p.x, y: p.y },
         layerIndex,
-        variant: rawVariant,
+        variant,
         scale,
         rot,
       });
-      placed++;
     }
   }
   return { rocks, nextId };

@@ -10,10 +10,12 @@ import {
   type LavaFeatures,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
-import { gaussian, mulberry32 } from "../sim/random";
+import { poissonDiskSample } from "../sim/poisson";
+import { mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
 import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
+import { createWorleyField } from "../sim/worley";
 import { useGame } from "../store";
 
 const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
@@ -43,69 +45,20 @@ const defaultFootprint = (url: string): number => {
 const layerFootprint = (spec: BiomeLayer): number =>
   spec.footprint ?? defaultFootprint(spec.urls[0] ?? "");
 
-// Pick K cluster seed points well-clear of paths/blockers/lava so the
-// gaussian halos around each anchor don't dump props into a path or
-// river. Returns whatever seeds it could land — caller falls back to
-// uniform random when none could be placed.
-const pickClusterSeeds = (
-  rng: () => number,
-  paths: Vec2[][],
-  blockers: { x: number; y: number; r: number }[],
-  lava: LavaFeatures | null,
-  clearance: number,
-  count: number,
-): Vec2[] => {
-  const seeds: Vec2[] = [];
-  const pathR2 = (clearance + 0.6) * (clearance + 0.6);
-  const seedMinDistSq = 5.5 * 5.5;
-  let tries = 0;
-  while (seeds.length < count && tries < count * 70) {
-    tries++;
-    const x = (rng() - 0.5) * MAP_WIDTH * 0.85;
-    const y = (rng() - 0.5) * MAP_HEIGHT * 0.85;
-    if (isOnLavaSurface(lava, x, y, 1.0)) continue;
-    let blocked = false;
-    for (const path of paths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
-          blocked = true;
-          break;
-        }
-      }
-      if (blocked) break;
-    }
-    if (blocked) continue;
-    for (const b of blockers) {
-      const dx = b.x - x;
-      const dy = b.y - y;
-      const r = b.r + 1.0;
-      if (dx * dx + dy * dy < r * r) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
-    let tooClose = false;
-    for (const s of seeds) {
-      const dx = s.x - x;
-      const dy = s.y - y;
-      if (dx * dx + dy * dy < seedMinDistSq) {
-        tooClose = true;
-        break;
-      }
-    }
-    if (tooClose) continue;
-    seeds.push({ x, y });
-  }
-  return seeds;
-};
-
-// Build placements for one non-blocking layer. Also takes the running
-// "all-decor" placement list and a blockers list (trees + rocks) so each
-// new placement can spacing-check against everything already placed.
-// Margin between placements is `(footprint*scale)+(other.footprint*other.scale)+SLACK`.
+// Margin between placements on top of summed footprint-radii. Keeps
+// neighbours visually distinct without forcing them to never touch.
 const PROP_SPACING_SLACK = 0.15;
 
+// Sparse-region spacing multiplier — Poisson radius in low-density
+// Worley regions is r_min × this. >1 spreads outliers out.
+const DECOR_MAX_SPACING_MUL = 2.0;
+
+// Build placements for one non-blocking layer using a Worley density
+// field + variable-radius Poisson disk sampling. Density features come
+// from the layer's `cluster` config (seeds → feature count, sigma →
+// feature radius); Poisson packs tight inside features and loose
+// between them. External constraints (paths, lava, blockers, earlier
+// decor) plug into `isValid`.
 const buildLayer = (
   paths: Vec2[][],
   spec: BiomeLayer,
@@ -114,70 +67,71 @@ const buildLayer = (
   lava: LavaFeatures | null,
   layerIndex: number,
 ): Placement[][] => {
-  const rng = mulberry32(spec.seed);
   const buckets: Placement[][] = spec.urls.map(() => []);
   const footprint = layerFootprint(spec);
   const halfW = MAP_WIDTH * 0.475;
   const halfH = MAP_HEIGHT * 0.475;
+  const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
 
-  // Prepare cluster anchors when the layer asks for them. Falls back to
-  // uniform sampling if the seed-finder couldn't place any (e.g. very
-  // dense paths).
-  const clusterCfg = spec.cluster;
-  const seeds = clusterCfg
-    ? pickClusterSeeds(rng, paths, blockers, lava, spec.clearance, clusterCfg.seeds)
-    : [];
-  const useClusters = clusterCfg !== undefined && seeds.length > 0;
+  // Per-layer Worley field. Different layers in the same biome get
+  // different seeds, so a grass-cluster centre and a bush-cluster
+  // centre rarely overlap exactly — the rim reads as varied terrain.
+  const sigma = spec.cluster?.sigma ?? 2.5;
+  const featureRadius = sigma * 2.0;
+  const featureCount = spec.cluster?.seeds ?? 5;
+  const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
 
-  let tries = 0;
-  let placed = 0;
-  const maxTries = spec.count * 60;
-  while (placed < spec.count && tries < maxTries) {
-    tries++;
-    let x: number;
-    let y: number;
-    if (useClusters && clusterCfg) {
-      const seed = seeds[Math.floor(rng() * seeds.length)];
-      x = Math.max(-halfW, Math.min(halfW, seed.x + gaussian(rng, clusterCfg.sigma)));
-      y = Math.max(-halfH, Math.min(halfH, seed.y + gaussian(rng, clusterCfg.sigma)));
-    } else {
-      x = (rng() - 0.5) * MAP_WIDTH;
-      y = (rng() - 0.5) * MAP_HEIGHT;
-    }
+  // Layer min-spacing — derived from footprint × avg scale × 2 (two
+  // halves touching) plus slack. Matches the additive convention the
+  // old rejection loop used between same-layer props.
+  const avgScale = (spec.minScale + spec.maxScale) / 2;
+  const rMin = 2 * footprint * avgScale + PROP_SPACING_SLACK;
+  const rMax = rMin * DECOR_MAX_SPACING_MUL;
+  const radiusAt = (x: number, y: number): number => {
+    const d = worley.density(x, y);
+    return rMin + (1 - d) * (rMax - rMin);
+  };
 
-    if (nearAnyPath(paths, x, y, spec.clearance)) continue;
-    if (isOnLavaSurface(lava, x, y, footprint * spec.maxScale + 0.2)) continue;
+  // Conservative footprints for external checks — use max scale so a
+  // max-scale instance at the candidate position couldn't graze any
+  // blocker either.
+  const candidateR = footprint * spec.maxScale;
+  const lavaFootprint = footprint * spec.maxScale + 0.2;
 
-    const scale = spec.minScale + rng() * (spec.maxScale - spec.minScale);
-    const r = footprint * scale;
-
-    let blocked = false;
+  const isValid = (x: number, y: number): boolean => {
+    if (nearAnyPath(paths, x, y, spec.clearance)) return false;
+    if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
     for (const b of blockers) {
       const dx = b.x - x;
       const dy = b.y - y;
-      const min = r + b.r + PROP_SPACING_SLACK;
-      if (dx * dx + dy * dy < min * min) {
-        blocked = true;
-        break;
-      }
+      const min = candidateR + b.r + PROP_SPACING_SLACK;
+      if (dx * dx + dy * dy < min * min) return false;
     }
-    if (blocked) continue;
     for (const d of decor) {
       const dx = d.x - x;
       const dy = d.y - y;
-      const min = r + d.r + PROP_SPACING_SLACK;
-      if (dx * dx + dy * dy < min * min) {
-        blocked = true;
-        break;
-      }
+      const min = candidateR + d.r + PROP_SPACING_SLACK;
+      if (dx * dx + dy * dy < min * min) return false;
     }
-    if (blocked) continue;
+    return true;
+  };
 
-    const variant = Math.floor(rng() * spec.urls.length);
-    const placement: Placement = { x, y, scale, rot: rng() * Math.PI * 2, r };
+  const points = poissonDiskSample({
+    bounds,
+    radiusAt,
+    isValid,
+    maxCount: spec.count,
+    seed: spec.seed * 31 + layerIndex * 7 + 23,
+  });
+
+  const detailRng = mulberry32(spec.seed * 53 + 91);
+  for (const p of points) {
+    const variant = Math.floor(detailRng() * spec.urls.length);
+    const scale = spec.minScale + detailRng() * (spec.maxScale - spec.minScale);
+    const r = footprint * scale;
+    const placement: Placement = { x: p.x, y: p.y, scale, rot: detailRng() * Math.PI * 2, r };
     buckets[variant].push(placement);
     decor.push({ ...placement, layerIndex });
-    placed++;
   }
   return buckets;
 };

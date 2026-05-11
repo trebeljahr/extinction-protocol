@@ -11,9 +11,11 @@ import {
   TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
-import { gaussian, mulberry32 } from "../sim/random";
+import { poissonDiskSample } from "../sim/poisson";
+import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { TREE_MAX_SCALE, TREE_MIN_SCALE } from "../sim/world";
+import { worleyFieldFromFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
@@ -109,38 +111,29 @@ const sampleBandPoint = (rng: () => number): Vec2 => {
   };
 };
 
-const insideOuter = (pos: Vec2): boolean =>
-  Math.abs(pos.x) <= OUTER_HALF_W && Math.abs(pos.y) <= OUTER_HALF_H;
+const insideInner = (x: number, y: number): boolean =>
+  Math.abs(x) < INNER_HALF_W && Math.abs(y) < INNER_HALF_H;
 
-const insideInner = (pos: Vec2): boolean =>
-  Math.abs(pos.x) < INNER_HALF_W && Math.abs(pos.y) < INNER_HALF_H;
-
-// Pick K cluster seed points in the band with a minimum separation so the
-// gaussian halos around each seed don't pile on top of each other.
-const pickBandSeeds = (rng: () => number, count: number): Vec2[] => {
-  const seeds: Vec2[] = [];
-  const minSepSq = 4 * 4;
-  let tries = 0;
-  while (seeds.length < count && tries < count * 70) {
-    tries++;
-    const candidate = sampleBandPoint(rng);
-    let tooClose = false;
-    for (const s of seeds) {
-      const dx = s.x - candidate.x;
-      const dy = s.y - candidate.y;
-      if (dx * dx + dy * dy < minSepSq) {
-        tooClose = true;
-        break;
-      }
-    }
-    if (!tooClose) seeds.push(candidate);
-  }
-  return seeds;
+// Pick K Worley features in the band so the resulting density field
+// only invests in band area (features in the inner exclusion would
+// waste falloff on the playable rect).
+const pickBandFeatures = (rng: () => number, count: number): Vec2[] => {
+  const features: Vec2[] = [];
+  for (let i = 0; i < count; i++) features.push(sampleBandPoint(rng));
+  return features;
 };
 
-// Mirror one BIOME_LAYER on the band at proportional count using the layer's
-// own cluster config. Spacing-checks against the running `out` list so
-// previously-placed layers don't collide.
+const OUTER_BOUNDS = {
+  minX: -OUTER_HALF_W,
+  maxX: OUTER_HALF_W,
+  minY: -OUTER_HALF_H,
+  maxY: OUTER_HALF_H,
+};
+
+// Mirror one BIOME_LAYER on the band at proportional count using the
+// layer's own cluster config (now Worley-driven). Spacing-checks
+// against the running `out` list so previously-placed layers don't
+// collide.
 const placeLayerInBand = (
   out: Instance[],
   layer: BiomeLayer,
@@ -153,50 +146,58 @@ const placeLayerInBand = (
   const targetCount = Math.round(layer.count * BAND_RATIO);
   if (targetCount === 0) return;
 
-  const rng = mulberry32(layer.seed * 17 + levelId * 4451 + layerIndex * 991);
+  const seedBase = layer.seed * 17 + levelId * 4451 + layerIndex * 991;
+  const featureRng = mulberry32(seedBase);
   const sigma = layer.cluster?.sigma ?? 2.0;
-  const seedCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
-  const seeds = pickBandSeeds(rng, seedCount);
-  if (seeds.length === 0) seeds.push(sampleBandPoint(rng));
+  const featureRadius = sigma * 2.0;
+  const featureCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
+  const worley = worleyFieldFromFeatures(pickBandFeatures(featureRng, featureCount), featureRadius);
 
-  const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
-  let placed = 0;
-  let attempts = 0;
-  while (placed < targetCount && attempts < targetCount * 25) {
-    attempts++;
-    const seed = seeds[Math.floor(rng() * seeds.length)];
-    const px = seed.x + gaussian(rng, sigma);
-    const py = seed.y + gaussian(rng, sigma);
-    const pos: Vec2 = { x: px, y: py };
-    if (!insideOuter(pos) || insideInner(pos)) continue;
+  const rMin = PROP_MIN_SPACING;
+  const rMax = PROP_MIN_SPACING * 2.0;
+  const radiusAt = (x: number, y: number): number => {
+    const d = worley.density(x, y);
+    return rMin + (1 - d) * (rMax - rMin);
+  };
 
-    let blocked = false;
+  const isValid = (x: number, y: number): boolean => {
+    if (insideInner(x, y)) return false;
+    // Earlier-layer items are blockers — keep cross-layer min spacing.
     for (const o of out) {
-      const dx = o.pos.x - px;
-      const dy = o.pos.y - py;
-      if (dx * dx + dy * dy < spacingSq) {
-        blocked = true;
-        break;
-      }
+      const dx = o.pos.x - x;
+      const dy = o.pos.y - y;
+      if (dx * dx + dy * dy < rMin * rMin) return false;
     }
-    if (blocked) continue;
+    return true;
+  };
 
-    const url = layer.urls[Math.floor(rng() * layer.urls.length)];
+  const points = poissonDiskSample({
+    bounds: OUTER_BOUNDS,
+    radiusAt,
+    isValid,
+    maxCount: targetCount,
+    seed: seedBase + 7,
+  });
+
+  const detailRng = mulberry32(seedBase + 13);
+  for (const p of points) {
+    const url = layer.urls[Math.floor(detailRng() * layer.urls.length)];
     out.push({
       url,
-      pos,
-      scale: layerScale(rng, layer),
-      rotY: rng() * Math.PI * 2,
+      pos: { x: p.x, y: p.y },
+      scale: layerScale(detailRng, layer),
+      rotY: detailRng() * Math.PI * 2,
     });
-    placed++;
   }
 };
 
-// Place uniform scatter for things that don't have a BIOME_LAYERS entry —
-// trees (BIOME_TREE_URLS) and cosmetics (BIOME_COSMETICS).
+// Place uniform Poisson scatter for things that don't have a
+// BIOME_LAYERS entry — trees (BIOME_TREE_URLS) and cosmetics
+// (BIOME_COSMETICS). No Worley modulation, just a flat density at the
+// given min-spacing.
 const placeUniformInBand = (
   out: Instance[],
-  rng: () => number,
+  seed: number,
   pool: string[],
   count: number,
   scaleFn: (rng: () => number) => number,
@@ -204,33 +205,34 @@ const placeUniformInBand = (
 ): void => {
   if (count === 0 || pool.length === 0) return;
   const minSep = PROP_MIN_SPACING * spacingMult;
-  const minSepSq = minSep * minSep;
-  let placed = 0;
-  let attempts = 0;
-  while (placed < count && attempts < count * 25) {
-    attempts++;
-    const pos = sampleBandPoint(rng);
-    if (!insideOuter(pos) || insideInner(pos)) continue;
 
-    let blocked = false;
+  const isValid = (x: number, y: number): boolean => {
+    if (insideInner(x, y)) return false;
     for (const o of out) {
-      const dx = o.pos.x - pos.x;
-      const dy = o.pos.y - pos.y;
-      if (dx * dx + dy * dy < minSepSq) {
-        blocked = true;
-        break;
-      }
+      const dx = o.pos.x - x;
+      const dy = o.pos.y - y;
+      if (dx * dx + dy * dy < minSep * minSep) return false;
     }
-    if (blocked) continue;
+    return true;
+  };
 
-    const url = pool[Math.floor(rng() * pool.length)];
+  const points = poissonDiskSample({
+    bounds: OUTER_BOUNDS,
+    radiusAt: () => minSep,
+    isValid,
+    maxCount: count,
+    seed,
+  });
+
+  const detailRng = mulberry32(seed + 31);
+  for (const p of points) {
+    const url = pool[Math.floor(detailRng() * pool.length)];
     out.push({
       url,
-      pos,
-      scale: scaleFn(rng),
-      rotY: rng() * Math.PI * 2,
+      pos: { x: p.x, y: p.y },
+      scale: scaleFn(detailRng),
+      rotY: detailRng() * Math.PI * 2,
     });
-    placed++;
   }
 };
 
@@ -249,18 +251,23 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   //    clickable trees; the rim adds proportional non-blocking silhouettes.
   const trees = BIOME_TREE_URLS[biome];
   if (trees.length > 0) {
-    const rng = mulberry32(levelId * 9281 + 137);
-    placeUniformInBand(out, rng, trees, Math.round(INNER_TREE_COUNT * BAND_RATIO), treeScale, 3);
+    placeUniformInBand(
+      out,
+      levelId * 9281 + 137,
+      trees,
+      Math.round(INNER_TREE_COUNT * BAND_RATIO),
+      treeScale,
+      3,
+    );
   }
 
   // 3) Cosmetics (forest BushFlowers etc.) rendered separately on the
   //    inner via BiomeCosmetics.tsx; mirror at proportional count.
   const cosmetics = BIOME_COSMETICS[biome];
   if (cosmetics.length > 0) {
-    const rng = mulberry32(levelId * 5113 + 313);
     placeUniformInBand(
       out,
-      rng,
+      levelId * 5113 + 313,
       cosmetics,
       Math.round(INNER_COSMETIC_COUNT * BAND_RATIO),
       cosmeticScale,
