@@ -19,6 +19,7 @@ yarn.lock
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+.tsbuild/
 
 # Tauri
 src-tauri/target
