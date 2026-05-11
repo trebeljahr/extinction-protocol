@@ -704,17 +704,18 @@ export const BOSS_VARIANT_MODEL: Record<
   apex: { url: "/models/Apatosaurus.glb", targetSize: 18.0, clip: "Walk" },
 };
 
-// Per-variant elite-tint colour. Reused by the body-tint pass when the
-// matriarch is also flagged elite (rare — boss waves don't typically
-// stack the chip, but the renderer falls back to this for visual
-// distinction across variants).
+// Per-variant body tint. Applied permanently to matriarch meshes (not
+// gated by the elite chip the way species tints are) so each queen
+// reads as her own creature at first glance. Hues are chosen to fit
+// the biome AND stay visually distinct from each other — pairs within
+// ~30° on the wheel read as muddy under the biome's ambient lighting.
 export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
-  raptor: "#ff3a30",
-  stego: "#3affb0",
-  para: "#a25aff",
-  allosaur: "#ffb030",
-  armored: "#5ad6ff",
-  apex: "#ff2a55",
+  raptor: "#ff5a30", // forest — hunter-blood orange-red
+  stego: "#3affb0", // snow — jade plates with cold sheen
+  para: "#a25aff", // desert — twilight violet on the crest
+  allosaur: "#ffb030", // wasteland — apex-predator gold
+  armored: "#5ad6ff", // lava — chrome-cyan chitin (cool contrast)
+  apex: "#d440ff", // alien — bioluminescent magenta
 };
 
 // Child-spawn config — every variant except apex drops a steady drip of

@@ -19,6 +19,7 @@ import {
   isLevelUnlocked,
   loadSlot,
   markEncountered,
+  markMatriarchsEncountered,
   minDifficulty,
   recordLevelResult,
   saveSlot,
@@ -37,6 +38,7 @@ import {
 } from "./sim/spawner";
 import { autoAssignDroneToNewTower, countDronesOnTower } from "./sim/towers";
 import type {
+  BossVariant,
   DamageType,
   EnemyKind,
   GameEvent,
@@ -655,7 +657,11 @@ export const useGame = create<GameStore>((set, get) => ({
     // Track encountered enemy kinds — and announce any first sighting.
     if (s.world.enemies.length > 0) {
       const kinds = new Set<EnemyKind>();
-      for (const e of s.world.enemies) kinds.add(e.kind);
+      const variants = new Set<BossVariant>();
+      for (const e of s.world.enemies) {
+        kinds.add(e.kind);
+        if (e.bossVariant !== undefined) variants.add(e.bossVariant);
+      }
       const kindList = Array.from(kinds);
       const newlySeen = kindList.filter((k) => !progress.encountered[k]);
       const nextProgress = markEncountered(progress, kindList);
@@ -671,6 +677,13 @@ export const useGame = create<GameStore>((set, get) => ({
           autoPaused = true;
         }
         runChecks(null);
+      }
+      // Boss-variant encounter tracking. Matriarch unlocks are silent (no
+      // pause popup) — the boss-wave banner already announces the wave,
+      // and stacking another modal on top buried the matriarch's arrival.
+      if (variants.size > 0) {
+        const variantProgress = markMatriarchsEncountered(progress, Array.from(variants));
+        if (variantProgress) progress = variantProgress;
       }
     }
 

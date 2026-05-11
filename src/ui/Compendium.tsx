@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { audio } from "../audio/AudioManager";
-import { hasEncountered } from "../progress";
-import { ENEMY_DESCRIPTION, ENEMY_SUBTITLE } from "../sim/enemyText";
+import { hasEncountered, hasMatriarchEncountered } from "../progress";
+import {
+  ENEMY_DESCRIPTION,
+  ENEMY_SUBTITLE,
+  MATRIARCH_DESCRIPTION,
+  MATRIARCH_SUBTITLE,
+} from "../sim/enemyText";
 import {
   MECHANIC_DESCRIPTION,
   MECHANIC_LABEL,
@@ -16,9 +21,13 @@ import {
   TOWER_MATCHUPS,
   TOWER_SUBTITLE,
 } from "../sim/towerText";
-import type { DamageType, EnemyKind, TowerKind } from "../sim/types";
+import type { BossVariant, DamageType, EnemyKind, TowerKind } from "../sim/types";
 import { UPGRADES } from "../sim/upgrades";
 import {
+  BOSS_VARIANT_LABEL,
+  BOSS_VARIANT_RESIST,
+  BOSS_VARIANT_SLOW_RESIST,
+  BOSS_VARIANT_STATS,
   DAMAGE_TYPE_COLOR,
   DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
@@ -42,7 +51,13 @@ import { TowerPreview } from "./TowerPreview";
 
 type Section = "enemy" | "tower" | "mechanic";
 
-const ENEMY_ORDER: EnemyKind[] = [
+// Compendium enemy entries — either a base species or a biome-themed
+// matriarch variant. The list is rendered in one row so the player
+// reads the dossier as a single bestiary, but stats/labels dispatch on
+// `kind` since the variant data lives in BOSS_VARIANT_* tables.
+type EnemyEntry = { kind: "species"; id: EnemyKind } | { kind: "matriarch"; variant: BossVariant };
+
+const ENEMY_SPECIES_ORDER: EnemyKind[] = [
   "raptor",
   "swarm",
   "para",
@@ -50,8 +65,31 @@ const ENEMY_ORDER: EnemyKind[] = [
   "stego",
   "armored",
   "titan",
-  "boss",
 ];
+
+// Matriarchs are ordered by the wave they first appear on so the
+// compendium reads in the same order the player encounters them.
+const MATRIARCH_ORDER: BossVariant[] = ["raptor", "stego", "para", "allosaur", "armored", "apex"];
+
+const ENEMY_ENTRIES: EnemyEntry[] = [
+  ...ENEMY_SPECIES_ORDER.map<EnemyEntry>((id) => ({ kind: "species", id })),
+  ...MATRIARCH_ORDER.map<EnemyEntry>((variant) => ({ kind: "matriarch", variant })),
+];
+
+const entryKey = (e: EnemyEntry): string =>
+  e.kind === "species" ? `species:${e.id}` : `matriarch:${e.variant}`;
+
+const entrySeen = (e: EnemyEntry, p: ReturnType<typeof useGame.getState>["progress"]): boolean =>
+  e.kind === "species" ? hasEncountered(p, e.id) : hasMatriarchEncountered(p, e.variant);
+
+const entryLabel = (e: EnemyEntry): string =>
+  e.kind === "species" ? ENEMY_LABEL[e.id] : BOSS_VARIANT_LABEL[e.variant];
+
+const entrySubtitle = (e: EnemyEntry): string =>
+  e.kind === "species" ? ENEMY_SUBTITLE[e.id] : MATRIARCH_SUBTITLE[e.variant];
+
+const entryDescription = (e: EnemyEntry): string =>
+  e.kind === "species" ? ENEMY_DESCRIPTION[e.id] : MATRIARCH_DESCRIPTION[e.variant];
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
@@ -69,10 +107,10 @@ export const Compendium = () => {
   const [section, setSection] = useState<Section>("enemy");
 
   const firstEncountered = useMemo(
-    () => ENEMY_ORDER.find((k) => hasEncountered(progress, k)) ?? ENEMY_ORDER[0],
+    () => ENEMY_ENTRIES.find((e) => entrySeen(e, progress)) ?? ENEMY_ENTRIES[0],
     [progress],
   );
-  const [selectedEnemy, setSelectedEnemy] = useState<EnemyKind>(firstEncountered);
+  const [selectedEnemy, setSelectedEnemy] = useState<EnemyEntry>(firstEncountered);
   const [selectedTower, setSelectedTower] = useState<TowerKind>(TOWER_ORDER[0]);
   const [selectedMech, setSelectedMech] = useState<MechanicId>(MECHANIC_ORDER[0]);
 
@@ -92,11 +130,11 @@ export const Compendium = () => {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [setCompendiumOpen]);
 
-  const encounteredCount = ENEMY_ORDER.filter((k) => hasEncountered(progress, k)).length;
+  const encounteredCount = ENEMY_ENTRIES.filter((e) => entrySeen(e, progress)).length;
 
   const subtitle =
     section === "enemy"
-      ? `${encounteredCount} / ${ENEMY_ORDER.length} species catalogued`
+      ? `${encounteredCount} / ${ENEMY_ENTRIES.length} species catalogued`
       : section === "tower"
         ? `${TOWER_ORDER.length} towers · ${DAMAGE_TYPES.length} damage types`
         : `${MECHANIC_ORDER.length} mechanics`;
@@ -157,34 +195,41 @@ const EnemySectionView = ({
   setSelected,
   progress,
 }: {
-  selected: EnemyKind;
-  setSelected: (k: EnemyKind) => void;
+  selected: EnemyEntry;
+  setSelected: (e: EnemyEntry) => void;
   progress: ReturnType<typeof useGame.getState>["progress"];
 }) => {
-  const selectedSeen = hasEncountered(progress, selected);
+  const selectedSeen = entrySeen(selected, progress);
+  const selectedKey = entryKey(selected);
   return (
     <>
       <div className="compendium-selector">
-        {ENEMY_ORDER.map((kind) => {
-          const seen = hasEncountered(progress, kind);
+        {ENEMY_ENTRIES.map((entry) => {
+          const seen = entrySeen(entry, progress);
+          const key = entryKey(entry);
+          const isMatriarch = entry.kind === "matriarch";
           return (
             <button
               type="button"
-              key={kind}
-              className={`compendium-tab ${selected === kind ? "active" : ""} ${seen ? "" : "locked"}`}
+              key={key}
+              className={`compendium-tab ${selectedKey === key ? "active" : ""} ${seen ? "" : "locked"} ${isMatriarch ? "matriarch" : ""}`}
               data-ui-sound="tab"
-              onClick={() => setSelected(kind)}
+              onClick={() => setSelected(entry)}
               disabled={!seen}
-              title={seen ? ENEMY_LABEL[kind] : "Not yet encountered"}
+              title={seen ? entryLabel(entry) : "Not yet encountered"}
             >
               <span className="compendium-tab-icon" aria-hidden>
                 {seen ? (
-                  <EnemyIcon kind={kind} />
+                  entry.kind === "species" ? (
+                    <EnemyIcon kind={entry.id} />
+                  ) : (
+                    <EnemyIcon kind="boss" bossVariant={entry.variant} />
+                  )
                 ) : (
                   <span className="compendium-tab-locked-glyph">?</span>
                 )}
               </span>
-              <span className="compendium-tab-name">{seen ? ENEMY_LABEL[kind] : "???"}</span>
+              <span className="compendium-tab-name">{seen ? entryLabel(entry) : "???"}</span>
             </button>
           );
         })}
@@ -193,7 +238,11 @@ const EnemySectionView = ({
       <div className="compendium-detail">
         <div className="compendium-detail-preview">
           {selectedSeen ? (
-            <EnemyPreview kind={selected} size={360} />
+            selected.kind === "species" ? (
+              <EnemyPreview kind={selected.id} size={360} />
+            ) : (
+              <EnemyPreview kind="boss" bossVariant={selected.variant} size={360} />
+            )
           ) : (
             <div className="compendium-detail-locked">?</div>
           )}
@@ -202,12 +251,12 @@ const EnemySectionView = ({
           {selectedSeen ? (
             <>
               <div className="compendium-detail-head">
-                <div className="compendium-detail-name">{ENEMY_LABEL[selected]}</div>
-                <div className="compendium-detail-subtitle">{ENEMY_SUBTITLE[selected]}</div>
+                <div className="compendium-detail-name">{entryLabel(selected)}</div>
+                <div className="compendium-detail-subtitle">{entrySubtitle(selected)}</div>
               </div>
-              <p className="compendium-detail-desc">{ENEMY_DESCRIPTION[selected]}</p>
-              <EnemyStatRow kind={selected} />
-              <EnemyResistRow kind={selected} />
+              <p className="compendium-detail-desc">{entryDescription(selected)}</p>
+              <EnemyStatRow entry={selected} />
+              <EnemyResistRow entry={selected} />
             </>
           ) : (
             <div className="compendium-detail-locked-text">
@@ -223,8 +272,17 @@ const EnemySectionView = ({
   );
 };
 
-const EnemyStatRow = ({ kind }: { kind: EnemyKind }) => {
-  const s = ENEMY_STATS[kind];
+const statsFor = (entry: EnemyEntry) =>
+  entry.kind === "species" ? ENEMY_STATS[entry.id] : BOSS_VARIANT_STATS[entry.variant];
+
+const resistFor = (entry: EnemyEntry, dt: DamageType) =>
+  entry.kind === "species" ? ENEMY_RESIST[entry.id][dt] : BOSS_VARIANT_RESIST[entry.variant][dt];
+
+const slowResistFor = (entry: EnemyEntry) =>
+  entry.kind === "species" ? ENEMY_SLOW_RESIST[entry.id] : BOSS_VARIANT_SLOW_RESIST[entry.variant];
+
+const EnemyStatRow = ({ entry }: { entry: EnemyEntry }) => {
+  const s = statsFor(entry);
   return (
     <dl className="compendium-stats">
       <div>
@@ -247,14 +305,14 @@ const EnemyStatRow = ({ kind }: { kind: EnemyKind }) => {
   );
 };
 
-const EnemyResistRow = ({ kind }: { kind: EnemyKind }) => {
-  const slowResist = ENEMY_SLOW_RESIST[kind];
+const EnemyResistRow = ({ entry }: { entry: EnemyEntry }) => {
+  const slowResist = slowResistFor(entry);
   return (
     <div className="compendium-resist">
       <div className="compendium-resist-label">vs. damage</div>
       <div className="compendium-resist-chips">
         {DAMAGE_TYPES.map((dt) => {
-          const mul = ENEMY_RESIST[kind][dt];
+          const mul = resistFor(entry, dt);
           const pct = Math.round((mul - 1) * 100);
           const tone = pct > 0 ? "weak" : pct < 0 ? "resist" : "neutral";
           return (

@@ -1,6 +1,11 @@
-import type { EnemyKind } from "../sim/types";
-import { ENEMY_MODEL } from "../sim/world";
+import type { BossVariant, EnemyKind } from "../sim/types";
+import { BOSS_VARIANT_MODEL, BOSS_VARIANT_TINT, ENEMY_MODEL } from "../sim/world";
 import { type BakeSpec, useBakedIcon } from "./bakedIcon";
+
+// Match the in-game tint amounts so the compendium icon is recognisable
+// as the same queen the player just fought.
+const ICON_MATRIARCH_TINT_AMOUNT = 0.78;
+const ICON_MATRIARCH_EMISSIVE_AMOUNT = 0.5;
 
 // Per-kind side-view framing. The shared baker normalizes every model
 // to a 1×1×1 box, so these numbers all live in the same coordinate
@@ -46,17 +51,36 @@ const SWARM_FLOCK: NonNullable<BakeSpec["instances"]> = [
   { scale: 0.4, offset: [-0.45, 0, 0.0], rotY: 0.22 },
 ];
 
-const specFor = (kind: EnemyKind): BakeSpec => {
-  const t = ICON_TUNING[kind];
+// Per-variant species → tuning key. Matriarch variants reuse their
+// base species's icon framing (same model, different scale/tint) so
+// we don't need a duplicate tuning table.
+const BOSS_VARIANT_BASE_KIND: Record<BossVariant, EnemyKind> = {
+  raptor: "raptor",
+  stego: "stego",
+  para: "para",
+  allosaur: "allosaur",
+  armored: "armored",
+  apex: "boss",
+};
+
+const specFor = (kind: EnemyKind, bossVariant?: BossVariant): BakeSpec => {
+  const isMatriarch = kind === "boss" && bossVariant !== undefined;
+  const tuningKey = isMatriarch ? BOSS_VARIANT_BASE_KIND[bossVariant] : kind;
+  const t = ICON_TUNING[tuningKey];
   const instances = kind === "swarm" ? SWARM_FLOCK : undefined;
   // Framing baked into the cache key so dev-time tuning re-bakes
   // instead of serving the stale PNG. Instance signature is folded in
-  // so swarm-layout edits invalidate the cache too.
+  // so swarm-layout edits invalidate the cache too. Variant tint is
+  // folded in so each matriarch gets her own cache entry.
   const framingTag = `${t.camDist}-${t.camY}-${t.targetY}`;
   const instTag = instances ? `i${instances.length}-${instances[0].scale}` : "i1";
+  const cacheKey = isMatriarch
+    ? `matriarch:${bossVariant}:${framingTag}:${instTag}`
+    : `enemy:${kind}:${framingTag}:${instTag}`;
+  const modelUrl = isMatriarch ? BOSS_VARIANT_MODEL[bossVariant].url : ENEMY_MODEL[kind].url;
   return {
-    cacheKey: `enemy:${kind}:${framingTag}:${instTag}`,
-    modelUrl: ENEMY_MODEL[kind].url,
+    cacheKey,
+    modelUrl,
     skinned: true,
     rotY: t.rotY,
     instances,
@@ -66,17 +90,27 @@ const specFor = (kind: EnemyKind): BakeSpec => {
       target: [0, t.targetY, 0],
       fov: 30,
     },
+    ...(isMatriarch
+      ? {
+          tint: {
+            color: BOSS_VARIANT_TINT[bossVariant],
+            amount: ICON_MATRIARCH_TINT_AMOUNT,
+            emissive: ICON_MATRIARCH_EMISSIVE_AMOUNT,
+          },
+        }
+      : {}),
   };
 };
 
 type Props = {
   kind: EnemyKind;
+  bossVariant?: BossVariant;
   className?: string;
   size?: number;
 };
 
-export const EnemyIcon = ({ kind, className, size }: Props) => {
-  const url = useBakedIcon(specFor(kind));
+export const EnemyIcon = ({ kind, bossVariant, className, size }: Props) => {
+  const url = useBakedIcon(specFor(kind, bossVariant));
   const style: React.CSSProperties =
     size !== undefined ? { width: size, height: size } : { width: "100%", height: "100%" };
   if (!url) {

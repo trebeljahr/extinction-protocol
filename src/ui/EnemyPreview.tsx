@@ -4,19 +4,28 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { measureVisibleBox } from "../render/measureModel";
-import type { EnemyKind } from "../sim/types";
-import { ENEMY_MODEL } from "../sim/world";
+import type { BossVariant, EnemyKind } from "../sim/types";
+import { BOSS_VARIANT_MODEL, BOSS_VARIANT_TINT, ENEMY_MODEL } from "../sim/world";
 
 type Props = {
   kind: EnemyKind;
+  // Optional — when set, the preview renders the matriarch variant
+  // (different model + permanent tint). Ignored for non-boss kinds.
+  bossVariant?: BossVariant;
   size?: number;
 };
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
-const Creature = ({ kind }: { kind: EnemyKind }) => {
-  const cfg = ENEMY_MODEL[kind];
+// Matches the in-game ModelEnemyMesh tint amount so the compendium
+// preview reads as the same queen the player just fought.
+const MATRIARCH_PREVIEW_TINT_AMOUNT = 0.78;
+const MATRIARCH_PREVIEW_EMISSIVE_AMOUNT = 0.55;
+
+const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVariant }) => {
+  const isMatriarch = kind === "boss" && bossVariant !== undefined;
+  const cfg = isMatriarch ? BOSS_VARIANT_MODEL[bossVariant] : ENEMY_MODEL[kind];
   const gltf = useGLTF(cfg.url);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
@@ -29,6 +38,10 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
     const s = cfg.targetSize / maxDim;
     cloned.scale.setScalar(s);
     cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+    const tint =
+      isMatriarch && bossVariant !== undefined
+        ? new THREE.Color(BOSS_VARIANT_TINT[bossVariant])
+        : null;
     cloned.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -39,14 +52,24 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
       // flat-white because the material was first compiled against the
       // main PlayScene renderer and shared state gets stale when we
       // use the same material in this separate Canvas.
+      const tintMat = (mm: THREE.Material) => {
+        const cloned = mm.clone();
+        if (tint) {
+          const std = cloned as THREE.MeshStandardMaterial;
+          if (std.color) std.color.lerp(tint, MATRIARCH_PREVIEW_TINT_AMOUNT);
+          if (std.emissive)
+            std.emissive.copy(tint).multiplyScalar(MATRIARCH_PREVIEW_EMISSIVE_AMOUNT);
+        }
+        return cloned;
+      };
       if (Array.isArray(m.material)) {
-        m.material = m.material.map((mm) => mm.clone());
+        m.material = m.material.map(tintMat);
       } else if (m.material) {
-        m.material = (m.material as THREE.Material).clone();
+        m.material = tintMat(m.material as THREE.Material);
       }
     });
     return cloned;
-  }, [gltf.scene, cfg.targetSize]);
+  }, [gltf.scene, cfg.targetSize, isMatriarch, bossVariant]);
 
   useEffect(() => {
     const mx = new THREE.AnimationMixer(obj);
@@ -71,8 +94,13 @@ const Creature = ({ kind }: { kind: EnemyKind }) => {
   return <primitive object={obj} />;
 };
 
-export const EnemyPreview = ({ kind, size = 360 }: Props) => {
-  const span = ENEMY_MODEL[kind].targetSize + 0.4;
+export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
+  const isMatriarch = kind === "boss" && bossVariant !== undefined;
+  // Matriarch variants are typically much larger than their base species
+  // — span has to scale from the variant model, not the species default,
+  // or the camera framing crops the queen's silhouette.
+  const span =
+    (isMatriarch ? BOSS_VARIANT_MODEL[bossVariant].targetSize : ENEMY_MODEL[kind].targetSize) + 0.4;
   const target: [number, number, number] = [0, span * 0.35, 0];
   return (
     <div className="enemy-preview" style={{ width: size, height: size }}>
@@ -121,7 +149,7 @@ export const EnemyPreview = ({ kind, size = 360 }: Props) => {
         </mesh>
 
         <Suspense fallback={null}>
-          <Creature kind={kind} />
+          <Creature kind={kind} bossVariant={bossVariant} />
         </Suspense>
 
         <OrbitControls

@@ -1,4 +1,4 @@
-import type { EnemyKind } from "./sim/types";
+import type { BossVariant, EnemyKind } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
 export type SlotId = 1 | 2 | 3;
@@ -67,6 +67,11 @@ export type ProgressData = {
   version: 1;
   starsByLevel: Record<number, Stars>;
   encountered: Partial<Record<EnemyKind, boolean>>;
+  // Per-variant matriarch encounter set. The Compendium's matriarch
+  // entries unlock as the player first sees each biome's queen. Legacy
+  // saves with `encountered.boss === true` get auto-migrated to mark
+  // all six variants as encountered (see normalizeProgress below).
+  matriarchsEncountered: Partial<Record<BossVariant, boolean>>;
   stats: ProgressStats;
   unlocked: Record<string, number>;
   difficulty: Difficulty;
@@ -100,6 +105,7 @@ export const emptyProgress = (): ProgressData => ({
   version: 1,
   starsByLevel: {},
   encountered: {},
+  matriarchsEncountered: {},
   stats: emptyStats(),
   unlocked: {},
   difficulty: DEFAULT_DIFFICULTY,
@@ -119,13 +125,24 @@ const isProgressLike = (parsed: unknown): parsed is Partial<ProgressData> =>
 
 const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
   const stats = raw.stats as Partial<ProgressStats> | undefined;
+  const encountered = (raw.encountered as Partial<Record<EnemyKind, boolean>>) ?? {};
+  // Legacy migration: pre-variant saves only know `encountered.boss`.
+  // Any save with the apex boss seen has, by definition, also cleared
+  // L5–L30, so all six variants count as encountered. New saves track
+  // each variant individually via the store's per-tick mark below.
+  const rawMatriarchs = (raw.matriarchsEncountered as Partial<Record<BossVariant, boolean>>) ?? {};
+  const matriarchsEncountered: Partial<Record<BossVariant, boolean>> =
+    Object.keys(rawMatriarchs).length === 0 && encountered.boss === true
+      ? { raptor: true, stego: true, para: true, allosaur: true, armored: true, apex: true }
+      : rawMatriarchs;
   return {
     version: 1,
     starsByLevel:
       raw.starsByLevel && typeof raw.starsByLevel === "object"
         ? (raw.starsByLevel as Record<number, Stars>)
         : {},
-    encountered: (raw.encountered as Partial<Record<EnemyKind, boolean>>) ?? {},
+    encountered,
+    matriarchsEncountered,
     stats: {
       killsTotal: typeof stats?.killsTotal === "number" ? stats.killsTotal : 0,
       winsTotal: typeof stats?.winsTotal === "number" ? stats.winsTotal : 0,
@@ -307,6 +324,27 @@ export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressDa
 
 export const hasEncountered = (p: ProgressData, kind: EnemyKind): boolean =>
   p.encountered[kind] === true;
+
+// Sibling of markEncountered for boss variants. Returns null when every
+// requested variant was already in the set so the store's per-tick
+// merge can short-circuit without rebuilding ProgressData on the hot
+// path.
+export const markMatriarchsEncountered = (
+  p: ProgressData,
+  variants: BossVariant[],
+): ProgressData | null => {
+  const missing = variants.filter((v) => !p.matriarchsEncountered[v]);
+  if (missing.length === 0) return null;
+  const next: ProgressData = {
+    ...p,
+    matriarchsEncountered: { ...p.matriarchsEncountered },
+  };
+  for (const v of missing) next.matriarchsEncountered[v] = true;
+  return next;
+};
+
+export const hasMatriarchEncountered = (p: ProgressData, variant: BossVariant): boolean =>
+  p.matriarchsEncountered[variant] === true;
 
 export const setDifficulty = (p: ProgressData, difficulty: Difficulty): ProgressData =>
   p.difficulty === difficulty ? p : { ...p, difficulty };

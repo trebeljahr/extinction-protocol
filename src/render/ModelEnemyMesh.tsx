@@ -34,6 +34,14 @@ const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
 // authoring + UI can share them.
 const ELITE_TINT_AMOUNT = 0.55;
 const ELITE_EMISSIVE_AMOUNT = 0.35;
+// Matriarchs wear their variant tint permanently — they're a distinct
+// species per biome, not "the same dino with a chip." Bumped notably
+// past elite so the silhouette reads as a queen at a glance: a snow
+// matriarch should look jade-green, an armored matriarch chrome-blue,
+// etc. Emissive is also higher so the metallic sheen carries through
+// the biome's ambient lighting.
+const MATRIARCH_TINT_AMOUNT = 0.78;
+const MATRIARCH_EMISSIVE_AMOUNT = 0.55;
 
 const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
   const c = mat.clone();
@@ -299,6 +307,10 @@ export const ModelEnemyMesh = ({
       const flashing = world.time < e.flashUntil;
       const frost = e.frost;
       const elite = e.elite;
+      // Matriarchs always wear their variant tint — they're a distinct
+      // queen, not a chip-stacked rank-and-file. Captured here once per
+      // enemy so the inner traverse callback is a cheap branch.
+      const matriarch = bossVariant !== undefined;
       item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -312,6 +324,7 @@ export const ModelEnemyMesh = ({
           const base = mm.userData.baseColor as THREE.Color | undefined;
           if (base && mm.color) {
             if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
+            else if (matriarch) mm.color.copy(base).lerp(eliteTint, MATRIARCH_TINT_AMOUNT);
             else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
             else mm.color.copy(base);
           }
@@ -325,6 +338,10 @@ export const ModelEnemyMesh = ({
             // Cool inner glow when heavily frosted — sells the "frozen
             // solid" read at high frost without a halo at low frost.
             mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
+          } else if (matriarch) {
+            // Strong inner glow in the variant tint — sells the matriarch
+            // as a regal/charged silhouette at any biome lighting.
+            mm.emissive.copy(eliteTint).multiplyScalar(MATRIARCH_EMISSIVE_AMOUNT);
           } else if (elite) {
             // Inner rim glow in the kind's elite color — sells the
             // tint as a metallic / energized look rather than a dye job.

@@ -90,6 +90,17 @@ export type BakeSpec = {
     rotY?: number;
     scale?: number;
   }>;
+  /**
+   * Optional permanent body tint applied before rendering. Materials are
+   * cloned so this doesn't leak into other bakes. `amount` is a 0..1 lerp
+   * from the base colour toward `color`, mirroring the in-game matriarch
+   * tint pass. Emissive sets a rim glow in the same colour.
+   */
+  tint?: {
+    color: string;
+    amount: number;
+    emissive: number;
+  };
 };
 
 const defaultLights = (scene: THREE.Scene) => {
@@ -125,11 +136,30 @@ const renderSpec = async (spec: BakeSpec): Promise<string> => {
     cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
     // Drop shadows for the static bake; the depth pre-pass costs more
     // than it pays back at icon resolution.
+    const tintColor = spec.tint ? new THREE.Color(spec.tint.color) : null;
     cloned.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
         m.castShadow = false;
         m.receiveShadow = false;
+        // Matriarch icons get a permanent body tint so the compendium
+        // tab thumbnail distinguishes the queen from her base species.
+        // Materials are cloned so the tint doesn't leak across bakes
+        // that share the same source GLB.
+        if (tintColor && spec.tint && m.material) {
+          const tintMat = (mm: THREE.Material) => {
+            const c = mm.clone();
+            const std = c as THREE.MeshStandardMaterial;
+            if (std.color) std.color.lerp(tintColor, spec.tint!.amount);
+            if (std.emissive) std.emissive.copy(tintColor).multiplyScalar(spec.tint!.emissive);
+            return c;
+          };
+          if (Array.isArray(m.material)) {
+            m.material = m.material.map(tintMat);
+          } else {
+            m.material = tintMat(m.material as THREE.Material);
+          }
+        }
       }
     });
 
