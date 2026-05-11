@@ -62,10 +62,8 @@ const migrateFromV1 = (raw: string): AudioPrefs | null => {
   }
 };
 
-// Force-mute in Claude Code's preview browser — its UA contains
-// "Claude/" — so dev previews don't randomly start playing sound at
-// whoever's nearby. Persisted prefs aren't modified; this only
-// overrides the loaded value at runtime.
+// Force-mute in Claude Code's preview browser (UA contains "Claude/")
+// so dev previews don't blast sound at whoever's nearby.
 const isClaudePreview = (): boolean => {
   try {
     return /Claude\//.test(navigator.userAgent);
@@ -74,7 +72,17 @@ const isClaudePreview = (): boolean => {
   }
 };
 
+// SoundControls and useAudioBridge both call loadAudioPrefs in mount
+// effects, so the function runs again every time the menu is reopened
+// or a new level starts. After the first call we treat the live
+// audio-manager state as the source of truth — otherwise a subsequent
+// remount would re-apply localStorage (or DEFAULTS, when nothing is
+// saved yet) and silently undo the user's manual mute toggle.
+let prefsLoaded = false;
+
 export const loadAudioPrefs = (): AudioPrefs => {
+  if (prefsLoaded) return readAudioPrefs();
+  prefsLoaded = true;
   const muteOverride = isClaudePreview();
   try {
     const v2 = localStorage.getItem(STORAGE_KEY_V2);
