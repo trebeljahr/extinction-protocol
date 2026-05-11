@@ -3,11 +3,13 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
+  BIOME_COSMETICS,
   BIOME_LAYERS,
   BIOME_TREE_URLS,
   type Biome,
   type BiomeLayer,
   classifyPropUrl,
+  TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
@@ -32,14 +34,25 @@ const OUTER_HALF_H = MAP_HEIGHT / 2 + 9; // 21 from center
 const INNER_HALF_W = MAP_WIDTH / 2 - 0.5;
 const INNER_HALF_H = MAP_HEIGHT / 2 - 0.5;
 
-const TOTAL_CLUSTERS = 26;
-const PROPS_PER_CLUSTER_MIN = 3;
-const PROPS_PER_CLUSTER_MAX = 7;
+const TOTAL_CLUSTERS = 28;
+const PROPS_PER_CLUSTER_MIN = 4;
+const PROPS_PER_CLUSTER_MAX = 8;
 const CLUSTER_SIGMA = 1.7;
-const PROP_MIN_SPACING = 1.0;
+const PROP_MIN_SPACING = 0.6;
 // Scattered loners past the cluster band — sells the "fringe" feel in
 // the far corners where dense huddles would look unnatural.
-const LONER_COUNT = 14;
+const LONER_COUNT = 18;
+
+// Pure cosmetic URLs (BIOME_COSMETICS, e.g. BushFlowers) have no per-layer
+// scale band and are authored at wildly varying max-dims. The inner
+// BiomeCosmetics renderer normalizes them to TARGET_SIZE_BY_ROLE; we do
+// the same here so they read as small ground dressing rather than
+// scaling up to obstacle size.
+const COSMETIC_ONLY_URLS = (() => {
+  const set = new Set<string>();
+  for (const list of Object.values(BIOME_COSMETICS)) for (const u of list) set.add(u);
+  return set;
+})();
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number; castShadow: boolean };
 
@@ -61,59 +74,99 @@ const gaussian = (rng: () => number, sigma: number): number => {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * sigma;
 };
 
-// Pull URLs out of BIOME_LAYERS for the three prop families used in the
-// fringe. Matches on URL pattern so the same logic works for every biome
-// without re-listing per biome.
-const collectFamilyUrls = (biome: Biome) => {
-  const layers = BIOME_LAYERS[biome];
-  const trees = BIOME_TREE_URLS[biome];
+type FamilyUrls = {
+  trees: string[];
+  rocks: string[];
+  bushes: string[];
+  grass: string[];
+  // Small ground-decor: mushrooms, skulls, bushflowers — anything classified
+  // as "cosmetic" by URL role. Sits between bushes and grass on the scale
+  // ladder and reads as flat dressing, not obstacle.
+  ground: string[];
+};
+
+const dedupe = (arr: string[]): string[] => Array.from(new Set(arr));
+
+// Collect every decoration URL a biome uses and bucket it by role. The
+// inner play area pulls from three sources — BIOME_TREE_URLS (clickable
+// trees), BIOME_LAYERS (rocks/bushes/grass/landmarks/dead trees), and
+// BIOME_COSMETICS (small flat dressing). The outer band reuses all three
+// so the fringe palette matches whatever the player sees inside. Buildings
+// (hangars, structures, tents) are skipped — they're hero focal points and
+// would look wrong scattered in the corners.
+const collectFamilyUrls = (biome: Biome): FamilyUrls => {
+  const trees: string[] = [...BIOME_TREE_URLS[biome]];
   const rocks: string[] = [];
   const bushes: string[] = [];
-  for (const l of layers) {
-    for (const u of l.urls) {
-      const f = u.toLowerCase();
-      if (/rock|crystal|meteor|skull/.test(f)) rocks.push(u);
-      else if (/bush|plant/.test(f)) bushes.push(u);
+  const grass: string[] = [];
+  const ground: string[] = [];
+  for (const layer of BIOME_LAYERS[biome]) {
+    for (const u of layer.urls) {
+      const role = classifyPropUrl(u);
+      if (role === "tree") trees.push(u);
+      else if (role === "rock") rocks.push(u);
+      else if (role === "bush") bushes.push(u);
+      else if (role === "grass") grass.push(u);
+      else if (role === "cosmetic") ground.push(u);
+      // role === "building" intentionally skipped
     }
   }
-  return { trees, rocks, bushes };
+  for (const u of BIOME_COSMETICS[biome]) ground.push(u);
+  return {
+    trees: dedupe(trees),
+    rocks: dedupe(rocks),
+    bushes: dedupe(bushes),
+    grass: dedupe(grass),
+    ground: dedupe(ground),
+  };
 };
 
 // "Theme" of a cluster — biases the prop URL toward one family while
 // still mixing in some of the others (real ecosystems aren't monocultures).
 type ClusterTheme = "tree" | "rock" | "bush" | "mixed";
 const THEMES: ClusterTheme[] = ["tree", "tree", "rock", "bush", "mixed"];
+type Family = keyof FamilyUrls;
+const ALL_FAMILIES: Family[] = ["trees", "rocks", "bushes", "grass", "ground"];
+
+// Per-theme weights across the five families. Theme's primary gets the
+// lion's share; the other big-silhouette families fill the middle; grass
+// and ground decor fill the gaps. Real nature clusters aren't monocultures
+// — a stand of trees comes with bushes near the roots and tufts of grass
+// underfoot.
+const THEME_WEIGHTS: Record<ClusterTheme, Record<Family, number>> = {
+  tree: { trees: 0.5, rocks: 0.12, bushes: 0.15, grass: 0.13, ground: 0.1 },
+  rock: { trees: 0.15, rocks: 0.5, bushes: 0.1, grass: 0.12, ground: 0.13 },
+  bush: { trees: 0.12, rocks: 0.1, bushes: 0.5, grass: 0.18, ground: 0.1 },
+  mixed: { trees: 0.25, rocks: 0.2, bushes: 0.2, grass: 0.2, ground: 0.15 },
+};
 
 const pickUrlForTheme = (
   theme: ClusterTheme,
-  fams: { trees: string[]; rocks: string[]; bushes: string[] },
+  fams: FamilyUrls,
   rng: () => number,
 ): string | null => {
-  // Weighted picker: theme's family gets 65%, the other two split 35%.
-  const r = rng();
-  let order: ("tree" | "rock" | "bush")[];
-  if (theme === "tree") order = ["tree", "rock", "bush"];
-  else if (theme === "rock") order = ["rock", "tree", "bush"];
-  else if (theme === "bush") order = ["bush", "tree", "rock"];
-  else
-    order =
-      r < 0.34
-        ? ["tree", "rock", "bush"]
-        : r < 0.67
-          ? ["rock", "tree", "bush"]
-          : ["bush", "tree", "rock"];
-  const primaryRoll = rng();
-  const pick = primaryRoll < 0.65 ? order[0] : primaryRoll < 0.85 ? order[1] : order[2];
-  const pool = pick === "tree" ? fams.trees : pick === "rock" ? fams.rocks : fams.bushes;
-  if (pool.length === 0) {
-    // Fall back through families if the preferred one is empty.
-    for (const k of order) {
-      const p = k === "tree" ? fams.trees : k === "rock" ? fams.rocks : fams.bushes;
-      if (p.length > 0) return p[Math.floor(rng() * p.length)];
+  // Weighted family pick, only sampling families that actually have URLs
+  // (otherwise an empty family steals probability mass from one that
+  // could have rendered).
+  const weights = THEME_WEIGHTS[theme];
+  let total = 0;
+  for (const fam of ALL_FAMILIES) if (fams[fam].length > 0) total += weights[fam];
+  if (total <= 0) return null;
+  let r = rng() * total;
+  for (const fam of ALL_FAMILIES) {
+    if (fams[fam].length === 0) continue;
+    r -= weights[fam];
+    if (r <= 0) {
+      const pool = fams[fam];
+      return pool[Math.floor(rng() * pool.length)];
     }
-    return null;
   }
-  return pool[Math.floor(rng() * pool.length)];
+  // Numerical fallback — pick the last non-empty family.
+  for (let i = ALL_FAMILIES.length - 1; i >= 0; i--) {
+    const pool = fams[ALL_FAMILIES[i]];
+    if (pool.length > 0) return pool[Math.floor(rng() * pool.length)];
+  }
+  return null;
 };
 
 // Find the BIOME_LAYERS spec that owns a given URL so the outer band
@@ -129,12 +182,9 @@ const layerForUrl = (biome: Biome, url: string): BiomeLayer | undefined => {
 };
 
 const scaleForUrl = (biome: Biome, url: string, rng: () => number): number => {
-  const role = classifyPropUrl(url);
-  // Trees come from BIOME_TREE_URLS, not BIOME_LAYERS, so they use the
-  // global tree scale window (the same range Trees.tsx renders with).
-  if (role === "tree") {
-    return TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
-  }
+  // If the URL appears in a BIOME_LAYERS spec, reuse that layer's scale
+  // band — matches the inner play area exactly. This branch covers
+  // rocks, bushes, grass, mushrooms, skulls, dead trees, crystals, etc.
   const layer = layerForUrl(biome, url);
   if (layer) {
     // Triangular distribution mid-biases the size so the fringe doesn't
@@ -142,8 +192,19 @@ const scaleForUrl = (biome: Biome, url: string, rng: () => number): number => {
     // with the occasional small/large outlier.
     return layer.minScale + ((rng() + rng()) / 2) * (layer.maxScale - layer.minScale);
   }
-  // Fallback for URLs not present in BIOME_LAYERS (shouldn't happen with
-  // the current pools, but keeps the function total).
+  const role = classifyPropUrl(url);
+  // Trees from BIOME_TREE_URLS (clickable in the inner sim) use the
+  // global tree scale window the inner Trees.tsx renders with.
+  if (role === "tree") {
+    return TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE);
+  }
+  // BIOME_COSMETICS URLs (BushFlowers etc.) — the renderer normalizes
+  // these to TARGET_SIZE_BY_ROLE so the multiplier here is per-instance
+  // size jitter on top of the normalized target. Mirrors the spread
+  // BiomeCosmetics.tsx uses on the inner area.
+  if (role === "cosmetic") {
+    return 0.7 + ((rng() + rng()) / 2) * 0.7;
+  }
   return 0.7 + rng() * 0.4;
 };
 
@@ -206,9 +267,16 @@ const insideOuter = (pos: Vec2): boolean =>
 const insideInner = (pos: Vec2): boolean =>
   Math.abs(pos.x) < INNER_HALF_W && Math.abs(pos.y) < INNER_HALF_H;
 
+const totalUrls = (fams: FamilyUrls): number =>
+  fams.trees.length +
+  fams.rocks.length +
+  fams.bushes.length +
+  fams.grass.length +
+  fams.ground.length;
+
 const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   const fams = collectFamilyUrls(biome);
-  if (fams.trees.length + fams.rocks.length + fams.bushes.length === 0) return [];
+  if (totalUrls(fams) === 0) return [];
   const rng = mulberry32(levelId * 17389 + 991);
   const out: Instance[] = [];
   const spacingSq = PROP_MIN_SPACING * PROP_MIN_SPACING;
@@ -311,9 +379,26 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
       }
     }
     if (blocked) continue;
-    // 70% tree, 30% rock — bushes don't read at this distance.
-    const useTree = rng() < 0.7 && fams.trees.length > 0;
-    const pool = useTree ? fams.trees : fams.rocks.length > 0 ? fams.rocks : fams.trees;
+    // Loners lean to large silhouettes (trees, rocks) — small bushes and
+    // grass barely read this far from the camera anyway. Falls back through
+    // smaller families when the biome doesn't have one of the big ones.
+    const lonerPicks: Family[] = ["trees", "trees", "rocks", "bushes", "ground"];
+    let pool: string[] = [];
+    for (let i = 0; i < lonerPicks.length; i++) {
+      const fam = lonerPicks[Math.floor(rng() * lonerPicks.length)];
+      if (fams[fam].length > 0) {
+        pool = fams[fam];
+        break;
+      }
+    }
+    if (pool.length === 0) {
+      for (const fam of ALL_FAMILIES) {
+        if (fams[fam].length > 0) {
+          pool = fams[fam];
+          break;
+        }
+      }
+    }
     if (pool.length === 0) {
       loners++;
       continue;
@@ -337,17 +422,18 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
 // full. Same pattern as BiomeCosmetics/Trees/Rocks.
 
 type Part = { id: string; geom: THREE.BufferGeometry; material: THREE.Material };
-type Source = { parts: Part[]; minY: number };
+// renderBase is 1 for everything that matches an inner-area renderer
+// (Trees.tsx, Rocks.tsx, Ground.tsx — all use raw GLTF transform × instance
+// scale). For BIOME_COSMETICS-only URLs (BushFlowers etc.) it's the same
+// TARGET_SIZE_BY_ROLE / maxDim factor BiomeCosmetics.tsx applies, so the
+// outer-band size matches the inner cosmetic size for those URLs too.
+type Source = { parts: Part[]; minY: number; renderBase: number };
 
-// Match the inner renderers (Trees.tsx, Rocks.tsx, Ground.tsx) — they
-// render the raw GLTF transform × instance scale, with no role-target
-// normalization. Normalizing here used to make outer-band silhouettes
-// noticeably smaller than the inner-area silhouettes drawn from the same
-// mesh URL.
-const collectSource = (scene: THREE.Object3D): Source | null => {
+const collectSource = (scene: THREE.Object3D, url: string): Source | null => {
   scene.updateMatrixWorld(true);
   const parts: Part[] = [];
-  let minY = Number.POSITIVE_INFINITY;
+  const union = new THREE.Box3();
+  let unionSet = false;
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
@@ -356,19 +442,31 @@ const collectSource = (scene: THREE.Object3D): Source | null => {
       const geom = m.geometry.clone();
       geom.applyMatrix4(m.matrixWorld);
       geom.computeBoundingBox();
-      if (geom.boundingBox) minY = Math.min(minY, geom.boundingBox.min.y);
+      if (geom.boundingBox) {
+        if (!unionSet) {
+          union.copy(geom.boundingBox);
+          unionSet = true;
+        } else union.union(geom.boundingBox);
+      }
       parts.push({ id: nanoid(), geom, material: mat as THREE.Material });
     }
   });
-  if (parts.length === 0) return null;
-  return { parts, minY: Number.isFinite(minY) ? minY : 0 };
+  if (parts.length === 0 || !unionSet) return null;
+  const minY = union.min.y;
+  let renderBase = 1;
+  if (COSMETIC_ONLY_URLS.has(url)) {
+    const size = union.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    renderBase = TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / maxDim;
+  }
+  return { parts, minY, renderBase };
 };
 
 const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectSource(scene), [scene]);
+  const source = useMemo(() => collectSource(scene, url), [scene, url]);
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
@@ -378,7 +476,7 @@ const InstanceGroup = ({ url, items }: { url: string; items: Instance[] }) => {
       if (!im) continue;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const s = it.scale;
+        const s = source.renderBase * it.scale;
         dummy.position.set(it.pos.x, -source.minY * s, -it.pos.y);
         dummy.rotation.set(0, it.rotY, 0);
         dummy.scale.setScalar(s);
@@ -445,4 +543,5 @@ for (const biome of Object.keys(BIOME_TREE_URLS) as Biome[]) {
 for (const layers of Object.values(BIOME_LAYERS)) {
   for (const l of layers) for (const u of l.urls) allUrls.add(u);
 }
+for (const list of Object.values(BIOME_COSMETICS)) for (const u of list) allUrls.add(u);
 for (const u of allUrls) useGLTF.preload(u);
