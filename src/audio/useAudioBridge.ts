@@ -117,6 +117,12 @@ export const useAudioBridge = () => {
         case "easter-egg-click":
           audio.play("tower-sell", "ui", 0.65, 60, 0.8);
           break;
+        case "flame-start":
+          audio.startFlame(e.towerId);
+          break;
+        case "flame-stop":
+          audio.stopFlame(e.towerId);
+          break;
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();

@@ -144,6 +144,7 @@ export type Tower = {
   // applyDamage. Counts shield absorption and HP reduction (clamped to
   // the enemy's remaining HP so overkill doesn't inflate the stat).
   damageDealt: number;
+  flameActive: boolean;
 };
 
 export type Tree = {
@@ -323,7 +324,9 @@ export type GameEvent =
   | { type: "place-failed"; reason: "gold" | "spot" }
   | { type: "new-enemy" }
   | { type: "wave-called-early" }
-  | { type: "easter-egg-click" };
+  | { type: "easter-egg-click" }
+  | { type: "flame-start"; towerId: number; pos: Vec2 }
+  | { type: "flame-stop"; towerId: number };
 
 export type Shake = {
   magnitude: number;

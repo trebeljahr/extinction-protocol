@@ -498,6 +498,10 @@ export const applyUpgrade = (world: World, tower: Tower, branch: BranchId): bool
 export const sellRefund = (tower: Tower) => Math.floor(tower.totalSpent * 0.65);
 
 export const sellTower = (world: World, tower: Tower) => {
+  if (tower.flameActive) {
+    tower.flameActive = false;
+    emit(world, { type: "flame-stop", towerId: tower.id });
+  }
   const refund = sellRefund(tower);
   world.gold += refund;
   world.towers = world.towers.filter((t) => t.id !== tower.id);

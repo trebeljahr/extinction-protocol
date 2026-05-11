@@ -384,17 +384,21 @@ export const updateTowers = (world: World, dt: number) => {
     const target = findTargetInRange(world, t);
     t.targetId = target?.id ?? null;
 
-    // Flame is special — the *visible* stream runs every tick while a target
-    // is in range, but damage ticks are gated by the cooldown so DPS stays
-    // tunable. The shoot event (which drives audio) follows the damage tick.
     if (t.kind === "flame") {
       if (target) {
+        if (!t.flameActive) {
+          t.flameActive = true;
+          emit(world, { type: "flame-start", towerId: t.id, pos: t.pos });
+        }
         spawnFlameStream(world, t, target);
         if (t.cooldown === 0) {
           fireFlameDamage(world, t, target);
           t.cooldown = 1 / effectiveFireRate(t);
           emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
         }
+      } else if (t.flameActive) {
+        t.flameActive = false;
+        emit(world, { type: "flame-stop", towerId: t.id });
       }
       continue;
     }

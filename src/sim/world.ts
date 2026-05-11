@@ -1018,6 +1018,7 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     freezeBlocksRegen: false,
     kills: 0,
     damageDealt: 0,
+    flameActive: false,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);

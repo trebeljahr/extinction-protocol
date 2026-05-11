@@ -217,14 +217,7 @@ export class AudioManager {
   }
 
   playShoot(kind: TowerKind) {
-    // Flame uses a synthesised whoosh instead of a sample so it reads as a
-    // continuous noise burst rather than a discrete shot.
-    if (kind === "flame") {
-      this.playWhoosh(0.35, 0.45);
-      return;
-    }
-    // Pulse + hive use a synthesised crack — short enough to stay discrete
-    // at 2+ shots/sec instead of the old sample that blurred into a tone.
+    if (kind === "flame") return;
     if (kind === "pulse" || kind === "hive") {
       this.playCrack(kind === "hive" ? 0.25 : 0.4);
       return;
@@ -310,75 +303,213 @@ export class AudioManager {
     osc.stop(now + clickDur);
   }
 
-  // Synthesised flame: broadband noise with amplitude jitter for crackle,
-  // high-shifted spectrum for sizzle (not the watery low-mid bandpass it
-  // used to be). Overlapping bursts stack into a continuous roar.
-  private lastWhooshAt = 0;
-  private activeWhooshes = new Set<AudioBufferSourceNode>();
-  playWhoosh(volumeScale = 0.35, durationSec = 0.45) {
+  // --- Continuous flamethrower sound (per-tower, layered synth) ----------
+  //
+  // Three looping layers + a one-shot ignition tick at the start:
+  //   roar:    low-pass noise → soft-clip distortion (sustained rumble)
+  //   hiss:    bandpass noise (mid-frequency energy / "fhwoom")
+  //   crackle: highpass noise with baked-in irregular amplitude (fire pops)
+  //   tick:    very short highpass noise burst (igniter click)
+  //
+  // startFlame / stopFlame are driven by flame-start / flame-stop sim
+  // events so the sound tracks actual targeting, not damage ticks.
+
+  private static readonly MAX_FLAME_VOICES = 4;
+  private flameNoiseBuf: AudioBuffer | null = null;
+  private flameCrackleBuf: AudioBuffer | null = null;
+  private activeFlames = new Map<
+    number,
+    {
+      roar: AudioBufferSourceNode;
+      hiss: AudioBufferSourceNode;
+      crackle: AudioBufferSourceNode;
+      master: GainNode;
+    }
+  >();
+
+  private ensureFlameBuffers() {
+    if (!this.ctx) return;
+    const sr = this.ctx.sampleRate;
+
+    if (!this.flameNoiseBuf) {
+      const len = Math.ceil(3 * sr);
+      const buf = this.ctx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.flameNoiseBuf = buf;
+    }
+
+    if (!this.flameCrackleBuf) {
+      const dur = 2.5;
+      const len = Math.ceil(dur * sr);
+      const buf = this.ctx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      const safeEnd = len - Math.ceil(0.05 * sr);
+      let pos = 0;
+      while (pos < safeEnd) {
+        pos += Math.floor((0.04 + Math.random() * 0.11) * sr);
+        if (pos >= safeEnd) break;
+        const burst = Math.floor((0.003 + Math.random() * 0.012) * sr);
+        const amp = 0.3 + Math.random() * 0.7;
+        for (let i = 0; i < burst && pos + i < len; i++) {
+          d[pos + i] = (Math.random() * 2 - 1) * amp;
+        }
+        pos += burst;
+      }
+      this.flameCrackleBuf = buf;
+    }
+  }
+
+  private static distortionCurve: Float32Array<ArrayBuffer> | null = null;
+  private static getDistortionCurve(): Float32Array<ArrayBuffer> {
+    if (!AudioManager.distortionCurve) {
+      const n = 256;
+      const c = new Float32Array(n);
+      const k = 12;
+      for (let i = 0; i < n; i++) {
+        const x = (i * 2) / n - 1;
+        c[i] = ((Math.PI + k) * x) / (Math.PI + k * Math.abs(x));
+      }
+      AudioManager.distortionCurve = c;
+    }
+    return AudioManager.distortionCurve;
+  }
+
+  startFlame(towerId: number) {
     const towersGain = this.busGains.towers;
-    if (!this.ctx || !towersGain || this.muted) return;
+    if (!this.ctx || !towersGain) return;
+    if (this.activeFlames.has(towerId)) return;
+    if (this.activeFlames.size >= AudioManager.MAX_FLAME_VOICES) return;
+
+    this.ensureFlameBuffers();
+    if (!this.flameNoiseBuf || !this.flameCrackleBuf) return;
+
     const ctx = this.ctx;
     const now = ctx.currentTime;
-    const wallNow = performance.now();
-    if (wallNow - this.lastWhooshAt < 70) return;
-    if (this.activeWhooshes.size >= 4) return;
-    this.lastWhooshAt = wallNow;
 
-    const sampleRate = ctx.sampleRate;
-    const length = Math.ceil(durationSec * sampleRate);
-    const buf = ctx.createBuffer(1, length, sampleRate);
-    const data = buf.getChannelData(0);
-    // Random-walk amplitude on white noise gives the irregular crackle of
-    // flame instead of the smooth hiss of a water jet. Rare sharp spikes
-    // mimic pops.
-    let amp = 0.6;
-    for (let i = 0; i < length; i++) {
-      amp += (Math.random() - 0.5) * 0.18;
-      if (amp < 0.2) amp = 0.2;
-      else if (amp > 1.0) amp = 1.0;
-      let s = (Math.random() * 2 - 1) * amp;
-      if (Math.random() < 0.0015) s *= 2.2;
-      data[i] = s;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0, now);
+    master.gain.linearRampToValueAtTime(0.35, now + 0.08);
+    master.connect(towersGain);
+
+    // --- Roar: lowpass noise + soft-clip distortion ---
+    const roar = ctx.createBufferSource();
+    roar.buffer = this.flameNoiseBuf;
+    roar.loop = true;
+
+    const roarLp = ctx.createBiquadFilter();
+    roarLp.type = "lowpass";
+    roarLp.frequency.value = 180;
+    roarLp.Q.value = 2.0;
+
+    const dist = ctx.createWaveShaper();
+    dist.curve = AudioManager.getDistortionCurve();
+    dist.oversample = "2x";
+
+    const roarGain = ctx.createGain();
+    roarGain.gain.value = 0.55;
+
+    roar.connect(roarLp).connect(dist).connect(roarGain).connect(master);
+    roar.start(now, Math.random() * this.flameNoiseBuf.duration);
+
+    // --- Hiss: mid-band energy ---
+    const hiss = ctx.createBufferSource();
+    hiss.buffer = this.flameNoiseBuf;
+    hiss.loop = true;
+
+    const hissBp = ctx.createBiquadFilter();
+    hissBp.type = "bandpass";
+    hissBp.frequency.setValueAtTime(1200, now);
+    hissBp.frequency.exponentialRampToValueAtTime(1800, now + 0.15);
+    hissBp.Q.value = 0.7;
+
+    const hissGain = ctx.createGain();
+    hissGain.gain.value = 0.3;
+
+    hiss.connect(hissBp).connect(hissGain).connect(master);
+    hiss.start(now, Math.random() * this.flameNoiseBuf.duration);
+
+    // --- Crackle: irregular noise pops ---
+    const crackle = ctx.createBufferSource();
+    crackle.buffer = this.flameCrackleBuf;
+    crackle.loop = true;
+
+    const crackleHp = ctx.createBiquadFilter();
+    crackleHp.type = "highpass";
+    crackleHp.frequency.value = 2500;
+
+    const crackleGain = ctx.createGain();
+    crackleGain.gain.value = 0.15;
+
+    crackle.connect(crackleHp).connect(crackleGain).connect(master);
+    crackle.start(now, Math.random() * this.flameCrackleBuf.duration);
+
+    // --- Ignition tick: short percussive snap ---
+    const tickDur = 0.018;
+    const tickLen = Math.ceil(tickDur * ctx.sampleRate);
+    const tickBuf = ctx.createBuffer(1, tickLen, ctx.sampleRate);
+    const td = tickBuf.getChannelData(0);
+    for (let i = 0; i < tickLen; i++) td[i] = Math.random() * 2 - 1;
+
+    const tick = ctx.createBufferSource();
+    tick.buffer = tickBuf;
+
+    const tickHp = ctx.createBiquadFilter();
+    tickHp.type = "highpass";
+    tickHp.frequency.value = 3500;
+
+    const tickGain = ctx.createGain();
+    tickGain.gain.setValueAtTime(0.4, now);
+    tickGain.gain.exponentialRampToValueAtTime(0.001, now + tickDur);
+
+    tick.connect(tickHp).connect(tickGain).connect(master);
+    tick.start(now);
+    tick.stop(now + tickDur);
+
+    this.activeFlames.set(towerId, { roar, hiss, crackle, master });
+  }
+
+  stopFlame(towerId: number) {
+    const flame = this.activeFlames.get(towerId);
+    if (!flame || !this.ctx) return;
+    this.activeFlames.delete(towerId);
+
+    const now = this.ctx.currentTime;
+    const fade = 0.2;
+
+    flame.master.gain.cancelScheduledValues(now);
+    flame.master.gain.setValueAtTime(flame.master.gain.value, now);
+    flame.master.gain.linearRampToValueAtTime(0, now + fade);
+
+    const stopAt = now + fade + 0.01;
+    for (const src of [flame.roar, flame.hiss, flame.crackle]) {
+      try {
+        src.stop(stopAt);
+      } catch {
+        /* ok */
+      }
     }
+    const m = flame.master;
+    setTimeout(
+      () => {
+        try {
+          m.disconnect();
+        } catch {
+          /* ok */
+        }
+      },
+      (fade + 0.05) * 1000,
+    );
+  }
 
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 450;
-
-    const peakF = ctx.createBiquadFilter();
-    peakF.type = "peaking";
-    peakF.frequency.value = 1800;
-    peakF.Q.value = 0.7;
-    peakF.gain.value = 5;
-
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.setValueAtTime(4200, now);
-    lp.frequency.exponentialRampToValueAtTime(2400, now + durationSec);
-
-    const gain = ctx.createGain();
-    const peakG = Math.min(0.5, volumeScale);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(peakG, now + 0.025);
-    const wobbleSteps = 5;
-    for (let s = 1; s <= wobbleSteps; s++) {
-      const t = now + (durationSec - 0.06) * (s / wobbleSteps);
-      const v = peakG * (0.55 + Math.random() * 0.4);
-      gain.gain.linearRampToValueAtTime(v, t);
+  stopAllFlames() {
+    if (!this.ctx) {
+      this.activeFlames.clear();
+      return;
     }
-    gain.gain.linearRampToValueAtTime(0, now + durationSec);
-
-    src.connect(hp).connect(peakF).connect(lp).connect(gain).connect(towersGain);
-    this.activeWhooshes.add(src);
-    src.onended = () => {
-      this.activeWhooshes.delete(src);
-    };
-    src.start(now);
-    src.stop(now + durationSec);
+    for (const id of [...this.activeFlames.keys()]) {
+      this.stopFlame(id);
+    }
   }
 
   // Wet "mush" splat for enemy deaths: a short noise burst bandpassed from
@@ -562,6 +693,7 @@ export class AudioManager {
       }
       set.clear();
     }
+    this.stopAllFlames();
   }
 
   setMuted(v: boolean) {
