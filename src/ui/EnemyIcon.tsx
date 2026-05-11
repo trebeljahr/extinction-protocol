@@ -21,7 +21,10 @@ const ICON_TUNING: Record<
   { rotY: number; camDist: number; camY: number; targetY: number }
 > = {
   raptor: { rotY: 0, camDist: 2.05, camY: 0.3, targetY: 0.24 },
-  swarm: { rotY: 0, camDist: 2.05, camY: 0.3, targetY: 0.24 },
+  // Swarm uses an instance grid (see SWARM_FLOCK) to render 6 raptors as
+  // a pack; the camera pulls back so they all fit and sits a touch lower
+  // so the floor-level group lands in the icon's vertical centre.
+  swarm: { rotY: 0, camDist: 2.75, camY: 0.22, targetY: 0.16 },
   para: { rotY: 0, camDist: 2.1, camY: 0.3, targetY: 0.24 },
   allosaur: { rotY: 0, camDist: 2.15, camY: 0.29, targetY: 0.23 },
   stego: { rotY: 0, camDist: 2.1, camY: 0.29, targetY: 0.23 },
@@ -30,16 +33,33 @@ const ICON_TUNING: Record<
   boss: { rotY: 0, camDist: 2.3, camY: 0.18, targetY: 0.11 },
 };
 
+// Hand-tuned flock arrangement for the swarm icon. Camera sits on +X
+// looking at the origin, so +Z is rightward in the icon and +X is toward
+// the camera (smaller X = further back). Slight rotY variations break up
+// the copy-paste look without making any raptor face away.
+const SWARM_FLOCK: NonNullable<BakeSpec["instances"]> = [
+  { scale: 0.55, offset: [0.15, 0, -0.05], rotY: -0.05 },
+  { scale: 0.5, offset: [0.05, 0, 0.45], rotY: -0.18 },
+  { scale: 0.48, offset: [0.0, 0, -0.5], rotY: 0.15 },
+  { scale: 0.45, offset: [-0.2, 0, 0.2], rotY: 0.05 },
+  { scale: 0.44, offset: [-0.25, 0, -0.25], rotY: -0.1 },
+  { scale: 0.4, offset: [-0.45, 0, 0.0], rotY: 0.22 },
+];
+
 const specFor = (kind: EnemyKind): BakeSpec => {
   const t = ICON_TUNING[kind];
+  const instances = kind === "swarm" ? SWARM_FLOCK : undefined;
   // Framing baked into the cache key so dev-time tuning re-bakes
-  // instead of serving the stale PNG.
+  // instead of serving the stale PNG. Instance signature is folded in
+  // so swarm-layout edits invalidate the cache too.
   const framingTag = `${t.camDist}-${t.camY}-${t.targetY}`;
+  const instTag = instances ? `i${instances.length}-${instances[0].scale}` : "i1";
   return {
-    cacheKey: `enemy:${kind}:${framingTag}`,
+    cacheKey: `enemy:${kind}:${framingTag}:${instTag}`,
     modelUrl: ENEMY_MODEL[kind].url,
     skinned: true,
     rotY: t.rotY,
+    instances,
     // 0.0001 z-offset keeps the camera matrix non-degenerate when looking straight down the X axis.
     camera: {
       position: [t.camDist, t.camY, 0.0001],

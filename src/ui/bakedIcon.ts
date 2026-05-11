@@ -78,6 +78,18 @@ export type BakeSpec = {
   };
   /** Optional Y rotation to flip native-facing models so they all face the same way. */
   rotY?: number;
+  /**
+   * Optional list of duplicate placements. When omitted, one centred copy
+   * is drawn (matches the single-model behaviour). Each entry's `scale`
+   * is multiplied into the 1×1×1 normalization, so 0.5 = half a unit cube.
+   * Offsets are applied after normalization; +X is toward the camera,
+   * Y=0 is the ground plane the model rests on.
+   */
+  instances?: Array<{
+    offset?: [number, number, number];
+    rotY?: number;
+    scale?: number;
+  }>;
 };
 
 const defaultLights = (scene: THREE.Scene) => {
@@ -94,30 +106,41 @@ const defaultLights = (scene: THREE.Scene) => {
 const renderSpec = async (spec: BakeSpec): Promise<string> => {
   const sceneSrc = await loadGLTFScene(spec.modelUrl);
 
-  const cloned = spec.skinned ? cloneSkinned(sceneSrc) : sceneSrc.clone(true);
-  cloned.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(cloned);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const s = 1 / maxDim;
-  cloned.scale.setScalar(s);
-  cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
-  // Drop shadows for the static bake; the depth pre-pass costs more
-  // than it pays back at icon resolution.
-  cloned.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (m.isMesh) {
-      m.castShadow = false;
-      m.receiveShadow = false;
-    }
-  });
-
   const scene = new THREE.Scene();
   const root = new THREE.Group();
   root.rotation.y = spec.rotY ?? 0;
-  root.add(cloned);
   scene.add(root);
+
+  const instances = spec.instances ?? [{}];
+  const disposables: THREE.Object3D[] = [];
+  for (const inst of instances) {
+    const cloned = spec.skinned ? cloneSkinned(sceneSrc) : sceneSrc.clone(true);
+    cloned.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const s = (1 / maxDim) * (inst.scale ?? 1);
+    cloned.scale.setScalar(s);
+    cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+    // Drop shadows for the static bake; the depth pre-pass costs more
+    // than it pays back at icon resolution.
+    cloned.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.castShadow = false;
+        m.receiveShadow = false;
+      }
+    });
+
+    const wrap = new THREE.Group();
+    wrap.add(cloned);
+    const [ox, oy, oz] = inst.offset ?? [0, 0, 0];
+    wrap.position.set(ox, oy, oz);
+    wrap.rotation.y = inst.rotY ?? 0;
+    root.add(wrap);
+    disposables.push(cloned);
+  }
 
   defaultLights(scene);
 
@@ -133,14 +156,16 @@ const renderSpec = async (spec: BakeSpec): Promise<string> => {
   renderer.render(scene, camera);
   const url = renderer.domElement.toDataURL("image/png");
 
-  // Drop the throw-away clone's GPU resources. The original gltf scene
+  // Drop the throw-away clones' GPU resources. The original gltf scene
   // stays in sceneCache so future re-bakes (e.g. dev HMR) skip the
   // network fetch.
-  cloned.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    m.geometry?.dispose();
-  });
+  for (const obj of disposables) {
+    obj.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.geometry?.dispose();
+    });
+  }
   return url;
 };
 
