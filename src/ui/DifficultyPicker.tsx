@@ -91,7 +91,7 @@ export const DifficultyPicker = () => {
                 <div
                   className={`w-full aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
                 >
-                  <DifficultyModelIcon difficulty={d} className="w-3/4 h-3/4" />
+                  <DifficultyModelIcon difficulty={d} className="w-full h-full" />
                 </div>
                 <div className={`text-base font-bold ${accent.text} tracking-mid`}>
                   {DIFFICULTY_LABEL[d]}
