@@ -33,7 +33,7 @@ const ICON_TUNING: Record<
 const specFor = (kind: EnemyKind): BakeSpec => {
   const t = ICON_TUNING[kind];
   // Framing baked into the cache key so dev-time tuning re-bakes
-  // instead of serving the stale PNG. Same trick as DifficultyModelIcon.
+  // instead of serving the stale PNG.
   const framingTag = `${t.camDist}-${t.camY}-${t.targetY}`;
   return {
     cacheKey: `enemy:${kind}:${framingTag}`,

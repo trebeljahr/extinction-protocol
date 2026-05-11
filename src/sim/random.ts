@@ -1,8 +1,7 @@
-// Deterministic PRNG + Box–Muller gaussian. Shared by every system that
-// places props by seeded random — sim world build, render-side scenery
-// layers, lava geometry. Same formulas the modules used inline; pulling
-// them here lets every caller agree on the bit pattern without each one
-// re-deriving it.
+// Deterministic PRNG + Box–Muller gaussian. Sim, render scenery, and
+// lava geometry all seed their layouts from this — same bit pattern
+// across systems means the painted decoration agrees with what
+// canPlaceAt blocks.
 
 export const mulberry32 = (seed: number) => {
   let a = seed >>> 0;

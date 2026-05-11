@@ -400,11 +400,11 @@ const buildInstances = (biome: Biome, levelId: number): Instance[] => {
   return out;
 };
 
-// renderBase is 1 for everything that matches an inner-area renderer
-// (Trees.tsx, Rocks.tsx, Ground.tsx — all use raw GLTF transform × instance
-// scale). For BIOME_COSMETICS-only URLs (BushFlowers etc.) it's the same
-// TARGET_SIZE_BY_ROLE / maxDim factor BiomeCosmetics.tsx applies, so the
-// outer-band size matches the inner cosmetic size for those URLs too.
+// Two sizing conventions live in the outer band. URLs that double as
+// inner-area props (Trees/Rocks/Ground) render at raw GLTF scale so
+// they match. BIOME_COSMETICS-only URLs (BushFlowers etc.) normalize to
+// TARGET_SIZE_BY_ROLE so the outer-band size matches the inner cosmetic
+// size for those URLs too.
 const computeRenderBase = (url: string, source: MeshSource): number => {
   if (!COSMETIC_ONLY_URLS.has(url)) return 1;
   return TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;

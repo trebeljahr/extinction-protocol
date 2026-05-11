@@ -31,6 +31,7 @@ import type {
   Vec2,
   World,
 } from "./types";
+import { distPointToSegSq } from "./vec2";
 
 export const STARTING_LIVES = 20;
 
@@ -56,27 +57,6 @@ export const ROCK_REMOVE_COST = 15;
 // Per-URL XZ radius cache — populated by render components (Trees.tsx,
 // Rocks.tsx) when GLBs load, read by canPlaceAt for placement blocking.
 export const meshXZRadii = new Map<string, number>();
-
-const distPointToSegSq = (
-  px: number,
-  py: number,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-) => {
-  const abx = bx - ax;
-  const aby = by - ay;
-  const apx = px - ax;
-  const apy = py - ay;
-  const len = abx * abx + aby * aby;
-  const t = len > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len)) : 0;
-  const cx = ax + t * abx;
-  const cy = ay + t * aby;
-  const dx = px - cx;
-  const dy = py - cy;
-  return dx * dx + dy * dy;
-};
 
 const buildTrees = (
   paths: Vec2[][],

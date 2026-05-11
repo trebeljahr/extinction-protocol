@@ -1,19 +1,12 @@
 import { nanoid } from "nanoid";
 import * as THREE from "three";
 
-// Collect every primitive under a glTF scene so multi-primitive meshes
-// (Quaternius snow trees: trunk + cap, sci-fi rocks: body + crystal,
-// Kenney space-kit chassis + lights) render in full when instanced.
 // GLTFLoader flattens multi-primitive nodes into multiple THREE.Mesh
-// children — instancing only the first one drops the secondary parts.
-//
-// Caller decides how to use this:
-//   - Renderers that match an authored size (Trees.tsx, Rocks.tsx,
-//     Ground.tsx, the non-cosmetic branch of OuterScenery): render
-//     each part at raw GLTF scale × instance scale.
-//   - Renderers that normalize to TARGET_SIZE_BY_ROLE (BiomeCosmetics,
-//     OuterScenery's cosmetic branch): compute `target / source.maxDim`
-//     and multiply into the per-instance scale.
+// children — instancing only the first one drops the secondary parts
+// (Quaternius snow trees: trunk + cap; sci-fi rocks: body + crystal;
+// Kenney space-kit chassis + lights). This collector walks every Mesh
+// and clones its geometry into the world frame so the caller can pass
+// each part to its own InstancedMesh.
 
 export type MeshPart = {
   id: string;
@@ -23,17 +16,21 @@ export type MeshPart = {
 
 export type MeshSource = {
   parts: MeshPart[];
-  // Union AABB of every primitive's bounding box, in scene-local space.
-  boundingBox: THREE.Box3;
-  // Convenience: smallest Y across the union — used to plant a glTF on
-  // the ground regardless of its authored origin.
+  // Smallest Y across the union AABB — used to plant a glTF on the
+  // ground regardless of its authored origin.
   minY: number;
   // Largest axis-aligned dimension across the union — input for
   // TARGET_SIZE_BY_ROLE normalization.
   maxDim: number;
 };
 
-export const collectMeshSource = (scene: THREE.Object3D): MeshSource | null => {
+// Keyed on the scene Object3D, not the URL: drei's useGLTF guarantees
+// scene identity per URL, and the WeakMap entry GCs with the scene on
+// HMR. The clones are otherwise never disposed — multiple InstanceGroups
+// for the same URL would each re-clone the same geometry without this.
+const cache = new WeakMap<THREE.Object3D, MeshSource>();
+
+const collect = (scene: THREE.Object3D): MeshSource | null => {
   scene.updateMatrixWorld(true);
   const parts: MeshPart[] = [];
   const union = new THREE.Box3();
@@ -58,5 +55,13 @@ export const collectMeshSource = (scene: THREE.Object3D): MeshSource | null => {
   if (parts.length === 0 || !unionSet) return null;
   const size = union.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  return { parts, boundingBox: union, minY: union.min.y, maxDim };
+  return { parts, minY: union.min.y, maxDim };
+};
+
+export const collectMeshSource = (scene: THREE.Object3D): MeshSource | null => {
+  const hit = cache.get(scene);
+  if (hit) return hit;
+  const src = collect(scene);
+  if (src) cache.set(scene, src);
+  return src;
 };

@@ -11,6 +11,7 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { gaussian, mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
+import { distPointToSegSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
 import { collectMeshSource } from "./meshSource";
@@ -33,27 +34,6 @@ const CLUSTER_SIGMA = 1.6;
 // the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.3;
-
-const distPointToSegSq = (
-  px: number,
-  py: number,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-) => {
-  const abx = bx - ax;
-  const aby = by - ay;
-  const apx = px - ax;
-  const apy = py - ay;
-  const len = abx * abx + aby * aby;
-  const t = len > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len)) : 0;
-  const cx = ax + t * abx;
-  const cy = ay + t * aby;
-  const dx = px - cx;
-  const dy = py - cy;
-  return dx * dx + dy * dy;
-};
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 

@@ -22,3 +22,27 @@ export const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({
   x: a.x + (b.x - a.x) * t,
   y: a.y + (b.y - a.y) * t,
 });
+
+// Squared distance from point (px,py) to the segment (ax,ay)-(bx,by).
+// Raw-number signature avoids per-call Vec2 allocation at the hot loops
+// that call this on every path segment (placement checks, prop scatter).
+export const distPointToSegSq = (
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+) => {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const apx = px - ax;
+  const apy = py - ay;
+  const len2 = abx * abx + aby * aby;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len2)) : 0;
+  const cx = ax + t * abx;
+  const cy = ay + t * aby;
+  const dx = px - cx;
+  const dy = py - cy;
+  return dx * dx + dy * dy;
+};

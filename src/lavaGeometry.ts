@@ -2,6 +2,7 @@ import type { Biome } from "./biomes";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import { mulberry32 } from "./sim/random";
 import type { Vec2 } from "./sim/types";
+import { distPointToSegSq } from "./sim/vec2";
 
 // Per-biome palettes for the rendered river/lake meshes. Kept here next
 // to the geometry so the renderer can read both from one place.
@@ -131,27 +132,6 @@ export type Bridge = RectBridge | PlazaBridge;
 // renderer sees the result.
 type SourcedRect = RectBridge & { pathIdx: number };
 export type LavaFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
-
-const distPointToSegSq = (
-  px: number,
-  py: number,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-) => {
-  const abx = bx - ax;
-  const aby = by - ay;
-  const apx = px - ax;
-  const apy = py - ay;
-  const len = abx * abx + aby * aby;
-  const t = len > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / len)) : 0;
-  const cx = ax + t * abx;
-  const cy = ay + t * aby;
-  const dx = px - cx;
-  const dy = py - cy;
-  return dx * dx + dy * dy;
-};
 
 // Pick a perpendicular direction at a point along a polyline (sign-randomized).
 const perpAt = (
