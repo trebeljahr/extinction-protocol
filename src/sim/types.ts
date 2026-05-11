@@ -277,6 +277,9 @@ export type BossTrickleStream = {
   minInterval: number;
   maxInterval: number;
   startDelay?: number;
+  shielded?: boolean;
+  fierce?: boolean;
+  elite?: boolean;
 };
 
 export type ActiveBossTrickle = {
@@ -286,6 +289,9 @@ export type ActiveBossTrickle = {
   maxInterval: number;
   nextAt: number;
   hpMul: number;
+  shielded?: boolean;
+  fierce?: boolean;
+  elite?: boolean;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";

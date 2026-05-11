@@ -149,6 +149,9 @@ export const startWave = (world: World) => {
         maxInterval: s.maxInterval * mul,
         nextAt: world.time + (s.startDelay ?? 0),
         hpMul,
+        shielded: s.shielded,
+        fierce: s.fierce,
+        elite: s.elite,
       });
     }
   }
@@ -178,7 +181,13 @@ const tickBossTrickle = (world: World) => {
   for (const stream of world.bossTrickleStreams) {
     while (stream.nextAt <= world.time) {
       const kind = stream.kinds[Math.floor(Math.random() * stream.kinds.length)];
-      spawnEnemy(world, kind, { hpMul: stream.hpMul, pathIndex: stream.pathIndex });
+      spawnEnemy(world, kind, {
+        hpMul: stream.hpMul,
+        pathIndex: stream.pathIndex,
+        shielded: stream.shielded,
+        fierce: stream.fierce,
+        elite: stream.elite,
+      });
       const interval =
         stream.minInterval + Math.random() * (stream.maxInterval - stream.minInterval);
       stream.nextAt += Math.max(0.1, interval);
