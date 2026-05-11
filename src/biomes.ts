@@ -177,6 +177,20 @@ const forestLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 5, sigma: 3.0 },
   },
+  {
+    seed: 6464,
+    // Mushroom.glb authored 0.78 max-dim; 0.65–1.25 → ~0.5–1.0 world units.
+    // Previously rendered as non-clickable cosmetic at the same visible
+    // size, which read as a small obstacle but couldn't be removed.
+    urls: ["/models/landmarks/forest/Mushroom.glb"],
+    count: 10,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.65,
+    maxScale: 1.25,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 3, sigma: 2.0 },
+  },
 ];
 
 // Dead-tree props read as "tree-sized" silhouettes; promoted from cosmetic
@@ -232,6 +246,19 @@ const desertLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
     cluster: { seeds: 5, sigma: 3.5 },
+  },
+  {
+    seed: 6464,
+    // Skull.glb authored 0.51 max-dim; 0.8–1.6 → ~0.4–0.8 world units.
+    // Sun-bleached bones read as scattered rock-sized obstacles.
+    urls: ["/models/landmarks/desert/Skull.glb"],
+    count: 9,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.8,
+    maxScale: 1.6,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 3, sigma: 2.6 },
   },
   DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.09, 0.15),
 ];
@@ -316,14 +343,40 @@ const wastelandLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 7, sigma: 3.2 },
   },
+  {
+    seed: 6464,
+    urls: ["/models/landmarks/wasteland/Skull.glb"],
+    count: 8,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.8,
+    maxScale: 1.6,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 3, sigma: 2.6 },
+  },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 8, 5151),
 ];
 
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
 // slightly larger, reading as volcanic boulders and slag heaps. Adds a
 // crystal-rock blocker layer so every clearable obstacle has a readable
-// silhouette.
+// silhouette. Small skulls/crystals run *before* the dense rock layer so
+// they still get placement slots — lava paths + lakes eat most open
+// terrain, and 110 wasteland rocks would otherwise saturate it first.
 const lavaLayers = (): BiomeLayer[] => [
+  {
+    seed: 6464,
+    urls: ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/wasteland/Crystal1.glb"],
+    // Skull 0.51 max-dim and Crystal1 0.42 max-dim are similar enough to
+    // share a layer; scale 0.9–1.7 lands ~0.45–0.85 world units for both.
+    count: 12,
+    clearance: PATH_WIDTH / 2 + 0.5,
+    minScale: 0.9,
+    maxScale: 1.7,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 4, sigma: 2.6 },
+  },
   {
     seed: 4242,
     urls: [
@@ -333,7 +386,7 @@ const lavaLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock4.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 110,
+    count: 100,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.6,
     maxScale: 1.55,
@@ -357,9 +410,10 @@ const lavaLayers = (): BiomeLayer[] => [
 
 // Alien uses Quaternius Crystal Pack blue crystals as the signature
 // blocking element. Large + medium variants give readable silhouettes;
-// small shards stay in BIOME_COSMETICS as scatter decor. Tree_Light is
-// promoted from cosmetic to a blocking layer so it acts as a removable
-// obstacle rather than non-interactive scenery.
+// small shards are promoted to a blocking layer so they're removable
+// instead of non-interactive scenery. Bush/Plant layer is also blocking:
+// previously they sat as 1–4 world-unit "ground cover" the player tried
+// to click and couldn't — now they read as the obstacles they look like.
 const alienLayers = (): BiomeLayer[] => [
   {
     seed: 9001,
@@ -371,13 +425,16 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/alien/Plant_2.gltf",
       "/models/biomes/alien/Plant_3.gltf",
     ],
-    count: 50,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.6,
-    maxScale: 1.2,
-    castShadow: false,
-    footprint: 0.5,
-    cluster: { seeds: 6, sigma: 2.2 },
+    // Authored 1.82–3.26 max-dim; 0.22–0.45 lands ~0.4–1.5 world units
+    // (rock-sized) across the variants, so every plant reads as a
+    // removable obstacle rather than a tree-sized blob.
+    count: 28,
+    clearance: PATH_WIDTH / 2 + 0.8,
+    minScale: 0.22,
+    maxScale: 0.45,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 6, sigma: 2.4 },
   },
   {
     seed: 4242,
@@ -386,7 +443,7 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock3.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 65,
+    count: 55,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.35,
@@ -402,13 +459,27 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/alien/Crystal_Medium_1.glb",
       "/models/biomes/alien/Crystal_Medium_2.glb",
     ],
-    count: 24,
+    count: 20,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.09,
     maxScale: 0.16,
     castShadow: true,
     blocks: true,
     cluster: { seeds: 4, sigma: 2.5 },
+  },
+  {
+    seed: 3434,
+    urls: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
+    // Authored 5.26 and 6.87 max-dim; 0.07–0.13 lands ~0.4–0.9 world units.
+    // Small but still clearly clickable, so the shards under the bigger
+    // crystals get the same remove-flow as everything else.
+    count: 14,
+    clearance: PATH_WIDTH / 2 + 0.6,
+    minScale: 0.07,
+    maxScale: 0.13,
+    castShadow: true,
+    blocks: true,
+    cluster: { seeds: 4, sigma: 2.4 },
   },
   {
     seed: 6161,
@@ -485,20 +556,19 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 
 // Small cosmetic props scattered across levels — strictly ground-decor
 // that reads as flat texture, not as an obstacle. Anything that looked
-// like a placement-blocker silhouette (meteors, sci-fi machines, satellite
-// dishes, barrels) was pulled: those props had no destructor handler and
-// didn't actually block placement, so players misread them as clearable.
-// Tree- and rock-sized blockers live in BIOME_LAYERS with `blocks: true`.
-// Tiny accent shards (Crystal1) stay here — small enough to read as decor.
+// like a placement-blocker silhouette (meteors, machines, mushrooms,
+// skulls, crystals) was promoted to a blocking layer in BIOME_LAYERS so
+// it goes through the click+clear flow with every other rock-sized prop.
+// Only BushFlowers remains: authored at 1.97 max-dim but normalized down
+// to 0.18–0.36 world units, it reads as a flat flower patch, not an
+// obstacle.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
-  forest: ["/models/landmarks/forest/Mushroom.glb", "/models/landmarks/forest/BushFlowers.glb"],
-  desert: ["/models/landmarks/desert/Skull.glb"],
+  forest: ["/models/landmarks/forest/BushFlowers.glb"],
+  desert: [],
   snow: [],
-  wasteland: ["/models/landmarks/wasteland/Skull.glb"],
-  lava: ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/wasteland/Crystal1.glb"],
-  // Alien plants/bushes are bush-class flora — same convention as the
-  // non-blocking bush layers in BIOME_LAYERS, kept here as scattered decor.
-  alien: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
+  wasteland: [],
+  lava: [],
+  alien: [],
 };
 
 // Visual-role classification + target sizes so props on the world map (and

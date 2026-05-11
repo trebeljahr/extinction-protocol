@@ -13,10 +13,15 @@ const StaticModel = ({ url }: { url: string }) => {
 
 const obstacleLabel = (url: string): string => {
   const file = url.split("/").pop() ?? "";
-  if (/^Tree/i.test(file)) return "Tree";
+  if (/^Tree|DeadTree/i.test(file)) return "Tree";
   if (/^Rock/i.test(file)) return "Rock";
   if (/^Bush/i.test(file)) return "Bush";
   if (/^Grass/i.test(file)) return "Grass";
+  if (/^Mushroom/i.test(file)) return "Mushroom";
+  if (/^Skull/i.test(file)) return "Skull";
+  if (/^Crystal/i.test(file)) return "Crystal";
+  if (/^Plant/i.test(file)) return "Plant";
+  if (/^hangar_|structure_/i.test(file)) return "Structure";
   return "Obstacle";
 };
 
