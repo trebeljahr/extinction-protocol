@@ -4,6 +4,7 @@ import { buildLavaFeatures, type FlowPalette, getFlowConfig } from "../lavaGeome
 import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
+import { ForestWaterGroup } from "./ForestWater";
 
 // Renders the per-biome flow geometry built by `buildLavaFeatures` —
 // rivers, lakes/puddles, and bridges over path crossings. Palette comes
@@ -31,29 +32,41 @@ export const LavaFeatures = () => {
   const { palette } = decorated;
   const bridgeWidth = PATH_WIDTH + 0.4;
 
+  const isForest = biome === "forest";
+
   return (
     <group>
-      {decorated.rivers.map((river) => (
-        <RiverMesh key={river.id} points={river.points} width={river.width} palette={palette} />
-      ))}
-      {decorated.lakes.map((l) => (
-        <mesh
-          key={l.id}
-          position={[l.x, 0.014, -l.y]}
-          rotation={[-Math.PI / 2, 0, l.rot]}
-          scale={[l.rx, l.ry, 1]}
-          receiveShadow
-        >
-          <circleGeometry args={[1, 28]} />
-          <meshStandardMaterial
-            color={palette.fluidColor}
-            emissive={palette.fluidEmissive}
-            emissiveIntensity={palette.fluidEmissiveIntensity}
-            roughness={0.85}
-            toneMapped={false}
-          />
-        </mesh>
-      ))}
+      {isForest ? (
+        <ForestWaterGroup
+          rivers={decorated.rivers}
+          lakes={decorated.lakes}
+          bridges={decorated.bridges}
+        />
+      ) : (
+        <>
+          {decorated.rivers.map((river) => (
+            <RiverMesh key={river.id} points={river.points} width={river.width} palette={palette} />
+          ))}
+          {decorated.lakes.map((l) => (
+            <mesh
+              key={l.id}
+              position={[l.x, 0.014, -l.y]}
+              rotation={[-Math.PI / 2, 0, l.rot]}
+              scale={[l.rx, l.ry, 1]}
+              receiveShadow
+            >
+              <circleGeometry args={[1, 28]} />
+              <meshStandardMaterial
+                color={palette.fluidColor}
+                emissive={palette.fluidEmissive}
+                emissiveIntensity={palette.fluidEmissiveIntensity}
+                roughness={0.85}
+                toneMapped={false}
+              />
+            </mesh>
+          ))}
+        </>
+      )}
       {decorated.bridges.map((b) =>
         b.kind === "plaza" ? (
           <group key={b.id} position={[b.pos.x, 0.06, -b.pos.y]}>
