@@ -167,6 +167,12 @@ const SECTIONS: CreditSection[] = [
         name: "Biome music — alien, desert",
         unknown: true,
       },
+      {
+        name: "Flamethrower sound effect (audio/shoot-flame.mp3)",
+        creator: "Alexander Jauk",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/flamethrower-sound-effect-421402/",
+      },
       // TODO: confirm source for SFX in public/audio/*.mp3 — death, defeat,
       // game-over, impact, level-select, life-lost, music-ambient,
       // new-enemy, shoot-chain, shoot-cryo, shoot-mortar, shoot-pulse, star,
