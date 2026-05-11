@@ -65,7 +65,7 @@ const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
     m.castShadow = true;
     m.receiveShadow = true;
   });
-  return { clone, scale, minY };
+  return { clone, scale, minY, minX: box.min.x };
 };
 
 // Damped scale oscillation for click-pop. Real-time-driven (not gated by
@@ -79,6 +79,16 @@ const computePop = (elapsed: number, intensity: number): number => {
 
 // Bell curve over the face-camera window: 0 → 1 (peak look-at) → 0 (home).
 const FACE_CAMERA_DURATION = 1.2;
+
+// Pre-allocated quaternions for barrel roll (tumble-mode eggs). The barrel
+// tips 90° around Z so its long axis lies horizontal, then spins about
+// that axis (-X after tipping) each frame.
+const _barrelTipQ = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(0, 0, 1),
+  Math.PI / 2,
+);
+const _rollQ = new THREE.Quaternion();
+const _rollAxis = new THREE.Vector3(-1, 0, 0);
 
 // Smoke column rising from a chimney. Mounted only after the cabin has
 // been clicked at least once. Each particle is an instanced sphere that
@@ -293,7 +303,8 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const prevTriggeredRef = useRef<boolean>(false);
   const isUnlockPopRef = useRef<boolean>(false);
 
-  const { clone, scale, minY } = useMemo(() => buildInstance(scene, def), [scene, def]);
+  const { clone, scale, minY, minX } = useMemo(() => buildInstance(scene, def), [scene, def]);
+  const rollLift = Math.max(-minX, 0) * scale;
 
   useEffect(() => {
     const clipName = def.visual?.clip;
@@ -349,10 +360,16 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
 
     // Apply pop to the visible (inner) group only — the outer hit sphere
     // keeps its constant radius so multi-click eggs don't have a moving
-    // hitbox between taps. Forward tumble (barrel roll) lives here too.
+    // hitbox between taps. Axial barrel-roll rotation lives here too.
     if (innerRef.current) {
       innerRef.current.scale.setScalar(scale * pop);
-      innerRef.current.rotation.x = egg.rollPitch;
+      if (egg.vel != null && def.clickRoll?.tumble) {
+        innerRef.current.position.y = rollLift;
+        _rollQ.setFromAxisAngle(_rollAxis, egg.rollPitch);
+        innerRef.current.quaternion.multiplyQuaternions(_rollQ, _barrelTipQ);
+      } else {
+        innerRef.current.rotation.set(egg.rollPitch, 0, 0);
+      }
     }
 
     if (!groupRef.current) return;

@@ -545,8 +545,8 @@ export const updateEasterEggs = (world: World, dt: number) => {
       egg.pos.y += egg.vel.y * dt;
       const def = EASTER_EGG_BY_ID[egg.defId];
       // Tumble-mode eggs (barrel) keep their launch heading and accumulate
-      // spin into rollPitch so they somersault forward instead of pivoting
-      // around their vertical axis like a tumbleweed.
+      // spin into rollPitch so they roll about their long axis instead of
+      // pivoting around their vertical axis like a tumbleweed.
       if (def?.clickRoll?.tumble) {
         egg.rollPitch += egg.spin * dt;
       } else {

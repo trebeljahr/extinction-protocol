@@ -22,9 +22,9 @@ export type EasterEggMotion = {
 // Static placement that becomes mobile only after the player triggers it.
 // Used by the barrel — it sits in the level until clicked, then topples
 // onto its side and rolls in the direction it was facing until off-screen.
-// The renderer reads `tumble: true` to swap the spin from a flat Y-axis
-// pivot (tumbleweed) to a forward end-over-end roll perpendicular to the
-// heading, which reads as a barrel rolling away.
+// The renderer reads `tumble: true` to tip the barrel onto its side and
+// spin it about the cylinder's long axis, which reads as a barrel rolling
+// across the ground.
 export type EasterEggClickRoll = {
   speed: number;
   lifetime: number;
@@ -144,9 +144,9 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       particleSpeed: [2, 4],
       particleLife: 0.5,
     },
-    // Click sends the barrel tumbling in a random horizontal direction
+    // Click sends the barrel rolling in a random horizontal direction
     // until it leaves the playfield. spinRate is high so the barrel
-    // visibly somersaults across the ground rather than coasting upright.
+    // visibly rolls across the ground rather than coasting upright.
     clickRoll: { speed: 7, lifetime: 4, spinRate: 14, tumble: true },
   },
   {
