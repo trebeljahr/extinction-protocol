@@ -14,9 +14,12 @@ const DIFFICULTY_KIND: Record<Difficulty, EnemyKind> = {
   extinction: "boss",
 };
 
-// Saturated form of DIFFICULTY_ACCENT, used as the source color for the
-// mix-blend overlay. The card container already paints a faint tint
-// behind the icon; this is the per-pixel hue shift on the model itself.
+// Saturated form of DIFFICULTY_ACCENT — the silhouette is painted
+// straight in this color. Earlier we ran the baked PNG through a
+// mix-blend color overlay, but at chip sizes (32px) the bake's dark
+// model albedo + a tinted chip background produced a near-invisible
+// dark-red-on-dark-red result. A flat mask-and-fill silhouette stays
+// readable on any background and at any size.
 const TINT: Record<Difficulty, string> = {
   easy: "#b4ffc9",
   medium: "#9fd8ff",
@@ -76,39 +79,24 @@ export const DifficultyModelIcon = ({ difficulty, className }: Props) => {
     return <div className={`difficulty-model-pending ${className ?? ""}`} aria-hidden />;
   }
 
-  // `isolation: isolate` keeps the mix-blend-mode inside this container
-  // so the overlay only tints the dino image, never the page behind it.
-  // The overlay reuses the baked PNG as a mask so the saturated fill is
-  // clipped to the dinosaur silhouette — outside the silhouette stays
-  // fully transparent and the parent's accent.tint shows through.
-  const maskStyle = {
-    WebkitMaskImage: `url(${url})`,
-    maskImage: `url(${url})`,
-    WebkitMaskSize: "contain",
-    maskSize: "contain",
-    WebkitMaskRepeat: "no-repeat",
-    maskRepeat: "no-repeat",
-    WebkitMaskPosition: "center",
-    maskPosition: "center",
-  } as const;
-
+  // The baked PNG is used purely as an alpha mask — we never display
+  // its pixels. The container's background paints the saturated accent
+  // color, masked to the dinosaur silhouette.
   return (
-    <div className={`relative isolate ${className ?? ""}`} aria-hidden>
-      <img
-        src={url}
-        alt=""
-        className="absolute inset-0 w-full h-full"
-        style={{ objectFit: "contain", display: "block" }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundColor: tint,
-          mixBlendMode: "color",
-          opacity: 0.7,
-          ...maskStyle,
-        }}
-      />
-    </div>
+    <div
+      className={className}
+      aria-hidden
+      style={{
+        backgroundColor: tint,
+        WebkitMaskImage: `url(${url})`,
+        maskImage: `url(${url})`,
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
   );
 };

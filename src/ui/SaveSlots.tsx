@@ -11,6 +11,7 @@ import {
 } from "../progress";
 import { SaveSlotsScene } from "../render/SaveSlotsScene";
 import { useGame } from "../store";
+import { DifficultyModelIcon } from "./DifficultyModelIcon";
 
 export const SaveSlots = () => {
   const selectSlot = useGame((s) => s.selectSlot);
@@ -108,6 +109,10 @@ const SaveSlotTile = ({
           <div
             className={`save-slot-difficulty ${DIFFICULTY_ACCENT[slot.progress.difficulty].text}`}
           >
+            <DifficultyModelIcon
+              difficulty={slot.progress.difficulty}
+              className="w-4 h-4 shrink-0"
+            />
             {DIFFICULTY_LABEL[slot.progress.difficulty].toUpperCase()}
           </div>
         )}

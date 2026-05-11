@@ -13,6 +13,7 @@ import {
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
+import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
@@ -88,12 +89,13 @@ export const WorldMapUI = () => {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   setDifficultyPickerOpen(true);
                 }}
               >
+                <DifficultyModelIcon difficulty={difficulty} className="w-5 h-5 shrink-0" />
                 Difficulty · {DIFFICULTY_LABEL[difficulty]}
               </button>
               <button

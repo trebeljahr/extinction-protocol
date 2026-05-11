@@ -2851,10 +2851,13 @@
      picker, world map and this all read from the same palette. The
      shape and sizing live here. */
   .save-slot-difficulty {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: var(--fs-2xs);
     font-weight: 700;
     letter-spacing: 0.16em;
-    padding: 3px 8px;
+    padding: 3px 8px 3px 5px;
     border-radius: var(--radius-pill);
     border: 1px solid currentColor;
     background: rgba(8, 12, 18, 0.6);
