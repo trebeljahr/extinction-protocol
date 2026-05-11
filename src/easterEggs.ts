@@ -83,6 +83,7 @@ export type EasterEggDef = {
   clickRoll?: EasterEggClickRoll;
   reaction?: EasterEggReaction;
   chimneyOffset?: ChimneyOffset;
+  goldReward?: number;
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -310,6 +311,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/scifi/rover.glb",
     targetSize: 1.8,
     clickThreshold: 1,
+    goldReward: 10,
     effect: {
       particleColor: "#9fd8ff",
       particleCount: 20,
@@ -361,6 +363,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/Triceratops.glb",
     targetSize: 1.6,
     clickThreshold: 1,
+    goldReward: 20,
     effect: {
       particleColor: "#b8e8ff",
       particleCount: 18,

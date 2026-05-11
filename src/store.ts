@@ -977,6 +977,13 @@ export const useGame = create<GameStore>((set, get) => ({
       // and despawn once they leave. Heading aims at the nearest edge so
       // the barrel always rolls *off* the playfield rather than veering
       // back toward a wall.
+      if (def.goldReward) {
+        w.gold += def.goldReward;
+        spawnParticles(w, egg.pos, 14, "#ffd700", [3, 6], 0.7);
+        spawnParticles(w, egg.pos, 10, "#ffec80", [2, 4.5], 0.5);
+        egg.despawnAt = w.time;
+        updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
+      }
       if (def.clickRoll) {
         const distLeft = egg.pos.x + MAP_WIDTH / 2;
         const distRight = MAP_WIDTH / 2 - egg.pos.x;
