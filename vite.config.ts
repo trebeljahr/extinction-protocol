@@ -36,16 +36,35 @@ const tailscaleIdentity = async (): Promise<TailscaleIdentity | null> => {
   }
 };
 
-// Vite plugin that prints a Tailscale URL banner once the dev server is
-// listening. Vite already lists Network interfaces, but doesn't surface
-// the MagicDNS hostname — which is the friendliest thing to type on a
-// phone keyboard. Port is read from the live server address so CLI
-// overrides (`--port 1234`) are respected.
+// Replace Vite's default `Local / Network` URL list with `Local / Tailscale`.
+// Reasoning: the LAN-IP Network URLs are noise — they're rarely useful, and
+// when they are useful, they collide with the Tailscale entries we'd rather
+// have the user see. We keep Local for desktop dev, then show Tailscale short
+// name + full MagicDNS + tailnet IP for phone testing.
+//
+// We override `server.printUrls` instead of filtering logger output so the
+// `--host`-not-set hint case is also suppressed cleanly.
 const tailscaleBanner = (): Plugin => ({
   name: "tailscale-banner",
   apply: "serve",
   configureServer(server) {
-    server.httpServer?.once("listening", () => {
+    const originalPrintUrls = server.printUrls.bind(server);
+    server.printUrls = () => {
+      const info = server.config.logger.info;
+      const resolved = server.resolvedUrls;
+      // resolvedUrls is null when the host check rejected every binding —
+      // fall back to Vite's own printer in that edge case rather than going
+      // silent.
+      if (!resolved) {
+        originalPrintUrls();
+        return;
+      }
+      for (const url of resolved.local) {
+        info(`  \x1b[32m➜\x1b[0m  \x1b[1mLocal\x1b[0m:   \x1b[36m${url}\x1b[0m`);
+      }
+      // Tailscale identity is async; fire-and-forget so it appends after
+      // the Local line. Banner is best-effort — silently no-ops if tailscale
+      // isn't installed or the daemon is offline.
       void (async () => {
         const id = await tailscaleIdentity();
         if (!id) return;
@@ -57,11 +76,11 @@ const tailscaleBanner = (): Plugin => ({
           `http://${id.fullName}:${port}/`,
           `http://${id.ip}:${port}/`,
         ];
-        server.config.logger.info(
-          `\n  \x1b[36m➜\x1b[0m  \x1b[1mTailscale\x1b[0m:\n${urls.map((u) => `       \x1b[36m${u}\x1b[0m`).join("\n")}\n`,
-        );
+        for (const url of urls) {
+          info(`  \x1b[32m➜\x1b[0m  \x1b[1mTailscale\x1b[0m: \x1b[36m${url}\x1b[0m`);
+        }
       })();
-    });
+    };
   },
 });
 
