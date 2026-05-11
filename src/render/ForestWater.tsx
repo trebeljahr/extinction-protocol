@@ -73,8 +73,10 @@ void main() {
   vec3 col = mix(DEEP, SHALLOW, edge * edge);
   col += r * 0.09;
 
-  // Edge foam — only on segment banks (joint rims would look like rings)
-  float foam = (uIsJoint > 0.5) ? 0.0 : smoothstep(0.72, 0.94, edge);
+  // Edge foam — segment banks and lake rims. River joints sit below segments
+  // (see RiverSegments y offsets), so any visible foam from joints is just the
+  // corner-gap sliver and naturally aligns with the segment bank line.
+  float foam = smoothstep(0.72, 0.94, edge);
   float foamBreak = sin(vWorldPos.x * 12.0 + uTime * 0.7)
                   * sin(vWorldPos.z * 12.0 + uTime * 0.5);
   foam *= max(0.0, 0.5 + 0.5 * foamBreak);
@@ -212,9 +214,12 @@ const RiverSegments = ({
     return out;
   }, [points]);
 
+  // Joints sit BELOW segments (0.011 < 0.012) so straight-section overlap
+  // hides the joint disc entirely. Only the small corner-bend gap shows
+  // through, where the joint's rim aligns with the segment bank line.
   const joints = useMemo(
     () =>
-      points.map((p) => ({ id: nanoid(), pos: [p.x, 0.013, -p.y] as [number, number, number] })),
+      points.map((p) => ({ id: nanoid(), pos: [p.x, 0.011, -p.y] as [number, number, number] })),
     [points],
   );
 
