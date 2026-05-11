@@ -1,6 +1,6 @@
-import { Environment, useGLTF } from "@react-three/drei";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 
@@ -149,16 +149,6 @@ const AnimatedModel = ({
   );
 };
 
-// Slow yaw on the entire diorama. Just enough motion to read as "alive"
-// without being a noticeable distraction behind the slot card.
-const SlowSpin = ({ children, speed = 0.05 }: { children: React.ReactNode; speed?: number }) => {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.y += dt * speed;
-  });
-  return <group ref={ref}>{children}</group>;
-};
-
 export const SaveSlotsScene = () => (
   <>
     <color attach="background" args={[BG]} />
@@ -182,6 +172,24 @@ export const SaveSlotsScene = () => (
     />
     <hemisphereLight args={[HEMI_TOP, HEMI_BOTTOM, 0.85]} />
 
+    {/* Slow auto-orbit + drag-to-rotate. The user can grab the backdrop
+        and spin the diorama; releasing resumes the gentle drift.
+        autoRotateSpeed 0.4 ≈ the previous 0.04 rad/s manual spin
+        (rad/s = 2π/60 × speed). */}
+    <OrbitControls
+      makeDefault
+      enablePan={false}
+      enableZoom
+      minDistance={10}
+      maxDistance={30}
+      minPolarAngle={Math.PI * 0.15}
+      maxPolarAngle={Math.PI * 0.5}
+      autoRotate
+      autoRotateSpeed={0.4}
+      enableDamping
+      dampingFactor={0.08}
+    />
+
     {/* Soft dirt disc — bigger than the camera frustum so the fog
         absorbs the edge instead of revealing a hard horizon. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
@@ -189,109 +197,102 @@ export const SaveSlotsScene = () => (
       <meshStandardMaterial color="#3a3328" roughness={0.95} />
     </mesh>
 
-    <SlowSpin speed={0.04}>
-      {/* Hero turret on a small raised pad, central. */}
-      <mesh position={[0, 0.05, 0]} receiveShadow>
-        <cylinderGeometry args={[1.8, 2.0, 0.12, 24]} />
-        <meshStandardMaterial color="#2a2f38" roughness={0.7} metalness={0.2} />
-      </mesh>
-      <StaticModel url="/models/turrets/Plasma Turret.glb" position={[0, 0.12, 0]} scale={0.8} />
+    {/* Hero turret on a small raised pad, central. */}
+    <mesh position={[0, 0.05, 0]} receiveShadow>
+      <cylinderGeometry args={[1.8, 2.0, 0.12, 24]} />
+      <meshStandardMaterial color="#2a2f38" roughness={0.7} metalness={0.2} />
+    </mesh>
+    <StaticModel url="/models/turrets/Plasma Turret.glb" position={[0, 0.12, 0]} scale={0.8} />
 
-      {/* Apatosaurus far-back-left, walking. Scale 0.18 → roughly 5m tall,
-          big enough to read as a silhouette behind the slot card without
-          stealing the eye from the tower. */}
-      <AnimatedModel
-        url="/models/Apatosaurus.glb"
-        position={[-11, 0, -11]}
-        rotationY={Math.PI * 0.45}
-        scale={0.18}
-        clipName="Walk"
-        timeScale={0.55}
-      />
+    {/* Apatosaurus far-back-left, walking. Scale 0.18 → roughly 5m tall,
+        big enough to read as a silhouette behind the slot card without
+        stealing the eye from the tower. */}
+    <AnimatedModel
+      url="/models/Apatosaurus.glb"
+      position={[-11, 0, -11]}
+      rotationY={Math.PI * 0.45}
+      scale={0.18}
+      clipName="Walk"
+      timeScale={0.55}
+    />
 
-      {/* Trex back-right, posed (no clip). */}
-      <StaticModel
-        url="/models/Trex.glb"
-        position={[8, 0, -4]}
-        rotationY={-Math.PI * 0.6}
-        scale={0.12}
-      />
+    {/* Trex back-right, posed (no clip). */}
+    <StaticModel
+      url="/models/Trex.glb"
+      position={[8, 0, -4]}
+      rotationY={-Math.PI * 0.6}
+      scale={0.12}
+    />
 
-      {/* Triceratops left, off-center so it doesn't block the tower. */}
-      <StaticModel
-        url="/models/Triceratops.glb"
-        position={[-6.5, 0, 0.5]}
-        rotationY={Math.PI * 0.7}
-        scale={0.1}
-      />
+    {/* Triceratops left, off-center so it doesn't block the tower. */}
+    <StaticModel
+      url="/models/Triceratops.glb"
+      position={[-6.5, 0, 0.5]}
+      rotationY={Math.PI * 0.7}
+      scale={0.1}
+    />
 
-      {/* Stegosaurus right-foreground for variety. */}
-      <StaticModel
-        url="/models/Stegosaurus.glb"
-        position={[5, 0, 4]}
-        rotationY={-Math.PI * 0.25}
-        scale={0.08}
-      />
+    {/* Stegosaurus right-foreground for variety. */}
+    <StaticModel
+      url="/models/Stegosaurus.glb"
+      position={[5, 0, 4]}
+      rotationY={-Math.PI * 0.25}
+      scale={0.08}
+    />
 
-      {/* Tree ring softens the perimeter and gives parallax depth. */}
-      <StaticModel url="/models/nature/Tree2.glb" position={[-13, 0, 1]} scale={0.7} />
-      <StaticModel
-        url="/models/nature/Tree1.glb"
-        position={[12, 0, 2]}
-        rotationY={0.4}
-        scale={0.95}
-      />
-      <StaticModel
-        url="/models/nature/Tree2.glb"
-        position={[2, 0, -11]}
-        rotationY={1.1}
-        scale={0.75}
-      />
-      <StaticModel
-        url="/models/nature/Tree4.glb"
-        position={[-4, 0, -12]}
-        rotationY={-0.6}
-        scale={0.5}
-      />
-      <StaticModel
-        url="/models/nature/Tree1.glb"
-        position={[10, 0, 8]}
-        rotationY={2.2}
-        scale={0.8}
-      />
-      <StaticModel
-        url="/models/nature/Tree4.glb"
-        position={[-9.5, 0, 8]}
-        rotationY={-1.4}
-        scale={0.85}
-      />
-      <StaticModel
-        url="/models/nature/Tree4.glb"
-        position={[15, 0, -3]}
-        rotationY={0.9}
-        scale={0.45}
-      />
+    {/* Tree ring softens the perimeter and gives parallax depth. */}
+    <StaticModel url="/models/nature/Tree2.glb" position={[-13, 0, 1]} scale={0.7} />
+    <StaticModel
+      url="/models/nature/Tree1.glb"
+      position={[12, 0, 2]}
+      rotationY={0.4}
+      scale={0.95}
+    />
+    <StaticModel
+      url="/models/nature/Tree2.glb"
+      position={[2, 0, -11]}
+      rotationY={1.1}
+      scale={0.75}
+    />
+    <StaticModel
+      url="/models/nature/Tree4.glb"
+      position={[-4, 0, -12]}
+      rotationY={-0.6}
+      scale={0.5}
+    />
+    <StaticModel url="/models/nature/Tree1.glb" position={[10, 0, 8]} rotationY={2.2} scale={0.8} />
+    <StaticModel
+      url="/models/nature/Tree4.glb"
+      position={[-9.5, 0, 8]}
+      rotationY={-1.4}
+      scale={0.85}
+    />
+    <StaticModel
+      url="/models/nature/Tree4.glb"
+      position={[15, 0, -3]}
+      rotationY={0.9}
+      scale={0.45}
+    />
 
-      {/* A few rocks to break up the dirt. Scale 0.35 ≈ 0.9m tall. */}
-      <StaticModel
-        url="/models/nature/Rock1.glb"
-        position={[2.5, 0, 5.5]}
-        rotationY={0.8}
-        scale={0.35}
-      />
-      <StaticModel
-        url="/models/nature/Rock2.glb"
-        position={[-3, 0, -4]}
-        rotationY={-0.5}
-        scale={0.4}
-      />
-      <StaticModel
-        url="/models/nature/Rock3.glb"
-        position={[-7, 0, 4]}
-        rotationY={1.2}
-        scale={0.35}
-      />
-    </SlowSpin>
+    {/* A few rocks to break up the dirt. Scale 0.35 ≈ 0.9m tall. */}
+    <StaticModel
+      url="/models/nature/Rock1.glb"
+      position={[2.5, 0, 5.5]}
+      rotationY={0.8}
+      scale={0.35}
+    />
+    <StaticModel
+      url="/models/nature/Rock2.glb"
+      position={[-3, 0, -4]}
+      rotationY={-0.5}
+      scale={0.4}
+    />
+    <StaticModel
+      url="/models/nature/Rock3.glb"
+      position={[-7, 0, 4]}
+      rotationY={1.2}
+      scale={0.35}
+    />
   </>
 );
 

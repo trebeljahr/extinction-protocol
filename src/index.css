@@ -2729,14 +2729,21 @@
   .save-slots-bg {
     position: absolute;
     inset: 0;
-    /* Sits behind the UI but still receives no pointer events itself —
-       the canvas should not eat clicks meant for the slot buttons. */
+    /* The wrapper itself stays transparent to pointer events; the canvas
+       below opts back in so OrbitControls can pick up drag/zoom. The
+       slot grid is also `pointer-events: none` so canvas drags still
+       work in the bottom strip; the individual tiles re-enable events. */
     pointer-events: none;
   }
   .save-slots-bg canvas {
     display: block;
     width: 100% !important;
     height: 100% !important;
+    pointer-events: auto;
+    cursor: grab;
+  }
+  .save-slots-bg canvas:active {
+    cursor: grabbing;
   }
 
   /* Vertical gradient that darkens the bottom (where slot tiles sit) and
@@ -2796,6 +2803,12 @@
     gap: 18px;
     padding: 0 32px;
     z-index: 2;
+    /* Let drag-orbit pass through the empty gutters on either side of
+       the three slot tiles. The tiles re-enable pointer events below. */
+    pointer-events: none;
+  }
+  .save-slot-tile {
+    pointer-events: auto;
   }
 
   .save-slot-tile {
