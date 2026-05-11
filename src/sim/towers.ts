@@ -427,43 +427,50 @@ export const countDronesOnTower = (world: World, towerId: number): number => {
   return n;
 };
 
-// On placement, auto-wire idle drones so the player doesn't have to
-// drill into the hive panel for every neighbour.
+// Auto-wire idle drones so the player doesn't have to drill into the
+// hive panel for every neighbour. Called on tower placement and after
+// a hive drone-bay upgrade (which adds a new idle slot).
 //
 // Two directions:
 //  1. Non-hive tower placed anywhere → grab closest hive's first idle
 //     drone.
-//  2. Hive placed anywhere → fill its idle slots with the closest
-//     unserviced neighbours.
+//  2. Hive placed (or upgraded) → fill its idle slots round-robin so
+//     drones spread across nearby towers instead of piling on one.
 //
-// Distance gates the *preference*, not eligibility — drones can fly
-// to any tower on the map. Manual assignments are left untouched;
-// stacking is capped at HIVE_MAX_DRONES_PER_TOWER per target.
+// Round-robin picks the candidate with the fewest currently-attached
+// drones; distance breaks ties so a hive still favours its local
+// cluster. Manual assignments are left untouched; stacking is capped
+// at HIVE_MAX_DRONES_PER_TOWER per target.
 export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean => {
   if (tower.kind === "hive") {
-    // Gather every non-hive tower sorted by distance, skipping any
-    // already at the stacking cap, then fill idle drone slots
-    // closest-first.
-    const nearby: { id: number; d2: number; stacked: number }[] = [];
+    const candidates: { id: number; d2: number; stacked: number }[] = [];
     for (const t of world.towers) {
       if (t === tower || t.kind === "hive") continue;
       const stacked = countDronesOnTower(world, t.id);
       if (stacked >= HIVE_MAX_DRONES_PER_TOWER) continue;
-      nearby.push({ id: t.id, d2: distSq(t.pos, tower.pos), stacked });
+      candidates.push({ id: t.id, d2: distSq(t.pos, tower.pos), stacked });
     }
-    if (nearby.length === 0) return false;
-    nearby.sort((a, b) => a.d2 - b.d2);
+    if (candidates.length === 0) return false;
+    // Distance order is the tie-break preference — the min-stack scan
+    // below walks the list in order, so the first equal-stack hit wins.
+    candidates.sort((a, b) => a.d2 - b.d2);
 
     let assigned = false;
-    let ni = 0;
-    for (let i = 0; i < tower.droneCount && ni < nearby.length; i++) {
+    for (let i = 0; i < tower.droneCount; i++) {
       if (tower.droneAssignments[i] !== null) continue;
-      // Re-check stacking per drone — earlier drones in this same
-      // call may have filled the candidate up to the cap.
-      while (ni < nearby.length && nearby[ni].stacked >= HIVE_MAX_DRONES_PER_TOWER) ni++;
-      if (ni >= nearby.length) break;
-      tower.droneAssignments[i] = nearby[ni].id;
-      nearby[ni].stacked++;
+      let pick = -1;
+      let pickStack = Number.POSITIVE_INFINITY;
+      for (let j = 0; j < candidates.length; j++) {
+        const c = candidates[j];
+        if (c.stacked >= HIVE_MAX_DRONES_PER_TOWER) continue;
+        if (c.stacked < pickStack) {
+          pickStack = c.stacked;
+          pick = j;
+        }
+      }
+      if (pick < 0) break;
+      tower.droneAssignments[i] = candidates[pick].id;
+      candidates[pick].stacked++;
       assigned = true;
     }
     return assigned;

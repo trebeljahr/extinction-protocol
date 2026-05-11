@@ -1170,6 +1170,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
+      // Hive drone-bay path adds an idle drone slot — flush it through
+      // the same round-robin pass that runs on placement so the new
+      // drone reaches whichever neighbour has the smallest stack.
+      if (t.kind === "hive") autoAssignDroneToNewTower(s.world, t);
       const newVersion = s.towerVersion + 1;
       set({
         towerVersion: newVersion,
