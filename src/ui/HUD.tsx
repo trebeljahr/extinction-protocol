@@ -55,6 +55,9 @@ export const HUD = () => {
   const paused = status === "paused";
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
+  // NewEnemyAlert auto-pauses the world but the pause-menu screen
+  // should NOT render underneath it — the dossier is its own modal.
+  const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
   const isMobile = useIsMobile();
   // On mobile the picker collapses to a small handle to free up the
   // canvas. Auto-closes on selection (one less tap to start placing)
@@ -264,7 +267,9 @@ export const HUD = () => {
       <TreePanel />
       <BossBanner />
 
-      {paused && !compendiumOpen && !levelIntroVisible && <PauseMenu onResume={togglePause} />}
+      {paused && !compendiumOpen && !levelIntroVisible && !newEnemyAlertVisible && (
+        <PauseMenu onResume={togglePause} />
+      )}
     </div>
   );
 };

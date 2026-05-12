@@ -1652,6 +1652,13 @@
       0 16px 60px rgba(0, 0, 0, 0.55),
       0 0 0 1px rgba(255, 170, 110, 0.08);
     animation: newEnemyPop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+    /* Cap to viewport so the dossier scrolls inside the card on short
+       viewports (landscape phones, small laptops) instead of clipping
+       off-screen. `100dvh` follows the dynamic viewport so the bottom
+       button is reachable even with the mobile URL bar visible. */
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   @keyframes newEnemyFadeIn {
@@ -1798,6 +1805,9 @@
       0 12px 48px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
     animation: levelIntroPop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .level-intro-eyebrow {
@@ -2565,8 +2575,6 @@
       max-width: 360px;
       padding: 16px 16px 16px !important;
       gap: 6px !important;
-      max-height: calc(100dvh - 24px);
-      overflow-y: auto;
     }
     .new-enemy-card h1 {
       font-size: var(--fs-2xl) !important;
