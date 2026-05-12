@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "cliVersion": "0.1.18",
-  "scaffoldedAt": "2026-04-29T16:22:29.706Z",
+  "cliVersion": "0.1.22",
+  "scaffoldedAt": "2026-04-30T08:02:14.872Z",
   "name": "extinction-protocol",
   "domain": "protocol.trebeljahr.com",
   "features": [],
@@ -12,5 +12,8 @@
     "server": 3000,
     "client": 3001
   },
-  "surfaces": "client-only"
+  "surfaces": "client-only",
+  "localDev": {
+    "slug": "extinction-protocol"
+  }
 }

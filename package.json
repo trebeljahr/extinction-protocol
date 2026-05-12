@@ -37,6 +37,7 @@
     "@capacitor/android": "^8.3.1",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/ios": "^8.3.1",
+    "@hatchkit/dev-plugin-vite": "^0.1.43",
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/cli": "^2.1.0",
     "@types/node": "^25.7.0",
@@ -53,7 +54,9 @@
   },
   "pnpm": {
     "overrides": {
-      "postprocessing": "~6.37.0"
+      "postprocessing": "~6.37.0",
+      "@hatchkit/dev-plugin-vite": "link:/Users/rico/projects/hatchkit/packages/dev-plugin-vite",
+      "@hatchkit/dev-shared": "link:/Users/rico/projects/hatchkit/packages/dev-shared"
     }
   },
   "lint-staged": {
