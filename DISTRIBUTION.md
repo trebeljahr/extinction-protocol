@@ -118,7 +118,7 @@ Or do everything from Android Studio: Build → Generate Signed Bundle / APK.
 ### Mobile-specific notes
 
 - The web build uses `localStorage` for save data; that survives WebView reloads but **not** OS-level uninstall on iOS (iOS clears WebView storage on reinstall). If save persistence across reinstalls matters, swap to `@capacitor/preferences` and adapt the `progress.ts` / save-slot layer.
-- Plausible analytics (`VITE_PLAUSIBLE_DOMAIN`) loads from `https://plausible.io` and works inside both WKWebView and Android WebView. To disable analytics in mobile builds, just leave the env var unset at `pnpm build` time.
+- Plausible analytics defaults to `protocol.trebeljahr.com` and the self-hosted script at `https://plausible.trebeljahr.com`. The loader and event wrapper both require the current hostname to match `VITE_PLAUSIBLE_DOMAIN`, so local previews and mobile/native shells stay silent.
 - iOS Info.plist (`ios/App/App/Info.plist`) supports portrait + both landscapes by default. Edit `UISupportedInterfaceOrientations` to landscape-only if desired.
 - Android manifest (`android/app/src/main/AndroidManifest.xml`) already has `INTERNET` permission for analytics. Add no others unless required by future plugins.
 

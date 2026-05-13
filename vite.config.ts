@@ -7,14 +7,28 @@ const DEV_PORT = 3286;
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
-  const plausibleDomain = env.VITE_PLAUSIBLE_DOMAIN;
-  // Env-gated: when VITE_PLAUSIBLE_DOMAIN is unset, the marker is
-  // replaced with an empty string and no Plausible script is loaded.
+  const plausibleDomain = env.VITE_PLAUSIBLE_DOMAIN ?? "protocol.trebeljahr.com";
+  const plausibleScriptUrl =
+    env.VITE_PLAUSIBLE_SCRIPT_URL ??
+    "https://plausible.trebeljahr.com/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js";
+  // Host-gated: the marker injects a loader, but it only appends the
+  // Plausible script when the current hostname matches the configured
+  // production domain.
   // The inline shim queues track() calls fired before the deferred
   // script attaches, so callers don't need to wait for load.
   const plausibleTag = plausibleDomain
-    ? `<script defer data-domain="${plausibleDomain}" src="https://plausible.io/js/script.js"></script>
-    <script>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)}</script>`
+    ? `<script>
+      (function () {
+        var domain = ${JSON.stringify(plausibleDomain)};
+        if (location.hostname !== domain) return;
+        window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};
+        var script=document.createElement("script");
+        script.defer=true;
+        script.dataset.domain=domain;
+        script.src=${JSON.stringify(plausibleScriptUrl)};
+        document.head.appendChild(script);
+      })();
+    </script>`
     : "";
   return {
     plugins: [

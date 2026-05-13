@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_PLAUSIBLE_DOMAIN?: string;
+  readonly VITE_PLAUSIBLE_SCRIPT_URL?: string;
 }
 
 interface ImportMeta {
