@@ -28,6 +28,7 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
     ref,
   ) {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
+    const gl = useThree((s) => s.gl);
     useImperativeHandle<OrbitControlsImpl | null, OrbitControlsImpl | null>(
       ref,
       () => controlsRef.current,
@@ -52,11 +53,8 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       }
     });
 
-    useDragGate(
-      controlsRef,
-      reserveLeftClick,
-      useThree((s) => s.gl),
-    );
+    useDragGate(controlsRef, reserveLeftClick, gl);
+    useTrackpadPan(controlsRef, reserveLeftClick, gl);
 
     return (
       <OrbitControls
@@ -96,8 +94,10 @@ function useDragGate(
     if (!active) return;
 
     const canvas = gl.domElement;
+    const ownerDocument = canvas.ownerDocument;
     let startX = 0;
     let startY = 0;
+    let pointerId = -1;
     let gated = false;
 
     const onDown = (e: PointerEvent) => {
@@ -106,6 +106,7 @@ function useDragGate(
 
       startX = e.clientX;
       startY = e.clientY;
+      pointerId = e.pointerId;
       gated = true;
 
       const c = controlsRef.current;
@@ -118,7 +119,7 @@ function useDragGate(
     };
 
     const onMove = (e: PointerEvent) => {
-      if (!gated) return;
+      if (!gated || e.pointerId !== pointerId) return;
 
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -126,7 +127,7 @@ function useDragGate(
 
       gated = false;
 
-      const synth = new PointerEvent("pointerdown", {
+      const synthDown = new PointerEvent("pointerdown", {
         clientX: startX,
         clientY: startY,
         button: 0,
@@ -136,23 +137,97 @@ function useDragGate(
         bubbles: true,
         cancelable: true,
       });
-      Object.defineProperty(synth, DRAG_GATE, { value: true });
-      canvas.dispatchEvent(synth);
+      Object.defineProperty(synthDown, DRAG_GATE, { value: true });
+      canvas.dispatchEvent(synthDown);
+
+      // Replay the threshold-crossing move too. Without this, pan only
+      // begins on the *next* move event, which makes short drags feel
+      // sticky or get misread as taps.
+      ownerDocument.dispatchEvent(
+        new PointerEvent("pointermove", {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          button: -1,
+          buttons: 1,
+          pointerId: e.pointerId,
+          pointerType: "mouse",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     };
 
-    const onUp = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const clearGate = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
       gated = false;
+      pointerId = -1;
     };
 
     canvas.addEventListener("pointerdown", onDown, { capture: true });
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    ownerDocument.addEventListener("pointermove", onMove);
+    ownerDocument.addEventListener("pointerup", clearGate);
+    ownerDocument.addEventListener("pointercancel", clearGate);
 
     return () => {
       canvas.removeEventListener("pointerdown", onDown, { capture: true });
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      ownerDocument.removeEventListener("pointermove", onMove);
+      ownerDocument.removeEventListener("pointerup", clearGate);
+      ownerDocument.removeEventListener("pointercancel", clearGate);
+    };
+  }, [gl, controlsRef, active]);
+}
+
+function useTrackpadPan(
+  controlsRef: React.RefObject<OrbitControlsImpl | null>,
+  active: boolean,
+  gl: THREE.WebGLRenderer,
+) {
+  useEffect(() => {
+    if (!active) return;
+
+    const canvas = gl.domElement;
+    const right = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const offset = new THREE.Vector3();
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return;
+
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+      const looksLikeTrackpad = absX > 0 || absY < 24;
+      if (!looksLikeTrackpad) return;
+
+      const c = controlsRef.current;
+      const camera = c?.object;
+      if (!c || !camera || !("isOrthographicCamera" in camera) || !camera.isOrthographicCamera) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      const viewW = canvas.clientWidth || 1;
+      const viewH = canvas.clientHeight || 1;
+      const panX = (-e.deltaX * (camera.right - camera.left)) / camera.zoom / viewW;
+      const panY = (e.deltaY * (camera.top - camera.bottom)) / camera.zoom / viewH;
+
+      right.setFromMatrixColumn(camera.matrix, 0).multiplyScalar(panX);
+      forward.setFromMatrixColumn(camera.matrix, 0);
+      forward.crossVectors(camera.up, forward).multiplyScalar(panY);
+      offset.copy(right).add(forward);
+
+      c.target.add(offset);
+      camera.position.add(offset);
+      c.update();
+    };
+
+    canvas.addEventListener("wheel", onWheel, { capture: true, passive: false });
+
+    return () => {
+      canvas.removeEventListener("wheel", onWheel, { capture: true });
     };
   }, [gl, controlsRef, active]);
 }

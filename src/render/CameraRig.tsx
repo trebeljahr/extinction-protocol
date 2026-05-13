@@ -8,6 +8,8 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { useGame } from "../store";
 import { MapOrbitControls } from "./useMapGestures";
 
+const CAMERA_BASE_POSITION: [number, number, number] = [0, 24, 14];
+
 // Pan limits — keep the playfield mostly on screen at all zoom levels.
 // Tuned generously: the player can drift the camera over an edge to
 // peek at a corner tower, but can't lose the path entirely.
@@ -86,19 +88,22 @@ export const CameraRig = () => {
   );
   const maxZoom = Math.min(fitZoom * MAX_ZOOM_MULT, ABS_MAX_ZOOM);
 
-  // Reset to fit-zoom baseline whenever the level changes or the
-  // viewport resizes. Manual zoom is preserved within a level — the
-  // player keeps whatever they pinched/scrolled to until the next
-  // level or window resize. levelId is an intentional dep (drives
-  // the re-baseline on level entry); fitZoom covers viewport resize.
+  // Reset to the fit baseline whenever the level changes or the
+  // viewport resizes. Re-centre pan too; otherwise a prior level's
+  // drag offset can carry into the new fit and make mobile starts
+  // feel cropped even though the zoom itself reset correctly.
   // biome-ignore lint/correctness/useExhaustiveDependencies: levelId is intentional
   useEffect(() => {
     const cam = cameraRef.current;
     const ctrls = controlsRef.current;
     if (!cam) return;
+    cam.position.set(...CAMERA_BASE_POSITION);
     cam.zoom = fitZoom;
     cam.updateProjectionMatrix();
-    if (ctrls) ctrls.update();
+    if (ctrls) {
+      ctrls.target.set(0, 0, 0);
+      ctrls.update();
+    }
   }, [levelId, fitZoom]);
 
   useFrame(() => {
@@ -135,7 +140,7 @@ export const CameraRig = () => {
       <OrthographicCamera
         ref={cameraRef}
         makeDefault
-        position={[0, 24, 14]}
+        position={CAMERA_BASE_POSITION}
         rotation={[-Math.PI / 3, 0, 0]}
         zoom={fitZoom}
         near={0.1}
