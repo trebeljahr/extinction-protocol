@@ -1,4 +1,4 @@
-import { BIOME_LAYERS, type Biome, biomeForPos } from "../biomes";
+import { BIOME_LAYERS, type Biome, type BiomeLayer, biomeForPos } from "../biomes";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "../easterEggs";
 import {
   buildLavaFeatures,
@@ -60,6 +60,8 @@ export const TREE_REMOVE_COST = 10;
 export const ROCK_FOOTPRINT = 0.65;
 export const ROCK_MIN_SPACING = 1.5;
 export const ROCK_REMOVE_COST = 15;
+
+const blockingFootprint = (spec: BiomeLayer): number => spec.footprint ?? ROCK_FOOTPRINT;
 
 // Per-URL XZ radius cache — populated by render components (Trees.tsx,
 // Rocks.tsx) when GLBs load, read by canPlaceAt for placement blocking.
@@ -143,8 +145,6 @@ const buildRocks = (
   lava: LavaFeatures | null,
 ): { rocks: Rock[]; nextId: number } => {
   const rocks: Rock[] = [];
-  const treeSpacingSq = (TREE_FOOTPRINT * 0.5 + ROCK_FOOTPRINT * 0.6) ** 2;
-  const rockSpacingSq = ROCK_MIN_SPACING * ROCK_MIN_SPACING;
   const halfW = MAP_WIDTH / 2 + 11;
   const halfH = MAP_HEIGHT / 2 + 9;
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
@@ -166,8 +166,13 @@ const buildRocks = (
       Math.round((spec.cluster?.seeds ?? 5) * Math.sqrt(areaRatio)),
     );
     const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
-    const rMin = ROCK_MIN_SPACING;
-    const rMax = ROCK_MIN_SPACING * ROCK_MAX_SPACING_MUL;
+    const baseFootprint = blockingFootprint(spec);
+    const avgScale = (spec.minScale + spec.maxScale) / 2;
+    const candidateR = baseFootprint * spec.maxScale;
+    const treeSpacing = candidateR + TREE_FOOTPRINT * 0.55;
+    const treeSpacingSq = treeSpacing * treeSpacing;
+    const rMin = Math.max(ROCK_MIN_SPACING, 2 * baseFootprint * avgScale + 0.15);
+    const rMax = rMin * ROCK_MAX_SPACING_MUL;
     const radiusAt = (x: number, y: number): number => {
       const d = worley.density(x, y);
       return rMin + (1 - d) * (rMax - rMin);
@@ -180,7 +185,7 @@ const buildRocks = (
     const earlierRocks = rocks.slice();
     // Conservative lava check — use max scale footprint so a max-scale
     // rock at this position couldn't touch lava either.
-    const lavaFootprint = ROCK_FOOTPRINT * spec.maxScale;
+    const lavaFootprint = candidateR + 0.1;
 
     const isValid = (x: number, y: number): boolean => {
       if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
@@ -199,7 +204,10 @@ const buildRocks = (
       for (const r of earlierRocks) {
         const dx = r.pos.x - x;
         const dy = r.pos.y - y;
-        if (dx * dx + dy * dy < rockSpacingSq) return false;
+        const priorSpec = layers[r.layerIndex];
+        const priorR = (priorSpec ? blockingFootprint(priorSpec) : ROCK_FOOTPRINT) * r.scale;
+        const minDist = candidateR + priorR + 0.15;
+        if (dx * dx + dy * dy < minDist * minDist) return false;
       }
       return true;
     };

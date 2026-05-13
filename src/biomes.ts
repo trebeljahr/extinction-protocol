@@ -158,12 +158,15 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 9001,
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
-    count: 55,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.45,
-    maxScale: 0.75,
-    castShadow: false,
-    footprint: 0.35,
+    // These read as build-slot blockers from above, so route them through
+    // the clear/remove flow instead of leaving them as untouchable decor.
+    count: 34,
+    clearance: PATH_WIDTH / 2 + 0.7,
+    minScale: 0.52,
+    maxScale: 0.82,
+    castShadow: true,
+    blocks: true,
+    footprint: 0.52,
     cluster: { seeds: 6, sigma: 2.0 },
   },
   {
@@ -214,6 +217,7 @@ const DEAD_TREE_LAYER = (
   maxScale,
   castShadow: true,
   blocks: true,
+  footprint: 0.85,
 });
 
 const desertLayers = (): BiomeLayer[] => [
@@ -400,10 +404,11 @@ const alienLayers = (): BiomeLayer[] => [
     // removable obstacle rather than a tree-sized blob.
     count: 28,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.22,
-    maxScale: 0.45,
+    minScale: 0.28,
+    maxScale: 0.52,
     castShadow: true,
     blocks: true,
+    footprint: 0.58,
     cluster: { seeds: 6, sigma: 2.4 },
   },
   {
@@ -419,6 +424,7 @@ const alienLayers = (): BiomeLayer[] => [
     maxScale: 1.35,
     castShadow: true,
     blocks: true,
+    footprint: 0.72,
     cluster: { seeds: 5, sigma: 3.0 },
   },
   {
@@ -431,10 +437,11 @@ const alienLayers = (): BiomeLayer[] => [
     ],
     count: 20,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.09,
-    maxScale: 0.16,
+    minScale: 0.11,
+    maxScale: 0.18,
     castShadow: true,
     blocks: true,
+    footprint: 0.82,
     cluster: { seeds: 4, sigma: 2.5 },
   },
   {
@@ -443,12 +450,13 @@ const alienLayers = (): BiomeLayer[] => [
     // Authored 5.26 and 6.87 max-dim; 0.07–0.13 lands ~0.4–0.9 world units.
     // Small but still clearly clickable, so the shards under the bigger
     // crystals get the same remove-flow as everything else.
-    count: 14,
+    count: 8,
     clearance: PATH_WIDTH / 2 + 0.6,
-    minScale: 0.07,
-    maxScale: 0.13,
+    minScale: 0.1,
+    maxScale: 0.16,
     castShadow: true,
     blocks: true,
+    footprint: 0.52,
     cluster: { seeds: 4, sigma: 2.4 },
   },
   {
@@ -460,6 +468,7 @@ const alienLayers = (): BiomeLayer[] => [
     maxScale: 0.85,
     castShadow: true,
     blocks: true,
+    footprint: 1.45,
   },
   DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151, 0.55, 0.85),
 ];

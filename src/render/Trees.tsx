@@ -14,24 +14,39 @@ type VariantSource = {
   parts: MeshPart[];
   minY: number;
   xzRadius: number;
-  // Trunk/base radius: tighter than xzRadius so the click ring hugs the
-  // stem instead of tracing the foliage canopy. Computed from the bottom
-  // 10% of the model's height.
-  baseXzRadius: number;
+  // Trunk radius from the very bottom slice: keeps single-trunk trees from
+  // feeling grabby when their canopy spreads far beyond the stem.
+  trunkXzRadius: number;
+  // Root-footprint radius from a wider lower slice: catches multi-trunk
+  // alien trees whose actual blocked footprint is much wider than one stem.
+  footprintXzRadius: number;
 };
 
-const computeBaseXzRadius = (parts: MeshPart[], minY: number, height: number): number => {
-  const sliceTop = minY + height * 0.1;
-  let baseXzMax = 0;
+const computeSliceXzRadius = (
+  parts: MeshPart[],
+  minY: number,
+  height: number,
+  sliceHeightFrac: number,
+): number => {
+  const sliceTop = minY + height * sliceHeightFrac;
+  let xzMax = 0;
   for (const part of parts) {
     const pos = part.geom.getAttribute("position");
     if (!pos) continue;
     for (let i = 0; i < pos.count; i++) {
       if (pos.getY(i) > sliceTop) continue;
-      baseXzMax = Math.max(baseXzMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
+      xzMax = Math.max(xzMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
     }
   }
-  return baseXzMax;
+  return xzMax;
+};
+
+const treeSelectionRadius = (source: VariantSource | null, scale: number): number => {
+  if (!source) return 0.22;
+  const trunk = source.trunkXzRadius || source.xzRadius * 0.18;
+  const footprint = Math.max(trunk, source.footprintXzRadius || 0);
+  const radius = Math.min(source.xzRadius, Math.max(footprint, trunk * 3));
+  return Math.max(0.22, radius * scale);
 };
 
 // Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
@@ -54,10 +69,19 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
         const source = collectMeshSource(scene);
         if (!source) return null;
         const xzRadius = source.xzRadius || 0.9;
-        const baseRaw = computeBaseXzRadius(source.parts, source.minY, source.height);
-        const baseXzRadius = baseRaw || xzRadius * 0.2;
+        const trunkRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.06);
+        const footprintRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.22);
+        const trunkXzRadius = trunkRaw || xzRadius * 0.16;
+        const footprintXzRadius = footprintRaw || trunkXzRadius;
         meshXZRadii.set(urls[si], xzRadius);
-        return { id: nanoid(), parts: source.parts, minY: source.minY, xzRadius, baseXzRadius };
+        return {
+          id: nanoid(),
+          parts: source.parts,
+          minY: source.minY,
+          xzRadius,
+          trunkXzRadius,
+          footprintXzRadius,
+        };
       }),
     // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
     scenes,
@@ -122,9 +146,7 @@ export const Trees = () => {
       {hovered &&
         hovered.id !== selectedTreeId &&
         (() => {
-          // Floor so very small trunks still get a visible ring instead of
-          // an invisible sliver around a thin stem.
-          const r = Math.max(0.22, (sources[hovered.variant]?.baseXzRadius ?? 0.2) * hovered.scale);
+          const r = treeSelectionRadius(sources[hovered.variant], hovered.scale);
           return (
             <group position={[hovered.pos.x, 0.02, -hovered.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
@@ -143,10 +165,7 @@ export const Trees = () => {
         })()}
       {selected &&
         (() => {
-          const r = Math.max(
-            0.22,
-            (sources[selected.variant]?.baseXzRadius ?? 0.2) * selected.scale,
-          );
+          const r = treeSelectionRadius(sources[selected.variant], selected.scale);
           return (
             <group position={[selected.pos.x, 0.03, -selected.pos.y]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
@@ -240,12 +259,9 @@ const TreeHitTargets = ({
     const dummy = new THREE.Object3D();
     for (let i = 0; i < trees.length; i++) {
       const t = trees[i];
-      const baseR = sources[t.variant]?.baseXzRadius ?? 0.2;
-      const bboxR = sources[t.variant]?.xzRadius ?? 0.9;
-      const r = Math.min(bboxR, baseR * 3) * t.scale;
       dummy.position.set(t.pos.x, 0.015, -t.pos.y);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.setScalar(r);
+      dummy.scale.setScalar(treeSelectionRadius(sources[t.variant], t.scale));
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
     }

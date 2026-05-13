@@ -63,7 +63,9 @@ const BIOME_LANDMARKS: Record<Biome, string[]> = {
 // Pick rocks only out of each biome's layer list — no bushes/grass on
 // the world map, they just add noise at this zoom level.
 const rockUrls = (biome: Biome): string[] =>
-  BIOME_LAYERS[biome].flatMap((l) => l.urls).filter((u) => /rock/i.test(u));
+  BIOME_LAYERS[biome]
+    .flatMap((l) => l.urls)
+    .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
 
 // Per-level cluster geometry.
 // Nodes need a generous ring of empty ground around them — a hangar's
