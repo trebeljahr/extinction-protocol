@@ -54,7 +54,6 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
     });
 
     useDragGate(controlsRef, reserveLeftClick, gl);
-    useTrackpadPan(controlsRef, reserveLeftClick, gl);
 
     return (
       <OrbitControls
@@ -173,61 +172,6 @@ function useDragGate(
       ownerDocument.removeEventListener("pointermove", onMove);
       ownerDocument.removeEventListener("pointerup", clearGate);
       ownerDocument.removeEventListener("pointercancel", clearGate);
-    };
-  }, [gl, controlsRef, active]);
-}
-
-function useTrackpadPan(
-  controlsRef: React.RefObject<OrbitControlsImpl | null>,
-  active: boolean,
-  gl: THREE.WebGLRenderer,
-) {
-  useEffect(() => {
-    if (!active) return;
-
-    const canvas = gl.domElement;
-    const right = new THREE.Vector3();
-    const forward = new THREE.Vector3();
-    const offset = new THREE.Vector3();
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) return;
-      if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return;
-
-      const absX = Math.abs(e.deltaX);
-      const absY = Math.abs(e.deltaY);
-      const looksLikeTrackpad = absX > 0 || absY < 24;
-      if (!looksLikeTrackpad) return;
-
-      const c = controlsRef.current;
-      const camera = c?.object;
-      if (!c || !camera || !("isOrthographicCamera" in camera) || !camera.isOrthographicCamera) {
-        return;
-      }
-
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-
-      const viewW = canvas.clientWidth || 1;
-      const viewH = canvas.clientHeight || 1;
-      const panX = (-e.deltaX * (camera.right - camera.left)) / camera.zoom / viewW;
-      const panY = (e.deltaY * (camera.top - camera.bottom)) / camera.zoom / viewH;
-
-      right.setFromMatrixColumn(camera.matrix, 0).multiplyScalar(panX);
-      forward.setFromMatrixColumn(camera.matrix, 0);
-      forward.crossVectors(camera.up, forward).multiplyScalar(panY);
-      offset.copy(right).add(forward);
-
-      c.target.add(offset);
-      camera.position.add(offset);
-      c.update();
-    };
-
-    canvas.addEventListener("wheel", onWheel, { capture: true, passive: false });
-
-    return () => {
-      canvas.removeEventListener("wheel", onWheel, { capture: true });
     };
   }, [gl, controlsRef, active]);
 }
