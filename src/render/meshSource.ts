@@ -14,27 +14,20 @@ export type MeshPart = {
 
 export type MeshSource = {
   parts: MeshPart[];
-  // Union AABB of every primitive's bounding box, in scene-local space.
-  // Trees.tsx walks vertex positions inside this box to compute a
-  // trunk-only base radius for selection rings.
-  boundingBox: THREE.Box3;
-  // Smallest Y across the union AABB — used to plant a glTF on the
-  // ground regardless of its authored origin.
+  // Union AABB extents in scene-local space. Kept as scalars rather than
+  // the full Box3 because every caller wants a derived number, not the
+  // box itself — and reading `boundingBox.max` through the Box3 has
+  // crashed on mobile Safari when a malformed Box3 slips through.
   minY: number;
-  // Largest Y across the union AABB. Precomputed so consumers can derive
-  // the model's height without re-reading `boundingBox.max` (which has
-  // crashed on mobile Safari when a malformed Box3 slips through).
   maxY: number;
   // Vertical extent of the union AABB (maxY - minY, floored at a tiny
   // positive to avoid divide-by-zero downstream).
   height: number;
   // Largest axis-aligned dimension across the union — input for
-  // TARGET_SIZE_BY_ROLE normalization.
+  // TARGET_SIZE_BY_ROLE normalization in the cosmetic renderers.
   maxDim: number;
-  // Max XZ extent from the local origin (= max(|min.x|, |max.x|, |min.z|,
-  // |max.z|)). Trees.tsx and Rocks.tsx use this to size the invisible
-  // hit-detection disc under each instance so clicking the silhouette
-  // selects the prop.
+  // Max |x|/|z| of the union — the cylinder radius that contains the
+  // model. Used by Trees/Rocks for hit discs and placement blocking.
   xzRadius: number;
 };
 
@@ -83,7 +76,7 @@ const collect = (scene: THREE.Object3D): MeshSource | null => {
   const maxZ = maxVec?.z ?? size.z / 2;
   const xzRadius = Math.max(Math.abs(minX), Math.abs(maxX), Math.abs(minZ), Math.abs(maxZ));
   const height = Math.max(maxY - minY, 0.001);
-  return { parts, boundingBox: union, minY, maxY, height, maxDim, xzRadius };
+  return { parts, minY, maxY, height, maxDim, xzRadius };
 };
 
 export const collectMeshSource = (scene: THREE.Object3D): MeshSource | null => {

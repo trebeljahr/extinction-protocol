@@ -1,6 +1,5 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIOME_TREE_URLS } from "../biomes";
@@ -10,7 +9,6 @@ import { useGame } from "../store";
 import { collectMeshSource, type MeshPart } from "./meshSource";
 
 type VariantSource = {
-  id: string;
   parts: MeshPart[];
   minY: number;
   xzRadius: number;
@@ -41,6 +39,17 @@ const computeSliceXzRadius = (
   return xzMax;
 };
 
+const buildVariantSource = (scene: THREE.Object3D): VariantSource | null => {
+  const source = collectMeshSource(scene);
+  if (!source) return null;
+  const xzRadius = source.xzRadius || 0.9;
+  const trunkRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.06);
+  const footprintRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.22);
+  const trunkXzRadius = trunkRaw || xzRadius * 0.16;
+  const footprintXzRadius = footprintRaw || trunkXzRadius;
+  return { parts: source.parts, minY: source.minY, xzRadius, trunkXzRadius, footprintXzRadius };
+};
+
 const treeSelectionRadius = (source: VariantSource | null, scale: number): number => {
   if (!source) return 0.22;
   const trunk = source.trunkXzRadius || source.xzRadius * 0.18;
@@ -49,43 +58,25 @@ const treeSelectionRadius = (source: VariantSource | null, scale: number): numbe
   return Math.max(0.22, radius * scale);
 };
 
-// Multi-primitive glTF meshes (e.g. a tree with separate Wood/Green/Snow
-// primitives) come in from GLTFLoader as multiple Meshes under the scene.
-// collectMeshSource collects every one so each instance renders all pieces,
-// not just the first primitive.
 const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   const a = useGLTF(urls[0]);
   const b = useGLTF(urls[1]);
   const c = useGLTF(urls[2]);
   const d = useGLTF(urls[3]);
   const scenes = [a.scene, b.scene, c.scene, d.scene];
-  // scenes change only when the four URLs change — spreading them as deps
-  // keeps the memo stable even though eslint/biome can't statically verify
-  // the identity of each scene reference.
   // biome-ignore lint/correctness/useExhaustiveDependencies: scenes array is derived from useGLTF hooks above, references change only with urls
-  return useMemo(
-    () =>
-      scenes.map((scene, si) => {
-        const source = collectMeshSource(scene);
-        if (!source) return null;
-        const xzRadius = source.xzRadius || 0.9;
-        const trunkRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.06);
-        const footprintRaw = computeSliceXzRadius(source.parts, source.minY, source.height, 0.22);
-        const trunkXzRadius = trunkRaw || xzRadius * 0.16;
-        const footprintXzRadius = footprintRaw || trunkXzRadius;
-        meshXZRadii.set(urls[si], xzRadius);
-        return {
-          id: nanoid(),
-          parts: source.parts,
-          minY: source.minY,
-          xzRadius,
-          trunkXzRadius,
-          footprintXzRadius,
-        };
-      }),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: auto-suppressed during biome 2.x bump; revisit per-case
-    scenes,
-  );
+  const sources = useMemo(() => scenes.map(buildVariantSource), scenes);
+
+  // Publish each variant's hit radius into the global cache so canPlaceAt
+  // (sim side) can read it when towers/path placement queries fire.
+  useEffect(() => {
+    for (let i = 0; i < sources.length; i++) {
+      const src = sources[i];
+      if (src) meshXZRadii.set(urls[i], src.xzRadius);
+    }
+  }, [sources, urls]);
+
+  return sources;
 };
 
 export const Trees = () => {
@@ -148,7 +139,7 @@ export const Trees = () => {
       {byVariant.map((bucket, vi) => {
         const src = sources[vi];
         if (!src || bucket.length === 0) return null;
-        return <VariantGroup key={src.id} bucket={bucket} source={src} />;
+        return <VariantGroup key={vi} bucket={bucket} source={src} />;
       })}
 
       <TreeHitTargets

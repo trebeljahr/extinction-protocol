@@ -6,7 +6,7 @@ import { BIOME_LAYERS, type Biome } from "../biomes";
 import type { Rock } from "../sim/types";
 import { meshXZRadii, ROCK_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
-import { collectMeshSource, type MeshSource } from "./meshSource";
+import { collectMeshSource } from "./meshSource";
 
 const rockUrl = (biome: Biome, rock: Rock): string | undefined =>
   BIOME_LAYERS[biome][rock.layerIndex]?.urls[rock.variant];
@@ -17,23 +17,19 @@ const rockEffectiveRadius = (biome: Biome, rock: Rock): number => {
   return base * rock.scale;
 };
 
-// Wrap the shared collector to also populate meshXZRadii (read by
-// canPlaceAt for placement blocking) — Trees.tsx does the same on its
-// path. The fallback to 0.7 covers degenerate meshes whose bounding box
-// has no XZ extent.
-const collectRockSource = (url: string, scene: THREE.Object3D): MeshSource | null => {
-  const source = collectMeshSource(scene);
-  if (!source) return null;
-  meshXZRadii.set(url, source.xzRadius || 0.7);
-  return source;
-};
-
 // Pointer events go to the hit discs, not the model silhouette.
 const neverRaycast: THREE.Mesh["raycast"] = () => {};
 
 const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
   const { scene } = useGLTF(url);
-  const source = useMemo(() => collectRockSource(url, scene), [url, scene]);
+  const source = useMemo(() => collectMeshSource(scene), [scene]);
+  // Floor a measured zero (degenerate geometry) so hit discs and placement
+  // blocking get a usable radius instead of a point.
+  const xzRadius = source ? source.xzRadius || 0.7 : 0.7;
+  useEffect(() => {
+    if (source) meshXZRadii.set(url, xzRadius);
+  }, [source, url, xzRadius]);
+
   const partRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
 
   useEffect(() => {
