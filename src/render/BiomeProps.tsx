@@ -33,6 +33,8 @@ type PropRoleBucket = {
   minScale: number;
   maxScale: number;
   clearance: number;
+  minRadius: number;
+  maxRadius: number;
 };
 
 // Hero building per biome. Each URL appears once per weight-slot: repeating
@@ -67,21 +69,20 @@ const rockUrls = (biome: Biome): string[] =>
     .flatMap((l) => l.urls)
     .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
 
-// Per-level cluster geometry.
-// Nodes need a generous ring of empty ground around them — a hangar's
-// footprint is ~3 units wide and sitting 2.4u from the node center put
-// its silhouette basically touching the bubble. Bumped the inner hole to
-// 4.0 and pushed the outer ring out so props still have room to land.
-const CLUSTER_R = 7.5; // outer radius — bumped slightly so retries have more landing area
-const NODE_CLEAR = 4.0; // inner hole — keep hero props off the node
+// Per-level cluster geometry. Props land on composition slots outside
+// the clean node bubble so each node reads as a deliberate vignette
+// rather than a noisy pile around the marker.
+const CLUSTER_R = 6.8;
+const NODE_CLEAR = 4.2; // inner hole — keep hero props off the node
 // Center-to-center spacing slack between props on top of summed radii.
 // Was applied as `MIN_GAP * 0.25` (≈0.3u), which let trees and rocks
-// silhouettes nearly touch on the world map. The full 1.2u slack reads
-// as deliberately spaced.
-const MIN_GAP = 1.2;
+// silhouettes nearly touch on the world map. The full slack reads as
+// deliberately spaced.
+const MIN_GAP = 1.45;
 // Was 14 — too low when the disc is 90% full after the landmark drops.
 // 28 retries gives the rock placements a real chance to land cleanly.
 const MAX_RETRIES = 28;
+const COMPOSITION_SLOTS = [0, 2.25, -2.25, Math.PI];
 
 const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map((l) => ({
   x: l.nodePos.x,
@@ -96,10 +97,13 @@ const buildPropPlan = () => {
     center: { x: number; z: number },
     bucket: PropRoleBucket,
     rand: () => number,
+    baseAngle: number,
+    slotIndex: number,
   ): PropInstance | null => {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const a = rand() * Math.PI * 2;
-      const r = NODE_CLEAR + rand() * (CLUSTER_R - NODE_CLEAR);
+      const slot = COMPOSITION_SLOTS[slotIndex % COMPOSITION_SLOTS.length];
+      const a = baseAngle + slot + (rand() - 0.5) * 0.55 + attempt * 0.17;
+      const r = bucket.minRadius + rand() * (bucket.maxRadius - bucket.minRadius);
       const x = center.x + Math.cos(a) * r;
       const z = center.z + Math.sin(a) * r;
       const scale = bucket.minScale + rand() * (bucket.maxScale - bucket.minScale);
@@ -144,36 +148,46 @@ const buildPropPlan = () => {
     const biome: Biome = biomeForPos(lvl.nodePos);
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
+    const landmarkUrls = BIOME_LANDMARKS[biome] ?? [];
+    const baseAngle = rand() * Math.PI * 2;
+    const hasLandmark = landmarkUrls.length > 0;
 
     // Scale ranges are kept tight (0.95–1.1) so props within a role look
     // like siblings rather than random sizes — the *role* provides the
     // variation between classes.
     const landmarkBucket: PropRoleBucket = {
-      urls: BIOME_LANDMARKS[biome] ?? [],
+      urls: landmarkUrls,
       count: 1,
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 1.9,
+      minRadius: 4.7,
+      maxRadius: 5.7,
     };
     const treeBucket: PropRoleBucket = {
       urls: BIOME_TREE_URLS[biome],
-      count: 2,
+      count: hasLandmark ? 1 : 2,
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 1.2,
+      minRadius: 5.0,
+      maxRadius: CLUSTER_R,
     };
     const rockBucket: PropRoleBucket = {
       urls: rockUrls(biome),
-      count: 2,
+      count: 1,
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 0.6,
+      minRadius: 4.8,
+      maxRadius: CLUSTER_R,
     };
 
+    let slotIndex = 0;
     for (const bucket of [landmarkBucket, treeBucket, rockBucket]) {
       if (bucket.urls.length === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
-        const inst = tryPlace(center, bucket, rand);
+        const inst = tryPlace(center, bucket, rand, baseAngle, slotIndex++);
         if (!inst) continue;
         const existing = perUrl[inst.url] ?? [];
         existing.push(inst);

@@ -47,11 +47,11 @@ const layerFootprint = (spec: BiomeLayer): number =>
 
 // Margin between placements on top of summed footprint-radii. Keeps
 // neighbours visually distinct without forcing them to never touch.
-const PROP_SPACING_SLACK = 0.15;
+const PROP_SPACING_SLACK = 0.35;
 
 // Sparse-region spacing multiplier — Poisson radius in low-density
 // Worley regions is r_min × this. >1 spreads outliers out.
-const DECOR_MAX_SPACING_MUL = 2.0;
+const DECOR_MAX_SPACING_MUL = 2.3;
 
 // Build placements for one non-blocking layer using a Worley density
 // field + variable-radius Poisson disk sampling. Density features come
@@ -65,6 +65,7 @@ const buildLayer = (
   decor: (Placement & { layerIndex: number })[],
   blockers: { x: number; y: number; r: number }[],
   lava: LavaFeatures | null,
+  levelId: number,
   layerIndex: number,
 ): Placement[][] => {
   const buckets: Placement[][] = spec.urls.map(() => []);
@@ -76,10 +77,11 @@ const buildLayer = (
   // Per-layer Worley field. Different layers in the same biome get
   // different seeds, so a grass-cluster centre and a bush-cluster
   // centre rarely overlap exactly — the rim reads as varied terrain.
+  const seedBase = spec.seed + levelId * 1103 + layerIndex * 149;
   const sigma = spec.cluster?.sigma ?? 2.5;
   const featureRadius = sigma * 2.0;
   const featureCount = spec.cluster?.seeds ?? 5;
-  const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
+  const worley = createWorleyField(seedBase, bounds, featureCount, featureRadius);
 
   // Layer min-spacing — derived from footprint × avg scale × 2 (two
   // halves touching) plus slack. Matches the additive convention the
@@ -121,14 +123,14 @@ const buildLayer = (
     radiusAt,
     isValid,
     maxCount: spec.count,
-    seed: spec.seed * 31 + layerIndex * 7 + 23,
+    seed: seedBase * 31 + 23,
     // Seed Bridson with each Worley cluster centre so the layer
     // spreads across all clusters instead of packing every prop
     // around the first cluster the algorithm reaches.
     initialPoints: worley.features,
   });
 
-  const detailRng = mulberry32(spec.seed * 53 + 91);
+  const detailRng = mulberry32(seedBase * 53 + 91);
   for (const p of points) {
     const variant = Math.floor(detailRng() * spec.urls.length);
     const scale = spec.minScale + detailRng() * (spec.maxScale - spec.minScale);
@@ -226,10 +228,12 @@ export const Ground = () => {
     const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
     return specs.map((spec, layerIndex) => ({
       spec,
-      buckets: buildLayer(paths, spec, decor, blockers, lava, layerIndex).map((placements) => ({
-        id: nanoid(),
-        placements,
-      })),
+      buckets: buildLayer(paths, spec, decor, blockers, lava, levelId, layerIndex).map(
+        (placements) => ({
+          id: nanoid(),
+          placements,
+        }),
+      ),
     }));
   }, [paths, specs, biome, levelId, trees, rocks]);
 

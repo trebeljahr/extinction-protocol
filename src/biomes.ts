@@ -35,9 +35,9 @@ export type BiomeLayer = {
   // time. Defaults are set in Ground.tsx based on the URL pattern, so
   // existing layer defs don't need to be touched.
   footprint?: number;
-  // When set, the layer uses gaussian-clustered placement instead of
-  // uniform scatter. Reads as deliberate huddles ("grass tufts behind
-  // a rock", "bush thicket in a corner") rather than wallpaper.
+  // When set, the layer uses clustered placement instead of uniform
+  // scatter. Blocking layers become boulder fields or small dead-tree
+  // stands; decor layers become tufts and thickets.
   cluster?: { seeds: number; sigma: number };
 };
 
@@ -147,38 +147,38 @@ const forestLayers = (): BiomeLayer[] => [
     // Reduced from 220 — Ground.tsx now spaces against trees/rocks/other
     // decor, so the old over-count just made the placement loop give up
     // early. Cluster mode reads as "tufts of grass" instead of wallpaper.
-    count: 90,
+    count: 70,
     clearance: PATH_WIDTH / 2 + 0.3,
     minScale: 0.6,
     maxScale: 1.1,
     castShadow: false,
     footprint: 0.28,
-    cluster: { seeds: 8, sigma: 2.2 },
+    cluster: { seeds: 6, sigma: 1.8 },
   },
   {
     seed: 9001,
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
     // These read as build-slot blockers from above, so route them through
     // the clear/remove flow instead of leaving them as untouchable decor.
-    count: 16,
+    count: 8,
     clearance: PATH_WIDTH / 2 + 0.7,
     minScale: 0.52,
     maxScale: 0.82,
     castShadow: true,
     blocks: true,
     footprint: 0.52,
-    cluster: { seeds: 6, sigma: 2.0 },
+    cluster: { seeds: 5, sigma: 1.7 },
   },
   {
     seed: 4242,
     urls: ["/models/nature/Rock1.glb", "/models/nature/Rock2.glb", "/models/nature/Rock3.glb"],
-    count: 18,
+    count: 16,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.2,
     castShadow: true,
     blocks: true,
-    cluster: { seeds: 5, sigma: 3.0 },
+    cluster: { seeds: 4, sigma: 2.1 },
   },
   {
     seed: 6464,
@@ -186,13 +186,13 @@ const forestLayers = (): BiomeLayer[] => [
     // Small enough to read as ground decor rather than an obstacle, so
     // it's non-blocking — towers placed on top auto-cull them visually.
     urls: ["/models/landmarks/forest/Mushroom.glb"],
-    count: 6,
+    count: 4,
     clearance: PATH_WIDTH / 2 + 0.5,
     minScale: 0.65,
     maxScale: 1.25,
     castShadow: true,
     footprint: 0.4,
-    cluster: { seeds: 3, sigma: 2.0 },
+    cluster: { seeds: 2, sigma: 1.4 },
   },
 ];
 
@@ -228,13 +228,13 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Bush2.glb",
       "/models/biomes/desert/Bush3.glb",
     ],
-    count: 24,
+    count: 16,
     clearance: PATH_WIDTH / 2 + 0.5,
     minScale: 0.45,
     maxScale: 0.75,
     castShadow: false,
     footprint: 0.35,
-    cluster: { seeds: 5, sigma: 2.4 },
+    cluster: { seeds: 4, sigma: 1.8 },
   },
   {
     seed: 4242,
@@ -243,13 +243,13 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Rock2.glb",
       "/models/biomes/desert/Rock3.glb",
     ],
-    count: 24,
+    count: 18,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.3,
     castShadow: true,
     blocks: true,
-    cluster: { seeds: 5, sigma: 3.5 },
+    cluster: { seeds: 4, sigma: 2.2 },
   },
   DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.09, 0.15),
 ];
@@ -261,13 +261,13 @@ const snowLayers = (): BiomeLayer[] => [
     // see into, which reads as a broken mesh (open interior). Rock1 is the
     // solid variant that stays.
     urls: ["/models/biomes/snow/Rock1.glb"],
-    count: 20,
+    count: 8,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.7,
     maxScale: 1.4,
     castShadow: true,
     blocks: true,
-    cluster: { seeds: 4, sigma: 2.8 },
+    cluster: { seeds: 4, sigma: 2.0 },
   },
 ];
 
@@ -285,7 +285,7 @@ const wastelandLayers = (): BiomeLayer[] => [
     maxScale: 1.05,
     castShadow: false,
     footprint: 0.5,
-    cluster: { seeds: 4, sigma: 2.5 },
+    cluster: { seeds: 3, sigma: 1.9 },
   },
   {
     seed: 4242,
@@ -296,15 +296,15 @@ const wastelandLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock4.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 32,
+    count: 20,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.55,
     maxScale: 1.4,
     castShadow: true,
     blocks: true,
-    cluster: { seeds: 7, sigma: 3.2 },
+    cluster: { seeds: 5, sigma: 2.2 },
   },
-  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 4, 5151),
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
 ];
 
 const BLUE_CRYSTAL_BLOCKER_URLS = [
@@ -314,10 +314,10 @@ const BLUE_CRYSTAL_BLOCKER_URLS = [
   "/models/biomes/alien/Crystal_Medium_2.glb",
 ];
 
-// Lava reuses the wasteland rock set (dark scorched stone) but denser and
-// slightly larger, reading as volcanic boulders and slag heaps. Adds the same
-// blue-crystal pack used by alien so every clearable obstacle has a readable
-// silhouette without falling back to the sci-fi rock/crystal hybrid.
+// Lava reuses the wasteland rock set (dark scorched stone), arranged as
+// readable volcanic boulder fields rather than full-map rubble. Adds the
+// same blue-crystal pack used by alien so every clearable obstacle has a
+// readable silhouette without falling back to the sci-fi rock/crystal hybrid.
 const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
@@ -328,25 +328,25 @@ const lavaLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock4.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 34,
+    count: 14,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.6,
     maxScale: 1.55,
     castShadow: true,
     blocks: true,
-    cluster: { seeds: 8, sigma: 3.0 },
+    cluster: { seeds: 5, sigma: 2.1 },
   },
   {
     seed: 7878,
     urls: BLUE_CRYSTAL_BLOCKER_URLS,
-    count: 7,
+    count: 6,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.11,
     maxScale: 0.18,
     castShadow: true,
     blocks: true,
     footprint: 0.82,
-    cluster: { seeds: 3, sigma: 2.5 },
+    cluster: { seeds: 3, sigma: 1.5 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
 ];
@@ -378,7 +378,7 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
     footprint: 0.58,
-    cluster: { seeds: 6, sigma: 2.4 },
+    cluster: { seeds: 4, sigma: 1.7 },
   },
   {
     seed: 4242,
@@ -394,7 +394,7 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
     footprint: 0.72,
-    cluster: { seeds: 5, sigma: 3.0 },
+    cluster: { seeds: 4, sigma: 2.0 },
   },
   {
     seed: 7878,
@@ -406,7 +406,7 @@ const alienLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
     footprint: 0.82,
-    cluster: { seeds: 4, sigma: 2.5 },
+    cluster: { seeds: 4, sigma: 1.6 },
   },
   {
     seed: 3434,
@@ -426,7 +426,7 @@ const alienLayers = (): BiomeLayer[] => [
   {
     seed: 6161,
     urls: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
-    count: 2,
+    count: 1,
     clearance: PATH_WIDTH / 2 + 2.5,
     minScale: 0.6,
     maxScale: 0.85,
@@ -434,7 +434,7 @@ const alienLayers = (): BiomeLayer[] => [
     blocks: true,
     footprint: 1.45,
   },
-  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 4, 5151, 0.55, 0.85),
+  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 3, 5151, 0.55, 0.85),
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {

@@ -38,27 +38,27 @@ import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
 
-export const TREE_COUNT = 38;
+export const TREE_COUNT = 22;
 // Trees clump into a handful of groves rather than evenly speckling the
 // map. The Worley field plants this many "grove centres"; Poisson then
 // fills around them at variable spacing.
-const TREE_GROVE_COUNT = 8;
-const TREE_GROVE_RADIUS = 4.4;
+const TREE_GROVE_COUNT = 5;
+const TREE_GROVE_RADIUS = 3.8;
 // Looser-than-min spacing in low-density (between-grove) regions.
-const TREE_MAX_SPACING = 6.3;
+const TREE_MAX_SPACING = 7.0;
 export const TREE_VARIANTS = 4;
 export const TREE_CLEARANCE_MARGIN = 2.3;
 // Wider range with a slight central bias gives a more natural mix —
 // most trees mid-sized, with the occasional sapling and elder.
-export const TREE_MIN_SCALE = 0.45;
-export const TREE_MAX_SCALE = 1.15;
-export const TREE_MIN_SPACING = 2.6;
+export const TREE_MIN_SCALE = 0.5;
+export const TREE_MAX_SCALE = 1.1;
+export const TREE_MIN_SPACING = 2.9;
 export const TREE_FOOTPRINT = 0.85;
 export const TREE_REMOVE_COST = 10;
 
 // Rock footprint radius (before per-instance scale multiplier).
 export const ROCK_FOOTPRINT = 0.65;
-export const ROCK_MIN_SPACING = 1.5;
+export const ROCK_MIN_SPACING = 1.85;
 export const ROCK_REMOVE_COST = 15;
 
 const blockingFootprint = (spec: BiomeLayer): number => spec.footprint ?? ROCK_FOOTPRINT;
@@ -135,7 +135,7 @@ const buildTrees = (
 // Per-layer rock-to-rock spacing multiplier — sparse-region Poisson
 // radius is ROCK_MIN_SPACING × this. Tuned so the variation between
 // "rock pile centre" and "loose stones" reads naturally.
-const ROCK_MAX_SPACING_MUL = 2.5;
+const ROCK_MAX_SPACING_MUL = 3.0;
 
 const buildRocks = (
   biome: Biome,
@@ -143,6 +143,7 @@ const buildRocks = (
   trees: Tree[],
   firstId: number,
   lava: LavaFeatures | null,
+  levelId: number,
 ): { rocks: Rock[]; nextId: number } => {
   const rocks: Rock[] = [];
   const halfW = MAP_WIDTH / 2 + 11;
@@ -151,27 +152,24 @@ const buildRocks = (
   let nextId = firstId;
 
   const layers = BIOME_LAYERS[biome];
-  const areaRatio = (halfW * 2 * halfH * 2) / (MAP_WIDTH * MAP_HEIGHT);
   for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
     const spec = layers[layerIndex];
     if (!spec.blocks) continue;
+    const seedBase = spec.seed + levelId * 1013 + layerIndex * 97;
 
     // Each blocking layer gets its own Worley field — different layers
     // in the same biome have independent feature positions so a rock-
     // pile centre and a crystal-cluster centre don't always line up.
     const sigma = spec.cluster?.sigma ?? 2.5;
     const featureRadius = sigma * 2.0;
-    const featureCount = Math.max(
-      spec.cluster?.seeds ?? 5,
-      Math.round((spec.cluster?.seeds ?? 5) * Math.sqrt(areaRatio)),
-    );
-    const worley = createWorleyField(spec.seed, bounds, featureCount, featureRadius);
+    const featureCount = spec.cluster?.seeds ?? 5;
+    const worley = createWorleyField(seedBase, bounds, featureCount, featureRadius);
     const baseFootprint = blockingFootprint(spec);
     const avgScale = (spec.minScale + spec.maxScale) / 2;
     const candidateR = baseFootprint * spec.maxScale;
-    const treeSpacing = candidateR + TREE_FOOTPRINT * 0.55;
+    const treeSpacing = candidateR + TREE_FOOTPRINT * 0.8;
     const treeSpacingSq = treeSpacing * treeSpacing;
-    const rMin = Math.max(ROCK_MIN_SPACING, 2 * baseFootprint * avgScale + 0.15);
+    const rMin = Math.max(ROCK_MIN_SPACING, 2 * baseFootprint * avgScale + 0.4);
     const rMax = rMin * ROCK_MAX_SPACING_MUL;
     const radiusAt = (x: number, y: number): number => {
       const d = worley.density(x, y);
@@ -206,7 +204,7 @@ const buildRocks = (
         const dy = r.pos.y - y;
         const priorSpec = layers[r.layerIndex];
         const priorR = (priorSpec ? blockingFootprint(priorSpec) : ROCK_FOOTPRINT) * r.scale;
-        const minDist = candidateR + priorR + 0.15;
+        const minDist = candidateR + priorR + 0.45;
         if (dx * dx + dy * dy < minDist * minDist) return false;
       }
       return true;
@@ -216,15 +214,15 @@ const buildRocks = (
       bounds,
       radiusAt,
       isValid,
-      maxCount: Math.round(spec.count * areaRatio),
-      seed: spec.seed * 31 + layerIndex * 7 + 17,
+      maxCount: spec.count,
+      seed: seedBase * 31 + 17,
       // Seed Bridson with each Worley feature so every rock pile gets
       // its own frontier instead of all `spec.count` rocks stacking
       // around the first feature the algorithm reaches.
       initialPoints: worley.features,
     });
 
-    const detailRng = mulberry32(spec.seed * 53 + 91);
+    const detailRng = mulberry32(seedBase * 53 + 91);
     for (const p of points) {
       const variant = Math.floor(detailRng() * spec.urls.length);
       const scale =
@@ -346,7 +344,7 @@ export const createWorld = (
   // share the same flow geometry — see hasFlowFeatures.
   const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, level.id, biome) : null;
   const { trees, nextId: afterTrees } = buildTrees(paths, level.id * 7919 + 101, 1, lava);
-  const { rocks, nextId: afterRocks } = buildRocks(biome, paths, trees, afterTrees, lava);
+  const { rocks, nextId: afterRocks } = buildRocks(biome, paths, trees, afterTrees, lava, level.id);
   const { eggs, nextId } = buildEasterEggs(
     biome,
     paths,

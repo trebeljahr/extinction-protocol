@@ -23,20 +23,18 @@ import type { MeshSource } from "./meshSource";
 // world state — they're pure flavor and never block placement or get
 // clicked.
 
-// Pre-tuned for the cluster algorithm below: ~14 props in 4–6 cluster pockets
-// reads as "natural arrangements" instead of evenly-spread scatter. Lower than
-// the old uniform-scatter count (was 26) because clusters concentrate visual
-// weight where they land.
-const COUNT_PER_LEVEL = 14;
-const CLUSTER_SEEDS = 5;
+// Pre-tuned for the cluster algorithm below: a few small pockets read as
+// authored detail without competing with the clearable trees/rocks.
+const COUNT_PER_LEVEL = 8;
+const CLUSTER_SEEDS = 3;
 // Worley feature radius — how far each cluster centre's influence reaches.
 // Larger = looser groves; smaller = tighter pockets.
-const CLUSTER_RADIUS = 3.2;
+const CLUSTER_RADIUS = 2.4;
 // PATH_WIDTH widened to 2.8, so anything at half-width + 0.5 was clipping
 // the visible edge. 1.2 beyond the edge gives cosmetics room to breathe.
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
-const PROP_MIN_SPACING = 1.3;
-const PROP_MAX_SPACING = 2.6;
+const PROP_MIN_SPACING = 1.6;
+const PROP_MAX_SPACING = 3.0;
 
 type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
 
@@ -78,7 +76,8 @@ const buildInstances = (
     for (const b of blockers) {
       const dx = b.pos.x - x;
       const dy = b.pos.y - y;
-      if (dx * dx + dy * dy < b.radius * b.radius) return false;
+      const minDist = b.radius + 0.75;
+      if (dx * dx + dy * dy < minDist * minDist) return false;
     }
     return true;
   };
