@@ -43,19 +43,19 @@ export const WorldMapUI = () => {
 
   return (
     <div className="hud">
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+      <div className="world-map-title absolute top-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
         <div className="text-xl font-bold tracking-uber text-fg-secondary uppercase">
           Extinction Protocol
         </div>
         <div className="text-xs tracking-[0.3em] text-fg-dim mt-1 uppercase">Select Outpost</div>
       </div>
 
-      <div className="absolute top-6 right-6 flex gap-2.5 items-stretch pointer-events-none flex-wrap justify-end max-w-[calc(50vw-200px)]">
+      <div className="world-map-actions absolute top-6 right-6 flex gap-2.5 items-stretch pointer-events-none flex-wrap justify-end max-w-[calc(50vw-200px)]">
         <MetaChip label="TOTAL STARS" value={total} max={maxTotal} />
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
         <button
           type="button"
-          className={`${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
+          className={`world-map-utility-btn ${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
           onClick={() => setDifficultyPickerOpen(true)}
           aria-label="Change difficulty"
           title="Change difficulty"
@@ -64,7 +64,7 @@ export const WorldMapUI = () => {
         </button>
         <button
           type="button"
-          className="bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setMenuOpen(true)}
           aria-label="Open menu"
           title="Menu"
@@ -83,10 +83,10 @@ export const WorldMapUI = () => {
 
       {menuOpen && (
         <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
-          <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-2">
+          <div className="menu-panel-scroll">
             <SoundControls />
             <FullscreenToggle />
-            <div className="flex flex-col gap-2">
+            <div className="menu-panel-actions">
               <button
                 type="button"
                 className="btn btn-ghost w-full flex items-center justify-center gap-2"
@@ -149,7 +149,7 @@ export const WorldMapUI = () => {
       )}
 
       {hovered && (
-        <div className="absolute left-6 bottom-20 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
+        <div className="world-map-hover-card absolute left-6 bottom-20 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
           <div className="flex gap-2.5 items-baseline mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
             <span className="text-xs font-bold text-gold tracking-mid">#{hovered.id}</span>
             <span className="text-[15px] font-bold text-fg flex-1">{hovered.name}</span>
@@ -181,7 +181,7 @@ export const WorldMapUI = () => {
 };
 
 const MetaChip = ({ label, value, max }: { label: string; value: number; max: number }) => (
-  <div className="bg-surface-1 border border-border rounded-md px-3.5 py-2 min-w-[110px] backdrop-blur-sm">
+  <div className="world-map-meta bg-surface-1 border border-border rounded-md px-3.5 py-2 min-w-[110px] backdrop-blur-sm">
     <div className="text-[10px] font-bold tracking-wide text-gold">{label}</div>
     <div className="text-xl font-bold mt-0.5 tabular-nums">
       {value} <span className="text-fg-faint text-sm font-medium">/ {max}</span>

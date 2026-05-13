@@ -57,7 +57,7 @@ export const DifficultyPicker = () => {
             <div className="achievements-subtitle">Currently · {DIFFICULTY_LABEL[current]}</div>
           </div>
           <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-            Close (Esc)
+            Close<span className="kbd-only"> (Esc)</span>
           </button>
         </header>
 

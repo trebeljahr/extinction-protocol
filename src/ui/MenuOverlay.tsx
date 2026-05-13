@@ -37,7 +37,7 @@ export const MenuOverlay = ({
        the backdrop is a click target for "click-outside-to-close". The
        card inside is the interactive region with focusable controls. */
     <div
-      className="overlay"
+      className="overlay menu-overlay"
       role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -46,7 +46,7 @@ export const MenuOverlay = ({
         if (e.key === "Escape" && e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left">
+      <div className="overlay-card menu-overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left">
         <button
           type="button"
           className="btn-close absolute top-3 right-3"

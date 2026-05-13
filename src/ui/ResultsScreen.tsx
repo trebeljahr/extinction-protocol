@@ -103,7 +103,7 @@ export const ResultsScreen = () => {
         <div className="flex gap-2.5 justify-center">
           {showNext && (
             <button type="button" onClick={() => startLevel(nextLevel!.id)} className="btn">
-              Next Level (Enter)
+              Next Level<span className="kbd-only"> (Enter)</span>
             </button>
           )}
           <button
@@ -111,10 +111,10 @@ export const ResultsScreen = () => {
             onClick={goToMap}
             className={showNext ? "btn btn-secondary" : "btn"}
           >
-            World Map (Esc)
+            World Map<span className="kbd-only"> (Esc)</span>
           </button>
           <button type="button" onClick={retry} className="btn btn-secondary">
-            Retry (R)
+            Retry<span className="kbd-only"> (R)</span>
           </button>
         </div>
       </div>

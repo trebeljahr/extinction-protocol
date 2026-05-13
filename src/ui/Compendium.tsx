@@ -149,10 +149,12 @@ export const Compendium = () => {
           </div>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn-close compendium-close"
             onClick={() => setCompendiumOpen(false)}
+            aria-label="Close compendium"
+            title="Close compendium"
           >
-            Close (Esc)
+            ×
           </button>
         </header>
 
@@ -202,7 +204,7 @@ const EnemySectionView = ({
   const selectedSeen = entrySeen(selected, progress);
   const selectedKey = entryKey(selected);
   return (
-    <>
+    <div className="compendium-browser">
       <div className="compendium-selector">
         {ENEMY_ENTRIES.map((entry) => {
           const seen = entrySeen(entry, progress);
@@ -278,7 +280,7 @@ const EnemySectionView = ({
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -380,7 +382,7 @@ const TowerSectionView = ({
   const selectedLocked = towerLocks[selected] === true;
 
   return (
-    <>
+    <div className="compendium-browser">
       <div className="compendium-selector">
         {TOWER_ORDER.map((kind) => {
           const locked = towerLocks[kind] === true;
@@ -531,7 +533,7 @@ const TowerSectionView = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
@@ -549,7 +551,7 @@ const MechanicSectionView = ({
   const mechLocks = useGame((s) => s.compendiumLocks.mechanics);
   const selectedLocked = mechLocks[selected] === true;
   return (
-    <>
+    <div className="compendium-browser">
       <div className="compendium-selector">
         {MECHANIC_ORDER.map((id) => {
           const locked = mechLocks[id] === true;
@@ -611,6 +613,6 @@ const MechanicSectionView = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };

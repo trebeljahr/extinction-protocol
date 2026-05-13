@@ -337,7 +337,7 @@ export type ActiveBossTrickle = {
 export type RunStatus = "running" | "paused" | "won" | "lost";
 
 export type GameEvent =
-  | { type: "shoot"; towerKind: TowerKind; pos: Vec2 }
+  | { type: "shoot"; towerId: number; towerKind: TowerKind; pos: Vec2 }
   | { type: "impact"; pos: Vec2 }
   | { type: "death"; pos: Vec2 }
   | { type: "wave-start"; wave: number }

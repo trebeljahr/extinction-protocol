@@ -48,61 +48,52 @@ export const HiveDronePanel = ({ hive }: Props) => {
   }
 
   return (
-    <div className="mb-3">
+    <div className="hive-drone-panel mb-3">
       <div className="text-[11px] font-bold tracking-wide text-fg-muted uppercase mb-1.5">
         Drone slots
       </div>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="hive-drone-grid">
         {slots.map((slot) => {
           const statusColor = slot.targetName ? "#bbffc8" : "var(--color-fg-muted)";
           return (
-            <div
-              key={slot.key}
-              className="flex items-center gap-1 px-1.5 py-1 rounded-[5px] border border-border-faint bg-surface-faint min-w-0"
-            >
-              <span className="text-[10px] font-bold tracking-wide text-fg-muted shrink-0">
-                D{slot.droneIdx + 1}
-              </span>
-              <span
-                className="text-[10px] flex-1 tabular-nums truncate"
-                style={{ color: statusColor }}
-              >
-                {slot.targetName ?? "Idle"}
-              </span>
-              {slot.isPicking ? (
-                <button
-                  type="button"
-                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border shrink-0"
-                  style={{
-                    color: "#ffb030",
-                    borderColor: "rgba(255,176,48,0.5)",
-                    background: "rgba(255,176,48,0.10)",
-                  }}
-                  onClick={cancel}
-                  title="Cancel pick — click the map or press Esc"
-                >
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border border-border-faint hover:border-fg shrink-0"
-                  onClick={() => begin(hive.id, slot.droneIdx)}
-                  title="Click a tower on the map to assign"
-                >
-                  Pick
-                </button>
-              )}
-              {slot.targetName && !slot.isPicking && (
-                <button
-                  type="button"
-                  className="text-[9px] font-bold px-1 py-0.5 rounded-[4px] border border-border-faint hover:border-fg shrink-0"
-                  onClick={() => clear(hive.id, slot.droneIdx)}
-                  title="Send this drone home"
-                >
-                  ×
-                </button>
-              )}
+            <div key={slot.key} className="hive-drone-slot">
+              <div className="hive-drone-slot-head">
+                <span className="hive-drone-slot-id">D{slot.droneIdx + 1}</span>
+                <span className="hive-drone-slot-target" style={{ color: statusColor }}>
+                  {slot.targetName ?? "Idle"}
+                </span>
+              </div>
+              <div className="hive-drone-slot-actions">
+                {slot.isPicking ? (
+                  <button
+                    type="button"
+                    className="hive-drone-btn hive-drone-btn-active"
+                    onClick={cancel}
+                    title="Cancel pick — click the map or press Esc"
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="hive-drone-btn"
+                    onClick={() => begin(hive.id, slot.droneIdx)}
+                    title="Click a tower on the map to assign"
+                  >
+                    Pick
+                  </button>
+                )}
+                {slot.targetName && !slot.isPicking && (
+                  <button
+                    type="button"
+                    className="hive-drone-btn hive-drone-btn-clear"
+                    onClick={() => clear(hive.id, slot.droneIdx)}
+                    title="Send this drone home"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}

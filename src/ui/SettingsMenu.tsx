@@ -12,7 +12,7 @@ export const SettingsMenu = () => {
     <>
       <button
         type="button"
-        className="absolute top-4 right-4 z-30 bg-surface-1 border border-border rounded-md px-3 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+        className="settings-menu-btn absolute top-4 right-4 z-30 bg-surface-1 border border-border rounded-md px-3 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
         onClick={() => setOpen(true)}
         aria-label="Open settings"
         title="Settings"
@@ -31,7 +31,7 @@ export const SettingsMenu = () => {
 
       {open && (
         <MenuOverlay title="Settings" onClose={() => setOpen(false)}>
-          <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-2">
+          <div className="menu-panel-scroll">
             <SoundControls />
             <FullscreenToggle />
           </div>

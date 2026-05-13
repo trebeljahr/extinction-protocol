@@ -129,7 +129,7 @@ export const TreePanel = () => {
           Clear · {selection.cost}g
         </button>
         <button type="button" className="btn btn-secondary" onClick={selection.clear}>
-          Cancel (Esc)
+          Cancel<span className="kbd-only"> (Esc)</span>
         </button>
       </div>
     </div>

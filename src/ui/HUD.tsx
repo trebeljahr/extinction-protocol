@@ -58,6 +58,10 @@ export const HUD = () => {
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
   // should NOT render underneath it — the dossier is its own modal.
   const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
+  const selectedTowerId = useGame((s) => s.ui.selectedTowerId);
+  const inspectedEnemyKind = useGame((s) => s.ui.inspectedEnemyKind);
+  const selectedTreeId = useGame((s) => s.selectedTreeId);
+  const selectedRockId = useGame((s) => s.selectedRockId);
   const isMobile = useIsMobile();
   // On mobile the picker collapses to a small handle to free up the
   // canvas. Auto-closes on selection (one less tap to start placing)
@@ -67,6 +71,24 @@ export const HUD = () => {
   useEffect(() => {
     if (selectedKind !== null) setPickerOpen(false);
   }, [selectedKind]);
+
+  useEffect(() => {
+    if (
+      selectedTowerId !== null ||
+      inspectedEnemyKind !== null ||
+      selectedTreeId !== null ||
+      selectedRockId !== null
+    ) {
+      setPickerOpen(false);
+    }
+  }, [selectedTowerId, inspectedEnemyKind, selectedTreeId, selectedRockId]);
+
+  useEffect(() => {
+    const cls = "mobile-build-menu-open";
+    if (isMobile && pickerOpen) document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+    return () => document.body.classList.remove(cls);
+  }, [isMobile, pickerOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -116,9 +138,11 @@ export const HUD = () => {
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title="Start waves (Space)"
+            title={isMobile ? "Start waves" : "Start waves (Space)"}
           >
-            <div className="stat-label text-mint">START WAVES [Space]</div>
+            <div className="stat-label text-mint">
+              START WAVES <span className="kbd-only">[Space]</span>
+            </div>
             <div className="stat-value">Ready</div>
           </button>
         ) : canCallEarly ? (
@@ -126,9 +150,11 @@ export const HUD = () => {
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title="Call next wave early (Space)"
+            title={isMobile ? "Call next wave early" : "Call next wave early (Space)"}
           >
-            <div className="stat-label text-mint">CALL WAVE [Space]</div>
+            <div className="stat-label text-mint">
+              CALL WAVE <span className="kbd-only">[Space]</span>
+            </div>
             <div className="stat-value">
               +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
             </div>
@@ -158,7 +184,7 @@ export const HUD = () => {
         type="button"
         className="hud-menu-btn absolute top-4 right-4"
         onClick={togglePause}
-        title="Menu (Esc)"
+        title={isMobile ? "Menu" : "Menu (Esc)"}
       >
         <span
           className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
@@ -169,7 +195,7 @@ export const HUD = () => {
           <span />
         </span>
         <span className="text-sm uppercase">Menu</span>
-        <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
+        <span className="kbd-only text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
           Esc
         </span>
       </button>
@@ -179,11 +205,9 @@ export const HUD = () => {
           type="button"
           className="tower-picker-handle"
           onClick={() => {
-            // Tapping the handle opens the picker. If a kind is currently
-            // selected for placement, treat the same tap as "cancel
-            // placement and pick a different tower" — clear the selection
-            // so the user isn't surprised by stale ghost cursors.
-            if (selectedKind !== null) setSelectedKind(null);
+            // Treat opening the build drawer as "leave inspection mode"
+            // first so tower/tree/enemy panels don't fight the picker.
+            useGame.getState().clearSelection();
             setPickerOpen(true);
           }}
           aria-expanded={false}
@@ -230,7 +254,7 @@ export const HUD = () => {
                   setSelectedKind(selectedKind === kind ? null : kind);
                   e.currentTarget.blur();
                 }}
-                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g [${HOTKEYS[kind]}]`}
+                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g${isMobile ? "" : ` [${HOTKEYS[kind]}]`}`}
               >
                 {active && (
                   <span className="card-cancel" aria-hidden>
@@ -239,7 +263,7 @@ export const HUD = () => {
                 )}
                 <div className="tower-preview-wrap">
                   <TowerPreview kind={kind} />
-                  <span className="tower-hot">{HOTKEYS[kind]}</span>
+                  <span className="tower-hot kbd-only">{HOTKEYS[kind]}</span>
                 </div>
                 <div className="flex items-center justify-between gap-1 mt-1">
                   <span

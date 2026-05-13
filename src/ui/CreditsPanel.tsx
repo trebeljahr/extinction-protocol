@@ -349,7 +349,7 @@ export const CreditsPanel = () => {
             <div className="achievements-subtitle">Assets, libraries, and tools</div>
           </div>
           <button type="button" className="btn btn-secondary" onClick={() => setCreditsOpen(false)}>
-            Close (Esc)
+            Close<span className="kbd-only"> (Esc)</span>
           </button>
         </header>
 

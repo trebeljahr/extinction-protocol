@@ -9,6 +9,7 @@ import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
+import { useIsMobile } from "./useMediaQuery";
 
 type Props = {
   onResume: () => void;
@@ -23,6 +24,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const difficulty = useGame((s) => s.progress.difficulty);
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     audio.ui("click");
@@ -63,9 +65,9 @@ export const PauseMenu = ({ onResume }: Props) => {
       subtitle={levelName || null}
       onClose={onResume}
       closeLabel="Resume"
-      closeTitle="Resume (Esc)"
+      closeTitle={isMobile ? "Resume" : "Resume (Esc)"}
     >
-      <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-2">
+      <div className="menu-panel-scroll">
         <button
           type="button"
           onClick={() => setDifficultyPickerOpen(true)}
@@ -123,5 +125,5 @@ const ActionsRow = ({ children }: { children: React.ReactNode }) => (
 );
 
 const ActionsCol = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-col gap-2">{children}</div>
+  <div className="menu-panel-actions">{children}</div>
 );

@@ -286,8 +286,10 @@
     backdrop-filter: blur(var(--blur-md));
     max-height: calc(100vh - 96px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: rgba(120, 160, 200, 0.35) transparent;
+    z-index: 24;
   }
   .enemy-panel::-webkit-scrollbar,
   .tree-panel::-webkit-scrollbar,
@@ -395,6 +397,7 @@
     display: flex;
     gap: 6px;
     pointer-events: auto;
+    z-index: 26;
   }
 
   .tower-card {
@@ -899,12 +902,14 @@
 
   /* Game-over overlay */
   .overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
     display: grid;
     place-items: center;
+    padding: 12px;
     background: rgba(8, 12, 18, 0.7);
     pointer-events: auto;
+    z-index: 60;
     /* Reset cursor in case body inherited a `pointer` from a 3D hover
        handler (Trees / Rocks / LevelNode) that was active when the modal
        opened — without this the entire overlay shows a clickable cursor. */
@@ -931,6 +936,7 @@
     max-height: min(90vh, calc(100dvh - 24px));
     overflow-y: auto;
     overscroll-behavior: contain;
+    width: min(100%, 560px);
   }
 
   .overlay-card h1 {
@@ -944,7 +950,7 @@
   /* Compendium */
   .compendium-overlay {
     padding: 24px;
-    z-index: 20;
+    z-index: 65;
     position: fixed;
   }
 
@@ -961,12 +967,22 @@
     pointer-events: auto;
   }
 
+  .compendium-browser {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+  }
+
   .compendium-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 20px 28px 14px;
     border-bottom: 1px solid rgba(120, 160, 200, 0.14);
+  }
+  .compendium-close {
+    flex: 0 0 auto;
   }
   .compendium-header h1 {
     margin: 0;
@@ -1057,6 +1073,7 @@
     gap: 20px;
     padding: 22px 24px;
     overflow-y: auto;
+    min-height: 0;
   }
 
   .compendium-detail-preview {
@@ -1955,7 +1972,7 @@
   /* Achievements panel */
   .achievements-overlay {
     padding: 24px;
-    z-index: 20;
+    z-index: 65;
     position: fixed;
   }
 
@@ -2300,6 +2317,7 @@
     pointer-events: auto;
     cursor: pointer;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    z-index: 26;
   }
   .tower-picker-handle-icon {
     display: inline-flex;
@@ -2367,6 +2385,115 @@
     border-radius: var(--radius-xl);
     backdrop-filter: blur(var(--blur-md));
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    z-index: 26;
+  }
+
+  .menu-panel-scroll {
+    max-height: 75vh;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 4px;
+    margin-right: -4px;
+  }
+
+  .menu-panel-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .settings-menu-btn {
+    z-index: 35;
+  }
+
+  .world-map-title,
+  .world-map-actions,
+  .world-map-hover-card,
+  .world-map-meta,
+  .world-map-utility-btn {
+    z-index: 12;
+  }
+
+  .hive-drone-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 6px;
+  }
+
+  .hive-drone-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 7px 8px;
+    border-radius: 7px;
+    border: 1px solid var(--color-border-faint);
+    background: var(--color-surface-faint);
+  }
+
+  .hive-drone-slot-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .hive-drone-slot-id {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-fg-muted);
+  }
+
+  .hive-drone-slot-target {
+    min-width: 0;
+    flex: 1;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hive-drone-slot-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+  }
+
+  .hive-drone-btn {
+    min-width: 0;
+    padding: 4px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--color-border-faint);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--color-fg-secondary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hive-drone-btn:hover {
+    border-color: var(--color-fg);
+    color: #fff;
+  }
+
+  .hive-drone-btn-active {
+    color: #ffb030;
+    border-color: rgba(255, 176, 48, 0.5);
+    background: rgba(255, 176, 48, 0.1);
+  }
+
+  .hive-drone-btn-clear {
+    padding-inline: 8px;
+  }
+
+  .kbd-only {
+    display: inline;
   }
 
   /* ── Mobile breakpoint overrides ───────────────────────────────
@@ -2416,6 +2543,9 @@
     .hud-menu-btn .text-\[10px\] {
       display: none;
     }
+    .kbd-only {
+      display: none !important;
+    }
     /* Outpost pill — hide the duplicate level name on mobile; it's
        already in the pause menu and the wave count communicates the
        same thing in less space. */
@@ -2438,6 +2568,15 @@
       overflow-y: auto;
       padding: 12px;
       border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      scroll-padding-bottom: calc(88px + var(--safe-bottom));
+    }
+    body.is-mobile.mobile-build-menu-open .enemy-panel,
+    body.is-mobile.mobile-build-menu-open .tree-panel,
+    body.is-mobile.mobile-build-menu-open .tower-panel {
+      bottom: calc(152px + var(--safe-bottom)) !important;
+      max-height: calc(100dvh - 208px - var(--safe-top) - var(--safe-bottom));
     }
     .panel-name {
       font-size: var(--fs-base);
@@ -2457,8 +2596,25 @@
     .tier-desc {
       font-size: var(--fs-2xs);
     }
+    .tower-panel .panel-footer {
+      position: sticky;
+      bottom: calc(-12px - var(--safe-bottom));
+      margin-top: auto;
+      padding-top: 10px;
+      padding-bottom: 2px;
+      background: linear-gradient(
+        180deg,
+        rgba(18, 26, 36, 0) 0%,
+        rgba(18, 26, 36, 0.92) 28%,
+        rgba(18, 26, 36, 0.98) 100%
+      );
+    }
+    .hive-drone-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
-    /* Compendium — single column, smaller preview, scrollable detail. */
+    /* Compendium — sidebar selector + roomy detail on phones so the
+       entry list stops eating the preview/text area. */
     .compendium-overlay,
     .achievements-overlay {
       padding: 0;
@@ -2478,7 +2634,7 @@
     .compendium-header,
     .achievements-header {
       padding: 12px 16px 10px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
     }
     .compendium-header h1,
@@ -2489,34 +2645,49 @@
     .achievements-subtitle {
       font-size: var(--fs-xs);
     }
+    .compendium-browser {
+      display: grid;
+      grid-template-columns: minmax(112px, 35vw) minmax(0, 1fr);
+      align-items: stretch;
+      overflow: hidden;
+    }
     .compendium-selector {
-      padding: 10px 12px;
-      gap: 4px;
-      /* Snap-scroll the species tabs so each one centers as the
-         player flicks through. Combined with min-width-0 below,
-         the tabs become a swipeable row instead of compressing into
-         unreadable nubs. */
-      scroll-snap-type: x mandatory;
+      padding: 10px 8px 14px 12px;
+      gap: 6px;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-right: 1px solid rgba(120, 160, 200, 0.1);
+      border-bottom: 0;
       -webkit-overflow-scrolling: touch;
     }
     .compendium-tab {
-      min-width: 96px;
+      min-width: 0;
+      width: 100%;
       flex: 0 0 auto;
-      scroll-snap-align: center;
-      padding: 8px 10px 6px;
+      padding: 8px;
+      flex-direction: row;
+      justify-content: flex-start;
+      text-align: left;
+    }
+    .compendium-tab-icon {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
     }
     .compendium-tab-name {
-      font-size: var(--fs-sm);
+      font-size: var(--fs-xs);
+      line-height: 1.25;
+      white-space: normal;
     }
     .compendium-detail {
-      grid-template-columns: 1fr;
       gap: 12px;
-      padding: 14px 14px calc(20px + var(--safe-bottom));
+      padding: 14px 14px calc(20px + var(--safe-bottom)) 12px;
     }
     .compendium-detail-preview {
       width: 100%;
       max-width: none;
-      height: 200px;
+      height: 176px;
     }
     .compendium-detail-name {
       font-size: var(--fs-h2);
@@ -2558,6 +2729,9 @@
     .compendium-upgrades {
       grid-template-columns: 1fr;
     }
+    .compendium-branch {
+      padding: 8px;
+    }
 
     /* Achievements grid — single column instead of auto-fill so each
        tile is wide enough to read on a phone. */
@@ -2588,15 +2762,98 @@
       padding: 6px !important;
     }
 
-    /* Pause-menu / world-map menu — shrink the overlay card so the
-       buttons fit and the user can dismiss without scrolling. */
-    .overlay-card {
+    /* Menu / settings overlays become dedicated screens on phones so
+       they cleanly cover the diorama/HUD instead of floating cramped
+       cards above it. Results still use the generic overlay-card box. */
+    .menu-overlay {
+      padding: 0;
+      place-items: stretch;
+    }
+    .menu-overlay-card {
+      width: 100vw;
+      max-width: none;
+      min-width: 0 !important;
+      min-height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      padding: calc(18px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)) !important;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .menu-panel-scroll {
+      max-height: none;
+      flex: 1;
+      padding-right: 2px;
+      margin-right: -2px;
+    }
+    .overlay-card:not(.menu-overlay-card) {
       min-width: 0 !important;
       width: calc(100vw - 24px);
       max-width: 420px;
       padding: 20px 18px 16px !important;
       max-height: calc(100dvh - 24px);
-      overflow-y: auto;
+    }
+    .settings-menu-btn {
+      top: calc(8px + var(--safe-top)) !important;
+      right: calc(8px + var(--safe-right)) !important;
+      padding: 8px;
+      min-width: 40px;
+      justify-content: center;
+    }
+    .settings-menu-btn .text-xs {
+      display: none;
+    }
+
+    .world-map-title {
+      top: calc(8px + var(--safe-top)) !important;
+      left: calc(10px + var(--safe-left)) !important;
+      right: calc(10px + var(--safe-right)) !important;
+      transform: none !important;
+      text-align: left;
+    }
+    .world-map-title .text-xl {
+      font-size: 18px;
+      letter-spacing: 0.12em;
+    }
+    .world-map-title .text-xs {
+      margin-top: 2px;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+    }
+    .world-map-actions {
+      top: calc(64px + var(--safe-top)) !important;
+      left: calc(8px + var(--safe-left));
+      right: calc(8px + var(--safe-right));
+      max-width: none;
+      gap: 6px;
+      justify-content: flex-start;
+    }
+    .world-map-meta {
+      min-width: 0;
+      flex: 1 1 calc(50% - 3px);
+      padding: 6px 8px;
+    }
+    .world-map-meta .text-\[10px\] {
+      font-size: 9px;
+    }
+    .world-map-meta .text-xl {
+      font-size: 16px;
+    }
+    .world-map-utility-btn {
+      flex: 1 1 calc(50% - 3px);
+      justify-content: center;
+      min-height: 40px;
+    }
+    .world-map-hover-card {
+      left: 8px !important;
+      right: 8px !important;
+      bottom: calc(12px + var(--safe-bottom)) !important;
+      min-width: 0;
+      max-width: none;
+      padding: 12px;
     }
 
     /* Achievement toasts — full-width strip from the top so they

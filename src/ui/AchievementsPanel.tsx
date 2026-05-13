@@ -41,7 +41,7 @@ export const AchievementsPanel = () => {
             className="btn btn-secondary"
             onClick={() => setAchievementsOpen(false)}
           >
-            Close (Esc)
+            Close<span className="kbd-only"> (Esc)</span>
           </button>
         </header>
 
