@@ -257,6 +257,7 @@ const buildEasterEggs = (
   const matching = EASTER_EGG_DEFS.filter((d) => d.biomes.includes(biome) && !d.motion);
   if (matching.length === 0) return { eggs: [], nextId: firstId };
   const rng = mulberry32(seed);
+  if (rng() > 0.42) return { eggs: [], nextId: firstId };
   const def = matching[Math.floor(rng() * matching.length)];
   const clearance = PATH_WIDTH / 2 + 1.5;
   const pathR2 = clearance * clearance;
@@ -320,15 +321,11 @@ const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEn
   );
   if (matching.length === 0) return [];
   const rng = mulberry32(seed);
-  // One scheduled egg per matching def (e.g., one tumbleweed, one rover per
-  // eligible level). Keeps the feel predictable per run.
-  const out: EasterEggScheduleEntry[] = [];
-  for (const def of matching) {
-    const s = def.scheduled!;
-    const t = s.earliestSec + rng() * Math.max(0, s.latestSec - s.earliestSec);
-    out.push({ defId: def.id, triggerTime: t });
-  }
-  return out;
+  if (rng() > 0.5) return [];
+  const def = matching[Math.floor(rng() * matching.length)];
+  const s = def.scheduled!;
+  const t = s.earliestSec + rng() * Math.max(0, s.latestSec - s.earliestSec);
+  return [{ defId: def.id, triggerTime: t }];
 };
 
 export const createWorld = (

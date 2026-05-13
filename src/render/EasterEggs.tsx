@@ -80,15 +80,17 @@ const computePop = (elapsed: number, intensity: number): number => {
 // Bell curve over the face-camera window: 0 → 1 (peak look-at) → 0 (home).
 const FACE_CAMERA_DURATION = 1.2;
 
-// Pre-allocated quaternions for barrel roll (tumble-mode eggs). The barrel
-// tips 90° around Z so its long axis lies horizontal, then spins about
-// that axis (-X after tipping) each frame.
-const _barrelTipQ = new THREE.Quaternion().setFromAxisAngle(
-  new THREE.Vector3(0, 0, 1),
-  Math.PI / 2,
-);
-const _rollQ = new THREE.Quaternion();
-const _rollAxis = new THREE.Vector3(-1, 0, 0);
+// Barrel tumble helpers. The forest barrel GLB is authored upright with
+// its long axis on local +Y, so once it starts rolling we build an
+// explicit world basis from its travel direction instead of relying on a
+// guessed tip order.
+const _barrelBaseQ = new THREE.Quaternion();
+const _barrelSpinQ = new THREE.Quaternion();
+const _barrelBasis = new THREE.Matrix4();
+const _barrelForward = new THREE.Vector3();
+const _barrelSide = new THREE.Vector3();
+const _barrelUp = new THREE.Vector3(0, 1, 0);
+const _barrelLongAxis = new THREE.Vector3(0, 1, 0);
 
 // Smoke column rising from a chimney. Mounted only after the cabin has
 // been clicked at least once. Each particle is an instanced sphere that
@@ -369,8 +371,18 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       innerRef.current.scale.setScalar(scale * pop);
       if (egg.vel != null && def.clickRoll?.tumble) {
         innerRef.current.position.y = rollLift;
-        _rollQ.setFromAxisAngle(_rollAxis, egg.rollPitch);
-        innerRef.current.quaternion.multiplyQuaternions(_rollQ, _barrelTipQ);
+        _barrelForward.set(egg.vel.x, 0, -egg.vel.y);
+        if (_barrelForward.lengthSq() <= 1e-6) {
+          _barrelForward.set(Math.sin(egg.rotY), 0, -Math.cos(egg.rotY));
+        }
+        _barrelForward.normalize();
+        _barrelSide.crossVectors(_barrelUp, _barrelForward);
+        if (_barrelSide.lengthSq() <= 1e-6) _barrelSide.set(-1, 0, 0);
+        else _barrelSide.normalize();
+        _barrelBasis.makeBasis(_barrelForward, _barrelSide, _barrelUp);
+        _barrelBaseQ.setFromRotationMatrix(_barrelBasis);
+        _barrelSpinQ.setFromAxisAngle(_barrelLongAxis, egg.rollPitch);
+        innerRef.current.quaternion.copy(_barrelBaseQ).multiply(_barrelSpinQ);
       } else {
         innerRef.current.rotation.set(egg.rollPitch, 0, 0);
         // Non-tumble eggs that have started moving (the freed parasaur)
@@ -385,7 +397,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     if (egg.vel) {
       // Moving eggs follow the sim every frame.
       groupRef.current.position.set(egg.pos.x, 0, -egg.pos.y);
-      groupRef.current.rotation.y = egg.rotY;
+      groupRef.current.rotation.y = def.clickRoll?.tumble ? 0 : egg.rotY;
     } else if (def.reaction?.faceCamera) {
       // Skinned static dinos arc to face the camera, then ease back.
       // The convention matches moving eggs: model "forward" at rotY=0
@@ -404,6 +416,8 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
       } else {
         groupRef.current.rotation.y = egg.rotY;
       }
+    } else {
+      groupRef.current.rotation.y = egg.rotY;
     }
   });
 

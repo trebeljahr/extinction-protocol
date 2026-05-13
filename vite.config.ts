@@ -1,7 +1,7 @@
 import { localDev } from "@hatchkit/dev-plugin-vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
 
 const DEV_PORT = 3286;
 
@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.
       localDev({ slug: "extinction-protocol" }),
-    ],
+    ] as PluginOption[],
     clearScreen: false,
     server: {
       port: DEV_PORT,

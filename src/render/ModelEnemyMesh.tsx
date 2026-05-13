@@ -69,7 +69,7 @@ type Item = {
 // perpendicular-inside the painted lane on curves. Yaw stays a touch
 // floatier so corner turns read as a rotation, not an instant flip.
 const POS_HALFLIFE = 0.02;
-const YAW_HALFLIFE = 0.09;
+const YAW_HALFLIFE = 0.06;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -269,11 +269,19 @@ export const ModelEnemyMesh = ({
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
       const dir = smoothDirection(path, e.segment, e.segmentT);
-      const targetYaw =
-        dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
-
       const targetX = e.pos.x;
       const targetZ = -e.pos.y;
+      const pathYaw =
+        dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
+      const motionX = targetX - item.visX;
+      const motionZ = targetZ - item.visZ;
+      const motionLenSq = motionX * motionX + motionZ * motionZ;
+      const pathWorldX = dir.x;
+      const pathWorldZ = -dir.y;
+      const targetYaw =
+        motionLenSq > 1e-6 && motionX * pathWorldX + motionZ * pathWorldZ > 0
+          ? Math.atan2(motionX, motionZ)
+          : pathYaw;
       if (!item.visInit) {
         item.visX = targetX;
         item.visZ = targetZ;

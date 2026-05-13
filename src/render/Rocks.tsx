@@ -81,11 +81,26 @@ export const Rocks = () => {
   const status = useGame((s) => s.ui.status);
   const gold = useGame((s) => s.ui.gold);
   const selectedRockId = useGame((s) => s.selectedRockId);
+  const selectedTreeId = useGame((s) => s.selectedTreeId);
+  const selectedKind = useGame((s) => s.selectedKind);
+  const selectedTowerId = useGame((s) => s.world.selectedTowerId);
+  const inspectedEnemyId = useGame((s) => s.inspectedEnemy.id);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   useEffect(() => {
     if (hoveredId !== null && !rocks.some((r) => r.id === hoveredId)) setHoveredId(null);
   }, [rocks, hoveredId]);
+
+  useEffect(() => {
+    if (hoveredId === null) return;
+    const externalSelectionActive =
+      selectedKind !== null ||
+      selectedTowerId !== null ||
+      selectedTreeId !== null ||
+      inspectedEnemyId !== null ||
+      (selectedRockId !== null && selectedRockId !== hoveredId);
+    if (externalSelectionActive) setHoveredId(null);
+  }, [hoveredId, inspectedEnemyId, selectedKind, selectedRockId, selectedTowerId, selectedTreeId]);
 
   const running = status === "running";
   const hovered = hoveredId !== null ? (rocks.find((r) => r.id === hoveredId) ?? null) : null;

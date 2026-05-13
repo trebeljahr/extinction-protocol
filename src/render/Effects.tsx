@@ -301,7 +301,12 @@ export const Effects = () => {
 
   return (
     <group>
-      <instancedMesh ref={particleRef} args={[undefined, undefined, MAX_PARTICLES]} renderOrder={2}>
+      <instancedMesh
+        ref={particleRef}
+        args={[undefined, undefined, MAX_PARTICLES]}
+        renderOrder={2}
+        frustumCulled={false}
+      >
         <circleGeometry args={[1, 10]} />
         <meshBasicMaterial
           ref={particleMatRef}
@@ -318,6 +323,7 @@ export const Effects = () => {
         ref={explosionRef}
         args={[undefined, undefined, MAX_EXPLOSIONS]}
         renderOrder={2}
+        frustumCulled={false}
       >
         <sphereGeometry args={[1, 20, 20]} />
         <meshBasicMaterial
@@ -330,7 +336,12 @@ export const Effects = () => {
         />
       </instancedMesh>
 
-      <instancedMesh ref={flashRef} args={[undefined, undefined, MAX_EXPLOSIONS]} renderOrder={2}>
+      <instancedMesh
+        ref={flashRef}
+        args={[undefined, undefined, MAX_EXPLOSIONS]}
+        renderOrder={2}
+        frustumCulled={false}
+      >
         <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           ref={flashMatRef}
@@ -346,6 +357,7 @@ export const Effects = () => {
         ref={cryoHaloRef}
         args={[undefined, undefined, MAX_CRYO_WAVES]}
         renderOrder={2}
+        frustumCulled={false}
       >
         <ringGeometry args={[0.78, 1.0, 64]} />
         <meshBasicMaterial
@@ -362,6 +374,7 @@ export const Effects = () => {
         ref={cryoWaveRef}
         args={[undefined, undefined, MAX_CRYO_WAVES]}
         renderOrder={2}
+        frustumCulled={false}
       >
         <ringGeometry args={[0.94, 1.0, 64]} />
         <meshBasicMaterial

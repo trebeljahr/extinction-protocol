@@ -63,7 +63,7 @@ const isLowEndDevice = (): boolean => {
 
 const lowEnd = isLowEndDevice();
 const bloomKernel = lowEnd ? KernelSize.SMALL : KernelSize.MEDIUM;
-const dprCap: [number, number] = lowEnd ? [1, 1.5] : [1, 2];
+const dprCap: [number, number] = lowEnd ? [1, 1.75] : [1, 2];
 
 export const App = () => {
   const screen = useGame((s) => s.screen);
@@ -128,7 +128,7 @@ export const App = () => {
     <>
       {!modalOpen && (
         <ErrorBoundary fallback={(error, reset) => <CanvasFailure error={error} reset={reset} />}>
-          <Canvas shadows dpr={dprCap}>
+          <Canvas shadows dpr={dprCap} gl={{ antialias: true }}>
             <SceneRoot />
             <EffectComposer multisampling={0}>
               <Bloom
