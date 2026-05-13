@@ -17,6 +17,7 @@ type Props = {
   baseRotY?: number;
   bob?: boolean;
   clip?: string;
+  timeScale?: number;
   // Only matched when kind === "boss". Lets Scene.tsx mount one mesh per
   // biome-themed matriarch variant (each loads a different GLB) so the
   // renderer doesn't need to swap models per-enemy at runtime.
@@ -96,6 +97,7 @@ export const ModelEnemyMesh = ({
   baseRotY = 0,
   bob = false,
   clip = "Run",
+  timeScale = 1,
   bossVariant,
 }: Props) => {
   const { scene, animations } = useGLTF(url);
@@ -264,7 +266,7 @@ export const ModelEnemyMesh = ({
       }
 
       const slowed = world.time < e.slowUntil;
-      item.mixer.timeScale = slowed ? e.slowFactor : 1;
+      item.mixer.timeScale = (slowed ? e.slowFactor : 1) * timeScale;
       if (!frozen) item.mixer.update(delta);
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];

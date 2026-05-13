@@ -26,6 +26,7 @@ const MATRIARCH_PREVIEW_EMISSIVE_AMOUNT = 0.55;
 const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVariant }) => {
   const isMatriarch = kind === "boss" && bossVariant !== undefined;
   const cfg = isMatriarch ? BOSS_VARIANT_MODEL[bossVariant] : ENEMY_MODEL[kind];
+  const clipTimeScale = isMatriarch ? (BOSS_VARIANT_MODEL[bossVariant].timeScale ?? 1) : 1;
   const gltf = useGLTF(cfg.url);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
@@ -79,13 +80,17 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
       findClip(gltf.animations, "Run") ??
       findClip(gltf.animations, "Walk") ??
       gltf.animations[0];
-    if (clip) mx.clipAction(clip).play();
+    if (clip) {
+      const action = mx.clipAction(clip);
+      action.timeScale = clipTimeScale;
+      action.play();
+    }
     mixerRef.current = mx;
     return () => {
       mx.stopAllAction();
       mixerRef.current = null;
     };
-  }, [obj, gltf.animations, cfg.clip]);
+  }, [obj, gltf.animations, cfg.clip, clipTimeScale]);
 
   useFrame((_, delta) => {
     mixerRef.current?.update(delta);

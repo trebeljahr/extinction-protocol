@@ -1,4 +1,4 @@
-import { advanceAlongPath, smoothDirection } from "./path";
+import { advanceAlongPath, samplePath, smoothDirection } from "./path";
 import type { World } from "./types";
 import { addShake, BOSS_VARIANT_CHILD, BOSS_VARIANT_STATS, emit, spawnEnemy } from "./world";
 
@@ -12,6 +12,8 @@ export const updateEnemies = (world: World, dt: number) => {
     hpMul: number;
     segment: number;
     segmentT: number;
+    spawnIndex: number;
+    spawnCount: number;
   };
   const childSpawns: DeferredChild[] = [];
 
@@ -36,13 +38,18 @@ export const updateEnemies = (world: World, dt: number) => {
         // multiplier through Enemy. Late-game raptor children should be
         // late-game-tough, not L5 chaff.
         const variantHp = BOSS_VARIANT_STATS[e.bossVariant].hp;
-        childSpawns.push({
-          kind: cfg.kind,
-          pathIndex: e.pathIndex,
-          hpMul: e.maxHp / variantHp,
-          segment: e.segment,
-          segmentT: e.segmentT,
-        });
+        const spawnCount = Math.max(1, cfg.count ?? 1);
+        for (let spawnIndex = 0; spawnIndex < spawnCount; spawnIndex++) {
+          childSpawns.push({
+            kind: cfg.kind,
+            pathIndex: e.pathIndex,
+            hpMul: e.maxHp / variantHp,
+            segment: e.segment,
+            segmentT: e.segmentT,
+            spawnIndex,
+            spawnCount,
+          });
+        }
         e.childSpawnAt = world.time + cfg.interval;
       }
     }
@@ -116,11 +123,30 @@ export const updateEnemies = (world: World, dt: number) => {
   // don't get scanned by the dead-cull pass on this same tick.
   for (const c of childSpawns) {
     const child = spawnEnemy(world, c.kind, { pathIndex: c.pathIndex, hpMul: c.hpMul });
-    // Plant the child a notch behind the matriarch's current progress
-    // so she appears to be leading the pack, not surrounded by it. The
-    // small backoff (0.5 of a segment) keeps the child on the painted
-    // lane instead of clipping into the matriarch's body.
-    child.segment = c.segment;
-    child.segmentT = Math.max(0, c.segmentT - 0.5);
+    // Plant the child immediately near the matriarch instead of leaving
+    // the default path-start position for a frame. The progress backoff
+    // plus side spread makes raptor broods look like they are spilling
+    // out around her body rather than being teleported from spawn zero.
+    let segment = c.segment;
+    let segmentT = c.segmentT - (0.16 + c.spawnIndex * 0.12);
+    while (segmentT < 0 && segment > 0) {
+      segment -= 1;
+      segmentT += 1;
+    }
+    child.segment = segment;
+    child.segmentT = Math.max(0, segmentT);
+    const sideSpread = c.spawnCount > 1 ? (c.spawnIndex - (c.spawnCount - 1) / 2) * 0.28 : 0;
+    child.lateralOffset += sideSpread;
+    const path = world.paths[c.pathIndex] ?? world.paths[0];
+    const basePos = samplePath(path, child.segment, child.segmentT);
+    const dir = smoothDirection(path, child.segment, child.segmentT);
+    if (dir.x * dir.x + dir.y * dir.y > 1e-12) {
+      child.pos = {
+        x: basePos.x + -dir.y * child.lateralOffset,
+        y: basePos.y + dir.x * child.lateralOffset,
+      };
+    } else {
+      child.pos = basePos;
+    }
   }
 };

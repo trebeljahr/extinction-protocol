@@ -733,9 +733,9 @@ export const BOSS_VARIANT_SLOW_RESIST: Record<BossVariant, number> = {
 
 export const BOSS_VARIANT_MODEL: Record<
   BossVariant,
-  { url: string; targetSize: number; clip?: string }
+  { url: string; targetSize: number; clip?: string; timeScale?: number }
 > = {
-  raptor: { url: "/models/Velociraptor.glb", targetSize: 4.5 },
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 5.3, timeScale: 0.82 },
   stego: { url: "/models/Stegosaurus.glb", targetSize: 5.0 },
   para: { url: "/models/Parasaurolophus.glb", targetSize: 4.6 },
   allosaur: { url: "/models/Trex.glb", targetSize: 5.5 },
@@ -749,7 +749,7 @@ export const BOSS_VARIANT_MODEL: Record<
 // the biome AND stay visually distinct from each other — pairs within
 // ~30° on the wheel read as muddy under the biome's ambient lighting.
 export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
-  raptor: "#ff5a30", // forest — hunter-blood orange-red
+  raptor: "#c84628", // forest — earthy pack-leader red, less neon bloom
   stego: "#3affb0", // snow — jade plates with cold sheen
   para: "#a25aff", // desert — twilight violet on the crest
   allosaur: "#ffb030", // wasteland — apex-predator gold
@@ -758,13 +758,14 @@ export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
 };
 
 // Child-spawn config — every variant except apex drops a steady drip of
-// her namesake species behind her as she walks. Interval tuned per
-// species HP so the total HP added over a ~60s wave roughly matches the
-// pressure the old generic boss-trickle was applying. Apex has no child
-// stream because the L30 wave already runs its own heavy entourage.
-export type BossChildSpawn = { kind: EnemyKind; interval: number };
+// brood while she walks. Most queens spawn their namesake species; the
+// raptor matriarch now sheds paired swarm hatchlings so the pack reads
+// like a whole entourage boiling out around her instead of one big
+// raptor blinking in behind her. Apex has no child stream because the
+// L30 wave already runs its own heavy entourage.
+export type BossChildSpawn = { kind: EnemyKind; interval: number; count?: number };
 export const BOSS_VARIANT_CHILD: Partial<Record<BossVariant, BossChildSpawn>> = {
-  raptor: { kind: "raptor", interval: 1.4 },
+  raptor: { kind: "swarm", interval: 1.2, count: 2 },
   stego: { kind: "stego", interval: 6.0 },
   para: { kind: "para", interval: 2.2 },
   allosaur: { kind: "allosaur", interval: 3.8 },
@@ -1130,8 +1131,8 @@ export const HIVE_MAX_DRONES = 6;
 // Max drones (summed across every hive) that can be assigned to a
 // single target tower. Distinct from HIVE_MAX_DRONES — that caps one
 // hive's roster; this caps stacking on one buffed tower so a player
-// with three hives can't pile all 18 drones onto one mortar.
-export const HIVE_MAX_DRONES_PER_TOWER = 6;
+// with three hives can't pile all 18 drones onto one pulse gun.
+export const HIVE_MAX_DRONES_PER_TOWER = 4;
 // Default fire-rate buff each assigned drone confers to its target.
 // Path B upgrades scale this — see upgrades.ts.
 export const HIVE_BASE_SERVICE_BUFF = 0.3;

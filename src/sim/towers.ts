@@ -3,6 +3,7 @@ import { distSq } from "./vec2";
 import {
   applyDamage,
   applySlow,
+  BOSS_VARIANT_RESIST,
   createBeam,
   createCryoWave,
   createProjectile,
@@ -21,9 +22,123 @@ import {
 // would just add a state field that has to stay in sync.
 export const effectiveFireRate = (t: Tower): number => t.fireRate * (1 + t.serviceFireRateBonus);
 
-const scoreEnemy = (tower: Tower, e: Enemy): number => {
+const enemyProgress = (e: Enemy): number => e.segment + e.segmentT;
+
+const resistMulForTower = (tower: Tower, e: Enemy): number => {
+  const dmgType = TOWER_DAMAGE_TYPE[tower.kind];
+  const baseMul =
+    e.kind === "boss" && e.bossVariant !== undefined
+      ? BOSS_VARIANT_RESIST[e.bossVariant][dmgType]
+      : ENEMY_RESIST[e.kind][dmgType];
+  let mul = e.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+  const rawExtra = e.extraResists[dmgType] ?? 1;
+  const extraMul = tower.armorPierce && rawExtra < 1 ? 1 : rawExtra;
+  mul *= extraMul;
+  return mul;
+};
+
+type DamageEstimate = {
+  totalDealt: number;
+  rawShotsToKill: number;
+};
+
+const estimateDamageDealt = (tower: Tower, e: Enemy, amount = tower.damage): DamageEstimate => {
+  let dmg = amount;
+  let dealt = 0;
+  if (e.shield > 0) {
+    const shieldMul = tower.shieldDamageMul;
+    const absorbed = Math.min(e.shield, dmg * shieldMul);
+    dealt += absorbed;
+    dmg -= absorbed / shieldMul;
+  }
+  const mul = resistMulForTower(tower, e);
+  const hpDealt = dmg > 0 ? dmg * mul : 0;
+  dealt += Math.max(0, Math.min(e.hp, hpDealt));
+  const shieldRaw = e.shield > 0 ? e.shield / tower.shieldDamageMul : 0;
+  const hpRaw = mul > 0 ? e.hp / mul : Number.POSITIVE_INFINITY;
+  return {
+    totalDealt: dealt,
+    rawShotsToKill: shieldRaw + hpRaw,
+  };
+};
+
+const collectChainTargets = (world: World, primary: Enemy, chainCount: number): Enemy[] => {
+  const hit: Enemy[] = [primary];
+  const hitSet = new Set<Enemy>([primary]);
+  const chainRangeSq = 3.5 * 3.5;
+  let current = primary;
+  for (let i = 0; i < chainCount; i++) {
+    let next: Enemy | null = null;
+    let bestDistSq = chainRangeSq;
+    for (const e of world.enemies) {
+      if (!e.alive) continue;
+      if (hitSet.has(e)) continue;
+      const d2 = distSq(e.pos, current.pos);
+      if (d2 < bestDistSq) {
+        bestDistSq = d2;
+        next = e;
+      }
+    }
+    if (!next) break;
+    hit.push(next);
+    hitSet.add(next);
+    current = next;
+  }
+  return hit;
+};
+
+const impactBucketSize = (tower: Tower): number => Math.max(0.5, tower.damage * 0.12);
+
+type TargetImpact = {
+  totalDealt: number;
+  tieHp: number;
+};
+
+const impactForTarget = (world: World, tower: Tower, primary: Enemy): TargetImpact => {
+  const primaryEstimate = estimateDamageDealt(tower, primary);
+  const tieHp = Number.isFinite(primaryEstimate.rawShotsToKill)
+    ? primaryEstimate.rawShotsToKill
+    : 1_000_000 + primary.hp + primary.shield;
+
+  if (tower.kind === "chain") {
+    let total = 0;
+    let damage = tower.damage;
+    for (const e of collectChainTargets(world, primary, tower.chainCount)) {
+      total += estimateDamageDealt(tower, e, damage).totalDealt;
+      damage = Math.max(1, damage * tower.chainFalloff);
+    }
+    return { totalDealt: total, tieHp };
+  }
+
+  if (tower.kind === "mortar") {
+    let total = 0;
+    const splashSq = tower.splashRadius * tower.splashRadius;
+    for (const e of world.enemies) {
+      if (!e.alive) continue;
+      if (distSq(e.pos, primary.pos) > splashSq) continue;
+      total += estimateDamageDealt(tower, e).totalDealt;
+    }
+    return { totalDealt: total, tieHp };
+  }
+
+  if (tower.kind === "flame") {
+    let total = 0;
+    for (const hit of collectFlameHits(world, tower, primary)) {
+      total += estimateDamageDealt(
+        tower,
+        hit.enemy,
+        flameTickDamage(tower, hit.index, hit.distance),
+      ).totalDealt;
+    }
+    return { totalDealt: total, tieHp };
+  }
+
+  return { totalDealt: primaryEstimate.totalDealt, tieHp };
+};
+
+const scoreEnemy = (world: World, tower: Tower, e: Enemy): number => {
   if (tower.targetingMode === "tower") return -distSq(e.pos, tower.pos);
-  if (tower.targetingMode === "start") return -(e.segment + e.segmentT);
+  if (tower.targetingMode === "start") return -enemyProgress(e);
   if (tower.targetingMode === "strongest") return e.maxHp;
   if (tower.targetingMode === "weakest") {
     // Shielded enemies rank as full HP so we don't waste shots draining
@@ -32,16 +147,13 @@ const scoreEnemy = (tower: Tower, e: Enemy): number => {
     return -effHp;
   }
   if (tower.targetingMode === "vulnerable") {
-    const dmgType = TOWER_DAMAGE_TYPE[tower.kind];
-    let mul = ENEMY_RESIST[e.kind][dmgType];
-    if (e.elite) mul += (1 - mul) * ELITE_RESIST_FLATTEN;
-    const rawExtra = e.extraResists[dmgType] ?? 1;
-    const extra = tower.armorPierce && rawExtra < 1 ? 1 : rawExtra;
-    mul *= extra;
-    // Quantize to 5% steps so near-identical resists tie-break on hp.
-    return Math.round(mul * 20) * 1e8 - e.hp;
+    const impact = impactForTarget(world, tower, e);
+    // Bucketize so near-identical impact falls back to low effective HP
+    // instead of thrashing between almost-equal candidates every frame.
+    const bucket = Math.round(impact.totalDealt / impactBucketSize(tower));
+    return bucket * 1e9 - impact.tieHp * 1e4 + enemyProgress(e);
   }
-  return e.segment + e.segmentT;
+  return enemyProgress(e);
 };
 
 const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
@@ -51,7 +163,7 @@ const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   for (const e of world.enemies) {
     if (!e.alive) continue;
     if (distSq(e.pos, tower.pos) > rangeSq) continue;
-    const score = scoreEnemy(tower, e);
+    const score = scoreEnemy(world, tower, e);
     if (score > bestScore) {
       best = e;
       bestScore = score;
@@ -88,29 +200,8 @@ const firePulse = (world: World, t: Tower, target: Enemy) => {
 };
 
 const fireChain = (world: World, t: Tower, primary: Enemy) => {
-  const hit: Enemy[] = [primary];
-  const hitSet = new Set<Enemy>([primary]);
+  const hit = collectChainTargets(world, primary, t.chainCount);
   let damage = t.damage;
-
-  const chainRangeSq = 3.5 * 3.5;
-  let current = primary;
-  for (let i = 0; i < t.chainCount; i++) {
-    let next: Enemy | null = null;
-    let bestDistSq = chainRangeSq;
-    for (const e of world.enemies) {
-      if (!e.alive) continue;
-      if (hitSet.has(e)) continue;
-      const d2 = distSq(e.pos, current.pos);
-      if (d2 < bestDistSq) {
-        bestDistSq = d2;
-        next = e;
-      }
-    }
-    if (!next) break;
-    hit.push(next);
-    hitSet.add(next);
-    current = next;
-  }
 
   const points = [t.pos, ...hit.map((e) => e.pos)];
   createBeam(world, points, "#9fd8ff", 0.1);
@@ -186,8 +277,27 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
 // stream.
 const FLAME_HALF_CONE = Math.PI / 6; // 30° → 60° total spread
 const FLAME_COS_HALF = Math.cos(FLAME_HALF_CONE);
+const FLAME_SECONDARY_THROUGHPUT = 0.82;
+const FLAME_TAIL_FALLOFF = 0.55;
+const FLAME_DISTANCE_FALLOFF = 0.35;
+const FLAME_MIN_RANGE_MUL = 0.55;
 
-const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
+type FlameHit = {
+  enemy: Enemy;
+  distance: number;
+  index: number;
+};
+
+const flameThroughputMul = (index: number): number =>
+  index === 0 ? 1 : FLAME_SECONDARY_THROUGHPUT * FLAME_TAIL_FALLOFF ** (index - 1);
+
+const flameRangeMul = (distance: number, range: number): number =>
+  Math.max(FLAME_MIN_RANGE_MUL, 1 - (distance / Math.max(1e-6, range)) * FLAME_DISTANCE_FALLOFF);
+
+const flameTickDamage = (tower: Tower, index: number, distance: number): number =>
+  tower.damage * flameThroughputMul(index) * flameRangeMul(distance, tower.range);
+
+const collectFlameHits = (world: World, t: Tower, target: Enemy): FlameHit[] => {
   const dx = target.pos.x - t.pos.x;
   const dy = target.pos.y - t.pos.y;
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -195,7 +305,7 @@ const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
   const dirY = dy / len;
 
   const rangeSq = t.range * t.range;
-  let hit = false;
+  const candidates: { enemy: Enemy; d2: number }[] = [];
   for (const e of world.enemies) {
     if (!e.alive) continue;
     const ex = e.pos.x - t.pos.x;
@@ -207,10 +317,31 @@ const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
     // Always include the locked target (avoid edge-case where target sits
     // right at the cone boundary and gets dropped due to FP noise).
     if (e !== target && dot < FLAME_COS_HALF) continue;
-    hit = true;
-    applyDamage(world, e, t.damage, "flame", "#ffb54a", 3, false, towerHitOpts(t));
+    candidates.push({ enemy: e, d2 });
   }
-  return hit;
+  candidates.sort((a, b) => a.d2 - b.d2 || enemyProgress(b.enemy) - enemyProgress(a.enemy));
+  return candidates.map((c, index) => ({
+    enemy: c.enemy,
+    distance: Math.sqrt(c.d2),
+    index,
+  }));
+};
+
+const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
+  const hits = collectFlameHits(world, t, target);
+  for (const hit of hits) {
+    applyDamage(
+      world,
+      hit.enemy,
+      flameTickDamage(t, hit.index, hit.distance),
+      "flame",
+      "#ffb54a",
+      3,
+      false,
+      towerHitOpts(t),
+    );
+  }
+  return hits.length > 0;
 };
 
 // Continuous flame stream — emits a directed cone of particles every tick
@@ -429,6 +560,8 @@ export const updateTowers = (world: World, dt: number) => {
 export const HIVE_ORBIT_RADIUS = 1.0;
 export const HIVE_ORBIT_HEIGHT = 1.1;
 const HIVE_ORBIT_SPEED = 0.55; // rad/s
+const HIVE_AUTO_ASSIGN_RADIUS = 8.5;
+const HIVE_AUTO_ASSIGN_RADIUS_SQ = HIVE_AUTO_ASSIGN_RADIUS * HIVE_AUTO_ASSIGN_RADIUS;
 
 // How many drones (from every hive on the map) are currently servicing
 // the given target tower. Used to enforce HIVE_MAX_DRONES_PER_TOWER so
@@ -460,14 +593,17 @@ export const countDronesOnTower = (world: World, towerId: number): number => {
 // at HIVE_MAX_DRONES_PER_TOWER per target.
 export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean => {
   if (tower.kind === "hive") {
-    const candidates: { id: number; d2: number; stacked: number }[] = [];
+    const allCandidates: { id: number; d2: number; stacked: number }[] = [];
     for (const t of world.towers) {
       if (t === tower || t.kind === "hive") continue;
       const stacked = countDronesOnTower(world, t.id);
       if (stacked >= HIVE_MAX_DRONES_PER_TOWER) continue;
-      candidates.push({ id: t.id, d2: distSq(t.pos, tower.pos), stacked });
+      allCandidates.push({ id: t.id, d2: distSq(t.pos, tower.pos), stacked });
     }
-    if (candidates.length === 0) return false;
+    if (allCandidates.length === 0) return false;
+    const candidates = allCandidates.some((c) => c.d2 <= HIVE_AUTO_ASSIGN_RADIUS_SQ)
+      ? allCandidates.filter((c) => c.d2 <= HIVE_AUTO_ASSIGN_RADIUS_SQ)
+      : allCandidates;
     // Distance order is the tie-break preference — the min-stack scan
     // below walks the list in order, so the first equal-stack hit wins.
     candidates.sort((a, b) => a.d2 - b.d2);
@@ -495,10 +631,14 @@ export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean =
 
   // Non-hive tower: find the closest hive with a free slot anywhere
   // on the map, provided this tower isn't already at the stacking cap.
+  // Nearby hives get first refusal; if none are local, we fall back.
   if (countDronesOnTower(world, tower.id) >= HIVE_MAX_DRONES_PER_TOWER) return false;
-  let bestHive: Tower | null = null;
-  let bestDroneIdx = -1;
-  let bestDistSq = Number.POSITIVE_INFINITY;
+  let bestLocalHive: Tower | null = null;
+  let bestLocalDroneIdx = -1;
+  let bestLocalDistSq = Number.POSITIVE_INFINITY;
+  let bestGlobalHive: Tower | null = null;
+  let bestGlobalDroneIdx = -1;
+  let bestGlobalDistSq = Number.POSITIVE_INFINITY;
   for (const h of world.towers) {
     if (h.kind !== "hive") continue;
     let freeIdx = -1;
@@ -510,12 +650,19 @@ export const autoAssignDroneToNewTower = (world: World, tower: Tower): boolean =
     }
     if (freeIdx < 0) continue;
     const d2 = distSq(h.pos, tower.pos);
-    if (d2 < bestDistSq) {
-      bestDistSq = d2;
-      bestHive = h;
-      bestDroneIdx = freeIdx;
+    if (d2 < bestGlobalDistSq) {
+      bestGlobalDistSq = d2;
+      bestGlobalHive = h;
+      bestGlobalDroneIdx = freeIdx;
+    }
+    if (d2 <= HIVE_AUTO_ASSIGN_RADIUS_SQ && d2 < bestLocalDistSq) {
+      bestLocalDistSq = d2;
+      bestLocalHive = h;
+      bestLocalDroneIdx = freeIdx;
     }
   }
+  const bestHive = bestLocalHive ?? bestGlobalHive;
+  const bestDroneIdx = bestLocalHive ? bestLocalDroneIdx : bestGlobalDroneIdx;
   if (!bestHive) return false;
   bestHive.droneAssignments[bestDroneIdx] = tower.id;
   return true;

@@ -58,7 +58,7 @@ const TARGETING_MODES: {
   {
     mode: "vulnerable",
     label: "Vuln",
-    title: "Most vulnerable to this tower's damage type — ties broken by lowest HP",
+    title: "Highest effective damage right now — near-ties break toward the easiest kill",
   },
 ];
 
@@ -110,7 +110,7 @@ export const TowerPanel = () => {
           <span style={{ color: "#bbffc8" }}>
             +{Math.round(tower.serviceBuff * 100)}% fire rate
           </span>{" "}
-          to its assigned tower. Up to 6 drones can stack on one tower. Click "Pick" on a slot, then
+          to its assigned tower. Up to 4 drones can stack on one tower. Click "Pick" on a slot, then
           click a tower on the map to assign.
         </div>
 
