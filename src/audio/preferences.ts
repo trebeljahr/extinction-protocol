@@ -6,6 +6,7 @@ const STORAGE_KEY_V2 = "extinction-protocol:audio:v2";
 const STORAGE_KEY_V1 = "extinction-protocol:audio:v1";
 
 export type AudioPrefs = {
+  master: number;
   music: number;
   ui: number;
   towers: number;
@@ -17,6 +18,7 @@ export type AudioPrefs = {
 export const SFX_BUSES: readonly SfxBus[] = ["ui", "towers", "enemies", "notifications"];
 
 const DEFAULTS: AudioPrefs = {
+  master: 1,
   music: 0.25,
   ui: 0.6,
   towers: 0.6,
@@ -32,7 +34,7 @@ const parseV2 = (raw: string): AudioPrefs | null => {
   try {
     const obj = JSON.parse(raw) as Partial<Record<keyof AudioPrefs, unknown>>;
     const next: AudioPrefs = { ...DEFAULTS };
-    for (const k of ["music", "ui", "towers", "enemies", "notifications"] as const) {
+    for (const k of ["master", "music", "ui", "towers", "enemies", "notifications"] as const) {
       const c = clamp01(obj[k]);
       if (c !== null) next[k] = c;
     }
@@ -49,6 +51,7 @@ const migrateFromV1 = (raw: string): AudioPrefs | null => {
     const sfx = clamp01(old.sfx);
     const music = clamp01(old.music);
     const next: AudioPrefs = {
+      master: DEFAULTS.master,
       music: music ?? DEFAULTS.music,
       ui: sfx ?? DEFAULTS.ui,
       towers: sfx ?? DEFAULTS.towers,
@@ -118,6 +121,7 @@ export const saveAudioPrefs = (p: AudioPrefs) => {
 };
 
 export const applyAudioPrefs = (p: AudioPrefs) => {
+  audio.setMasterVolume(p.master);
   audio.setMusicVolume(p.music);
   audio.setBusVolume("ui", p.ui);
   audio.setBusVolume("towers", p.towers);
@@ -127,6 +131,7 @@ export const applyAudioPrefs = (p: AudioPrefs) => {
 };
 
 export const readAudioPrefs = (): AudioPrefs => ({
+  master: audio.getMasterVolume(),
   music: audio.getMusicVolume(),
   ui: audio.getBusVolume("ui"),
   towers: audio.getBusVolume("towers"),

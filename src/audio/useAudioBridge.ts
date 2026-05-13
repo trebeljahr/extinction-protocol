@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { Biome } from "../biomes";
-import type { GameEvent } from "../sim/types";
+import type { GameEvent, Tower } from "../sim/types";
 import { useGame } from "../store";
 import { audio, type MusicTrack } from "./AudioManager";
 import { applyAudioPrefs, loadAudioPrefs } from "./preferences";
@@ -10,6 +10,8 @@ const biomeTrack = (biome: Biome): MusicTrack => `music-${biome}` as MusicTrack;
 export const useAudioBridge = () => {
   useEffect(() => {
     let cancelled = false;
+    const activeFlameTowerIds = (towers: Tower[]) =>
+      towers.filter((t) => t.kind === "flame" && t.flameActive).map((t) => t.id);
     audio.preload().then(() => {
       if (cancelled) return;
       applyAudioPrefs(loadAudioPrefs());
@@ -35,6 +37,15 @@ export const useAudioBridge = () => {
     const unsubMusic = useGame.subscribe((state, prev) => {
       if (state.screen === prev.screen && state.world.biome === prev.world.biome) return;
       audio.crossfadeTo(pickTrack());
+    });
+
+    const unsubFlames = useGame.subscribe((state, prev) => {
+      if (state.screen === prev.screen && state.world.status === prev.world.status) return;
+      if (state.screen !== "playing" || state.world.status !== "running") {
+        audio.stopAllFlames();
+        return;
+      }
+      audio.syncFlames(activeFlameTowerIds(state.world.towers));
     });
 
     // Generic UI feedback: every button press plays a click. Buttons can
@@ -64,7 +75,7 @@ export const useAudioBridge = () => {
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       switch (e.type) {
         case "shoot":
-          audio.playShoot(e.towerKind);
+          audio.playShoot(e.towerKind, e.towerId);
           break;
         case "impact":
           audio.play("impact", "enemies", 0.25, 60, 1.0);
@@ -74,20 +85,20 @@ export const useAudioBridge = () => {
           break;
         case "wave-start":
           audio.startMusic(pickTrack());
-          audio.play("wave-start", "notifications", 0.5, 500);
+          audio.play("level-select", "notifications", 0.26, 350, 0.9);
           break;
         case "boss-wave-start":
           // Boss sting: layer "new-enemy" (dramatic announcement cue) on
           // top of the standard wave-start so the moment reads as bigger
           // than a regular wave. Reuses existing samples — no new audio
           // assets shipped with this change.
-          audio.play("new-enemy", "notifications", 0.85, 500, 2.5);
+          audio.play("new-enemy", "notifications", 0.7, 500, 2.3);
           break;
         case "boss-defeated":
           // Takedown sting — repurpose victory horn as an in-run windfall
           // cue. Distinct from wave-clear so a boss kill doesn't blur
           // into the normal end-of-wave tone.
-          audio.play("victory", "notifications", 0.7, 500, 3.0);
+          audio.play("victory", "notifications", 0.45, 500, 2.2);
           break;
         case "life-lost":
           audio.play("life-lost", "enemies", 0.7, 120);
@@ -119,7 +130,6 @@ export const useAudioBridge = () => {
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();
-          audio.play("game-over", "notifications", 0.8, 1000);
           break;
       }
     });
@@ -128,6 +138,7 @@ export const useAudioBridge = () => {
       cancelled = true;
       unsub();
       unsubMusic();
+      unsubFlames();
       document.removeEventListener("pointerdown", onUiPointerDown);
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);

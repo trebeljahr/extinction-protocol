@@ -11,6 +11,7 @@ import {
 type BusKey = Exclude<keyof AudioPrefs, "muted">;
 
 const SLIDERS: { key: BusKey; label: string }[] = [
+  { key: "master", label: "Master" },
   { key: "music", label: "Music" },
   { key: "ui", label: "UI" },
   { key: "towers", label: "Towers" },
@@ -19,7 +20,8 @@ const SLIDERS: { key: BusKey; label: string }[] = [
 ];
 
 const applyBus = (key: BusKey, v: number) => {
-  if (key === "music") audio.setMusicVolume(v);
+  if (key === "master") audio.setMasterVolume(v);
+  else if (key === "music") audio.setMusicVolume(v);
   else audio.setBusVolume(key, v);
 };
 
@@ -28,6 +30,7 @@ export const SoundControls = () => {
 
   useEffect(() => {
     const persisted = loadAudioPrefs();
+    audio.setMasterVolume(persisted.master);
     audio.setMusicVolume(persisted.music);
     audio.setBusVolume("ui", persisted.ui);
     audio.setBusVolume("towers", persisted.towers);

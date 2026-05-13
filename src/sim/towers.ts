@@ -356,7 +356,7 @@ export const updateTowers = (world: World, dt: number) => {
           // from fireRate (see CRYO_WAVE_PERIOD_TICKS) — only the damage
           // tick is gated.
           t.cooldown = 1 / effectiveFireRate(t);
-          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+          emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
         }
       }
       continue;
@@ -372,7 +372,7 @@ export const updateTowers = (world: World, dt: number) => {
         if (inRange && enemyInSplash(world, t.targetSpot, t.splashRadius)) {
           fireMortarAtSpot(world, t, t.targetSpot);
           t.cooldown = 1 / effectiveFireRate(t);
-          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+          emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
         }
       }
       continue;
@@ -394,7 +394,7 @@ export const updateTowers = (world: World, dt: number) => {
         if (t.cooldown === 0) {
           fireFlameDamage(world, t, target);
           t.cooldown = 1 / effectiveFireRate(t);
-          emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+          emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
         }
       } else if (t.flameActive) {
         t.flameActive = false;
@@ -408,7 +408,7 @@ export const updateTowers = (world: World, dt: number) => {
       else if (t.kind === "chain") fireChain(world, t, target);
       else if (t.kind === "mortar") fireMortar(world, t, target);
       t.cooldown = 1 / effectiveFireRate(t);
-      emit(world, { type: "shoot", towerKind: t.kind, pos: t.pos });
+      emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
     }
   }
 };

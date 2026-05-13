@@ -6,6 +6,20 @@ type Sample = {
   failed: boolean;
 };
 
+type FlameVoice = {
+  sample: AudioBufferSourceNode;
+  noise: AudioBufferSourceNode;
+  master: GainNode;
+};
+
+type MusicPlayback = {
+  gain: GainNode;
+  nextStartAt: number;
+  firstSegment: boolean;
+  refreshTimer: number | null;
+  sources: Set<AudioBufferSourceNode>;
+};
+
 export type MusicTrack =
   | "music"
   | "music-forest"
@@ -20,12 +34,15 @@ export type SfxBus = "ui" | "towers" | "enemies" | "notifications";
 const VOICE_CAP_PER_KEY = 3;
 const TOTAL_VOICE_CAP = 18;
 
+const DEFAULT_MASTER_VOLUME = 1;
 const DEFAULT_SFX_VOLUME = 0.6;
 const DEFAULT_MUSIC_VOLUME = 0.25;
+const MUSIC_LOOP_OVERLAP_SEC = 0.12;
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private output: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
   private busGains: Record<SfxBus, GainNode | null> = {
     ui: null,
@@ -36,11 +53,12 @@ export class AudioManager {
   private musicGain: GainNode | null = null;
   private samples = new Map<string, Sample>();
   private trimmedKeys = new Set<string>();
-  private music: { src: AudioBufferSourceNode; gain: GainNode; key: MusicTrack } | null = null;
+  private music: MusicPlayback | null = null;
   private currentMusicKey: MusicTrack | null = null;
   private musicUrls: Record<MusicTrack, string> | null = null;
   private lastPlayedAt = new Map<string, number>();
   private activeVoices = new Map<string, Set<AudioBufferSourceNode>>();
+  private masterVolume = DEFAULT_MASTER_VOLUME;
   private busVolumes: Record<SfxBus, number> = {
     ui: DEFAULT_SFX_VOLUME,
     towers: DEFAULT_SFX_VOLUME,
@@ -64,7 +82,7 @@ export class AudioManager {
       return;
     }
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 1;
+    this.master.gain.value = this.masterVolume;
 
     // Brick-wall-ish limiter targeting a -1 dBTP true-peak ceiling,
     // matching Spotify / YouTube Music loudness guidelines. Catches the
@@ -76,7 +94,9 @@ export class AudioManager {
     this.limiter.ratio.value = 20;
     this.limiter.attack.value = 0.003;
     this.limiter.release.value = 0.1;
-    this.master.connect(this.limiter).connect(this.ctx.destination);
+    this.output = this.ctx.createGain();
+    this.output.gain.value = this.muted ? 0 : 1;
+    this.master.connect(this.limiter).connect(this.output).connect(this.ctx.destination);
 
     for (const bus of ["ui", "towers", "enemies", "notifications"] as const) {
       const g = this.ctx.createGain();
@@ -206,7 +226,8 @@ export class AudioManager {
     const src = this.ctx.createBufferSource();
     src.buffer = sample.buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = Math.min(1, volumeScale);
+    const trim = key === "victory" ? 0.5 : key === "star" ? 0.78 : key === "new-enemy" ? 0.88 : 1;
+    gain.gain.value = Math.min(1, volumeScale * trim);
     src.connect(gain).connect(busGain);
     keyVoices.add(src);
     src.onended = () => {
@@ -228,10 +249,10 @@ export class AudioManager {
     }
   }
 
-  playShoot(kind: TowerKind) {
+  playShoot(kind: TowerKind, towerId?: number) {
     if (kind === "flame") return;
     if (kind === "pulse" || kind === "hive") {
-      this.playCrack(kind === "hive" ? 0.25 : 0.4);
+      this.playPulseBurst(kind, towerId);
       return;
     }
     const map: Record<TowerKind, [string, number, number, number]> = {
@@ -246,25 +267,30 @@ export class AudioManager {
     this.play(key, "towers", vol, cd, maxDur);
   }
 
-  // Synthesised pulse-rifle crack: a tight mid-high noise burst + sub click.
-  // ~100ms total so each shot stays discrete at 2+ shots/sec.
-  private lastCrackAt = 0;
-  private activeCracks = new Set<AudioScheduledSourceNode>();
-  playCrack(volumeScale = 0.4) {
+  // Synthesised pulse/rail burst: sharper and more layered than the old
+  // click-only transient, with per-tower cooldowns so fast towers keep
+  // their cadence instead of getting globally throttled.
+  private lastPulseAtByTower = new Map<number, number>();
+  private activePulseBursts = new Set<AudioScheduledSourceNode>();
+  playPulseBurst(kind: "pulse" | "hive", towerId?: number) {
     const towersGain = this.busGains.towers;
     if (!this.ctx || !towersGain || this.muted) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
     const wallNow = performance.now();
-    if (wallNow - this.lastCrackAt < 40) return;
-    if (this.activeCracks.size >= 6) return;
-    this.lastCrackAt = wallNow;
+    const towerKey = towerId ?? -1;
+    const cooldownMs = kind === "pulse" ? 22 : 42;
+    const lastAt = this.lastPulseAtByTower.get(towerKey) ?? 0;
+    if (wallNow - lastAt < cooldownMs) return;
+    if (this.activePulseBursts.size >= 18) return;
+    this.lastPulseAtByTower.set(towerKey, wallNow);
 
-    const duration = 0.1;
+    const isHive = kind === "hive";
+    const peak = isHive ? 0.24 : 0.38;
+    const duration = isHive ? 0.075 : 0.09;
     const sampleRate = ctx.sampleRate;
     const length = Math.ceil(duration * sampleRate);
 
-    // Noise burst — the snappy "tack" transient
     const noiseBuf = ctx.createBuffer(1, length, sampleRate);
     const data = noiseBuf.getChannelData(0);
     for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
@@ -273,46 +299,64 @@ export class AudioManager {
 
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.Q.value = 1.8;
-    bp.frequency.setValueAtTime(3200, now);
-    bp.frequency.exponentialRampToValueAtTime(1800, now + duration);
+    bp.Q.value = isHive ? 1.35 : 1.9;
+    bp.frequency.setValueAtTime(isHive ? 2200 : 3000, now);
+    bp.frequency.exponentialRampToValueAtTime(isHive ? 1200 : 1500, now + duration);
 
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
-    hp.frequency.value = 800;
+    hp.frequency.value = isHive ? 420 : 700;
 
     const noiseGain = ctx.createGain();
-    const peak = Math.min(0.6, volumeScale);
     noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(peak, now + 0.0015);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    noiseGain.gain.linearRampToValueAtTime(peak, now + 0.0012);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + (isHive ? 0.045 : 0.052));
 
     noise.connect(bp).connect(hp).connect(noiseGain).connect(towersGain);
 
-    // Sub click — brief percussive punch without sustain
-    const clickDur = 0.025;
-    const osc = ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(60, now + clickDur);
+    const bodyDur = isHive ? 0.05 : 0.062;
+    const body = ctx.createOscillator();
+    body.type = isHive ? "triangle" : "sawtooth";
+    body.frequency.setValueAtTime(isHive ? 250 : 360, now);
+    body.frequency.exponentialRampToValueAtTime(isHive ? 88 : 115, now + bodyDur);
 
-    const oscGain = ctx.createGain();
-    const oscPeak = peak * 0.35;
-    oscGain.gain.setValueAtTime(0, now);
-    oscGain.gain.linearRampToValueAtTime(oscPeak, now + 0.001);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
+    const bodyFilter = ctx.createBiquadFilter();
+    bodyFilter.type = "lowpass";
+    bodyFilter.frequency.setValueAtTime(isHive ? 1200 : 1800, now);
 
-    osc.connect(oscGain).connect(towersGain);
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.setValueAtTime(0, now);
+    bodyGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.24 : 0.3), now + 0.001);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + bodyDur);
 
-    this.activeCracks.add(noise);
-    this.activeCracks.add(osc);
-    noise.onended = () => this.activeCracks.delete(noise);
-    osc.onended = () => this.activeCracks.delete(osc);
+    body.connect(bodyFilter).connect(bodyGain).connect(towersGain);
+
+    const clickDur = 0.018;
+    const click = ctx.createOscillator();
+    click.type = "square";
+    click.frequency.setValueAtTime(isHive ? 150 : 190, now);
+    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : 90, now + clickDur);
+
+    const clickGain = ctx.createGain();
+    clickGain.gain.setValueAtTime(0, now);
+    clickGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.16 : 0.22), now + 0.0008);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
+
+    click.connect(clickGain).connect(towersGain);
+
+    this.activePulseBursts.add(noise);
+    this.activePulseBursts.add(body);
+    this.activePulseBursts.add(click);
+    noise.onended = () => this.activePulseBursts.delete(noise);
+    body.onended = () => this.activePulseBursts.delete(body);
+    click.onended = () => this.activePulseBursts.delete(click);
 
     noise.start(now);
     noise.stop(now + duration);
-    osc.start(now);
-    osc.stop(now + clickDur);
+    body.start(now);
+    body.stop(now + bodyDur);
+    click.start(now);
+    click.stop(now + clickDur);
   }
 
   // --- Continuous flamethrower sound (per-tower, looping sample) ---------
@@ -322,7 +366,19 @@ export class AudioManager {
   // voice of the shoot-flame sample with a fade in/out on its master gain.
 
   private static readonly MAX_FLAME_VOICES = 4;
-  private activeFlames = new Map<number, { src: AudioBufferSourceNode; master: GainNode }>();
+  private activeFlames = new Map<number, FlameVoice>();
+  private flameNoiseBuffer: AudioBuffer | null = null;
+
+  private ensureFlameNoiseBuffer() {
+    if (!this.ctx || this.flameNoiseBuffer) return this.flameNoiseBuffer;
+    const sampleRate = this.ctx.sampleRate;
+    const length = sampleRate;
+    const buf = this.ctx.createBuffer(1, length, sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    this.flameNoiseBuffer = buf;
+    return buf;
+  }
 
   startFlame(towerId: number) {
     const towersGain = this.busGains.towers;
@@ -338,17 +394,45 @@ export class AudioManager {
 
     const master = ctx.createGain();
     master.gain.setValueAtTime(0, now);
-    master.gain.linearRampToValueAtTime(0.55, now + 0.06);
+    master.gain.linearRampToValueAtTime(0.5, now + 0.08);
     master.connect(towersGain);
 
-    const src = ctx.createBufferSource();
-    src.buffer = sample.buffer;
-    src.loop = true;
-    // Random start offset so two flame towers don't phase-lock.
-    src.connect(master);
-    src.start(now, Math.random() * sample.buffer.duration);
+    const tone = ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.setValueAtTime(2600, now);
+    tone.Q.value = 0.75;
+    tone.connect(master);
 
-    this.activeFlames.set(towerId, { src, master });
+    const sampleGain = ctx.createGain();
+    sampleGain.gain.value = 0.58;
+    sampleGain.connect(tone);
+
+    const sampleSrc = ctx.createBufferSource();
+    sampleSrc.buffer = sample.buffer;
+    sampleSrc.loop = true;
+    sampleSrc.playbackRate.value = 0.94 + Math.random() * 0.12;
+    sampleSrc.connect(sampleGain);
+    sampleSrc.start(now, Math.random() * sample.buffer.duration);
+
+    const noiseBuf = this.ensureFlameNoiseBuffer();
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    noise.loop = true;
+
+    const noiseHp = ctx.createBiquadFilter();
+    noiseHp.type = "highpass";
+    noiseHp.frequency.value = 150;
+
+    const noiseLp = ctx.createBiquadFilter();
+    noiseLp.type = "lowpass";
+    noiseLp.frequency.value = 2200;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.12;
+    noise.connect(noiseHp).connect(noiseLp).connect(noiseGain).connect(master);
+    noise.start(now, Math.random());
+
+    this.activeFlames.set(towerId, { sample: sampleSrc, noise, master });
   }
 
   stopFlame(towerId: number) {
@@ -365,7 +449,12 @@ export class AudioManager {
 
     const stopAt = now + fade + 0.01;
     try {
-      flame.src.stop(stopAt);
+      flame.sample.stop(stopAt);
+    } catch {
+      /* ok */
+    }
+    try {
+      flame.noise.stop(stopAt);
     } catch {
       /* ok */
     }
@@ -380,6 +469,16 @@ export class AudioManager {
       },
       (fade + 0.05) * 1000,
     );
+  }
+
+  syncFlames(activeTowerIds: Iterable<number>) {
+    const active = new Set(activeTowerIds);
+    for (const id of [...this.activeFlames.keys()]) {
+      if (!active.has(id)) this.stopFlame(id);
+    }
+    for (const id of active) {
+      if (!this.activeFlames.has(id)) this.startFlame(id);
+    }
   }
 
   stopAllFlames() {
@@ -465,11 +564,11 @@ export class AudioManager {
   ui(kind: "click" | "tab" | "open" | "close" | "error" | "select") {
     const map: Record<typeof kind, [string, number, number, number]> = {
       click: ["ui-click", 0.4, 30, 0.4],
-      tab: ["ui-tab", 0.45, 40, 0.5],
-      open: ["ui-open", 0.4, 80, 0.6],
-      close: ["ui-close", 0.4, 80, 0.6],
+      tab: ["ui-click", 0.4, 40, 0.4],
+      open: ["ui-click", 0.4, 80, 0.4],
+      close: ["ui-click", 0.4, 80, 0.4],
       error: ["ui-error", 0.5, 120, 0.6],
-      select: ["tower-select", 0.45, 60, 0.9],
+      select: ["ui-click", 0.42, 60, 0.4],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, "ui", vol, cd, maxDur);
@@ -496,6 +595,73 @@ export class AudioManager {
     this.crossfadeTo(key);
   }
 
+  private clearMusicRefresh(playback: MusicPlayback) {
+    if (playback.refreshTimer !== null) {
+      window.clearTimeout(playback.refreshTimer);
+      playback.refreshTimer = null;
+    }
+  }
+
+  private stopMusicPlayback(playback: MusicPlayback, fadeSec: number) {
+    if (!this.ctx) return;
+    this.clearMusicRefresh(playback);
+    const now = this.ctx.currentTime;
+    playback.gain.gain.cancelScheduledValues(now);
+    playback.gain.gain.setValueAtTime(playback.gain.gain.value, now);
+    playback.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
+    for (const src of playback.sources) {
+      try {
+        src.stop(now + fadeSec + 0.05);
+      } catch {
+        /* ok */
+      }
+    }
+    window.setTimeout(() => playback.sources.clear(), (fadeSec + 0.1) * 1000);
+  }
+
+  private scheduleMusicRefresh(playback: MusicPlayback, buffer: AudioBuffer) {
+    if (!this.ctx || this.music !== playback) return;
+    this.clearMusicRefresh(playback);
+    const overlap = Math.min(MUSIC_LOOP_OVERLAP_SEC, Math.max(0.04, buffer.duration * 0.01));
+    const segment = Math.max(1, buffer.duration - overlap);
+    const nextDelayMs = Math.max(5000, Math.min(15000, segment * 500));
+    playback.refreshTimer = window.setTimeout(() => {
+      if (this.music !== playback) return;
+      this.refillMusicSchedule(playback, buffer);
+    }, nextDelayMs);
+  }
+
+  private startMusicSegment(playback: MusicPlayback, buffer: AudioBuffer, startAt: number) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const overlap = Math.min(MUSIC_LOOP_OVERLAP_SEC, Math.max(0.04, buffer.duration * 0.01));
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const srcGain = ctx.createGain();
+    const fadeIn = !playback.firstSegment;
+    const fadeOutStart = startAt + Math.max(0.1, buffer.duration - overlap);
+    srcGain.gain.setValueAtTime(fadeIn ? 0 : 1, startAt);
+    if (fadeIn) srcGain.gain.linearRampToValueAtTime(1, startAt + overlap);
+    srcGain.gain.setValueAtTime(1, fadeOutStart);
+    srcGain.gain.linearRampToValueAtTime(0, startAt + buffer.duration);
+    src.connect(srcGain).connect(playback.gain);
+    playback.sources.add(src);
+    src.onended = () => playback.sources.delete(src);
+    src.start(startAt);
+    src.stop(startAt + buffer.duration + 0.02);
+    playback.firstSegment = false;
+    playback.nextStartAt = startAt + buffer.duration - overlap;
+  }
+
+  private refillMusicSchedule(playback: MusicPlayback, buffer: AudioBuffer) {
+    if (!this.ctx || this.music !== playback) return;
+    const scheduleAheadSec = Math.max(buffer.duration * 2, 45);
+    while (playback.nextStartAt < this.ctx.currentTime + scheduleAheadSec) {
+      this.startMusicSegment(playback, buffer, playback.nextStartAt);
+    }
+    this.scheduleMusicRefresh(playback, buffer);
+  }
+
   async crossfadeTo(key: MusicTrack, fadeSec = 1.5) {
     if (!this.ctx || !this.musicGain) return;
     if (this.currentMusicKey === key && this.music) return;
@@ -506,20 +672,8 @@ export class AudioManager {
     // fetch — if we waited, the lobby track would keep playing well into
     // the level. Setting this.music to null also frees the slot for the
     // new track without re-fading the same source twice.
-    if (this.music) {
-      const ctx = this.ctx;
-      const now = ctx.currentTime;
-      const old = this.music;
-      old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, now);
-      old.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
-      try {
-        old.src.stop(now + fadeSec + 0.05);
-      } catch {
-        /* ok */
-      }
-      this.music = null;
-    }
+    if (this.music) this.stopMusicPlayback(this.music, fadeSec);
+    this.music = null;
 
     const ok = await this.ensureMusicLoaded(key);
     if (!ok) return;
@@ -539,13 +693,15 @@ export class AudioManager {
     newGain.gain.linearRampToValueAtTime(1, now + fadeSec);
     newGain.connect(this.musicGain);
 
-    const src = ctx.createBufferSource();
-    src.buffer = sample.buffer;
-    src.loop = true;
-    src.connect(newGain);
-    src.start(0);
-
-    this.music = { src, gain: newGain, key };
+    const playback: MusicPlayback = {
+      gain: newGain,
+      nextStartAt: now,
+      firstSegment: true,
+      refreshTimer: null,
+      sources: new Set(),
+    };
+    this.music = playback;
+    this.refillMusicSchedule(playback, sample.buffer);
   }
 
   stopMusic() {
@@ -555,16 +711,7 @@ export class AudioManager {
       return;
     }
     if (this.music) {
-      const now = this.ctx.currentTime;
-      const old = this.music;
-      old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, now);
-      old.gain.gain.linearRampToValueAtTime(0, now + 0.6);
-      try {
-        old.src.stop(now + 0.65);
-      } catch {
-        /* ok */
-      }
+      this.stopMusicPlayback(this.music, 0.6);
       this.music = null;
     }
   }
@@ -586,7 +733,7 @@ export class AudioManager {
 
   setMuted(v: boolean) {
     this.muted = v;
-    if (this.master) this.master.gain.value = v ? 0 : 1;
+    if (this.output) this.output.gain.value = v ? 0 : 1;
   }
 
   isMuted() {
@@ -602,6 +749,15 @@ export class AudioManager {
 
   getBusVolume(bus: SfxBus) {
     return this.busVolumes[bus];
+  }
+
+  setMasterVolume(v: number) {
+    this.masterVolume = Math.max(0, Math.min(1, v));
+    if (this.master) this.master.gain.value = this.masterVolume;
+  }
+
+  getMasterVolume() {
+    return this.masterVolume;
   }
 
   setMusicVolume(v: number) {
