@@ -153,6 +153,7 @@ export class AudioManager {
       ["shoot-mortar", `${base}audio/shoot-mortar.mp3`],
       ["impact", `${base}audio/impact.mp3`],
       ["wave-start", `${base}audio/wave-start.mp3`],
+      ["wave-call", `${base}audio/wave-call.mp3`],
       ["wave-clear", `${base}audio/wave-clear.mp3`],
       ["life-lost", `${base}audio/life-lost.mp3`],
       ["game-over", `${base}audio/game-over.mp3`],
@@ -226,7 +227,7 @@ export class AudioManager {
     const src = this.ctx.createBufferSource();
     src.buffer = sample.buffer;
     const gain = this.ctx.createGain();
-    const trim = key === "victory" ? 0.5 : key === "star" ? 0.78 : key === "new-enemy" ? 0.88 : 1;
+    const trim = key === "victory" ? 0.38 : key === "star" ? 0.78 : key === "new-enemy" ? 0.88 : 1;
     gain.gain.value = Math.min(1, volumeScale * trim);
     src.connect(gain).connect(busGain);
     keyVoices.add(src);
@@ -271,6 +272,7 @@ export class AudioManager {
   // click-only transient, with per-tower cooldowns so fast towers keep
   // their cadence instead of getting globally throttled.
   private lastPulseAtByTower = new Map<number, number>();
+  private lastPulseIntervalByTower = new Map<number, number>();
   private activePulseBursts = new Set<AudioScheduledSourceNode>();
   playPulseBurst(kind: "pulse" | "hive", towerId?: number) {
     const towersGain = this.busGains.towers;
@@ -284,10 +286,13 @@ export class AudioManager {
     if (wallNow - lastAt < cooldownMs) return;
     if (this.activePulseBursts.size >= 18) return;
     this.lastPulseAtByTower.set(towerKey, wallNow);
+    if (lastAt > 0) this.lastPulseIntervalByTower.set(towerKey, wallNow - lastAt);
 
     const isHive = kind === "hive";
-    const peak = isHive ? 0.24 : 0.38;
-    const duration = isHive ? 0.075 : 0.09;
+    const interval = this.lastPulseIntervalByTower.get(towerKey) ?? 500;
+    const rapid = !isHive && interval < 260;
+    const peak = isHive ? 0.24 : rapid ? 0.32 : 0.36;
+    const duration = isHive ? 0.075 : rapid ? 0.058 : 0.072;
     const sampleRate = ctx.sampleRate;
     const length = Math.ceil(duration * sampleRate);
 
@@ -299,30 +304,33 @@ export class AudioManager {
 
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.Q.value = isHive ? 1.35 : 1.9;
-    bp.frequency.setValueAtTime(isHive ? 2200 : 3000, now);
-    bp.frequency.exponentialRampToValueAtTime(isHive ? 1200 : 1500, now + duration);
+    bp.Q.value = isHive ? 1.35 : rapid ? 2.35 : 2.1;
+    bp.frequency.setValueAtTime(isHive ? 2200 : rapid ? 3800 : 3300, now);
+    bp.frequency.exponentialRampToValueAtTime(isHive ? 1200 : rapid ? 2100 : 1700, now + duration);
 
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
-    hp.frequency.value = isHive ? 420 : 700;
+    hp.frequency.value = isHive ? 420 : 900;
 
     const noiseGain = ctx.createGain();
     noiseGain.gain.setValueAtTime(0, now);
     noiseGain.gain.linearRampToValueAtTime(peak, now + 0.0012);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + (isHive ? 0.045 : 0.052));
+    noiseGain.gain.exponentialRampToValueAtTime(
+      0.001,
+      now + (isHive ? 0.045 : rapid ? 0.034 : 0.046),
+    );
 
     noise.connect(bp).connect(hp).connect(noiseGain).connect(towersGain);
 
-    const bodyDur = isHive ? 0.05 : 0.062;
+    const bodyDur = isHive ? 0.05 : rapid ? 0.04 : 0.052;
     const body = ctx.createOscillator();
     body.type = isHive ? "triangle" : "sawtooth";
-    body.frequency.setValueAtTime(isHive ? 250 : 360, now);
-    body.frequency.exponentialRampToValueAtTime(isHive ? 88 : 115, now + bodyDur);
+    body.frequency.setValueAtTime(isHive ? 250 : rapid ? 520 : 430, now);
+    body.frequency.exponentialRampToValueAtTime(isHive ? 88 : rapid ? 180 : 145, now + bodyDur);
 
     const bodyFilter = ctx.createBiquadFilter();
     bodyFilter.type = "lowpass";
-    bodyFilter.frequency.setValueAtTime(isHive ? 1200 : 1800, now);
+    bodyFilter.frequency.setValueAtTime(isHive ? 1200 : rapid ? 2400 : 2100, now);
 
     const bodyGain = ctx.createGain();
     bodyGain.gain.setValueAtTime(0, now);
@@ -331,25 +339,50 @@ export class AudioManager {
 
     body.connect(bodyFilter).connect(bodyGain).connect(towersGain);
 
-    const clickDur = 0.018;
+    const clickDur = rapid ? 0.012 : 0.016;
     const click = ctx.createOscillator();
     click.type = "square";
-    click.frequency.setValueAtTime(isHive ? 150 : 190, now);
-    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : 90, now + clickDur);
+    click.frequency.setValueAtTime(isHive ? 150 : rapid ? 260 : 220, now);
+    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : rapid ? 130 : 105, now + clickDur);
 
     const clickGain = ctx.createGain();
     clickGain.gain.setValueAtTime(0, now);
-    clickGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.16 : 0.22), now + 0.0008);
+    clickGain.gain.linearRampToValueAtTime(
+      peak * (isHive ? 0.16 : rapid ? 0.34 : 0.27),
+      now + 0.0008,
+    );
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
 
     click.connect(clickGain).connect(towersGain);
 
+    const railDur = rapid ? 0.035 : 0.045;
+    const rail = ctx.createOscillator();
+    rail.type = "square";
+    rail.frequency.setValueAtTime(rapid ? 5200 : 4400, now);
+    rail.frequency.exponentialRampToValueAtTime(rapid ? 3000 : 2400, now + railDur);
+
+    const railFilter = ctx.createBiquadFilter();
+    railFilter.type = "highpass";
+    railFilter.frequency.value = 1800;
+
+    const railGain = ctx.createGain();
+    railGain.gain.setValueAtTime(0, now);
+    railGain.gain.linearRampToValueAtTime(
+      isHive ? 0.012 : peak * (rapid ? 0.11 : 0.08),
+      now + 0.0006,
+    );
+    railGain.gain.exponentialRampToValueAtTime(0.001, now + railDur);
+
+    rail.connect(railFilter).connect(railGain).connect(towersGain);
+
     this.activePulseBursts.add(noise);
     this.activePulseBursts.add(body);
     this.activePulseBursts.add(click);
+    this.activePulseBursts.add(rail);
     noise.onended = () => this.activePulseBursts.delete(noise);
     body.onended = () => this.activePulseBursts.delete(body);
     click.onended = () => this.activePulseBursts.delete(click);
+    rail.onended = () => this.activePulseBursts.delete(rail);
 
     noise.start(now);
     noise.stop(now + duration);
@@ -357,6 +390,8 @@ export class AudioManager {
     body.stop(now + bodyDur);
     click.start(now);
     click.stop(now + clickDur);
+    rail.start(now);
+    rail.stop(now + railDur);
   }
 
   // --- Continuous flamethrower sound (per-tower, looping sample) ---------

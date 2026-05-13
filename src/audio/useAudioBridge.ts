@@ -12,6 +12,7 @@ export const useAudioBridge = () => {
     let cancelled = false;
     const activeFlameTowerIds = (towers: Tower[]) =>
       towers.filter((t) => t.kind === "flame" && t.flameActive).map((t) => t.id);
+    const activeFlameSignature = (towers: Tower[]) => activeFlameTowerIds(towers).join(",");
     audio.preload().then(() => {
       if (cancelled) return;
       applyAudioPrefs(loadAudioPrefs());
@@ -40,7 +41,15 @@ export const useAudioBridge = () => {
     });
 
     const unsubFlames = useGame.subscribe((state, prev) => {
-      if (state.screen === prev.screen && state.world.status === prev.world.status) return;
+      const stateSig = activeFlameSignature(state.world.towers);
+      const prevSig = activeFlameSignature(prev.world.towers);
+      if (
+        state.screen === prev.screen &&
+        state.world.status === prev.world.status &&
+        stateSig === prevSig
+      ) {
+        return;
+      }
       if (state.screen !== "playing" || state.world.status !== "running") {
         audio.stopAllFlames();
         return;
@@ -85,7 +94,7 @@ export const useAudioBridge = () => {
           break;
         case "wave-start":
           audio.startMusic(pickTrack());
-          audio.play("level-select", "notifications", 0.26, 350, 0.9);
+          audio.play("wave-call", "notifications", 0.28, 350, 0.65);
           break;
         case "boss-wave-start":
           // Boss sting: layer "new-enemy" (dramatic announcement cue) on
@@ -98,7 +107,7 @@ export const useAudioBridge = () => {
           // Takedown sting — repurpose victory horn as an in-run windfall
           // cue. Distinct from wave-clear so a boss kill doesn't blur
           // into the normal end-of-wave tone.
-          audio.play("victory", "notifications", 0.45, 500, 2.2);
+          audio.play("victory", "notifications", 0.34, 500, 1.8);
           break;
         case "life-lost":
           audio.play("life-lost", "enemies", 0.7, 120);
