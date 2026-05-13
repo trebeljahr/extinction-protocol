@@ -763,6 +763,14 @@ export class AudioManager {
       }
       set.clear();
     }
+    for (const src of this.activePulseBursts) {
+      try {
+        src.stop();
+      } catch {
+        /* ok */
+      }
+    }
+    this.activePulseBursts.clear();
     this.stopAllFlames();
   }
 

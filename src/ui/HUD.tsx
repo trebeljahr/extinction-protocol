@@ -53,6 +53,14 @@ export const HUD = () => {
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
+  const waveStatus =
+    waveActive && wave >= totalWaves
+      ? `${wave} / ${totalWaves}`
+      : waveActive
+        ? "ACTIVE"
+        : wave >= totalWaves
+          ? `${wave} / ${totalWaves}`
+          : `${nextWaveIn}s`;
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
@@ -162,7 +170,7 @@ export const HUD = () => {
         ) : (
           <Stat
             label={waveActive || wave >= totalWaves ? "WAVE" : "NEXT"}
-            value={waveActive ? "ACTIVE" : wave >= totalWaves ? "FINAL" : `${nextWaveIn}s`}
+            value={waveStatus}
             accentClass="text-mint"
           />
         )}

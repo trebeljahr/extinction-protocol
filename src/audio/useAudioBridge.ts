@@ -82,8 +82,10 @@ export const useAudioBridge = () => {
     document.addEventListener("pointerdown", onUiPointerDown);
 
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
+      const state = useGame.getState();
       switch (e.type) {
         case "shoot":
+          if (state.screen !== "playing" || state.world.status !== "running") break;
           audio.playShoot(e.towerKind, e.towerId);
           break;
         case "impact":
@@ -131,6 +133,7 @@ export const useAudioBridge = () => {
           audio.play("tower-sell", "ui", 0.65, 60, 0.8);
           break;
         case "flame-start":
+          if (state.screen !== "playing" || state.world.status !== "running") break;
           audio.startFlame(e.towerId);
           break;
         case "flame-stop":
