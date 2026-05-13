@@ -147,7 +147,7 @@ const forestLayers = (): BiomeLayer[] => [
     // Reduced from 220 — Ground.tsx now spaces against trees/rocks/other
     // decor, so the old over-count just made the placement loop give up
     // early. Cluster mode reads as "tufts of grass" instead of wallpaper.
-    count: 160,
+    count: 90,
     clearance: PATH_WIDTH / 2 + 0.3,
     minScale: 0.6,
     maxScale: 1.1,
@@ -160,7 +160,7 @@ const forestLayers = (): BiomeLayer[] => [
     urls: ["/models/nature/Bush1.glb", "/models/nature/Bush2.glb", "/models/nature/Bush3.glb"],
     // These read as build-slot blockers from above, so route them through
     // the clear/remove flow instead of leaving them as untouchable decor.
-    count: 34,
+    count: 16,
     clearance: PATH_WIDTH / 2 + 0.7,
     minScale: 0.52,
     maxScale: 0.82,
@@ -172,7 +172,7 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 4242,
     urls: ["/models/nature/Rock1.glb", "/models/nature/Rock2.glb", "/models/nature/Rock3.glb"],
-    count: 40,
+    count: 18,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.2,
@@ -186,7 +186,7 @@ const forestLayers = (): BiomeLayer[] => [
     // Small enough to read as ground decor rather than an obstacle, so
     // it's non-blocking — towers placed on top auto-cull them visually.
     urls: ["/models/landmarks/forest/Mushroom.glb"],
-    count: 10,
+    count: 6,
     clearance: PATH_WIDTH / 2 + 0.5,
     minScale: 0.65,
     maxScale: 1.25,
@@ -228,7 +228,7 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Bush2.glb",
       "/models/biomes/desert/Bush3.glb",
     ],
-    count: 50,
+    count: 24,
     clearance: PATH_WIDTH / 2 + 0.5,
     minScale: 0.45,
     maxScale: 0.75,
@@ -243,7 +243,7 @@ const desertLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Rock2.glb",
       "/models/biomes/desert/Rock3.glb",
     ],
-    count: 55,
+    count: 24,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.3,
@@ -251,20 +251,7 @@ const desertLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 5, sigma: 3.5 },
   },
-  {
-    seed: 6464,
-    // Skull.glb authored 0.51 max-dim; 0.8–1.6 → ~0.4–0.8 world units.
-    // Sun-bleached bones read as scattered rock-sized obstacles.
-    urls: ["/models/landmarks/desert/Skull.glb"],
-    count: 9,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.8,
-    maxScale: 1.6,
-    castShadow: true,
-    blocks: true,
-    cluster: { seeds: 3, sigma: 2.6 },
-  },
-  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 6, 5151, 0.09, 0.15),
+  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.09, 0.15),
 ];
 
 const snowLayers = (): BiomeLayer[] => [
@@ -274,7 +261,7 @@ const snowLayers = (): BiomeLayer[] => [
     // see into, which reads as a broken mesh (open interior). Rock1 is the
     // solid variant that stays.
     urls: ["/models/biomes/snow/Rock1.glb"],
-    count: 42,
+    count: 20,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.7,
     maxScale: 1.4,
@@ -292,7 +279,7 @@ const wastelandLayers = (): BiomeLayer[] => [
       "/models/biomes/desert/Bush2.glb",
       "/models/biomes/desert/Bush3.glb",
     ],
-    count: 28,
+    count: 14,
     clearance: PATH_WIDTH / 2 + 0.6,
     minScale: 0.55,
     maxScale: 1.05,
@@ -309,7 +296,7 @@ const wastelandLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock4.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 90,
+    count: 32,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.55,
     maxScale: 1.4,
@@ -317,40 +304,14 @@ const wastelandLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 7, sigma: 3.2 },
   },
-  {
-    seed: 6464,
-    urls: ["/models/landmarks/wasteland/Skull.glb"],
-    count: 8,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.8,
-    maxScale: 1.6,
-    castShadow: true,
-    blocks: true,
-    cluster: { seeds: 3, sigma: 2.6 },
-  },
-  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 8, 5151),
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 4, 5151),
 ];
 
 // Lava reuses the wasteland rock set (dark scorched stone) but denser and
 // slightly larger, reading as volcanic boulders and slag heaps. Adds a
 // crystal-rock blocker layer so every clearable obstacle has a readable
-// silhouette. Small skulls/crystals run *before* the dense rock layer so
-// they still get placement slots — lava paths + lakes eat most open
-// terrain, and 110 wasteland rocks would otherwise saturate it first.
+// silhouette without saturating lava maps with random clutter.
 const lavaLayers = (): BiomeLayer[] => [
-  {
-    seed: 6464,
-    urls: ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/wasteland/Crystal1.glb"],
-    // Skull 0.51 max-dim and Crystal1 0.42 max-dim are similar enough to
-    // share a layer; scale 0.9–1.7 lands ~0.45–0.85 world units for both.
-    count: 12,
-    clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.9,
-    maxScale: 1.7,
-    castShadow: true,
-    blocks: true,
-    cluster: { seeds: 4, sigma: 2.6 },
-  },
   {
     seed: 4242,
     urls: [
@@ -360,7 +321,7 @@ const lavaLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock4.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 100,
+    count: 34,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.6,
     maxScale: 1.55,
@@ -371,7 +332,7 @@ const lavaLayers = (): BiomeLayer[] => [
   {
     seed: 7878,
     urls: ["/models/scifi/rock_crystalsLargeA.glb"],
-    count: 14,
+    count: 7,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.55,
     maxScale: 1.0,
@@ -379,7 +340,7 @@ const lavaLayers = (): BiomeLayer[] => [
     blocks: true,
     cluster: { seeds: 3, sigma: 2.5 },
   },
-  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 6, 5151),
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
 ];
 
 // Alien uses Quaternius Crystal Pack blue crystals as the signature
@@ -402,7 +363,7 @@ const alienLayers = (): BiomeLayer[] => [
     // Authored 1.82–3.26 max-dim; 0.22–0.45 lands ~0.4–1.5 world units
     // (rock-sized) across the variants, so every plant reads as a
     // removable obstacle rather than a tree-sized blob.
-    count: 28,
+    count: 12,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.28,
     maxScale: 0.52,
@@ -418,7 +379,7 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/wasteland/Rock3.glb",
       "/models/biomes/wasteland/Rock5.glb",
     ],
-    count: 55,
+    count: 22,
     clearance: PATH_WIDTH / 2 + 0.9,
     minScale: 0.55,
     maxScale: 1.35,
@@ -435,7 +396,7 @@ const alienLayers = (): BiomeLayer[] => [
       "/models/biomes/alien/Crystal_Medium_1.glb",
       "/models/biomes/alien/Crystal_Medium_2.glb",
     ],
-    count: 20,
+    count: 10,
     clearance: PATH_WIDTH / 2 + 0.8,
     minScale: 0.11,
     maxScale: 0.18,
@@ -450,7 +411,7 @@ const alienLayers = (): BiomeLayer[] => [
     // Authored 5.26 and 6.87 max-dim; 0.07–0.13 lands ~0.4–0.9 world units.
     // Small but still clearly clickable, so the shards under the bigger
     // crystals get the same remove-flow as everything else.
-    count: 8,
+    count: 3,
     clearance: PATH_WIDTH / 2 + 0.6,
     minScale: 0.1,
     maxScale: 0.16,
@@ -470,7 +431,7 @@ const alienLayers = (): BiomeLayer[] => [
     blocks: true,
     footprint: 1.45,
   },
-  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 8, 5151, 0.55, 0.85),
+  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 4, 5151, 0.55, 0.85),
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
@@ -536,8 +497,9 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
 // Small cosmetic props scattered across levels — strictly ground-decor
 // that reads as flat texture, not as an obstacle. Anything that looked
 // like a placement-blocker silhouette (meteors, machines, mushrooms,
-// skulls, crystals) was promoted to a blocking layer in BIOME_LAYERS so
-// it goes through the click+clear flow with every other rock-sized prop.
+// crystals) was promoted to a blocking layer in BIOME_LAYERS so it goes
+// through the click+clear flow with every other rock-sized prop. Skulls
+// stay reserved for the rarer easter-egg find, not normal map clutter.
 // Only BushFlowers remains: authored at 1.97 max-dim but normalized down
 // to 0.18–0.36 world units, it reads as a flat flower patch, not an
 // obstacle.

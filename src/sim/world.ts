@@ -38,21 +38,21 @@ import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
 
-export const TREE_COUNT = 55;
+export const TREE_COUNT = 38;
 // Trees clump into a handful of groves rather than evenly speckling the
 // map. The Worley field plants this many "grove centres"; Poisson then
 // fills around them at variable spacing.
-const TREE_GROVE_COUNT = 12;
-const TREE_GROVE_RADIUS = 4.8;
+const TREE_GROVE_COUNT = 8;
+const TREE_GROVE_RADIUS = 4.4;
 // Looser-than-min spacing in low-density (between-grove) regions.
-const TREE_MAX_SPACING = 5.5;
+const TREE_MAX_SPACING = 6.3;
 export const TREE_VARIANTS = 4;
-export const TREE_CLEARANCE_MARGIN = 2.0;
+export const TREE_CLEARANCE_MARGIN = 2.3;
 // Wider range with a slight central bias gives a more natural mix —
 // most trees mid-sized, with the occasional sapling and elder.
 export const TREE_MIN_SCALE = 0.45;
 export const TREE_MAX_SCALE = 1.15;
-export const TREE_MIN_SPACING = 2.2;
+export const TREE_MIN_SPACING = 2.6;
 export const TREE_FOOTPRINT = 0.85;
 export const TREE_REMOVE_COST = 10;
 

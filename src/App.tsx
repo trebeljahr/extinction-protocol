@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { useAudioBridge } from "./audio/useAudioBridge";
 import { PlayScene } from "./render/Scene";
 import { useGame } from "./store";
@@ -64,6 +64,94 @@ const isLowEndDevice = (): boolean => {
 const lowEnd = isLowEndDevice();
 const bloomKernel = lowEnd ? KernelSize.SMALL : KernelSize.MEDIUM;
 const dprCap: [number, number] = lowEnd ? [1, 1.75] : [1, 2];
+const GAMEPAD_MENU_BUTTONS = {
+  a: 0,
+  b: 1,
+  start: 9,
+  up: 12,
+  down: 13,
+  left: 14,
+  right: 15,
+} as const;
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const visibleFocusableElements = () =>
+  Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && getComputedStyle(el).visibility !== "hidden";
+  });
+
+const focusRelative = (direction: -1 | 1) => {
+  const elements = visibleFocusableElements();
+  if (elements.length === 0) return;
+  const current = document.activeElement;
+  const currentIndex = current instanceof HTMLElement ? elements.indexOf(current) : -1;
+  const nextIndex =
+    currentIndex === -1
+      ? direction > 0
+        ? 0
+        : elements.length - 1
+      : (currentIndex + direction + elements.length) % elements.length;
+  elements[nextIndex].focus();
+};
+
+const dispatchKeyboard = (key: string, code = key) => {
+  window.dispatchEvent(new KeyboardEvent("keydown", { key, code, bubbles: true }));
+};
+
+const activateFocused = () => {
+  const active = document.activeElement;
+  if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) {
+    active.click();
+    return;
+  }
+
+  const first = visibleFocusableElements()[0];
+  if (first) {
+    first.focus();
+    return;
+  }
+  dispatchKeyboard("Enter");
+};
+
+const useGamepadMenuBridge = (enabled: boolean) => {
+  const prevButtonsRef = useRef<boolean[]>([]);
+
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const pads = navigator.getGamepads?.();
+      const gamepad = Array.from(pads ?? []).find((pad): pad is Gamepad => Boolean(pad?.connected));
+      if (!gamepad) {
+        prevButtonsRef.current = [];
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+
+      const down = (index: number) => Boolean(gamepad.buttons[index]?.pressed);
+      const pressed = (index: number) => down(index) && !prevButtonsRef.current[index];
+      if (enabled) {
+        if (pressed(GAMEPAD_MENU_BUTTONS.down) || pressed(GAMEPAD_MENU_BUTTONS.right)) {
+          focusRelative(1);
+        }
+        if (pressed(GAMEPAD_MENU_BUTTONS.up) || pressed(GAMEPAD_MENU_BUTTONS.left)) {
+          focusRelative(-1);
+        }
+        if (pressed(GAMEPAD_MENU_BUTTONS.a)) activateFocused();
+        if (pressed(GAMEPAD_MENU_BUTTONS.b) || pressed(GAMEPAD_MENU_BUTTONS.start)) {
+          dispatchKeyboard("Escape");
+        }
+      }
+
+      prevButtonsRef.current = gamepad.buttons.map((button) => button.pressed);
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [enabled]);
+};
 
 export const App = () => {
   const screen = useGame((s) => s.screen);
@@ -76,6 +164,7 @@ export const App = () => {
   const modalOpen = compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen;
   const isMobile = useIsMobile();
   useAudioBridge();
+  useGamepadMenuBridge(screen !== "playing" || modalOpen || levelIntroVisible);
 
   // Drive the cursor from gameplay state. Crosshair on the canvas
   // while a tower kind is selected, default everywhere else. Buttons

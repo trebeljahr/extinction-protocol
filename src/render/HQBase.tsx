@@ -15,20 +15,45 @@ type PropDef = {
   fwd: number;
   targetHeight: number;
   facesHQ?: boolean;
+  yawOffset?: number;
 };
 
 const BASE_PROPS: PropDef[] = [
   {
-    url: "/models/scifi/satelliteDish.glb",
-    right: -2.2,
-    fwd: 0.6,
-    targetHeight: 1.4,
+    url: "/models/scifi/gate_simple.glb",
+    right: 0,
+    fwd: 1.85,
+    targetHeight: 0.85,
+  },
+  {
+    url: "/models/scifi/structure_detailed.glb",
+    right: -1.55,
+    fwd: -0.75,
+    targetHeight: 1.35,
+  },
+  {
+    url: "/models/scifi/structure_closed.glb",
+    right: 1.55,
+    fwd: -0.65,
+    targetHeight: 1.25,
+  },
+  {
+    url: "/models/scifi/satelliteDish_detailed.glb",
+    right: -2.25,
+    fwd: 0.55,
+    targetHeight: 1.25,
     facesHQ: true,
   },
-  { url: "/models/scifi/machine_generatorLarge.glb", right: 2.2, fwd: 0.4, targetHeight: 1.2 },
-  { url: "/models/scifi/barrels.glb", right: -1.2, fwd: 2.2, targetHeight: 0.65 },
-  { url: "/models/scifi/structure_closed.glb", right: 1.5, fwd: 2.4, targetHeight: 1.3 },
-  { url: "/models/scifi/machine_wireless.glb", right: 0.0, fwd: -0.8, targetHeight: 0.9 },
+  { url: "/models/scifi/machine_generatorLarge.glb", right: 2.25, fwd: 0.45, targetHeight: 1.05 },
+  { url: "/models/scifi/barrels.glb", right: -0.85, fwd: 1.15, targetHeight: 0.58 },
+  {
+    url: "/models/scifi/rover.glb",
+    right: 0.95,
+    fwd: 1.18,
+    targetHeight: 0.62,
+    yawOffset: Math.PI / 2,
+  },
+  { url: "/models/scifi/machine_wirelessCable.glb", right: 0, fwd: -1.45, targetHeight: 0.78 },
 ];
 
 const ALL_URLS = BASE_PROPS.map((p) => p.url);
@@ -42,17 +67,23 @@ const baseScaleFor = (source: MeshSource, url: string): number => {
 };
 
 const HQBasePad = ({ position, yaw }: { position: [number, number]; yaw: number }) => (
-  <mesh position={[position[0], 0.015, -position[1]]} rotation={[-Math.PI / 2, 0, yaw]}>
-    <circleGeometry args={[2.8, 32]} />
-    <meshStandardMaterial
-      color="#3a3e4a"
-      roughness={0.85}
-      metalness={0.15}
-      transparent
-      opacity={0.35}
-      depthWrite={false}
-    />
-  </mesh>
+  <group position={[position[0], 0, -position[1]]} rotation={[0, yaw, 0]}>
+    <mesh position={[0, 0.014, 0]}>
+      <boxGeometry args={[5.8, 0.035, 4.15]} />
+      <meshStandardMaterial
+        color="#303643"
+        roughness={0.82}
+        metalness={0.18}
+        transparent
+        opacity={0.48}
+        depthWrite={false}
+      />
+    </mesh>
+    <mesh position={[0, 0.038, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[1.05, 1.32, 40]} />
+      <meshBasicMaterial color="#8fb7d1" transparent opacity={0.24} />
+    </mesh>
+  </group>
 );
 
 export const HQBase = () => {
@@ -81,7 +112,7 @@ export const HQBase = () => {
         const def = BASE_PROPS[pi];
         const wx = last.x + def.right * rightX + def.fwd * faceX;
         const wy = last.y + def.right * rightY + def.fwd * faceY;
-        const propYaw = def.facesHQ ? yaw + Math.PI : yaw + ((pi * 1.3) % (Math.PI * 2));
+        const propYaw = yaw + (def.facesHQ ? Math.PI : 0) + (def.yawOffset ?? 0);
         insts.push({ url: def.url, pos: { x: wx, y: wy }, scale: 1, rotY: propYaw });
       }
     }

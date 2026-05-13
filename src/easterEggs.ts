@@ -99,11 +99,14 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     targetSize: 1.0,
     clickThreshold: 1,
     effect: {
-      particleColor: "#cfd8e0",
-      particleCount: 16,
-      particleSpeed: [1.5, 3.5],
-      particleLife: 0.5,
+      particleColor: "#dfe7ef",
+      particleCount: 20,
+      particleSpeed: [1.8, 4.0],
+      particleLife: 0.55,
+      secondary: { color: "#ffd66a", count: 10, speed: [1.2, 2.6], life: 0.45 },
     },
+    goldReward: 20,
+    reaction: { popIntensity: 0.36 },
   },
   {
     id: "mushroom",
