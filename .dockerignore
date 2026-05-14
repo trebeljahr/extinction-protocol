@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.git
+.tsbuild
+*.tsbuildinfo
+src-tauri/target
+src-tauri/gen
+.DS_Store
+*.log

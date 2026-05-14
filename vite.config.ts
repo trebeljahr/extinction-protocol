@@ -1,11 +1,29 @@
-import { localDev } from "@hatchkit/dev-plugin-vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type PluginOption } from "vite";
 
 const DEV_PORT = 3286;
+const HATCHKIT_VITE_PLUGIN = "@hatchkit/dev-plugin-vite";
 
-export default defineConfig(({ mode }) => {
+type HatchkitViteModule = {
+  localDev?: (options: { slug: string }) => PluginOption;
+};
+
+const loadHatchkitLocalDev = async (): Promise<PluginOption[]> => {
+  try {
+    const { localDev } = (await import(HATCHKIT_VITE_PLUGIN)) as HatchkitViteModule;
+    return typeof localDev === "function" ? [localDev({ slug: "extinction-protocol" })] : [];
+  } catch (error) {
+    console.warn(
+      `Skipping Hatchkit local-dev Vite plugin: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return [];
+  }
+};
+
+export default defineConfig(async ({ command, mode }) => {
   const env = loadEnv(mode, ".", "");
   const plausibleDomain = env.VITE_PLAUSIBLE_DOMAIN ?? "protocol.trebeljahr.com";
   const plausibleScriptUrl =
@@ -30,6 +48,9 @@ export default defineConfig(({ mode }) => {
       })();
     </script>`
     : "";
+  const hatchkitPlugins =
+    command === "serve" && env.HATCHKIT_LOCAL_DEV !== "0" ? await loadHatchkitLocalDev() : [];
+
   return {
     plugins: [
       react(),
@@ -45,7 +66,7 @@ export default defineConfig(({ mode }) => {
       // on dev startup, replaces Vite's Local/Network banner with
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.
-      localDev({ slug: "extinction-protocol" }),
+      ...hatchkitPlugins,
     ] as PluginOption[],
     clearScreen: false,
     server: {
