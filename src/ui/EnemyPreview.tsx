@@ -5,7 +5,12 @@ import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { measureVisibleBox } from "../render/measureModel";
 import type { BossVariant, EnemyKind } from "../sim/types";
-import { BOSS_VARIANT_MODEL, BOSS_VARIANT_TINT, ENEMY_MODEL } from "../sim/world";
+import {
+  BOSS_VARIANT_MATERIAL,
+  BOSS_VARIANT_MODEL,
+  BOSS_VARIANT_TINT,
+  ENEMY_MODEL,
+} from "../sim/world";
 
 type Props = {
   kind: EnemyKind;
@@ -17,11 +22,6 @@ type Props = {
 
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
-
-// Matches the in-game ModelEnemyMesh tint amount so the compendium
-// preview reads as the same queen the player just fought.
-const MATRIARCH_PREVIEW_TINT_AMOUNT = 0.78;
-const MATRIARCH_PREVIEW_EMISSIVE_AMOUNT = 0.55;
 
 const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVariant }) => {
   const isMatriarch = kind === "boss" && bossVariant !== undefined;
@@ -43,6 +43,8 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
       isMatriarch && bossVariant !== undefined
         ? new THREE.Color(BOSS_VARIANT_TINT[bossVariant])
         : null;
+    const material =
+      isMatriarch && bossVariant !== undefined ? BOSS_VARIANT_MATERIAL[bossVariant] : null;
     cloned.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -55,11 +57,10 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
       // use the same material in this separate Canvas.
       const tintMat = (mm: THREE.Material) => {
         const cloned = mm.clone();
-        if (tint) {
+        if (tint && material) {
           const std = cloned as THREE.MeshStandardMaterial;
-          if (std.color) std.color.lerp(tint, MATRIARCH_PREVIEW_TINT_AMOUNT);
-          if (std.emissive)
-            std.emissive.copy(tint).multiplyScalar(MATRIARCH_PREVIEW_EMISSIVE_AMOUNT);
+          if (std.color) std.color.lerp(tint, material.tintAmount);
+          if (std.emissive) std.emissive.copy(tint).multiplyScalar(material.emissiveAmount);
         }
         return cloned;
       };

@@ -1,11 +1,11 @@
 import type { BossVariant, EnemyKind } from "../sim/types";
-import { BOSS_VARIANT_MODEL, BOSS_VARIANT_TINT, ENEMY_MODEL } from "../sim/world";
+import {
+  BOSS_VARIANT_MATERIAL,
+  BOSS_VARIANT_MODEL,
+  BOSS_VARIANT_TINT,
+  ENEMY_MODEL,
+} from "../sim/world";
 import { type BakeSpec, useBakedIcon } from "./bakedIcon";
-
-// Match the in-game tint amounts so the compendium icon is recognisable
-// as the same queen the player just fought.
-const ICON_MATRIARCH_TINT_AMOUNT = 0.78;
-const ICON_MATRIARCH_EMISSIVE_AMOUNT = 0.5;
 
 // Per-kind side-view framing. The shared baker normalizes every model
 // to a 1×1×1 box, so these numbers all live in the same coordinate
@@ -68,14 +68,19 @@ const specFor = (kind: EnemyKind, bossVariant?: BossVariant): BakeSpec => {
   const tuningKey = isMatriarch ? BOSS_VARIANT_BASE_KIND[bossVariant] : kind;
   const t = ICON_TUNING[tuningKey];
   const instances = kind === "swarm" ? SWARM_FLOCK : undefined;
+  const material = isMatriarch ? BOSS_VARIANT_MATERIAL[bossVariant] : null;
   // Framing baked into the cache key so dev-time tuning re-bakes
   // instead of serving the stale PNG. Instance signature is folded in
   // so swarm-layout edits invalidate the cache too. Variant tint is
   // folded in so each matriarch gets her own cache entry.
   const framingTag = `${t.camDist}-${t.camY}-${t.targetY}`;
   const instTag = instances ? `i${instances.length}-${instances[0].scale}` : "i1";
+  const materialTag =
+    isMatriarch && material
+      ? `${BOSS_VARIANT_TINT[bossVariant]}-${material.tintAmount}-${material.emissiveAmount}`
+      : "base";
   const cacheKey = isMatriarch
-    ? `matriarch:${bossVariant}:${framingTag}:${instTag}`
+    ? `matriarch:${bossVariant}:${framingTag}:${instTag}:${materialTag}`
     : `enemy:${kind}:${framingTag}:${instTag}`;
   const modelUrl = isMatriarch ? BOSS_VARIANT_MODEL[bossVariant].url : ENEMY_MODEL[kind].url;
   return {
@@ -94,8 +99,8 @@ const specFor = (kind: EnemyKind, bossVariant?: BossVariant): BakeSpec => {
       ? {
           tint: {
             color: BOSS_VARIANT_TINT[bossVariant],
-            amount: ICON_MATRIARCH_TINT_AMOUNT,
-            emissive: ICON_MATRIARCH_EMISSIVE_AMOUNT,
+            amount: material?.tintAmount ?? 0,
+            emissive: material?.emissiveAmount ?? 0,
           },
         }
       : {}),

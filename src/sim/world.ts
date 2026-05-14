@@ -733,7 +733,7 @@ export const BOSS_VARIANT_MODEL: Record<
   BossVariant,
   { url: string; targetSize: number; clip?: string; timeScale?: number }
 > = {
-  raptor: { url: "/models/Velociraptor.glb", targetSize: 5.3, timeScale: 0.82 },
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 6.4, timeScale: 0.62 },
   stego: { url: "/models/Stegosaurus.glb", targetSize: 5.0 },
   para: { url: "/models/Parasaurolophus.glb", targetSize: 4.6 },
   allosaur: { url: "/models/Trex.glb", targetSize: 5.5 },
@@ -747,12 +747,27 @@ export const BOSS_VARIANT_MODEL: Record<
 // the biome AND stay visually distinct from each other — pairs within
 // ~30° on the wheel read as muddy under the biome's ambient lighting.
 export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
-  raptor: "#c84628", // forest — earthy pack-leader red, less neon bloom
-  stego: "#3affb0", // snow — jade plates with cold sheen
+  raptor: "#a85a38", // forest — warm hide shift without the neon-red wash
+  stego: "#8fd8c3", // snow — soft glacial jade, gentler than elite plates
   para: "#a25aff", // desert — twilight violet on the crest
   allosaur: "#ffb030", // wasteland — apex-predator gold
   armored: "#5ad6ff", // lava — chrome-cyan chitin (cool contrast)
   apex: "#d440ff", // alien — bioluminescent magenta
+};
+
+// Per-variant material strength for matriarchs. Raptor and stego stay
+// restrained so their species silhouettes read first; later queens keep
+// a stronger supernatural charge.
+export const BOSS_VARIANT_MATERIAL: Record<
+  BossVariant,
+  { tintAmount: number; emissiveAmount: number }
+> = {
+  raptor: { tintAmount: 0.42, emissiveAmount: 0.08 },
+  stego: { tintAmount: 0.38, emissiveAmount: 0.1 },
+  para: { tintAmount: 0.66, emissiveAmount: 0.24 },
+  allosaur: { tintAmount: 0.62, emissiveAmount: 0.18 },
+  armored: { tintAmount: 0.66, emissiveAmount: 0.24 },
+  apex: { tintAmount: 0.68, emissiveAmount: 0.28 },
 };
 
 // Child-spawn config — every variant except apex drops a steady drip of
@@ -763,7 +778,7 @@ export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
 // L30 wave already runs its own heavy entourage.
 export type BossChildSpawn = { kind: EnemyKind; interval: number; count?: number };
 export const BOSS_VARIANT_CHILD: Partial<Record<BossVariant, BossChildSpawn>> = {
-  raptor: { kind: "swarm", interval: 1.2, count: 2 },
+  raptor: { kind: "swarm", interval: 1.25, count: 3 },
   stego: { kind: "stego", interval: 6.0 },
   para: { kind: "para", interval: 2.2 },
   allosaur: { kind: "allosaur", interval: 3.8 },

@@ -37,7 +37,7 @@ export const MATRIARCH_SUBTITLE: Record<BossVariant, string> = {
 
 export const MATRIARCH_DESCRIPTION: Record<BossVariant, string> = {
   raptor:
-    "Lean and fast. Sprints down the lane and sheds paired swarm hatchlings every 1.2 seconds, spilling around her as she runs. Bring AoE or the pack stacks up. Vulnerable to electric.",
+    "Lean and fast. Sprints down the lane and sheds small swarm bursts every 1.25 seconds, spilling around her as she runs. Bring AoE or the pack stacks up. Vulnerable to electric.",
   stego:
     "Heavy plates everywhere; kinetic and explosive slide off. Calves a stego every six seconds. Electric is the only real lever.",
   para: "Hollow crest acts as a resonator — chain damage rings through at 1.7×. Vents flame at 0.4×. Drops a para every 2.2 seconds, fast.",

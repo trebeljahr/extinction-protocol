@@ -315,13 +315,10 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 5, stego: 3, allosaur: 2 }),
       mixed({ raptor: 20, swarm: 14, para: 4, allosaur: 5, stego: 2 }),
       // Boss wave: the Raptor Matriarch's debut. She's fast and lighter
-      // than later matriarchs but constantly drips raptors behind her as
-      // she sprints down the path — the player learns "the matriarch
-      // leads her own pack" here. Trickle is dialed back to a single
-      // sparse stream since her own spawn handles most of the pressure.
-      bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55, 0, [
-        trickleStream(0, ["swarm", "raptor"], 1.8, 2.6, 8),
-      ]),
+      // than later matriarchs but now sheds the swarm directly around
+      // herself. No extra path-start trickle here: the player should read
+      // the pack as coming from the queen, not from spawn zero.
+      bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55),
     ],
   },
   {

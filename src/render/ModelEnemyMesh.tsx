@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { smoothDirection } from "../sim/path";
 import type { BossVariant, EnemyKind } from "../sim/types";
-import { BOSS_VARIANT_TINT, ELITE_TINT_BY_KIND } from "../sim/world";
+import { BOSS_VARIANT_MATERIAL, BOSS_VARIANT_TINT, ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
 
@@ -35,15 +35,6 @@ const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
 // authoring + UI can share them.
 const ELITE_TINT_AMOUNT = 0.55;
 const ELITE_EMISSIVE_AMOUNT = 0.35;
-// Matriarchs wear their variant tint permanently — they're a distinct
-// species per biome, not "the same dino with a chip." Bumped notably
-// past elite so the silhouette reads as a queen at a glance: a snow
-// matriarch should look jade-green, an armored matriarch chrome-blue,
-// etc. Emissive is also higher so the metallic sheen carries through
-// the biome's ambient lighting.
-const MATRIARCH_TINT_AMOUNT = 0.78;
-const MATRIARCH_EMISSIVE_AMOUNT = 0.55;
-
 const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
   const c = mat.clone();
   const std = c as THREE.MeshStandardMaterial;
@@ -112,6 +103,7 @@ export const ModelEnemyMesh = ({
     () => new THREE.Color(bossVariant ? BOSS_VARIANT_TINT[bossVariant] : ELITE_TINT_BY_KIND[kind]),
     [kind, bossVariant],
   );
+  const matriarchMaterial = bossVariant !== undefined ? BOSS_VARIANT_MATERIAL[bossVariant] : null;
   // Free list of skinned clones from dead-but-recyclable enemies. Reusing
   // is significantly cheaper than another `cloneSkinned + AnimationMixer`,
   // which matters for swarms.
@@ -366,7 +358,8 @@ export const ModelEnemyMesh = ({
           const base = mm.userData.baseColor as THREE.Color | undefined;
           if (base && mm.color) {
             if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
-            else if (matriarch) mm.color.copy(base).lerp(eliteTint, MATRIARCH_TINT_AMOUNT);
+            else if (matriarch && matriarchMaterial)
+              mm.color.copy(base).lerp(eliteTint, matriarchMaterial.tintAmount);
             else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
             else mm.color.copy(base);
           }
@@ -380,10 +373,10 @@ export const ModelEnemyMesh = ({
             // Cool inner glow when heavily frosted — sells the "frozen
             // solid" read at high frost without a halo at low frost.
             mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
-          } else if (matriarch) {
-            // Strong inner glow in the variant tint — sells the matriarch
-            // as a regal/charged silhouette at any biome lighting.
-            mm.emissive.copy(eliteTint).multiplyScalar(MATRIARCH_EMISSIVE_AMOUNT);
+          } else if (matriarch && matriarchMaterial) {
+            // Variant-specific charge: early species queens stay material
+            // first, later queens carry more supernatural light.
+            mm.emissive.copy(eliteTint).multiplyScalar(matriarchMaterial.emissiveAmount);
           } else if (elite) {
             // Inner rim glow in the kind's elite color — sells the
             // tint as a metallic / energized look rather than a dye job.

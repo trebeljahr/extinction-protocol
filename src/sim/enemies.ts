@@ -1,5 +1,5 @@
 import { advanceAlongPath, samplePath, segmentLength, smoothDirection } from "./path";
-import type { Enemy, Vec2, World } from "./types";
+import type { Enemy, EnemyKind, Vec2, World } from "./types";
 import { addShake, BOSS_VARIANT_CHILD, BOSS_VARIANT_STATS, emit, spawnEnemy } from "./world";
 
 const LEAK_RUN_IN_SECONDS = 0.28;
@@ -68,12 +68,46 @@ const updateLeakAttack = (world: World, e: Enemy) => {
   if (world.time >= leak.impactAt) applyLeakHit(world, e);
 };
 
+const plantEnemyOnPath = (
+  world: World,
+  child: Enemy,
+  pathIndex: number,
+  segment: number,
+  segmentT: number,
+) => {
+  const path = world.paths[pathIndex] ?? world.paths[0];
+  const maxSegment = Math.max(0, path.length - 2);
+  let nextSegment = Math.max(0, Math.min(maxSegment, segment));
+  let nextT = segmentT;
+  while (nextT < 0 && nextSegment > 0) {
+    nextSegment -= 1;
+    nextT += 1;
+  }
+  while (nextT > 1 && nextSegment < maxSegment) {
+    nextSegment += 1;
+    nextT -= 1;
+  }
+
+  child.segment = nextSegment;
+  child.segmentT = Math.max(0, Math.min(1, nextT));
+  const basePos = samplePath(path, child.segment, child.segmentT);
+  const dir = smoothDirection(path, child.segment, child.segmentT);
+  if (dir.x * dir.x + dir.y * dir.y > 1e-12) {
+    child.pos = {
+      x: basePos.x + -dir.y * child.lateralOffset,
+      y: basePos.y + dir.x * child.lateralOffset,
+    };
+  } else {
+    child.pos = basePos;
+  }
+};
+
 export const updateEnemies = (world: World, dt: number) => {
   // Collect matriarch child-spawn requests during the tick. Deferred so
   // we don't mutate world.enemies while iterating it — the new child
   // will be picked up by the next tick instead.
   type DeferredChild = {
-    kind: import("./types").EnemyKind;
+    kind: EnemyKind;
     pathIndex: number;
     hpMul: number;
     segment: number;
@@ -191,29 +225,13 @@ export const updateEnemies = (world: World, dt: number) => {
   for (const c of childSpawns) {
     const child = spawnEnemy(world, c.kind, { pathIndex: c.pathIndex, hpMul: c.hpMul });
     // Plant the child immediately near the matriarch instead of leaving
-    // the default path-start position for a frame. The progress backoff
-    // plus side spread makes raptor broods look like they are spilling
-    // out around her body rather than being teleported from spawn zero.
-    let segment = c.segment;
-    let segmentT = c.segmentT - (0.16 + c.spawnIndex * 0.12);
-    while (segmentT < 0 && segment > 0) {
-      segment -= 1;
-      segmentT += 1;
-    }
-    child.segment = segment;
-    child.segmentT = Math.max(0, segmentT);
-    const sideSpread = c.spawnCount > 1 ? (c.spawnIndex - (c.spawnCount - 1) / 2) * 0.28 : 0;
+    // the default path-start position for a frame. Center the brood near
+    // her current progress, with enough lateral spread to read as a
+    // swarm bursting from around the body instead of a trailing queue.
+    const mid = (c.spawnCount - 1) / 2;
+    const progressSpread = c.spawnCount > 1 ? (c.spawnIndex - mid) * 0.07 : -0.05;
+    const sideSpread = c.spawnCount > 1 ? (c.spawnIndex - mid) * 0.42 : 0;
     child.lateralOffset += sideSpread;
-    const path = world.paths[c.pathIndex] ?? world.paths[0];
-    const basePos = samplePath(path, child.segment, child.segmentT);
-    const dir = smoothDirection(path, child.segment, child.segmentT);
-    if (dir.x * dir.x + dir.y * dir.y > 1e-12) {
-      child.pos = {
-        x: basePos.x + -dir.y * child.lateralOffset,
-        y: basePos.y + dir.x * child.lateralOffset,
-      };
-    } else {
-      child.pos = basePos;
-    }
+    plantEnemyOnPath(world, child, c.pathIndex, c.segment, c.segmentT - 0.04 + progressSpread);
   }
 };

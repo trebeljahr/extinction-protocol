@@ -94,8 +94,8 @@ export const PlayScene = () => {
         kind="boss"
         bossVariant="raptor"
         url="/models/Velociraptor.glb"
-        targetSize={5.3}
-        timeScale={0.82}
+        targetSize={6.4}
+        timeScale={0.62}
       />
       <ModelEnemyMesh
         kind="boss"

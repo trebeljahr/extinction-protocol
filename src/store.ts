@@ -311,6 +311,7 @@ type GameStore = {
   creditsOpen: boolean;
   achievementToasts: AchievementToast[];
   newEnemyQueue: NewSightingId[];
+  deferredNewEnemyQueue: NewSightingId[];
   autoPausedForNewEnemy: boolean;
   levelIntroVisible: boolean;
   treeClickCounts: Record<number, number>;
@@ -459,6 +460,36 @@ const persistProgress = (slot: SlotId | null, progress: ProgressData): void => {
   saveSlot(slot, progress);
 };
 
+const sightingKey = (sighting: NewSightingId): string =>
+  sighting.tag === "species" ? `species:${sighting.species}` : `matriarch:${sighting.variant}`;
+
+const appendUniqueSightings = (
+  queue: NewSightingId[],
+  sightings: NewSightingId[],
+): { queue: NewSightingId[]; added: boolean } => {
+  if (sightings.length === 0) return { queue, added: false };
+  const seen = new Set(queue.map(sightingKey));
+  const additions = sightings.filter((sighting) => {
+    const key = sightingKey(sighting);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return additions.length > 0
+    ? { queue: [...queue, ...additions], added: true }
+    : { queue, added: false };
+};
+
+const bossOrTitanMomentActive = (world: World): boolean => {
+  for (const e of world.enemies) {
+    if (e.alive && (e.kind === "boss" || e.kind === "titan")) return true;
+  }
+  for (const q of world.spawnQueue) {
+    if (q.kind === "boss" || q.kind === "titan") return true;
+  }
+  return world.waveActive && world.plannedWaves[world.wave - 1]?.bossWave === true;
+};
+
 export const isUnlocked = (levelId: number, progress: ProgressData) =>
   isLevelUnlocked(levelId, progress);
 
@@ -482,6 +513,7 @@ export const useGame = create<GameStore>((set, get) => ({
   creditsOpen: false,
   achievementToasts: [],
   newEnemyQueue: [],
+  deferredNewEnemyQueue: [],
   autoPausedForNewEnemy: false,
   levelIntroVisible: false,
   treeClickCounts: {},
@@ -509,6 +541,7 @@ export const useGame = create<GameStore>((set, get) => ({
       hoveredLevelId: null,
       lastResult: null,
       newEnemyQueue: [],
+      deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
       levelIntroVisible: showIntro,
       screen: "playing",
@@ -532,6 +565,7 @@ export const useGame = create<GameStore>((set, get) => ({
       hoveredLevelId: null,
       lastResult: null,
       newEnemyQueue: [],
+      deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
       levelIntroVisible: false,
       runMinDifficulty: null,
@@ -555,6 +589,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult: null,
       selectedLevelId: null,
       newEnemyQueue: [],
+      deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
       levelIntroVisible: false,
     });
@@ -574,6 +609,9 @@ export const useGame = create<GameStore>((set, get) => ({
       screen: "worldMap",
       hoveredLevelId: null,
       lastResult: null,
+      newEnemyQueue: [],
+      deferredNewEnemyQueue: [],
+      autoPausedForNewEnemy: false,
       ...buildWorldForLevel(getLevel(1), progress.difficulty),
     });
   },
@@ -659,6 +697,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
     let progress = s.progress;
     let newEnemyQueue = s.newEnemyQueue;
+    let deferredNewEnemyQueue = s.deferredNewEnemyQueue;
     let autoPaused = s.autoPausedForNewEnemy;
     let lastResult = s.lastResult;
     let screen = s.screen;
@@ -673,6 +712,32 @@ export const useGame = create<GameStore>((set, get) => ({
         newToasts.push({ id, key: nextToastKey++ });
         unlockedThisRun.push(id);
         track("achievement_unlocked", { achievement_id: id });
+      }
+    };
+
+    const queueSightings = (sightings: NewSightingId[]) => {
+      if (sightings.length === 0) return;
+      if (bossOrTitanMomentActive(s.world)) {
+        const seen = new Set([...newEnemyQueue, ...deferredNewEnemyQueue].map(sightingKey));
+        const additions = sightings.filter((sighting) => {
+          const key = sightingKey(sighting);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        if (additions.length > 0) {
+          deferredNewEnemyQueue = [...deferredNewEnemyQueue, ...additions];
+        }
+        return;
+      }
+      const queued = appendUniqueSightings(newEnemyQueue, sightings);
+      if (!queued.added) return;
+      newEnemyQueue = queued.queue;
+      // Auto-pause on first sighting so the popup isn't buried under action.
+      // Track that WE caused the pause, so dismiss won't unpause a manual pause.
+      if (s.world.status === "running") {
+        s.world.status = "paused";
+        autoPaused = true;
       }
     };
 
@@ -694,25 +759,16 @@ export const useGame = create<GameStore>((set, get) => ({
       const nextProgress = markEncountered(progress, kindList);
       if (nextProgress) {
         progress = nextProgress;
-        const alreadyQueued = new Set(
-          newEnemyQueue.filter((q) => q.tag === "species").map((q) => q.species),
-        );
-        const toQueue: NewSightingId[] = newlySeenSpecies
-          .filter((k) => !alreadyQueued.has(k))
-          .map((k) => ({ tag: "species" as const, species: k }));
-        if (toQueue.length > 0) newEnemyQueue = [...newEnemyQueue, ...toQueue];
-        // Auto-pause on first sighting so the popup isn't buried under action.
-        // Track that WE caused the pause, so dismiss won't unpause a manual pause.
-        if (toQueue.length > 0 && s.world.status === "running") {
-          s.world.status = "paused";
-          autoPaused = true;
-        }
+        const toQueue: NewSightingId[] = newlySeenSpecies.map((k) => ({
+          tag: "species" as const,
+          species: k,
+        }));
+        queueSightings(toQueue);
         runChecks(null);
       }
       // Per-variant matriarch encounter — fires a NewEnemyAlert popup
-      // and auto-pauses on first sighting, same as a species debut.
-      // Each biome's queen gets her own dossier popup so the player
-      // sees the variant tint + 20-life damage warning up front.
+      // after the boss/apatosaur moment clears. Each biome's queen gets
+      // her own dossier popup, but not on top of her arrival beat.
       if (variants.size > 0) {
         const newlySeenVariants = Array.from(variants).filter(
           (v) => !progress.matriarchsEncountered[v],
@@ -720,21 +776,25 @@ export const useGame = create<GameStore>((set, get) => ({
         const variantProgress = markMatriarchsEncountered(progress, Array.from(variants));
         if (variantProgress) progress = variantProgress;
         if (newlySeenVariants.length > 0) {
-          const alreadyQueued = new Set(
-            newEnemyQueue.filter((q) => q.tag === "matriarch").map((q) => q.variant),
-          );
-          const toQueue: NewSightingId[] = newlySeenVariants
-            .filter((v) => !alreadyQueued.has(v))
-            .map((v) => ({ tag: "matriarch" as const, variant: v }));
-          if (toQueue.length > 0) {
-            newEnemyQueue = [...newEnemyQueue, ...toQueue];
-            if (s.world.status === "running") {
-              s.world.status = "paused";
-              autoPaused = true;
-            }
-          }
+          const toQueue: NewSightingId[] = newlySeenVariants.map((v) => ({
+            tag: "matriarch" as const,
+            variant: v,
+          }));
+          queueSightings(toQueue);
         }
       }
+    }
+
+    if (
+      deferredNewEnemyQueue.length > 0 &&
+      newEnemyQueue.length === 0 &&
+      s.world.status === "running" &&
+      !bossOrTitanMomentActive(s.world)
+    ) {
+      newEnemyQueue = deferredNewEnemyQueue;
+      deferredNewEnemyQueue = [];
+      s.world.status = "paused";
+      autoPaused = true;
     }
 
     if (s.world.events.length > 0) {
@@ -810,6 +870,8 @@ export const useGame = create<GameStore>((set, get) => ({
     const updates: Partial<GameStore> = {};
     if (progress !== s.progress) updates.progress = progress;
     if (newEnemyQueue !== s.newEnemyQueue) updates.newEnemyQueue = newEnemyQueue;
+    if (deferredNewEnemyQueue !== s.deferredNewEnemyQueue)
+      updates.deferredNewEnemyQueue = deferredNewEnemyQueue;
     if (autoPaused !== s.autoPausedForNewEnemy) updates.autoPausedForNewEnemy = autoPaused;
     if (lastResult !== s.lastResult) updates.lastResult = lastResult;
     if (screen !== s.screen) updates.screen = screen;
