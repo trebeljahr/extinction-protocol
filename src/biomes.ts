@@ -515,6 +515,50 @@ export const BIOME_COSMETICS: Record<Biome, string[]> = {
   alien: [],
 };
 
+// Small environmental-story props. These are render-only details placed
+// near paths/HQ pads (and sparsely on the world map) so they read as
+// abandoned field work, broken equipment, or warning traces instead of
+// build-slot blockers.
+export const BIOME_STORY_PROPS: Record<Biome, string[]> = {
+  forest: [
+    "/models/landmarks/desert/Tent.glb",
+    "/models/landmarks/forest/Barrel.glb",
+    "/models/scifi/machine_barrel.glb",
+    "/models/scifi/rover.glb",
+  ],
+  desert: [
+    "/models/landmarks/desert/Tent.glb",
+    "/models/landmarks/desert/Chest.glb",
+    "/models/landmarks/desert/Skull.glb",
+    "/models/scifi/rover.glb",
+    "/models/scifi/barrels.glb",
+  ],
+  snow: [
+    "/models/landmarks/snow/Tent.glb",
+    "/models/landmarks/snow/Torch.glb",
+    "/models/scifi/machine_generator.glb",
+    "/models/scifi/satelliteDish.glb",
+  ],
+  wasteland: [
+    "/models/landmarks/wasteland/Skull.glb",
+    "/models/scifi/machine_barrelLarge.glb",
+    "/models/scifi/meteor_detailed.glb",
+    "/models/scifi/barrels.glb",
+  ],
+  lava: [
+    "/models/scifi/meteor_detailed.glb",
+    "/models/scifi/machine_generatorLarge.glb",
+    "/models/scifi/barrels.glb",
+    "/models/scifi/satelliteDish.glb",
+  ],
+  alien: [
+    "/models/scifi/machine_wirelessCable.glb",
+    "/models/scifi/rock_crystalsLargeA.glb",
+    "/models/biomes/alien/Crystal_Small_1.glb",
+    "/models/biomes/alien/Crystal_Small_2.glb",
+  ],
+};
+
 // Visual-role classification + target sizes so props on the world map (and
 // in levels) read with a sensible hierarchy:
 //   buildings > trees > bushes ≈ rocks > cosmetics ≈ grass
@@ -546,6 +590,8 @@ export const classifyPropUrl = (url: string): PropRole => {
   if (/bushflowers/.test(f)) return "cosmetic";
   if (/bush/.test(f)) return "bush";
   if (/grass/.test(f)) return "grass";
+  if (/barrel|machine_|generator|wireless|rover|satellitedish|chest|skull|torch/.test(f))
+    return "rock";
   // Meteors read as rocks — similar role in a scene.
   if (/rock|meteor/.test(f)) return "rock";
   if (/crystal_(?:large|medium)/.test(f)) return "rock";
@@ -556,4 +602,5 @@ export const ALL_BIOME_URLS = [
   ...Object.values(BIOME_LAYERS).flatMap((ls) => ls.flatMap((l) => l.urls)),
   ...Object.values(BIOME_TREE_URLS).flat(),
   ...Object.values(BIOME_COSMETICS).flat(),
+  ...Object.values(BIOME_STORY_PROPS).flat(),
 ];

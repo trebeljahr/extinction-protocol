@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
   BIOME_LAYERS,
+  BIOME_STORY_PROPS,
   BIOME_TREE_URLS,
   type Biome,
   biomeForPos,
@@ -14,10 +15,8 @@ import { LEVELS } from "../levels";
 import { mulberry32 } from "../sim/random";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
-// recognizable little vignette rather than a noisy pile. Detailed
-// cosmetics (skulls, crystals, mushrooms, barrels…) live only inside
-// playable levels — see BiomeCosmetics. Here we stick to buildings +
-// trees + a few rocks.
+// recognizable little vignette rather than a noisy pile: one hero landmark
+// where the biome supports it, a small trace prop, then trees/rocks.
 
 type PropInstance = {
   id: string;
@@ -68,6 +67,9 @@ const rockUrls = (biome: Biome): string[] =>
   BIOME_LAYERS[biome]
     .flatMap((l) => l.urls)
     .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
+
+const storyUrls = (biome: Biome): string[] =>
+  BIOME_STORY_PROPS[biome].filter((u) => !/tent/i.test(u));
 
 // Per-level cluster geometry. Props land on composition slots outside
 // the clean node bubble so each node reads as a deliberate vignette
@@ -149,6 +151,7 @@ const buildPropPlan = () => {
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
     const landmarkUrls = BIOME_LANDMARKS[biome] ?? [];
+    const traceUrls = storyUrls(biome);
     const baseAngle = rand() * Math.PI * 2;
     const hasLandmark = landmarkUrls.length > 0;
 
@@ -173,6 +176,15 @@ const buildPropPlan = () => {
       minRadius: 5.0,
       maxRadius: CLUSTER_R,
     };
+    const storyBucket: PropRoleBucket = {
+      urls: traceUrls,
+      count: 1,
+      minScale: 0.85,
+      maxScale: 1.1,
+      clearance: 0.85,
+      minRadius: 4.7,
+      maxRadius: 5.8,
+    };
     const rockBucket: PropRoleBucket = {
       urls: rockUrls(biome),
       count: 1,
@@ -184,7 +196,7 @@ const buildPropPlan = () => {
     };
 
     let slotIndex = 0;
-    for (const bucket of [landmarkBucket, treeBucket, rockBucket]) {
+    for (const bucket of [landmarkBucket, storyBucket, treeBucket, rockBucket]) {
       if (bucket.urls.length === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand, baseAngle, slotIndex++);
@@ -266,6 +278,7 @@ const allUrls = new Set<string>();
 for (const lvl of LEVELS) {
   const biome: Biome = biomeForPos(lvl.nodePos);
   for (const u of rockUrls(biome)) allUrls.add(u);
+  for (const u of storyUrls(biome)) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
   for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);
 }

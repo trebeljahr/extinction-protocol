@@ -1,6 +1,13 @@
 import { useGLTF } from "@react-three/drei";
 import { useMemo } from "react";
-import { BIOME_COSMETICS, type Biome, classifyPropUrl, TARGET_SIZE_BY_ROLE } from "../biomes";
+import * as THREE from "three";
+import {
+  BIOME_COSMETICS,
+  BIOME_STORY_PROPS,
+  type Biome,
+  classifyPropUrl,
+  TARGET_SIZE_BY_ROLE,
+} from "../biomes";
 import {
   buildLavaFeatures,
   hasFlowFeatures,
@@ -35,8 +42,70 @@ const CLUSTER_RADIUS = 2.4;
 const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.6;
 const PROP_MAX_SPACING = 3.0;
+const STORY_SIDE = PATH_WIDTH / 2 + 0.25;
 
-type Instance = { url: string; pos: Vec2; scale: number; rotY: number };
+const STORY_TRACE_STYLE: Record<
+  Biome,
+  { trace: string; traceOpacity: number; marker: string; markerAccent: string }
+> = {
+  forest: { trace: "#2f271f", traceOpacity: 0.24, marker: "#f1c94b", markerAccent: "#2b3038" },
+  desert: { trace: "#6a3f24", traceOpacity: 0.28, marker: "#f3b23f", markerAccent: "#35271e" },
+  snow: { trace: "#5f7180", traceOpacity: 0.3, marker: "#9bdcff", markerAccent: "#2e4050" },
+  wasteland: { trace: "#221a16", traceOpacity: 0.3, marker: "#ffb04a", markerAccent: "#2b2020" },
+  lava: { trace: "#120b08", traceOpacity: 0.36, marker: "#ff7a3d", markerAccent: "#32130d" },
+  alien: { trace: "#46ffd2", traceOpacity: 0.22, marker: "#8dffdc", markerAccent: "#32205a" },
+};
+
+const STORY_TARGET_HEIGHT = new Map<string, number>([
+  ["/models/landmarks/desert/Tent.glb", 0.62],
+  ["/models/landmarks/forest/Barrel.glb", 0.38],
+  ["/models/landmarks/desert/Chest.glb", 0.34],
+  ["/models/landmarks/desert/Skull.glb", 0.32],
+  ["/models/landmarks/wasteland/Skull.glb", 0.32],
+  ["/models/landmarks/snow/Tent.glb", 0.62],
+  ["/models/landmarks/snow/Torch.glb", 0.66],
+  ["/models/scifi/barrels.glb", 0.44],
+  ["/models/scifi/machine_barrel.glb", 0.52],
+  ["/models/scifi/machine_barrelLarge.glb", 0.62],
+  ["/models/scifi/machine_generator.glb", 0.62],
+  ["/models/scifi/machine_generatorLarge.glb", 0.72],
+  ["/models/scifi/machine_wirelessCable.glb", 0.62],
+  ["/models/scifi/meteor_detailed.glb", 0.5],
+  ["/models/scifi/rock_crystalsLargeA.glb", 0.56],
+  ["/models/scifi/rover.glb", 0.54],
+  ["/models/scifi/satelliteDish.glb", 0.62],
+  ["/models/biomes/alien/Crystal_Small_1.glb", 0.42],
+  ["/models/biomes/alien/Crystal_Small_2.glb", 0.42],
+]);
+
+const STORY_CLEAR_RADIUS = new Map<string, number>([
+  ["/models/landmarks/desert/Tent.glb", 0.72],
+  ["/models/landmarks/snow/Tent.glb", 0.72],
+  ["/models/scifi/rover.glb", 0.7],
+  ["/models/scifi/machine_generatorLarge.glb", 0.65],
+  ["/models/scifi/machine_barrelLarge.glb", 0.6],
+  ["/models/scifi/meteor_detailed.glb", 0.58],
+  ["/models/scifi/rock_crystalsLargeA.glb", 0.58],
+]);
+
+const noRaycast: THREE.Mesh["raycast"] = () => {};
+
+type Instance = { url: string; pos: Vec2; scale: number; rotY: number; clearRadius?: number };
+type TraceMark = {
+  pos: Vec2;
+  rotY: number;
+  sx: number;
+  sy: number;
+  color: string;
+  opacity: number;
+};
+type WarningMarker = {
+  pos: Vec2;
+  rotY: number;
+  clearRadius: number;
+  color: string;
+  accent: string;
+};
 
 const buildInstances = (
   biome: Biome,
@@ -124,11 +193,149 @@ const buildInstances = (
   return out;
 };
 
+const storyRadiusFor = (url: string): number => STORY_CLEAR_RADIUS.get(url) ?? 0.45;
+
+const buildStoryDetails = (
+  biome: Biome,
+  paths: Vec2[][],
+  levelId: number,
+  blockers: { pos: Vec2; radius: number }[],
+  lava: LavaFeatures | null,
+): { instances: Instance[]; traces: TraceMark[]; markers: WarningMarker[] } => {
+  const urls = BIOME_STORY_PROPS[biome];
+  const style = STORY_TRACE_STYLE[biome];
+  const instances: Instance[] = [];
+  const traces: TraceMark[] = [];
+  const markers: WarningMarker[] = [];
+  if (urls.length === 0) return { instances, traces, markers };
+
+  const halfW = MAP_WIDTH * 0.49;
+  const halfH = MAP_HEIGHT * 0.49;
+  const inBounds = (x: number, y: number) => x >= -halfW && x <= halfW && y >= -halfH && y <= halfH;
+
+  const blockedByWorld = (x: number, y: number, radius: number): boolean => {
+    if (!inBounds(x, y)) return true;
+    if (isOnLavaSurface(lava, x, y, radius)) return true;
+    for (const b of blockers) {
+      const dx = b.pos.x - x;
+      const dy = b.pos.y - y;
+      const minDist = b.radius + radius + 0.2;
+      if (dx * dx + dy * dy < minDist * minDist) return true;
+    }
+    return false;
+  };
+
+  for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+    const path = paths[pathIndex];
+    if (path.length < 2) continue;
+    const last = path[path.length - 1];
+    const prev = path[path.length - 2];
+    const dx = prev.x - last.x;
+    const dy = prev.y - last.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1.8) continue;
+
+    const faceX = dx / len;
+    const faceY = dy / len;
+    const rightX = faceY;
+    const rightY = -faceX;
+    const yaw = Math.atan2(dx, -dy);
+    const rng = mulberry32(levelId * 9209 + pathIndex * 577 + 101);
+    const sideSign = rng() < 0.5 ? -1 : 1;
+    const maxFwd = Math.max(1.6, Math.min(6.1, len - 0.35));
+    const clampFwd = (v: number) => Math.min(v, maxFwd);
+    const at = (fwd: number, side: number): Vec2 => ({
+      x: last.x + faceX * fwd + rightX * side,
+      y: last.y + faceY * fwd + rightY * side,
+    });
+
+    for (let i = 0; i < 3; i++) {
+      const p = at(clampFwd(1.6 + i * 1.25 + rng() * 0.35), sideSign * (rng() - 0.5) * 0.7);
+      if (!inBounds(p.x, p.y) || isOnLavaSurface(lava, p.x, p.y, 0.15)) continue;
+      traces.push({
+        pos: p,
+        rotY: yaw + (rng() - 0.5) * 0.22,
+        sx: 0.16 + rng() * 0.1,
+        sy: 0.42 + rng() * 0.2,
+        color: style.trace,
+        opacity: style.traceOpacity,
+      });
+    }
+
+    const primaryIndex = levelId % 2 === 0 ? 0 : (levelId + pathIndex) % urls.length;
+    const secondaryIndex = (levelId * 3 + pathIndex + 1) % urls.length;
+    const picks = [urls[primaryIndex], urls[secondaryIndex]].filter(
+      (url, i, arr) => arr.indexOf(url) === i,
+    );
+
+    for (let i = 0; i < Math.min(2, picks.length); i++) {
+      const url = picks[i];
+      const radius = storyRadiusFor(url);
+      const p = at(clampFwd(2.8 + i * 1.25 + rng() * 0.4), sideSign * (STORY_SIDE - i * 0.1));
+      if (blockedByWorld(p.x, p.y, radius)) continue;
+      instances.push({
+        url,
+        pos: p,
+        scale: 0.9 + rng() * 0.25,
+        rotY: yaw + Math.PI + (rng() - 0.5) * 0.65,
+        clearRadius: radius,
+      });
+    }
+
+    const markerPos = at(clampFwd(2.25 + rng() * 0.55), sideSign * (STORY_SIDE + 0.02));
+    if (!blockedByWorld(markerPos.x, markerPos.y, 0.28)) {
+      markers.push({
+        pos: markerPos,
+        rotY: yaw + Math.PI,
+        clearRadius: 0.28,
+        color: style.marker,
+        accent: style.markerAccent,
+      });
+    }
+  }
+
+  return { instances, traces, markers };
+};
+
 // Cosmetic URLs come from packs with wildly varying authored max-dims;
 // normalize to TARGET_SIZE_BY_ROLE so a BushFlowers patch reads the
 // same size whether the source GLB is 1.97 or 0.5 units tall.
-const computeBaseScale = (source: MeshSource, url: string): number =>
-  TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
+const cosmeticBaseScale = (source: MeshSource, url: string): number => {
+  const storyTarget = STORY_TARGET_HEIGHT.get(url);
+  if (storyTarget !== undefined) return storyTarget / Math.max(source.height, 0.001);
+  return TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
+};
+
+const TraceMarkMesh = ({ mark }: { mark: TraceMark }) => (
+  <group position={[mark.pos.x, 0.046, -mark.pos.y]} rotation={[0, mark.rotY, 0]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[mark.sx, mark.sy, 1]} raycast={noRaycast}>
+      <circleGeometry args={[1, 18]} />
+      <meshBasicMaterial color={mark.color} transparent opacity={mark.opacity} depthWrite={false} />
+    </mesh>
+  </group>
+);
+
+const WarningMarkerMesh = ({ marker }: { marker: WarningMarker }) => (
+  <group position={[marker.pos.x, 0, -marker.pos.y]} rotation={[0, marker.rotY, 0]}>
+    <mesh position={[0, 0.18, 0]} raycast={noRaycast}>
+      <cylinderGeometry args={[0.025, 0.035, 0.36, 7]} />
+      <meshStandardMaterial color={marker.accent} roughness={0.7} metalness={0.15} />
+    </mesh>
+    <mesh position={[0, 0.42, 0.018]} rotation={[0, 0, Math.PI / 2]} raycast={noRaycast}>
+      <circleGeometry args={[0.18, 3]} />
+      <meshBasicMaterial color={marker.color} side={THREE.DoubleSide} />
+    </mesh>
+    <mesh
+      position={[0, 0.42, 0.021]}
+      rotation={[0, 0, Math.PI / 2]}
+      scale={0.56}
+      raycast={noRaycast}
+    >
+      <circleGeometry args={[0.18, 3]} />
+      <meshBasicMaterial color={marker.accent} side={THREE.DoubleSide} />
+    </mesh>
+  </group>
+);
 
 export const BiomeCosmetics = () => {
   const biome = useGame((s) => s.world.biome);
@@ -142,49 +349,74 @@ export const BiomeCosmetics = () => {
   const towerVersion = useGame((s) => s.ui.towerVersion);
   const towers = useGame.getState().world.towers;
 
-  const groups = useMemo(() => {
+  const details = useMemo(() => {
     // Block cosmetics from spawning on top of trees/rocks that already exist.
     const blockers: { pos: Vec2; radius: number }[] = [
       ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
       ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
     const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
-    const instances = buildInstances(biome, paths, levelId, blockers, lava);
+    const story = buildStoryDetails(biome, paths, levelId, blockers, lava);
+    const instances = [
+      ...buildInstances(biome, paths, levelId, blockers, lava),
+      ...story.instances,
+    ];
     const byUrl = new Map<string, Instance[]>();
     for (const inst of instances) {
       const list = byUrl.get(inst.url) ?? [];
       list.push(inst);
       byUrl.set(inst.url, list);
     }
-    return Array.from(byUrl.entries());
+    return { groups: Array.from(byUrl.entries()), traces: story.traces, markers: story.markers };
   }, [biome, paths, levelId, trees, rocks]);
 
   // Cull cosmetics that overlap a tower so the base sits on clean ground.
   // Filtered at render-time to keep placement stable as towers come/go.
   // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
-  const culledGroups = useMemo(() => {
-    if (towers.length === 0) return groups;
+  const culledDetails = useMemo(() => {
+    if (towers.length === 0) return details;
     const towerR = TOWER_FOOTPRINT * 0.5;
-    const cosmeticR = 0.3;
-    const lim = towerR + cosmeticR;
-    const limSq = lim * lim;
-    return groups.map(([url, items]): [string, Instance[]] => {
-      const filtered = items.filter((it) => {
-        for (const t of towers) {
-          const dx = t.pos.x - it.pos.x;
-          const dy = t.pos.y - it.pos.y;
-          if (dx * dx + dy * dy < limSq) return false;
-        }
-        return true;
-      });
-      return [url, filtered];
-    });
-  }, [groups, towers, towerVersion]);
+    const nearTower = (pos: Vec2, radius: number): boolean => {
+      for (const t of towers) {
+        const dx = t.pos.x - pos.x;
+        const dy = t.pos.y - pos.y;
+        const lim = towerR + radius;
+        if (dx * dx + dy * dy < lim * lim) return true;
+      }
+      return false;
+    };
+    return {
+      groups: details.groups.map(([url, items]): [string, Instance[]] => {
+        const filtered = items.filter((it) => !nearTower(it.pos, it.clearRadius ?? 0.3));
+        return [url, filtered];
+      }),
+      traces: details.traces,
+      markers: details.markers.filter((m) => !nearTower(m.pos, m.clearRadius)),
+    };
+  }, [details, towers, towerVersion]);
 
   return (
     <group>
-      {culledGroups.map(([url, items]) => (
-        <InstancedGroup key={url} url={url} items={items} baseScaleFor={computeBaseScale} />
+      {culledDetails.traces.map((mark) => (
+        <TraceMarkMesh
+          key={`${mark.pos.x.toFixed(2)}:${mark.pos.y.toFixed(2)}:${mark.rotY.toFixed(2)}`}
+          mark={mark}
+        />
+      ))}
+      {culledDetails.markers.map((marker) => (
+        <WarningMarkerMesh
+          key={`${marker.pos.x.toFixed(2)}:${marker.pos.y.toFixed(2)}:${marker.rotY.toFixed(2)}`}
+          marker={marker}
+        />
+      ))}
+      {culledDetails.groups.map(([url, items]) => (
+        <InstancedGroup
+          key={url}
+          url={url}
+          items={items}
+          baseScaleFor={cosmeticBaseScale}
+          raycast={noRaycast}
+        />
       ))}
     </group>
   );
@@ -192,5 +424,8 @@ export const BiomeCosmetics = () => {
 
 // Preload every cosmetic URL so switching biomes mid-session doesn't stall.
 for (const urls of Object.values(BIOME_COSMETICS)) {
+  for (const url of urls) useGLTF.preload(url);
+}
+for (const urls of Object.values(BIOME_STORY_PROPS)) {
   for (const url of urls) useGLTF.preload(url);
 }
