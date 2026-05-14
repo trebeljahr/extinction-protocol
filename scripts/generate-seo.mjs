@@ -1,0 +1,108 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const seo = {
+  siteUrl: "https://protocol.trebeljahr.com",
+  outputDir: path.resolve(__dirname, "../public"),
+  routes: [{ path: "/", changefreq: "monthly", priority: "1.0" }],
+  lastmod: (process.env.SITEMAP_LASTMOD || new Date().toISOString()).slice(0, 10),
+  title: "Extinction Protocol",
+  subtitle: "3D Tower Defense Game",
+  description:
+    "Command sci-fi towers, survive dinosaur waves, unlock upgrades, and defend a hostile 3D world in a browser tower-defense strategy game.",
+  imageAlt: "Extinction Protocol 3D tower defense preview",
+};
+
+const escapeXml = (value) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
+const joinUrl = (base, urlPath) => {
+  const cleanBase = base.replace(/\/$/, "");
+  const cleanPath = urlPath === "/" ? "/" : `/${urlPath.replace(/^\/+/, "")}`;
+  return `${cleanBase}${cleanPath}`;
+};
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${seo.routes
+  .map(
+    (route) => `  <url>
+    <loc>${escapeXml(joinUrl(seo.siteUrl, route.path))}</loc>
+    <lastmod>${seo.lastmod}</lastmod>
+    <changefreq>${route.changefreq}</changefreq>
+    <priority>${route.priority}</priority>
+  </url>`,
+  )
+  .join("\n")}
+</urlset>
+`;
+
+const robots = `User-agent: *
+Allow: /
+
+Sitemap: ${joinUrl(seo.siteUrl, "/sitemap.xml")}
+`;
+
+const ogImage = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">${escapeXml(seo.title)} - ${escapeXml(seo.subtitle)}</title>
+  <desc id="desc">${escapeXml(seo.imageAlt)}</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1016" />
+      <stop offset="0.48" stop-color="#243b2c" />
+      <stop offset="1" stop-color="#7f1d1d" />
+    </linearGradient>
+    <radialGradient id="flare" cx="76%" cy="31%" r="48%">
+      <stop offset="0" stop-color="#facc15" stop-opacity="0.62" />
+      <stop offset="1" stop-color="#facc15" stop-opacity="0" />
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#030712" flood-opacity="0.55" />
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)" />
+  <rect width="1200" height="630" fill="url(#flare)" />
+  <path d="M0 474 C170 410 285 474 420 430 S676 330 830 410 1010 508 1200 450 L1200 630 L0 630 Z" fill="#172919" />
+  <path d="M0 535 C180 492 340 560 520 520 S825 440 1200 520 L1200 630 L0 630 Z" fill="#0f1f13" />
+  <g transform="translate(690 188)" filter="url(#shadow)">
+    <path d="M0 248 L80 64 L154 248 Z" fill="#64748b" />
+    <rect x="54" y="132" width="48" height="138" fill="#94a3b8" />
+    <path d="M78 64 L132 16 L190 54 L154 104 Z" fill="#cbd5e1" />
+    <path d="M132 16 L212 0 L242 42 L190 54 Z" fill="#e5e7eb" />
+    <circle cx="80" cy="58" r="20" fill="#38bdf8" />
+    <path d="M-88 248 L-38 112 L10 248 Z" fill="#475569" />
+    <path d="M198 248 L250 126 L304 248 Z" fill="#475569" />
+  </g>
+  <g transform="translate(916 336)" fill="#292524" filter="url(#shadow)">
+    <path d="M0 90 C30 36 82 38 104 90 L86 128 L24 128 Z" />
+    <circle cx="42" cy="42" r="22" />
+    <circle cx="73" cy="46" r="15" />
+    <path d="M30 126 L8 168 M72 126 L82 174 M93 116 L128 150" stroke="#292524" stroke-width="18" stroke-linecap="round" />
+  </g>
+  <g stroke="#f97316" stroke-width="7" stroke-linecap="round" opacity="0.78">
+    <path d="M640 310 L582 348" />
+    <path d="M854 274 L908 228" />
+    <path d="M760 358 L800 398" />
+  </g>
+  <text x="82" y="224" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="900">Extinction</text>
+  <text x="82" y="312" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="900">Protocol</text>
+  <text x="88" y="382" fill="#fde68a" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">3D Tower Defense Game</text>
+  <text x="88" y="454" fill="#ecfccb" font-family="Inter, Arial, sans-serif" font-size="27">Sci-fi towers, dinosaur waves, upgrades,</text>
+  <text x="88" y="492" fill="#ecfccb" font-family="Inter, Arial, sans-serif" font-size="27">and hostile-world survival strategy.</text>
+</svg>
+`;
+
+await mkdir(seo.outputDir, { recursive: true });
+await Promise.all([
+  writeFile(path.join(seo.outputDir, "sitemap.xml"), sitemap),
+  writeFile(path.join(seo.outputDir, "robots.txt"), robots),
+  writeFile(path.join(seo.outputDir, "og-image.svg"), ogImage),
+]);
