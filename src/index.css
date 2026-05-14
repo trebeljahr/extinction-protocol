@@ -1046,6 +1046,7 @@
     overflow-x: auto;
   }
   .compendium-tab {
+    position: relative;
     flex: 1;
     min-width: 110px;
     padding: 10px 10px 8px;
@@ -1070,9 +1071,10 @@
       0 0 16px rgba(159, 216, 255, 0.18);
   }
   .compendium-tab.locked {
-    opacity: 0.45;
+    opacity: 0.58;
     cursor: not-allowed;
     filter: grayscale(0.5);
+    border-style: dashed;
   }
   .compendium-tab-icon {
     position: relative;
@@ -1100,9 +1102,24 @@
     color: var(--color-fg-faint);
   }
   .compendium-tab-name {
+    min-width: 0;
     font-size: var(--fs-md);
     font-weight: 700;
     letter-spacing: 0.04em;
+  }
+  .compendium-tab-index {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(159, 216, 255, 0.22);
+    background: rgba(159, 216, 255, 0.08);
+    color: var(--color-blue);
+    font-family: var(--font-display);
+    font-size: var(--fs-base);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   .compendium-detail {
@@ -1131,6 +1148,11 @@
     width: 100%;
     height: 100%;
     display: block;
+  }
+  .compendium-detail-preview > .enemy-preview,
+  .compendium-detail-preview > .mechanic-preview {
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .compendium-detail-locked {
@@ -1227,6 +1249,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
     padding: 7px 10px;
     border-radius: 6px;
     border: 1px solid rgba(120, 160, 200, 0.16);
@@ -1250,10 +1273,14 @@
     color: var(--color-fg-muted);
   }
   .compendium-chip-label {
+    min-width: 0;
     flex: 1;
     font-size: var(--fs-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .compendium-chip-val {
     font-size: var(--fs-base);
@@ -2711,19 +2738,35 @@
       width: 100%;
       flex: 0 0 auto;
       padding: 8px;
+      min-height: 42px;
       flex-direction: row;
+      gap: 7px;
+      align-items: center;
       justify-content: flex-start;
       text-align: left;
+    }
+    .compendium-tab.active {
+      box-shadow:
+        inset 2px 0 0 var(--color-blue),
+        0 0 0 1px var(--color-blue),
+        0 0 12px rgba(159, 216, 255, 0.16);
     }
     .compendium-tab-icon {
       width: 42px;
       height: 42px;
       flex: 0 0 auto;
     }
+    .compendium-tab-index {
+      flex: 0 0 auto;
+      width: 26px;
+      height: 26px;
+      font-size: var(--fs-xs);
+    }
     .compendium-tab-name {
       font-size: var(--fs-xs);
       line-height: 1.25;
       white-space: normal;
+      overflow-wrap: anywhere;
     }
     .compendium-detail {
       gap: 12px;
@@ -2732,7 +2775,8 @@
     .compendium-detail-preview {
       width: 100%;
       max-width: none;
-      height: 176px;
+      height: clamp(132px, 38dvh, 176px);
+      min-height: 132px;
     }
     .compendium-detail-name {
       font-size: var(--fs-h2);
@@ -2911,6 +2955,224 @@
     .achievement-toast {
       min-width: 0;
       max-width: none;
+    }
+  }
+
+  @media (max-height: 520px) and (max-width: 1024px) {
+    .compendium-overlay {
+      padding: 0;
+    }
+    .compendium-card {
+      max-width: 100vw;
+      max-height: 100dvh;
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+    .compendium-header {
+      min-height: 38px;
+      padding: 6px 10px 4px 12px;
+      gap: 8px;
+      border-bottom: 0;
+    }
+    .compendium-header h1 {
+      font-size: var(--fs-h2);
+      line-height: 1;
+    }
+    .compendium-subtitle {
+      display: none;
+    }
+    .compendium-close {
+      width: 32px;
+      height: 32px;
+      font-size: var(--fs-xl);
+      border-radius: var(--radius-md);
+    }
+    .compendium-sections {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px 8px 6px;
+      border-bottom: 1px solid rgba(120, 160, 200, 0.12);
+    }
+    .compendium-section {
+      min-width: 0;
+      padding: 6px 4px;
+      font-size: var(--fs-xs);
+      letter-spacing: 0.1em;
+      text-align: center;
+    }
+    .compendium-browser {
+      display: grid;
+      grid-template-columns: clamp(132px, 28vw, 210px) minmax(0, 1fr);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .compendium-selector {
+      padding: 8px 6px 8px 8px;
+      gap: 6px;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-right: 1px solid rgba(120, 160, 200, 0.12);
+      border-bottom: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .compendium-tab {
+      min-width: 0;
+      width: 100%;
+      min-height: 40px;
+      flex: 0 0 auto;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 7px;
+      padding: 6px 7px;
+      text-align: left;
+    }
+    .compendium-tab.active {
+      box-shadow:
+        inset 2px 0 0 var(--color-blue),
+        0 0 0 1px var(--color-blue),
+        0 0 12px rgba(159, 216, 255, 0.16);
+    }
+    .compendium-tab-icon {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+    }
+    .compendium-tab-index {
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      font-size: var(--fs-xs);
+      border-radius: 5px;
+    }
+    .compendium-tab-name {
+      font-size: var(--fs-xs);
+      line-height: 1.15;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .compendium-detail {
+      grid-template-columns: minmax(124px, 30%) minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+      min-height: 0;
+      padding: 8px 10px 10px;
+      overflow: hidden;
+    }
+    .compendium-detail-preview {
+      width: 100%;
+      max-width: none;
+      height: auto;
+      min-height: 128px;
+      aspect-ratio: 1;
+      justify-self: stretch;
+    }
+    .compendium-detail-info {
+      min-height: 0;
+      align-self: stretch;
+      gap: 8px;
+      overflow-y: auto;
+      padding-right: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .compendium-detail-head {
+      margin-bottom: 0;
+    }
+    .compendium-detail-name {
+      font-size: var(--fs-h2);
+      line-height: 1;
+    }
+    .compendium-detail-subtitle {
+      font-size: 9px;
+      line-height: 1.25;
+      letter-spacing: 0.12em;
+    }
+    .compendium-detail-desc {
+      font-size: var(--fs-md);
+      line-height: 1.35;
+    }
+    .compendium-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 4px;
+      margin: 0;
+    }
+    .compendium-stats > div {
+      min-width: 0;
+      padding: 5px 4px;
+    }
+    .compendium-stats dt {
+      font-size: 8px;
+      letter-spacing: 0.1em;
+    }
+    .compendium-stats dd {
+      font-size: var(--fs-base);
+    }
+    .compendium-resist-label {
+      margin-bottom: 4px;
+      font-size: 8px;
+      letter-spacing: 0.12em;
+    }
+    .compendium-resist-chips {
+      grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+      gap: 4px;
+    }
+    .compendium-chip {
+      gap: 5px;
+      padding: 5px 6px;
+      font-size: var(--fs-xs);
+    }
+    .compendium-chip-label {
+      font-size: 9px;
+      letter-spacing: 0.04em;
+    }
+    .compendium-chip-val {
+      font-size: var(--fs-xs);
+    }
+    .compendium-section-block {
+      gap: 4px;
+    }
+    .compendium-upgrades {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .compendium-branch {
+      padding: 7px;
+    }
+    .compendium-branch-label {
+      margin-bottom: 5px;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+    }
+    .compendium-branch-tiers {
+      gap: 4px;
+    }
+    .compendium-branch-tiers li {
+      padding: 5px 6px;
+    }
+    .compendium-tier-name {
+      font-size: var(--fs-xs);
+    }
+    .compendium-tier-desc {
+      font-size: 9px;
+      line-height: 1.25;
+    }
+    .compendium-mech-head {
+      gap: 8px;
+    }
+    .compendium-mech-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 6px;
+    }
+    .compendium-mech-stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 

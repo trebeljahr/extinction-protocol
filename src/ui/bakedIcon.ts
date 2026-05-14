@@ -36,7 +36,7 @@ const getLoader = (): GLTFLoader => {
 const loadGLTFScene = async (url: string): Promise<THREE.Object3D> => {
   const cached = sceneCache.get(url);
   if (cached) return cached;
-  const gltf = await getLoader().loadAsync(url);
+  const gltf = await getLoader().loadAsync(url.includes(" ") ? encodeURI(url) : url);
   sceneCache.set(url, gltf.scene);
   return gltf.scene;
 };

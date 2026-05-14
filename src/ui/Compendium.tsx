@@ -166,6 +166,7 @@ export const Compendium = () => {
               className={`compendium-section ${section === s ? "active" : ""}`}
               data-ui-sound="tab"
               onClick={() => setSection(s)}
+              aria-pressed={section === s}
             >
               {SECTION_LABEL[s]}
             </button>
@@ -218,6 +219,7 @@ const EnemySectionView = ({
               data-ui-sound="tab"
               onClick={() => setSelected(entry)}
               disabled={!seen}
+              aria-pressed={selectedKey === key}
               title={seen ? entryLabel(entry) : "Not yet encountered"}
             >
               <span className="compendium-tab-icon" aria-hidden>
@@ -394,6 +396,7 @@ const TowerSectionView = ({
               data-ui-sound="tab"
               onClick={() => setSelected(kind)}
               disabled={locked}
+              aria-pressed={selected === kind}
               title={locked ? "Locked" : TOWER_LABEL[kind]}
             >
               <span className="compendium-tab-index">{TOWER_ORDER.indexOf(kind) + 1}</span>
@@ -563,6 +566,7 @@ const MechanicSectionView = ({
               data-ui-sound="tab"
               onClick={() => setSelected(id)}
               disabled={locked}
+              aria-pressed={selected === id}
               title={locked ? "Locked" : MECHANIC_LABEL[id]}
             >
               <span className="compendium-tab-index">{MECHANIC_ORDER.indexOf(id) + 1}</span>
