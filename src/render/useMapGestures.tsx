@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
@@ -12,6 +12,7 @@ export type MapGestureConfig = {
   panSpeed?: number;
   zoomSpeed?: number;
   reserveLeftClick?: boolean;
+  reserveTouchPlacement?: boolean;
 };
 
 export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureConfig>(
@@ -24,6 +25,7 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       panSpeed = 1.4,
       zoomSpeed = 0.9,
       reserveLeftClick = false,
+      reserveTouchPlacement = false,
     },
     ref,
   ) {
@@ -55,6 +57,14 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
 
     useDragGate(controlsRef, reserveLeftClick, gl);
 
+    const touches = useMemo(
+      () => ({
+        ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
+        TWO: THREE.TOUCH.DOLLY_PAN,
+      }),
+      [reserveTouchPlacement],
+    );
+
     return (
       <OrbitControls
         ref={controlsRef}
@@ -67,10 +77,7 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
           MIDDLE: THREE.MOUSE.DOLLY,
           RIGHT: THREE.MOUSE.PAN,
         }}
-        touches={{
-          ONE: THREE.TOUCH.PAN,
-          TWO: THREE.TOUCH.DOLLY_PAN,
-        }}
+        touches={touches}
         panSpeed={panSpeed}
         zoomSpeed={zoomSpeed}
         minZoom={minZoom}

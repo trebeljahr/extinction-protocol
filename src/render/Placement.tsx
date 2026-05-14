@@ -11,7 +11,9 @@ import { GhostTower } from "./GhostTower";
 
 type Vec2 = { x: number; y: number };
 
-const TOUCH_PLACEMENT_OFFSET_PX = 68;
+const TOUCH_PLACEMENT_OFFSET_PX = 84;
+const TOUCH_PLACEMENT_STALE_MS = 900;
+const TOUCH_CLICK_SUPPRESS_MS = 700;
 const GAMEPAD_CURSOR_SPEED = 9;
 const GAMEPAD_TOWER_ORDER: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 
@@ -29,6 +31,9 @@ export const Placement = () => {
   const groundPointRef = useRef(new THREE.Vector3());
   const lastTouchPlacementRef = useRef<Vec2 | null>(null);
   const lastTouchPlacementAtRef = useRef(0);
+  const touchPointersRef = useRef<Set<number>>(new Set());
+  const multiTouchPlacementRef = useRef(false);
+  const suppressClickUntilRef = useRef(0);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
   const selectedKind = useGame((s) => s.selectedKind);
@@ -79,16 +84,48 @@ export const Placement = () => {
   const isTouchEvent = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
     "pointerType" in e.nativeEvent && e.nativeEvent.pointerType === "touch";
 
+  const clearTouchPlacement = useCallback(() => {
+    setTouchAnchor(null);
+    lastTouchPlacementRef.current = null;
+    lastTouchPlacementAtRef.current = 0;
+  }, []);
+
+  const updateTouchPlacement = (e: ThreeEvent<PointerEvent>): Vec2 => {
+    const pos = eventPoint(e, TOUCH_PLACEMENT_OFFSET_PX);
+    setControllerActiveState(false);
+    setHoverState(pos);
+    setTouchAnchor(eventPoint(e, 0));
+    lastTouchPlacementRef.current = pos;
+    lastTouchPlacementAtRef.current = Date.now();
+    return pos;
+  };
+
+  const touchPlacementCanConfirm = (pos: Vec2): boolean => {
+    const state = useGame.getState();
+    if (state.towerAtPos(pos)) return true;
+    const kind = state.selectedKind;
+    if (kind === null || state.ui.status !== "running") return false;
+    if (!state.freeTowers && state.ui.gold < TOWER_COST[kind]) return false;
+    return state.canPlace(pos);
+  };
+
   useEffect(() => {
     if (!selectedKind) {
       setHoverState(null);
-      setTouchAnchor(null);
+      clearTouchPlacement();
       setControllerHoverState(null);
       setControllerActiveState(false);
-      lastTouchPlacementRef.current = null;
-      lastTouchPlacementAtRef.current = 0;
+      touchPointersRef.current.clear();
+      multiTouchPlacementRef.current = false;
+      suppressClickUntilRef.current = 0;
     }
-  }, [selectedKind, setControllerActiveState, setControllerHoverState, setHoverState]);
+  }, [
+    selectedKind,
+    clearTouchPlacement,
+    setControllerActiveState,
+    setControllerHoverState,
+    setHoverState,
+  ]);
 
   useGamepadInput((frame) => {
     if (!frame.gamepad) {
@@ -124,9 +161,7 @@ export const Placement = () => {
           : (currentIndex + direction + GAMEPAD_TOWER_ORDER.length) % GAMEPAD_TOWER_ORDER.length;
       state.setSelectedKind(GAMEPAD_TOWER_ORDER[nextIndex]);
       setControllerActiveState(true);
-      setTouchAnchor(null);
-      lastTouchPlacementRef.current = null;
-      lastTouchPlacementAtRef.current = 0;
+      clearTouchPlacement();
     };
 
     if (frame.buttonPressed("lb")) cycleTower(-1);
@@ -172,9 +207,7 @@ export const Placement = () => {
       };
       setControllerActiveState(true);
       setControllerHoverState(next);
-      setTouchAnchor(null);
-      lastTouchPlacementRef.current = null;
-      lastTouchPlacementAtRef.current = 0;
+      clearTouchPlacement();
     }
 
     if (frame.buttonPressed("a")) {
@@ -187,38 +220,71 @@ export const Placement = () => {
   });
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
-    const offset = isTouchEvent(e) && selectedKind ? TOUCH_PLACEMENT_OFFSET_PX : 0;
-    const pos = eventPoint(e, offset);
+    if (isTouchEvent(e) && selectedKind && multiTouchPlacementRef.current) return;
+    if (isTouchEvent(e) && selectedKind) {
+      updateTouchPlacement(e);
+      return;
+    }
+
+    const pos = eventPoint(e);
     setControllerActiveState(false);
     setHoverState(pos);
-    if (offset) {
-      setTouchAnchor(eventPoint(e, 0));
-      lastTouchPlacementRef.current = pos;
-      lastTouchPlacementAtRef.current = Date.now();
-    } else {
-      setTouchAnchor(null);
-      lastTouchPlacementRef.current = null;
-      lastTouchPlacementAtRef.current = 0;
-    }
+    clearTouchPlacement();
   };
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (isTouchEvent(e)) {
+      touchPointersRef.current.add(e.nativeEvent.pointerId);
+      if (selectedKind && touchPointersRef.current.size > 1) {
+        multiTouchPlacementRef.current = true;
+        clearTouchPlacement();
+        return;
+      }
+    }
     onPointerMove(e);
   };
 
-  const onPointerOut = () => {
+  const onPointerUp = (e: ThreeEvent<PointerEvent>) => {
+    if (!isTouchEvent(e)) return;
+
+    const wasMultiTouch = multiTouchPlacementRef.current || touchPointersRef.current.size > 1;
+    touchPointersRef.current.delete(e.nativeEvent.pointerId);
+    if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
+    if (!selectedKind) return;
+
+    suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
+    if (wasMultiTouch) return;
+
+    const hasFreshTouchPlacement =
+      lastTouchPlacementRef.current !== null &&
+      Date.now() - lastTouchPlacementAtRef.current < TOUCH_PLACEMENT_STALE_MS;
+    const pos = hasFreshTouchPlacement ? lastTouchPlacementRef.current! : updateTouchPlacement(e);
+    if (!touchPlacementCanConfirm(pos)) return;
+
+    if (useGame.getState().towerAtPos(pos)) audio.ui("select");
+    useGame.getState().tryPlaceOrSelect(pos);
+  };
+
+  const onPointerCancel = (e: ThreeEvent<PointerEvent>) => {
+    if (!isTouchEvent(e)) return;
+    touchPointersRef.current.delete(e.nativeEvent.pointerId);
+    if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
+  };
+
+  const onPointerOut = (e: ThreeEvent<PointerEvent>) => {
+    if (isTouchEvent(e) && selectedKind) return;
     if (!controllerActiveRef.current) {
       setHoverState(null);
-      setTouchAnchor(null);
-      lastTouchPlacementRef.current = null;
-      lastTouchPlacementAtRef.current = 0;
+      clearTouchPlacement();
     }
   };
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    if (Date.now() < suppressClickUntilRef.current) return;
     const hasFreshTouchPlacement =
-      lastTouchPlacementRef.current !== null && Date.now() - lastTouchPlacementAtRef.current < 900;
+      lastTouchPlacementRef.current !== null &&
+      Date.now() - lastTouchPlacementAtRef.current < TOUCH_PLACEMENT_STALE_MS;
     const pos =
       selectedKind && hasFreshTouchPlacement ? lastTouchPlacementRef.current! : eventPoint(e);
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
@@ -251,6 +317,8 @@ export const Placement = () => {
         position={[0, 0.001, 0]}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         onPointerOut={onPointerOut}
         onClick={onClick}
         visible={false}
@@ -287,9 +355,11 @@ export const Placement = () => {
                 color={placementColor}
                 transparent
                 opacity={0.9}
+                depthTest={false}
                 side={THREE.DoubleSide}
               />
             </mesh>
+            <PlacementCrosshair color={placementColor} />
             {canPlaceHere && (
               <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[range - 0.04, range, 64]} />
@@ -310,3 +380,24 @@ export const Placement = () => {
     </group>
   );
 };
+
+const PlacementCrosshair = ({ color }: { color: string }) => (
+  <>
+    <mesh position={[0.48, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[0.36, 0.045]} />
+      <meshBasicMaterial color={color} transparent opacity={0.96} depthTest={false} />
+    </mesh>
+    <mesh position={[-0.48, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[0.36, 0.045]} />
+      <meshBasicMaterial color={color} transparent opacity={0.96} depthTest={false} />
+    </mesh>
+    <mesh position={[0, 0.05, 0.48]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[0.045, 0.36]} />
+      <meshBasicMaterial color={color} transparent opacity={0.96} depthTest={false} />
+    </mesh>
+    <mesh position={[0, 0.05, -0.48]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[0.045, 0.36]} />
+      <meshBasicMaterial color={color} transparent opacity={0.96} depthTest={false} />
+    </mesh>
+  </>
+);
