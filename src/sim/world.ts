@@ -1143,9 +1143,10 @@ export const HIVE_BASE_DRONES = 3;
 export const HIVE_MAX_DRONES = 6;
 // Max drones (summed across every hive) that can be assigned to a
 // single target tower. Distinct from HIVE_MAX_DRONES — that caps one
-// hive's roster; this caps stacking on one buffed tower so a player
-// with three hives can't pile all 18 drones onto one pulse gun.
-export const HIVE_MAX_DRONES_PER_TOWER = 4;
+// hive's roster; this caps stacking on one buffed tower so full drone
+// bays push the player toward multiple supported tower roles instead
+// of one overclocked pulse/flame anchor.
+export const HIVE_MAX_DRONES_PER_TOWER = 3;
 // Default fire-rate buff each assigned drone confers to its target.
 // Path B upgrades scale this — see upgrades.ts.
 export const HIVE_BASE_SERVICE_BUFF = 0.3;

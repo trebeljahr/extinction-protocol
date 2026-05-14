@@ -25,12 +25,14 @@
 
 import { LEVELS } from "../src/levels";
 import { pathLength } from "../src/sim/path";
+import { flameThroughputCapacity } from "../src/sim/towers";
 import type { EnemyKind, EnemySpec, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
   BOSS_VARIANT_CHILD,
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_STATS,
+  ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_STATS,
   TOWER_COST,
@@ -121,15 +123,8 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
     // rough density-based estimate — a 1.8-radius splash hits ~2.5 enemies
     return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
   }
-  if (kind === "flame") {
-    // forward cone — hits everything stacked up in the stream
-    return Math.min(3, enemiesOnScreen);
-  }
-  if (kind === "hive") {
-    // 3 orbiting drones, each firing at its own target independently.
-    // Effective throughput is ~3× the nominal single-shot DPS.
-    return Math.min(3, enemiesOnScreen);
-  }
+  if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen);
+  if (kind === "hive") return 0;
   return 1;
 };
 
@@ -230,7 +225,9 @@ const effectiveDpsVsWave = (
   for (const s of spec.spawns) {
     const stats = specStats(s);
     const hp = stats.hp * s.count;
-    weightedResist += specResist(s, dmgType) * hp;
+    const baseMul = specResist(s, dmgType);
+    const eliteMul = s.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+    weightedResist += eliteMul * (s.resists?.[dmgType] ?? 1) * hp;
     totalHp += hp;
     if (s.kind === "boss" && s.bossVariant) {
       const child = BOSS_VARIANT_CHILD[s.bossVariant];

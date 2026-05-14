@@ -278,8 +278,9 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
 // stream.
 const FLAME_HALF_CONE = Math.PI / 6; // 30° → 60° total spread
 const FLAME_COS_HALF = Math.cos(FLAME_HALF_CONE);
-const FLAME_SECONDARY_THROUGHPUT = 0.82;
-const FLAME_TAIL_FALLOFF = 0.55;
+export const FLAME_MAX_TARGETS = 7;
+export const FLAME_SECONDARY_THROUGHPUT = 0.74;
+export const FLAME_TAIL_FALLOFF = 0.45;
 const FLAME_DISTANCE_FALLOFF = 0.35;
 const FLAME_MIN_RANGE_MUL = 0.55;
 
@@ -291,6 +292,13 @@ type FlameHit = {
 
 const flameThroughputMul = (index: number): number =>
   index === 0 ? 1 : FLAME_SECONDARY_THROUGHPUT * FLAME_TAIL_FALLOFF ** (index - 1);
+
+export const flameThroughputCapacity = (enemiesOnScreen: number): number => {
+  const hits = Math.min(FLAME_MAX_TARGETS, Math.max(0, Math.floor(enemiesOnScreen)));
+  let total = 0;
+  for (let i = 0; i < hits; i++) total += flameThroughputMul(i);
+  return total;
+};
 
 const flameRangeMul = (distance: number, range: number): number =>
   Math.max(FLAME_MIN_RANGE_MUL, 1 - (distance / Math.max(1e-6, range)) * FLAME_DISTANCE_FALLOFF);
@@ -321,7 +329,7 @@ const collectFlameHits = (world: World, t: Tower, target: Enemy): FlameHit[] => 
     candidates.push({ enemy: e, d2 });
   }
   candidates.sort((a, b) => a.d2 - b.d2 || enemyProgress(b.enemy) - enemyProgress(a.enemy));
-  return candidates.map((c, index) => ({
+  return candidates.slice(0, FLAME_MAX_TARGETS).map((c, index) => ({
     enemy: c.enemy,
     distance: Math.sqrt(c.d2),
     index,

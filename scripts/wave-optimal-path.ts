@@ -50,6 +50,7 @@ import {
   type DifficultyMultipliers,
 } from "../src/progress";
 import { pathLength } from "../src/sim/path";
+import { flameThroughputCapacity } from "../src/sim/towers";
 import type { DamageType, EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
@@ -133,10 +134,8 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
     return Math.min(mult, enemiesOnScreen);
   }
   if (s.splashRadius > 0) return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
-  if (kind === "flame") return Math.min(3, enemiesOnScreen);
-  // Hive fires 3 drones independently at their own targets — effective
-  // 3× the nominal single-shot DPS, all single-target.
-  if (kind === "hive") return Math.min(3, enemiesOnScreen);
+  if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen);
+  if (kind === "hive") return 0;
   return 1;
 };
 

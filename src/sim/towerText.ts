@@ -28,7 +28,7 @@ export const TOWER_BEHAVIOR: Record<TowerKind, string> = {
     "Lobs an explosive shell at the target. 1.8-tile splash, 0.5 shots/sec. Spot mode pre-sights a chokepoint; shells drop when enemies enter the splash. Path B T3 (Singularity) deals 2× damage to shields.",
   flame:
     "60° forward cone at 5 ticks/sec. Low per-tick, constant; front ranks absorb most of the heat in giant crowds. Path A: damage; T3 (Napalm) suppresses regen on hit. Path B: fire rate and range.",
-  hive: "Spawns 3 drones; assign them to nearby towers for +30% fire rate each. Path A: up to 6 drones. No more than 4 can stack on one tower. Path B: buff up to +80%. Idle drones orbit the hive.",
+  hive: "Spawns 3 drones; assign them to nearby towers for +30% fire rate each. Path A: up to 6 drones. No more than 3 can stack on one tower. Path B: buff up to +50%. Idle drones orbit the hive.",
 };
 
 export const TOWER_MATCHUPS: Record<TowerKind, string> = {

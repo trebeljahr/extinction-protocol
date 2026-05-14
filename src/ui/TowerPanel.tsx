@@ -14,6 +14,7 @@ import {
   DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
+  HIVE_MAX_DRONES_PER_TOWER,
   TOWER_DAMAGE_TYPE,
   TOWER_LABEL,
 } from "../sim/world";
@@ -110,8 +111,8 @@ export const TowerPanel = () => {
           <span style={{ color: "#bbffc8" }}>
             +{Math.round(tower.serviceBuff * 100)}% fire rate
           </span>{" "}
-          to its assigned tower. Up to 4 drones can stack on one tower. Click "Pick" on a slot, then
-          click a tower on the map to assign.
+          to its assigned tower. Up to {HIVE_MAX_DRONES_PER_TOWER} drones can stack on one tower.
+          Click "Pick" on a slot, then click a tower on the map to assign.
         </div>
 
         <HiveDronePanel hive={tower} />

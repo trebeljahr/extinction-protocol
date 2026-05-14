@@ -1,6 +1,7 @@
 import type {
   BossTrickleStream,
   BossVariant,
+  DamageType,
   EnemyKind,
   EnemySpec,
   Vec2,
@@ -54,6 +55,7 @@ type SpawnFlags = {
   regen?: boolean;
   elite?: boolean;
   fierce?: boolean;
+  resists?: Partial<Record<DamageType, number>>;
 };
 
 const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemySpec[] =>
@@ -66,6 +68,7 @@ const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemyS
     ...(flags.regen ? { regen: true } : {}),
     ...(flags.elite ? { elite: true } : {}),
     ...(flags.fierce ? { fierce: true } : {}),
+    ...(flags.resists ? { resists: flags.resists } : {}),
   }));
 
 const intro = (raptor: number, swarm = 0, pathIndex = 0): WaveSpec => ({
@@ -106,6 +109,31 @@ const split = (
   archetype,
   spacing,
   spawns: groups.flatMap(([pi, c]) => toSpawns(c, pi)),
+});
+
+const FLAME_ADAPTED_SWARM_RESISTS: Partial<Record<DamageType, number>> = { flame: 0.35 };
+
+const flamebreakSpawns = (c: EnemyCounts, pathIndex: number): EnemySpec[] => {
+  const spawns: EnemySpec[] = [];
+  if ((c.swarm ?? 0) > 0) {
+    spawns.push(
+      ...toSpawns({ swarm: c.swarm }, pathIndex, { resists: FLAME_ADAPTED_SWARM_RESISTS }),
+    );
+  }
+  spawns.push(...toSpawns({ ...c, swarm: 0 }, pathIndex));
+  return spawns;
+};
+
+// Flamebreak waves keep swarm density high but adapt only the hatchlings
+// against flame. Chain and mortar stay clean answers; pulse/flame stacks
+// need support instead of deleting the whole stream alone.
+const flamebreakSplit = (
+  spacing: number,
+  ...groups: [pathIndex: number, counts: EnemyCounts][]
+): WaveSpec => ({
+  archetype: "swarm",
+  spacing,
+  spawns: groups.flatMap(([pi, c]) => flamebreakSpawns(c, pi)),
 });
 
 // Echelon: tiered escalation in fixed order — pass tiers small→large. The
@@ -1093,7 +1121,7 @@ export const LEVELS: LevelConfig[] = [
         [0, { armored: 14, stego: 8, allosaur: 5, titan: 2 }],
         [1, { armored: 14, stego: 8, allosaur: 5, titan: 2 }],
       ),
-      split("swarm", 0.07, [0, { swarm: 85 }], [1, { swarm: 85, raptor: 18 }]),
+      flamebreakSplit(0.07, [0, { swarm: 85 }], [1, { swarm: 85, raptor: 18 }]),
       split(
         "chaos",
         0.26,
@@ -1443,8 +1471,7 @@ export const LEVELS: LevelConfig[] = [
         [0, { armored: 14, stego: 8, titan: 3 }],
         [1, { armored: 14, stego: 8, titan: 3 }],
       ),
-      split(
-        "swarm",
+      flamebreakSplit(
         0.07,
         [0, { swarm: 110, raptor: 20, allosaur: 4 }],
         [1, { swarm: 110, raptor: 20, allosaur: 4 }],
@@ -1738,7 +1765,7 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 18, swarm: 16, allosaur: 4 }],
       ),
       split("swarm", 0.08, [0, { swarm: 100 }], [1, { swarm: 100 }]),
-      split("heavy", 0.9, [0, { armored: 6, stego: 3 }], [1, { armored: 6, stego: 3 }]),
+      split("heavy", 0.9, [0, { armored: 5, stego: 2 }], [1, { armored: 5, stego: 2 }]),
       split("swarm", 0.07, [0, { swarm: 130, raptor: 10 }], [1, { swarm: 130, raptor: 10 }]),
       split(
         "mixed",
@@ -1759,7 +1786,7 @@ export const LEVELS: LevelConfig[] = [
         [0, { armored: 9, stego: 5, titan: 1 }],
         [1, { armored: 9, stego: 5, titan: 1 }],
       ),
-      split("swarm", 0.05, [0, { swarm: 220, raptor: 20 }], [1, { swarm: 220, raptor: 20 }]),
+      flamebreakSplit(0.05, [0, { swarm: 220, raptor: 20 }], [1, { swarm: 220, raptor: 20 }]),
       split(
         "mixed",
         0.36,
@@ -1772,7 +1799,7 @@ export const LEVELS: LevelConfig[] = [
         [0, { raptor: 22, swarm: 50, allosaur: 10, stego: 6, armored: 4, titan: 2 }],
         [1, { raptor: 22, swarm: 50, allosaur: 10, stego: 6, armored: 4, titan: 2 }],
       ),
-      split("swarm", 0.05, [0, { swarm: 260, raptor: 26 }], [1, { swarm: 260, raptor: 26 }]),
+      flamebreakSplit(0.05, [0, { swarm: 260, raptor: 26 }], [1, { swarm: 260, raptor: 26 }]),
       split(
         "heavy",
         0.75,
@@ -1785,7 +1812,7 @@ export const LEVELS: LevelConfig[] = [
         [0, { raptor: 28, swarm: 60, allosaur: 12, stego: 8, armored: 6, titan: 3 }],
         [1, { raptor: 28, swarm: 60, allosaur: 12, stego: 8, armored: 6, titan: 3 }],
       ),
-      split("swarm", 0.04, [0, { swarm: 320, raptor: 32 }], [1, { swarm: 320, raptor: 32 }]),
+      flamebreakSplit(0.04, [0, { swarm: 320, raptor: 32 }], [1, { swarm: 320, raptor: 32 }]),
       split(
         "chaos",
         0.18,
@@ -2145,8 +2172,7 @@ export const LEVELS: LevelConfig[] = [
         [1, { armored: 16, stego: 9, titan: 3 }],
         [2, { armored: 16, stego: 9, titan: 3 }],
       ),
-      split(
-        "swarm",
+      flamebreakSplit(
         0.06,
         [0, { swarm: 150, raptor: 25, allosaur: 4 }],
         [1, { swarm: 150, raptor: 25, allosaur: 4 }],
@@ -2173,8 +2199,7 @@ export const LEVELS: LevelConfig[] = [
         [1, { armored: 20, stego: 12, titan: 4 }],
         [2, { armored: 20, stego: 12, titan: 4 }],
       ),
-      split(
-        "swarm",
+      flamebreakSplit(
         0.05,
         [0, { swarm: 190, raptor: 35, allosaur: 6 }],
         [1, { swarm: 190, raptor: 35, allosaur: 6 }],
