@@ -27,7 +27,7 @@ export const HealAuras = () => {
 
     let hi = 0;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.leak) continue;
       if (!e.healAura) continue;
       if (hi >= MAX_HEALERS) break;
 

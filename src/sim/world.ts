@@ -816,7 +816,7 @@ export const applyDamage = (
   pierceShield = false,
   hitOpts?: HitOptions,
 ) => {
-  if (!enemy.alive) return;
+  if (!enemy.alive || enemy.leak) return;
   let dmg = amount;
   // Running tally of damage actually applied to this enemy on this
   // call. Shield absorption + HP reduction (clamped to remaining HP so

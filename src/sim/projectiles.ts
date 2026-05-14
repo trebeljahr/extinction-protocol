@@ -1,3 +1,4 @@
+import { isEnemyTargetable } from "./enemyState";
 import type { Projectile, World } from "./types";
 import { distSq } from "./vec2";
 import { addShake, applyDamage, createExplosion, emit, spawnParticles } from "./world";
@@ -23,7 +24,7 @@ const applyHit = (world: World, p: Projectile) => {
     spawnParticles(world, p.pos, 8, "#fff2c8", [4, 9], 0.22);
     const rSq = p.splashRadius * p.splashRadius;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, p.pos) <= rSq) {
         applyDamage(world, e, p.damage, p.damageType, "#c44848", 10, p.pierceShield, hitOpts);
         e.flashUntil = world.time + 0.1;
@@ -31,7 +32,7 @@ const applyHit = (world: World, p: Projectile) => {
     }
   } else {
     const target = p.targetId !== null ? world.enemyById.get(p.targetId) : null;
-    if (target?.alive) {
+    if (target && isEnemyTargetable(target)) {
       spawnParticles(world, p.pos, 3, "#ffe866", [1, 3], 0.2);
       applyDamage(world, target, p.damage, p.damageType, "#c44848", 8, p.pierceShield, hitOpts);
     }
@@ -46,7 +47,7 @@ export const updateProjectiles = (world: World, dt: number) => {
 
     if (p.targetId !== null && p.kind === "direct") {
       const target = world.enemyById.get(p.targetId);
-      if (!target?.alive) {
+      if (!target || !isEnemyTargetable(target)) {
         p.alive = false;
         continue;
       }

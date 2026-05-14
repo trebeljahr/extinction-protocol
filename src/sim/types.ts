@@ -100,6 +100,15 @@ export type Enemy = {
   // resets to the variant's interval. Undefined = matriarch doesn't
   // spawn children.
   childSpawnAt?: number;
+  // Short terminal state once an enemy has reached the HQ. The enemy is
+  // still rendered but no longer targetable; `impactAt` is the single
+  // life-loss/removal deadline so leaks cannot stall wave progression.
+  leak?: {
+    startedAt: number;
+    impactAt: number;
+    startPos: Vec2;
+    attackPos: Vec2;
+  };
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";

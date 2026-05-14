@@ -1,3 +1,4 @@
+import { isEnemyTargetable } from "./enemyState";
 import type { Enemy, Tower, Vec2, World } from "./types";
 import { distSq } from "./vec2";
 import {
@@ -71,7 +72,7 @@ const collectChainTargets = (world: World, primary: Enemy, chainCount: number): 
     let next: Enemy | null = null;
     let bestDistSq = chainRangeSq;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!isEnemyTargetable(e)) continue;
       if (hitSet.has(e)) continue;
       const d2 = distSq(e.pos, current.pos);
       if (d2 < bestDistSq) {
@@ -114,7 +115,7 @@ const impactForTarget = (world: World, tower: Tower, primary: Enemy): TargetImpa
     let total = 0;
     const splashSq = tower.splashRadius * tower.splashRadius;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, primary.pos) > splashSq) continue;
       total += estimateDamageDealt(tower, e).totalDealt;
     }
@@ -161,7 +162,7 @@ const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
   let best: Enemy | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (distSq(e.pos, tower.pos) > rangeSq) continue;
     const score = scoreEnemy(world, tower, e);
     if (score > bestScore) {
@@ -220,7 +221,7 @@ const applyCryoFreeze = (world: World, t: Tower): boolean => {
   const rangeSq = t.range * t.range;
   let hit = false;
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (distSq(e.pos, t.pos) > rangeSq) continue;
     hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
@@ -240,7 +241,7 @@ const applyCryoFreeze = (world: World, t: Tower): boolean => {
 const enemyInRange = (world: World, t: Tower): boolean => {
   const r2 = t.range * t.range;
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (distSq(e.pos, t.pos) <= r2) return true;
   }
   return false;
@@ -307,7 +308,7 @@ const collectFlameHits = (world: World, t: Tower, target: Enemy): FlameHit[] => 
   const rangeSq = t.range * t.range;
   const candidates: { enemy: Enemy; d2: number }[] = [];
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     const ex = e.pos.x - t.pos.x;
     const ey = e.pos.y - t.pos.y;
     const d2 = ex * ex + ey * ey;
@@ -433,7 +434,7 @@ const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
 const enemyInSplash = (world: World, spot: Vec2, splashRadius: number): boolean => {
   const r2 = splashRadius * splashRadius;
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (distSq(e.pos, spot) <= r2) return true;
   }
   return false;

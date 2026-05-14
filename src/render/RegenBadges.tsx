@@ -113,7 +113,7 @@ export const RegenBadges = () => {
 
     let hi = 0;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.leak) continue;
       if (!e.regen) continue;
       if (hi >= MAX_REGEN) break;
       // Hide while regen is paused — the icon disappearing right after

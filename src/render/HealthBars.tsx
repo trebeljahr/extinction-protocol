@@ -17,7 +17,7 @@ export const HealthBars = () => {
 
     let hi = 0;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.leak) continue;
       if (hi >= MAX_ENEMIES) break;
       const ratio = e.hp / e.maxHp;
       const w = Math.max(0.001, 0.9 * ratio);

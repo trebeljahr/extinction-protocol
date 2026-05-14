@@ -55,6 +55,7 @@ type Item = {
   obj: THREE.Object3D;
   proxy: THREE.Mesh | null;
   mixer: THREE.AnimationMixer;
+  clip: THREE.AnimationClip | null;
   // Smoothed visual state — lags `e.pos` / path yaw slightly so corner
   // turns arc instead of teleport+snap. Sim-side `e.pos` stays the
   // source of truth for towers and click hits.
@@ -133,6 +134,14 @@ export const ModelEnemyMesh = ({
     () => findClip(animations, clip) ?? findClip(animations, "Walk") ?? animations[0] ?? null,
     [animations, clip],
   );
+  const attackClip = useMemo(
+    () =>
+      findClip(animations, "Attack") ??
+      findClip(animations, "Bite") ??
+      findClip(animations, "Roar") ??
+      null,
+    [animations],
+  );
 
   // Invisible, oversized tap target. Lets users hit the enemy even when
   // their finger lands next to the silhouette — critical on touch. The
@@ -209,7 +218,7 @@ export const ModelEnemyMesh = ({
             o.userData.enemyMaxHp = e.maxHp;
           });
           recycled.mixer.stopAllAction();
-          if (activeClip) recycled.mixer.clipAction(activeClip).reset().play();
+          recycled.clip = null;
           if (recycled.proxy) {
             recycled.proxy.visible = true;
             recycled.proxy.userData.enemyId = e.id;
@@ -248,7 +257,6 @@ export const ModelEnemyMesh = ({
             }
           });
           const mixer = new THREE.AnimationMixer(obj);
-          if (activeClip) mixer.clipAction(activeClip).play();
           parent.add(obj);
 
           let proxy: THREE.Mesh | null = null;
@@ -260,13 +268,32 @@ export const ModelEnemyMesh = ({
             parent.add(proxy);
           }
 
-          item = { obj, proxy, mixer, visX: 0, visZ: 0, visYaw: 0, visInit: false };
+          item = {
+            obj,
+            proxy,
+            mixer,
+            clip: null,
+            visX: 0,
+            visZ: 0,
+            visYaw: 0,
+            visInit: false,
+          };
         }
         itemsRef.current.set(e.id, item);
       }
 
+      const leak = e.leak;
+      const desiredClip = leak && attackClip ? attackClip : activeClip;
+      if (item.clip !== desiredClip) {
+        item.mixer.stopAllAction();
+        if (desiredClip) item.mixer.clipAction(desiredClip).reset().play();
+        item.clip = desiredClip;
+      }
+      const leakProgress = leak
+        ? Math.max(0, Math.min(1, (world.time - leak.startedAt) / (leak.impactAt - leak.startedAt)))
+        : 0;
       const slowed = world.time < e.slowUntil;
-      item.mixer.timeScale = (slowed ? e.slowFactor : 1) * timeScale;
+      item.mixer.timeScale = (leak && !attackClip ? 0.45 : slowed ? e.slowFactor : 1) * timeScale;
       if (!frozen) item.mixer.update(delta);
 
       const path = world.paths[e.pathIndex] ?? world.paths[0];
@@ -297,22 +324,27 @@ export const ModelEnemyMesh = ({
         item.visYaw += shortAngleDelta(item.visYaw, targetYaw) * ky;
       }
 
+      const poseT = leak ? Math.max(0, Math.min(1, (leakProgress - 0.35) / 0.65)) : 0;
+      const attackPose = Math.sin(poseT * Math.PI);
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
       item.obj.position.set(
         item.visX - centerXZ.x,
-        yOffset - scaledMinY + bobY,
+        yOffset - scaledMinY + bobY - attackPose * 0.08,
         item.visZ - centerXZ.z,
       );
       if (item.proxy) {
         // Click target tracks the true sim position so taps line up with
         // the actual enemy state, not the smoothed render lag.
-        item.proxy.position.set(
-          e.pos.x,
-          yOffset - scaledMinY + bobY + proxyRadius * 0.55,
-          -e.pos.y,
-        );
+        item.proxy.visible = !leak;
+        if (!leak) {
+          item.proxy.position.set(
+            e.pos.x,
+            yOffset - scaledMinY + bobY + proxyRadius * 0.55,
+            -e.pos.y,
+          );
+        }
       }
-      item.obj.rotation.set(0, baseRotY + item.visYaw, 0);
+      item.obj.rotation.set(attackPose * 0.18, baseRotY + item.visYaw, attackPose * 0.035);
 
       const flashing = world.time < e.flashUntil;
       const frost = e.frost;

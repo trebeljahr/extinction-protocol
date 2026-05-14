@@ -1,3 +1,4 @@
+import { isEnemyTargetable } from "./enemyState";
 import type { World } from "./types";
 import { distSq } from "./vec2";
 import {
@@ -15,7 +16,7 @@ import {
 
 export const updateDefensive = (world: World, dt: number) => {
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (e.maxShield <= 0) continue;
     if (e.shield >= e.maxShield) continue;
     // shieldBrokenAt === 0 → shield was never broken (or just reset after
@@ -35,7 +36,7 @@ export const updateDefensive = (world: World, dt: number) => {
   // and Pyre T3 napalm pause are the per-tower suppression options that
   // can keep a regen enemy from healing through sustained DPS.
   for (const e of world.enemies) {
-    if (!e.alive) continue;
+    if (!isEnemyTargetable(e)) continue;
     if (!e.regen) continue;
     if (e.hp >= e.maxHp) continue;
     if (world.time < e.regenPausedUntil) continue;
@@ -49,10 +50,10 @@ export const updateDefensive = (world: World, dt: number) => {
   // immortal — players can still focus a stack down individually.
   const r2 = HEAL_AURA_RANGE * HEAL_AURA_RANGE;
   for (const m of world.enemies) {
-    if (!m.alive) continue;
+    if (!isEnemyTargetable(m)) continue;
     if (!m.healAura) continue;
     for (const e of world.enemies) {
-      if (!e.alive) continue;
+      if (!isEnemyTargetable(e)) continue;
       if (e === m) continue;
       if (e.healAura) continue;
       if (e.hp >= e.maxHp) continue;

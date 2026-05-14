@@ -1,6 +1,72 @@
-import { advanceAlongPath, samplePath, smoothDirection } from "./path";
-import type { World } from "./types";
+import { advanceAlongPath, samplePath, segmentLength, smoothDirection } from "./path";
+import type { Enemy, Vec2, World } from "./types";
 import { addShake, BOSS_VARIANT_CHILD, BOSS_VARIANT_STATS, emit, spawnEnemy } from "./world";
+
+const LEAK_RUN_IN_SECONDS = 0.28;
+const LEAK_POSE_SECONDS = 0.34;
+const LEAK_ATTACK_STANDOFF = 0.18;
+const LEAK_TRIGGER_MIN_DISTANCE = 0.28;
+const LEAK_TRIGGER_MAX_DISTANCE = 0.75;
+
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+const remainingPathDistance = (path: Vec2[], segment: number, segmentT: number): number => {
+  if (path.length < 2) return 0;
+  let total = segmentLength(path, segment) * (1 - segmentT);
+  for (let i = segment + 1; i < path.length - 1; i++) total += segmentLength(path, i);
+  return total;
+};
+
+const pathEndDirection = (path: Vec2[]): Vec2 => {
+  const last = path[path.length - 1];
+  const prev = path[path.length - 2];
+  const dx = last.x - prev.x;
+  const dy = last.y - prev.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: dx / len, y: dy / len };
+};
+
+const applyLeakHit = (world: World, e: Enemy) => {
+  if (!world.invincible) world.lives -= e.damage;
+  e.alive = false;
+  emit(world, { type: "life-lost" });
+  // Slight jolt so the hit registers — previous 0.18 mag with decay 6
+  // faded in two frames and was easy to miss. Scales with the enemy's
+  // damage so a titan at the gate hits harder than a lone raptor.
+  const mag = 0.32 + Math.min(0.28, e.damage * 0.06);
+  addShake(world, mag, 3.5);
+};
+
+const beginLeakAttack = (world: World, e: Enemy, path: Vec2[]) => {
+  const end = path[path.length - 1];
+  const dir = pathEndDirection(path);
+  e.leak = {
+    startedAt: world.time,
+    impactAt: world.time + LEAK_RUN_IN_SECONDS + LEAK_POSE_SECONDS,
+    startPos: { ...e.pos },
+    attackPos: {
+      x: end.x - dir.x * LEAK_ATTACK_STANDOFF,
+      y: end.y - dir.y * LEAK_ATTACK_STANDOFF,
+    },
+  };
+  e.segment = path.length - 2;
+  e.segmentT = 1;
+  e.lateralOffset = 0;
+  e.slowFactor = 1;
+  e.slowUntil = 0;
+};
+
+const updateLeakAttack = (world: World, e: Enemy) => {
+  const leak = e.leak;
+  if (!leak) return;
+  const t = clamp01((world.time - leak.startedAt) / LEAK_RUN_IN_SECONDS);
+  const eased = 1 - (1 - t) ** 3;
+  e.pos = {
+    x: leak.startPos.x + (leak.attackPos.x - leak.startPos.x) * eased,
+    y: leak.startPos.y + (leak.attackPos.y - leak.startPos.y) * eased,
+  };
+  if (world.time >= leak.impactAt) applyLeakHit(world, e);
+};
 
 export const updateEnemies = (world: World, dt: number) => {
   // Collect matriarch child-spawn requests during the tick. Deferred so
@@ -19,6 +85,10 @@ export const updateEnemies = (world: World, dt: number) => {
 
   for (const e of world.enemies) {
     if (!e.alive) continue;
+    if (e.leak) {
+      updateLeakAttack(world, e);
+      continue;
+    }
 
     // Matriarch child-spawn — variant matriarchs drip their namesake
     // species behind them every BOSS_VARIANT_CHILD interval. Disabled
@@ -90,18 +160,15 @@ export const updateEnemies = (world: World, dt: number) => {
       e.pos = adv.pos;
     }
 
-    if (adv.finished) {
-      // Debug invincibility absorbs the leak — enemy still despawns at the
-      // exit but lives stay at startLives, the shake/event still fire so
-      // the leak is visually unmistakable.
-      if (!world.invincible) world.lives -= e.damage;
-      e.alive = false;
-      emit(world, { type: "life-lost" });
-      // Slight jolt so the hit registers — previous 0.18 mag with decay 6
-      // faded in two frames and was easy to miss. Scales with the enemy's
-      // damage so a titan at the gate hits harder than a lone raptor.
-      const mag = 0.32 + Math.min(0.28, e.damage * 0.06);
-      addShake(world, mag, 3.5);
+    const triggerDistance = Math.max(
+      LEAK_TRIGGER_MIN_DISTANCE,
+      Math.min(LEAK_TRIGGER_MAX_DISTANCE, e.speed * LEAK_RUN_IN_SECONDS),
+    );
+    if (adv.finished || remainingPathDistance(path, e.segment, e.segmentT) <= triggerDistance) {
+      // Debug invincibility absorbs the leak at impact time — enemy still
+      // runs the HQ attack, despawns, and emits the shake/event so the
+      // leak is visually unmistakable.
+      beginLeakAttack(world, e, path);
     }
   }
   // Swap-and-pop dead enemies in place; keep enemyById in sync.
