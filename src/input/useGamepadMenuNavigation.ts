@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { dispatchGamepadKeyboard } from "../ui/useInputMode";
 import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "./gamepad";
 
 const FOCUSABLE_SELECTOR =
@@ -45,10 +46,6 @@ const focusRelative = (direction: -1 | 1) => {
   focusWithGamepad(elements[nextIndex]);
 };
 
-const dispatchKeyboard = (key: string, code = key) => {
-  window.dispatchEvent(new KeyboardEvent("keydown", { key, code, bubbles: true }));
-};
-
 const activateFocused = () => {
   const active = document.activeElement;
   if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) {
@@ -61,7 +58,7 @@ const activateFocused = () => {
     focusWithGamepad(first);
     return;
   }
-  dispatchKeyboard("Enter");
+  dispatchGamepadKeyboard("Enter");
 };
 
 const menuDirection = (frame: GamepadInputFrame): -1 | 0 | 1 => {
@@ -106,11 +103,11 @@ export const useGamepadMenuNavigation = (enabled: boolean, options: MenuBridgeOp
     }
 
     if (frame.buttonPressed("a")) {
-      if (options.confirmAsKeyboard) dispatchKeyboard("Enter");
+      if (options.confirmAsKeyboard) dispatchGamepadKeyboard("Enter");
       else activateFocused();
     }
     if (frame.buttonPressed("b") || frame.buttonPressed("start")) {
-      dispatchKeyboard("Escape");
+      dispatchGamepadKeyboard("Escape");
     }
   }, enabled);
 };

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { setInputMode } from "../ui/useInputMode";
 
 export const GAMEPAD_BUTTONS = {
   a: 0,
@@ -92,6 +93,12 @@ class GamepadInputManager {
     const buttons = gamepad?.buttons.map((button) => button.pressed) ?? [];
     const axes = gamepad?.axes.slice() ?? [];
     const previous = this.previousButtons;
+    if (
+      gamepad &&
+      (buttons.some(Boolean) || axes.some((axis) => Math.abs(axis) > GAMEPAD_STICK_DEADZONE))
+    ) {
+      setInputMode("gamepad");
+    }
 
     const frame: GamepadInputFrame = {
       gamepad,

@@ -2558,7 +2558,11 @@
   }
 
   .kbd-only {
-    display: inline;
+    display: none !important;
+  }
+
+  body[data-input-mode="keyboard"]:not(.is-touch-primary) .kbd-only {
+    display: inline !important;
   }
 
   /* ── Mobile breakpoint overrides ───────────────────────────────
@@ -2593,8 +2597,8 @@
       font-size: var(--fs-xs);
       margin-left: 2px;
     }
-    /* Menu button — shrink padding + drop the fancy "ESC" pill (no
-       keyboard on mobile). */
+    /* Menu button — shrink padding; keyboard hint visibility is driven
+       by the runtime input-mode signal above. */
     .hud-menu-btn {
       top: calc(8px + var(--safe-top)) !important;
       right: calc(8px + var(--safe-right)) !important;
@@ -2604,12 +2608,6 @@
     }
     .hud-menu-btn .text-sm {
       font-size: var(--fs-md);
-    }
-    .hud-menu-btn .text-\[10px\] {
-      display: none;
-    }
-    .kbd-only {
-      display: none !important;
     }
     .outpost-pill {
       max-width: min(220px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));

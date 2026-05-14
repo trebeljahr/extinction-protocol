@@ -18,6 +18,7 @@ import { PauseMenu } from "./PauseMenu";
 import { TowerPanel } from "./TowerPanel";
 import { TowerPreview } from "./TowerPreview";
 import { TreePanel } from "./TreePanel";
+import { useKeyboardHintsVisible } from "./useInputMode";
 import { useIsMobile } from "./useMediaQuery";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
@@ -73,6 +74,7 @@ export const HUD = () => {
   const selectedTreeId = useGame((s) => s.selectedTreeId);
   const selectedRockId = useGame((s) => s.selectedRockId);
   const isMobile = useIsMobile();
+  const showKeyboardHints = useKeyboardHintsVisible();
   // On mobile the picker collapses to a small handle to free up the
   // canvas. Auto-closes on selection (one less tap to start placing)
   // and re-opens via the handle. On desktop the picker is always
@@ -148,7 +150,7 @@ export const HUD = () => {
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title={isMobile ? "Start waves" : "Start waves (Space)"}
+            title={showKeyboardHints ? "Start waves (Space)" : "Start waves"}
           >
             <div className="stat-label text-mint">
               START WAVES <span className="kbd-only">[Space]</span>
@@ -160,7 +162,7 @@ export const HUD = () => {
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title={isMobile ? "Call next wave early" : "Call next wave early (Space)"}
+            title={showKeyboardHints ? "Call next wave early (Space)" : "Call next wave early"}
           >
             <div className="stat-label text-mint">
               CALL WAVE <span className="kbd-only">[Space]</span>
@@ -198,7 +200,7 @@ export const HUD = () => {
         type="button"
         className="hud-menu-btn absolute top-4 right-4"
         onClick={togglePause}
-        title={isMobile ? "Menu" : "Menu (Esc)"}
+        title={showKeyboardHints ? "Menu (Esc)" : "Menu"}
       >
         <span
           className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
@@ -268,7 +270,7 @@ export const HUD = () => {
                   setSelectedKind(selectedKind === kind ? null : kind);
                   e.currentTarget.blur();
                 }}
-                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g${isMobile ? "" : ` [${HOTKEYS[kind]}]`}`}
+                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g${showKeyboardHints ? ` [${HOTKEYS[kind]}]` : ""}`}
               >
                 {active && (
                   <span className="card-cancel" aria-hidden>

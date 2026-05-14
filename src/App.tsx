@@ -17,6 +17,7 @@ import { ResultsScreen } from "./ui/ResultsScreen";
 import { SaveSlots } from "./ui/SaveSlots";
 import { Splash } from "./ui/Splash";
 import { enterFullscreen, isFullscreen, loadFullscreenPref } from "./ui/useFullscreen";
+import { useInputModeSignal } from "./ui/useInputMode";
 import { useIsMobile } from "./ui/useMediaQuery";
 import { WorldMapUI } from "./ui/WorldMapUI";
 
@@ -78,6 +79,7 @@ export const App = () => {
   const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
   const modalOpen = compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen;
   const isMobile = useIsMobile();
+  useInputModeSignal();
   useAudioBridge();
   useGamepadMenuNavigation(
     (screen !== "playing" && screen !== "worldMap") ||

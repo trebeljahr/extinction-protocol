@@ -1,6 +1,7 @@
 import type { Tower } from "../sim/types";
 import { TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
+import { useKeyboardHintsVisible } from "./useInputMode";
 
 // Per-drone slot list inside the Hive tower panel. Each slot shows the
 // current assignment ("idle" or the target tower's name) and a button
@@ -18,6 +19,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
   const begin = useGame((s) => s.beginDroneAssignment);
   const cancel = useGame((s) => s.cancelDroneAssignment);
   const clear = useGame((s) => s.clearDroneAssignment);
+  const showKeyboardHints = useKeyboardHintsVisible();
 
   // Tower name for an assignment id, or null when idle/stale.
   const towerName = (id: number | null): string | null => {
@@ -69,7 +71,9 @@ export const HiveDronePanel = ({ hive }: Props) => {
                     type="button"
                     className="hive-drone-btn hive-drone-btn-active"
                     onClick={cancel}
-                    title="Cancel pick — click the map or press Esc"
+                    title={
+                      showKeyboardHints ? "Cancel pick - click the map or press Esc" : "Cancel pick"
+                    }
                   >
                     Cancel
                   </button>

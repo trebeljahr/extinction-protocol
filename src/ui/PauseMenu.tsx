@@ -9,7 +9,7 @@ import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
-import { useIsMobile } from "./useMediaQuery";
+import { useKeyboardHintsVisible } from "./useInputMode";
 
 type Props = {
   onResume: () => void;
@@ -24,7 +24,7 @@ export const PauseMenu = ({ onResume }: Props) => {
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const difficulty = useGame((s) => s.progress.difficulty);
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
-  const isMobile = useIsMobile();
+  const showKeyboardHints = useKeyboardHintsVisible();
 
   useEffect(() => {
     audio.ui("click");
@@ -65,7 +65,7 @@ export const PauseMenu = ({ onResume }: Props) => {
       subtitle={levelName || null}
       onClose={onResume}
       closeLabel="Resume"
-      closeTitle={isMobile ? "Resume" : "Resume (Esc)"}
+      closeTitle={showKeyboardHints ? "Resume (Esc)" : "Resume"}
     >
       <div className="menu-panel-scroll">
         <button

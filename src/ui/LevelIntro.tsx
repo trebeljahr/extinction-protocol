@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LEVEL_BRIEFING } from "../levels/briefings";
 import { useGame } from "../store";
+import { useInputMode } from "./useInputMode";
 
 const FADE_MS = 220;
 
@@ -8,8 +9,15 @@ export const LevelIntro = () => {
   const levelId = useGame((s) => s.selectedLevelId);
   const dismiss = useGame((s) => s.dismissLevelIntro);
   const [exiting, setExiting] = useState(false);
+  const input = useInputMode();
 
   const briefing = levelId !== null ? LEVEL_BRIEFING[levelId] : undefined;
+  const hint =
+    input.mode === "gamepad"
+      ? "press a button to continue"
+      : input.mode === "keyboard" && !input.touchPrimary
+        ? "press any key to continue"
+        : "tap to continue";
 
   useEffect(() => {
     if (!briefing) return;
@@ -47,7 +55,7 @@ export const LevelIntro = () => {
       <div className="level-intro-card">
         <div className="level-intro-eyebrow">Field Report · Outpost {levelId}</div>
         <p className="level-intro-text">{briefing}</p>
-        <div className="level-intro-hint">press any key to continue</div>
+        <div className="level-intro-hint">{hint}</div>
       </div>
     </div>
   );
