@@ -215,6 +215,44 @@
     margin-top: 2px;
   }
 
+  .outpost-pill {
+    min-width: 0;
+    max-width: 260px;
+    padding: 8px 14px;
+    background: rgba(10, 16, 24, 0.72);
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 6px;
+    backdrop-filter: blur(6px);
+  }
+
+  .outpost-label {
+    color: var(--color-blue);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
+  }
+
+  .outpost-name {
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--color-fg);
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .outpost-progress {
+    color: var(--color-blue);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .outpost-separator {
+    color: var(--color-fg-faint);
+  }
+
   .call-wave-btn {
     cursor: pointer;
     color: var(--color-fg);
@@ -2546,11 +2584,18 @@
     .kbd-only {
       display: none !important;
     }
-    /* Outpost pill — hide the duplicate level name on mobile; it's
-       already in the pause menu and the wave count communicates the
-       same thing in less space. */
-    .hud-top > .bg-surface-1 {
-      display: none;
+    .outpost-pill {
+      max-width: min(220px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+      padding: 4px 8px;
+      border-radius: 5px;
+    }
+    .outpost-label {
+      font-size: var(--fs-2xs);
+      letter-spacing: 0.08em;
+    }
+    .outpost-name {
+      margin-top: 0;
+      font-size: var(--fs-base);
     }
 
     /* Side panels — full-width drawers anchored to the bottom edge

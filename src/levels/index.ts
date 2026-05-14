@@ -2248,3 +2248,9 @@ export const getLevel = (id: number): LevelConfig => {
   if (!level) throw new Error(`Level ${id} not found`);
   return level;
 };
+
+export const getLevelOrdinal = (id: number): { current: number; total: number } => {
+  const index = LEVELS.findIndex((l) => l.id === id);
+  if (index === -1) throw new Error(`Level ${id} not found`);
+  return { current: index + 1, total: LEVELS.length };
+};

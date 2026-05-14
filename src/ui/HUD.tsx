@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLevel } from "../levels";
+import { getLevel, getLevelOrdinal } from "../levels";
 import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
 import type { TowerKind } from "../sim/types";
 import {
@@ -51,6 +51,8 @@ export const HUD = () => {
   const difficulty = useGame((s) => s.progress.difficulty);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
+  const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
+  const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}/${levelOrdinal.total}` : "";
   const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
   const waveStatus =
@@ -175,9 +177,13 @@ export const HUD = () => {
           />
         )}
         {levelName && (
-          <div className="bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm">
-            <div className="text-[10px] font-bold tracking-wide text-blue">OUTPOST</div>
-            <div className="text-[15px] font-bold mt-0.5 whitespace-nowrap">{levelName}</div>
+          <div className="outpost-pill">
+            <div className="outpost-label">OUTPOST</div>
+            <div className="outpost-name" title={`${levelOrdinalLabel} · ${levelName}`}>
+              <span className="outpost-progress">{levelOrdinalLabel}</span>
+              <span className="outpost-separator"> · </span>
+              <span>{levelName}</span>
+            </div>
           </div>
         )}
         <div
