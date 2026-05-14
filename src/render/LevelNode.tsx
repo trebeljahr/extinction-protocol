@@ -31,14 +31,16 @@ const STAR_SLOTS = ["slot-left", "slot-center", "slot-right"] as const;
 export const LevelNode = ({ level }: Props) => {
   const groupRef = useRef<THREE.Group>(null);
   const progress = useGame((s) => s.progress);
+  const hoveredLevelId = useGame((s) => s.hoveredLevelId);
   const startLevel = useGame((s) => s.startLevel);
   const setHoveredLevel = useGame((s) => s.setHoveredLevel);
-  const [hovered, setHovered] = useState(false);
+  const [pointerHovered, setPointerHovered] = useState(false);
 
   const unlocked = isLevelUnlocked(level.id, progress);
   const stars = getStars(progress, level.id);
   const completed = stars > 0;
   const unplayed = unlocked && !completed;
+  const hovered = pointerHovered || hoveredLevelId === level.id;
 
   const { baseColor, emissive, emissiveIntensity } = useMemo(() => {
     if (!unlocked) return { baseColor: "#3a4452", emissive: "#000000", emissiveIntensity: 0 };
@@ -72,14 +74,14 @@ export const LevelNode = ({ level }: Props) => {
 
   const handleOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    setHovered(true);
+    setPointerHovered(true);
     setHoveredLevel(level.id);
     document.body.style.cursor = unlocked ? "pointer" : "not-allowed";
   };
 
   const handleOut = () => {
-    setHovered(false);
-    setHoveredLevel(null);
+    setPointerHovered(false);
+    if (useGame.getState().hoveredLevelId === level.id) setHoveredLevel(null);
     document.body.style.cursor = "default";
   };
 

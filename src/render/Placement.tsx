@@ -1,7 +1,8 @@
-import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { type ThreeEvent, useThree } from "@react-three/fiber";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
+import { GAMEPAD_STICK_DEADZONE, snapGamepadAxis, useGamepadInput } from "../input/gamepad";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
@@ -12,15 +13,6 @@ type Vec2 = { x: number; y: number };
 
 const TOUCH_PLACEMENT_OFFSET_PX = 68;
 const GAMEPAD_CURSOR_SPEED = 9;
-const GAMEPAD_DEADZONE = 0.18;
-const GAMEPAD_BUTTONS = {
-  a: 0,
-  b: 1,
-  y: 3,
-  lb: 4,
-  rb: 5,
-  start: 9,
-} as const;
 const GAMEPAD_TOWER_ORDER: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 
 export const Placement = () => {
@@ -29,7 +21,9 @@ export const Placement = () => {
   const [touchAnchor, setTouchAnchor] = useState<Vec2 | null>(null);
   const [controllerHover, setControllerHover] = useState<Vec2 | null>(null);
   const [controllerActive, setControllerActive] = useState(false);
-  const buttonPrevRef = useRef<boolean[]>([]);
+  const hoverRef = useRef<Vec2 | null>(null);
+  const controllerHoverRef = useRef<Vec2 | null>(null);
+  const controllerActiveRef = useRef(false);
   const raycasterRef = useRef(new THREE.Raycaster());
   const groundPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const groundPointRef = useRef(new THREE.Vector3());
@@ -44,6 +38,21 @@ export const Placement = () => {
   // gold/status/selectedKind/hover changes, which silently went stale.
   useGame((s) => s.towerVersion);
   useGame((s) => s.treeVersion);
+
+  const setHoverState = useCallback((pos: Vec2 | null) => {
+    hoverRef.current = pos;
+    setHover(pos);
+  }, []);
+
+  const setControllerHoverState = useCallback((pos: Vec2 | null) => {
+    controllerHoverRef.current = pos;
+    setControllerHover(pos);
+  }, []);
+
+  const setControllerActiveState = useCallback((active: boolean) => {
+    controllerActiveRef.current = active;
+    setControllerActive(active);
+  }, []);
 
   const pointFromScreen = (clientX: number, clientY: number): Vec2 | null => {
     const rect = gl.domElement.getBoundingClientRect();
@@ -72,42 +81,36 @@ export const Placement = () => {
 
   useEffect(() => {
     if (!selectedKind) {
-      setHover(null);
+      setHoverState(null);
       setTouchAnchor(null);
+      setControllerHoverState(null);
+      setControllerActiveState(false);
       lastTouchPlacementRef.current = null;
       lastTouchPlacementAtRef.current = 0;
     }
-  }, [selectedKind]);
+  }, [selectedKind, setControllerActiveState, setControllerHoverState, setHoverState]);
 
-  useFrame((_, delta) => {
-    const pads = navigator.getGamepads?.();
-    const gamepad = Array.from(pads ?? []).find((pad): pad is Gamepad => Boolean(pad?.connected));
-    if (!gamepad) {
-      buttonPrevRef.current = [];
+  useGamepadInput((frame) => {
+    if (!frame.gamepad) {
       return;
     }
 
     const state = useGame.getState();
-    const buttonDown = (index: number) => Boolean(gamepad.buttons[index]?.pressed);
-    const buttonPressed = (index: number) => buttonDown(index) && !buttonPrevRef.current[index];
-    const updatePressedState = () => {
-      buttonPrevRef.current = gamepad.buttons.map((button) => button.pressed);
-    };
-
     if (
       state.screen !== "playing" ||
+      state.ui.status !== "running" ||
       state.compendiumOpen ||
       state.achievementsOpen ||
       state.creditsOpen ||
       state.difficultyPickerOpen ||
-      state.levelIntroVisible
+      state.levelIntroVisible ||
+      state.newEnemyQueue.length > 0
     ) {
-      updatePressedState();
       return;
     }
 
-    if (buttonPressed(GAMEPAD_BUTTONS.start)) state.togglePause();
-    if (buttonPressed(GAMEPAD_BUTTONS.y)) state.callWaveEarly();
+    if (frame.buttonPressed("start")) state.togglePause();
+    if (frame.buttonPressed("y")) state.callWaveEarly();
 
     const cycleTower = (direction: -1 | 1) => {
       const currentIndex = state.selectedKind
@@ -120,16 +123,16 @@ export const Placement = () => {
             : GAMEPAD_TOWER_ORDER.length - 1
           : (currentIndex + direction + GAMEPAD_TOWER_ORDER.length) % GAMEPAD_TOWER_ORDER.length;
       state.setSelectedKind(GAMEPAD_TOWER_ORDER[nextIndex]);
-      setControllerActive(true);
+      setControllerActiveState(true);
       setTouchAnchor(null);
       lastTouchPlacementRef.current = null;
       lastTouchPlacementAtRef.current = 0;
     };
 
-    if (buttonPressed(GAMEPAD_BUTTONS.lb)) cycleTower(-1);
-    if (buttonPressed(GAMEPAD_BUTTONS.rb)) cycleTower(1);
+    if (frame.buttonPressed("lb")) cycleTower(-1);
+    if (frame.buttonPressed("rb")) cycleTower(1);
 
-    if (buttonPressed(GAMEPAD_BUTTONS.b)) {
+    if (frame.buttonPressed("b")) {
       if (
         state.selectedKind ||
         state.ui.selectedTowerId ||
@@ -142,52 +145,52 @@ export const Placement = () => {
       }
     }
 
-    const dpadX = Number(buttonDown(15)) - Number(buttonDown(14));
-    const dpadY = Number(buttonDown(13)) - Number(buttonDown(12));
-    const axisX = gamepad.axes[0] ?? 0;
-    const axisY = gamepad.axes[1] ?? 0;
-    const stickX = Math.abs(axisX) > GAMEPAD_DEADZONE ? axisX : 0;
-    const stickY = Math.abs(axisY) > GAMEPAD_DEADZONE ? axisY : 0;
+    const dpadX = Number(frame.buttonDown("right")) - Number(frame.buttonDown("left"));
+    const dpadY = Number(frame.buttonDown("down")) - Number(frame.buttonDown("up"));
+    const leftX = snapGamepadAxis(frame.axis("leftX"), GAMEPAD_STICK_DEADZONE);
+    const leftY = snapGamepadAxis(frame.axis("leftY"), GAMEPAD_STICK_DEADZONE);
+    const rightX = snapGamepadAxis(frame.axis("rightX"), GAMEPAD_STICK_DEADZONE);
+    const rightY = snapGamepadAxis(frame.axis("rightY"), GAMEPAD_STICK_DEADZONE);
+    const stickX = rightX || leftX;
+    const stickY = rightY || leftY;
     const moveX = dpadX || stickX;
     const moveY = dpadY || stickY;
 
     if (moveX || moveY) {
-      const base = controllerHover ?? hover ?? { x: 0, y: 0 };
+      const base = controllerHoverRef.current ?? hoverRef.current ?? { x: 0, y: 0 };
       const next = {
         x: THREE.MathUtils.clamp(
-          base.x + moveX * GAMEPAD_CURSOR_SPEED * delta,
+          base.x + moveX * GAMEPAD_CURSOR_SPEED * frame.delta,
           -MAP_WIDTH / 2 + 0.5,
           MAP_WIDTH / 2 - 0.5,
         ),
         y: THREE.MathUtils.clamp(
-          base.y - moveY * GAMEPAD_CURSOR_SPEED * delta,
+          base.y - moveY * GAMEPAD_CURSOR_SPEED * frame.delta,
           -MAP_HEIGHT / 2 + 0.5,
           MAP_HEIGHT / 2 - 0.5,
         ),
       };
-      setControllerActive(true);
-      setControllerHover(next);
+      setControllerActiveState(true);
+      setControllerHoverState(next);
       setTouchAnchor(null);
       lastTouchPlacementRef.current = null;
       lastTouchPlacementAtRef.current = 0;
     }
 
-    if (buttonPressed(GAMEPAD_BUTTONS.a)) {
-      const pos = controllerHover ?? hover ?? { x: 0, y: 0 };
+    if (frame.buttonPressed("a")) {
+      const pos = controllerHoverRef.current ?? hoverRef.current ?? { x: 0, y: 0 };
       if (state.towerAtPos(pos)) audio.ui("select");
       state.tryPlaceOrSelect(pos);
-      setControllerActive(true);
-      setControllerHover(pos);
+      setControllerActiveState(true);
+      setControllerHoverState(pos);
     }
-
-    updatePressedState();
   });
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     const offset = isTouchEvent(e) && selectedKind ? TOUCH_PLACEMENT_OFFSET_PX : 0;
     const pos = eventPoint(e, offset);
-    setControllerActive(false);
-    setHover(pos);
+    setControllerActiveState(false);
+    setHoverState(pos);
     if (offset) {
       setTouchAnchor(eventPoint(e, 0));
       lastTouchPlacementRef.current = pos;
@@ -204,8 +207,8 @@ export const Placement = () => {
   };
 
   const onPointerOut = () => {
-    if (!controllerActive) {
-      setHover(null);
+    if (!controllerActiveRef.current) {
+      setHoverState(null);
       setTouchAnchor(null);
       lastTouchPlacementRef.current = null;
       lastTouchPlacementAtRef.current = 0;

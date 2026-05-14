@@ -1,0 +1,116 @@
+import { useRef } from "react";
+import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "./gamepad";
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const GAMEPAD_FOCUS_CLASS = "gamepad-focus";
+const MENU_INITIAL_REPEAT_MS = 320;
+const MENU_REPEAT_MS = 120;
+
+type MenuBridgeOptions = {
+  confirmAsKeyboard?: boolean;
+};
+
+const visibleFocusableElements = () =>
+  Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && getComputedStyle(el).visibility !== "hidden";
+  });
+
+const clearGamepadFocus = () => {
+  for (const el of document.querySelectorAll<HTMLElement>(`.${GAMEPAD_FOCUS_CLASS}`)) {
+    el.classList.remove(GAMEPAD_FOCUS_CLASS);
+  }
+};
+
+const focusWithGamepad = (el: HTMLElement) => {
+  clearGamepadFocus();
+  document.body.classList.add("using-gamepad");
+  el.classList.add(GAMEPAD_FOCUS_CLASS);
+  el.focus({ preventScroll: true });
+};
+
+const focusRelative = (direction: -1 | 1) => {
+  const elements = visibleFocusableElements();
+  if (elements.length === 0) return;
+  const current = document.activeElement;
+  const currentIndex = current instanceof HTMLElement ? elements.indexOf(current) : -1;
+  const nextIndex =
+    currentIndex === -1
+      ? direction > 0
+        ? 0
+        : elements.length - 1
+      : (currentIndex + direction + elements.length) % elements.length;
+  focusWithGamepad(elements[nextIndex]);
+};
+
+const dispatchKeyboard = (key: string, code = key) => {
+  window.dispatchEvent(new KeyboardEvent("keydown", { key, code, bubbles: true }));
+};
+
+const activateFocused = () => {
+  const active = document.activeElement;
+  if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) {
+    active.click();
+    return;
+  }
+
+  const first = visibleFocusableElements()[0];
+  if (first) {
+    focusWithGamepad(first);
+    return;
+  }
+  dispatchKeyboard("Enter");
+};
+
+const menuDirection = (frame: GamepadInputFrame): -1 | 0 | 1 => {
+  const dpadX = Number(frame.buttonDown("right")) - Number(frame.buttonDown("left"));
+  const dpadY = Number(frame.buttonDown("down")) - Number(frame.buttonDown("up"));
+  const stickX = snapGamepadDirection(frame.axis("leftX"));
+  const stickY = snapGamepadDirection(frame.axis("leftY"));
+  const x = dpadX || stickX;
+  const y = dpadY || stickY;
+
+  if (Math.abs(y) >= Math.abs(x) && y !== 0) return y > 0 ? 1 : -1;
+  if (x !== 0) return x > 0 ? 1 : -1;
+  return 0;
+};
+
+export const useGamepadMenuNavigation = (enabled: boolean, options: MenuBridgeOptions = {}) => {
+  const repeatRef = useRef<{ direction: -1 | 1 | 0; nextAt: number }>({
+    direction: 0,
+    nextAt: 0,
+  });
+
+  useGamepadInput((frame) => {
+    if (!frame.gamepad) {
+      repeatRef.current = { direction: 0, nextAt: 0 };
+      return;
+    }
+
+    const direction = menuDirection(frame);
+    if (direction === 0) {
+      repeatRef.current = { direction: 0, nextAt: 0 };
+    } else {
+      const repeat = repeatRef.current;
+      if (direction !== repeat.direction || frame.timestamp >= repeat.nextAt) {
+        focusRelative(direction);
+        repeatRef.current = {
+          direction,
+          nextAt:
+            frame.timestamp +
+            (direction === repeat.direction ? MENU_REPEAT_MS : MENU_INITIAL_REPEAT_MS),
+        };
+      }
+    }
+
+    if (frame.buttonPressed("a")) {
+      if (options.confirmAsKeyboard) dispatchKeyboard("Enter");
+      else activateFocused();
+    }
+    if (frame.buttonPressed("b") || frame.buttonPressed("start")) {
+      dispatchKeyboard("Escape");
+    }
+  }, enabled);
+};

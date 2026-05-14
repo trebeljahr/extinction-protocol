@@ -1,6 +1,9 @@
 import type React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
+import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "../input/gamepad";
+import { useGamepadMenuNavigation } from "../input/useGamepadMenuNavigation";
 import { LEVELS } from "../levels";
 import { LEVEL_BRIEFING } from "../levels/briefings";
 import {
@@ -20,9 +23,27 @@ import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
 
+const WORLD_MAP_NAV_INITIAL_REPEAT_MS = 320;
+const WORLD_MAP_NAV_REPEAT_MS = 140;
+
+const gamepadMenuDirection = (frame: GamepadInputFrame): -1 | 0 | 1 => {
+  const dpadX = Number(frame.buttonDown("right")) - Number(frame.buttonDown("left"));
+  const dpadY = Number(frame.buttonDown("down")) - Number(frame.buttonDown("up"));
+  const stickX = snapGamepadDirection(frame.axis("leftX"));
+  const stickY = snapGamepadDirection(frame.axis("leftY"));
+  const x = dpadX || stickX;
+  const y = dpadY || stickY;
+
+  if (Math.abs(x) >= Math.abs(y) && x !== 0) return x > 0 ? 1 : -1;
+  if (y !== 0) return y > 0 ? 1 : -1;
+  return 0;
+};
+
 export const WorldMapUI = () => {
   const progress = useGame((s) => s.progress);
   const hoveredLevelId = useGame((s) => s.hoveredLevelId);
+  const startLevel = useGame((s) => s.startLevel);
+  const setHoveredLevel = useGame((s) => s.setHoveredLevel);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
@@ -30,6 +51,10 @@ export const WorldMapUI = () => {
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   const difficulty = progress.difficulty;
+  const navRepeatRef = useRef<{ direction: -1 | 1 | 0; nextAt: number }>({
+    direction: 0,
+    nextAt: 0,
+  });
 
   const accent = DIFFICULTY_ACCENT[difficulty];
 
@@ -40,6 +65,47 @@ export const WorldMapUI = () => {
   const total = totalStars(progress);
   const maxTotal = LEVELS.length * 3;
   const completed = LEVELS.filter((l) => getStars(progress, l.id) > 0).length;
+
+  useGamepadMenuNavigation(menuOpen);
+
+  useGamepadInput((frame) => {
+    if (!frame.gamepad || menuOpen) return;
+
+    const unlocked = LEVELS.filter((level) => isLevelUnlocked(level.id, progress));
+    const fallback = unlocked[0];
+
+    const direction = gamepadMenuDirection(frame);
+    if (direction === 0) {
+      navRepeatRef.current = { direction: 0, nextAt: 0 };
+    } else if (unlocked.length > 0) {
+      const repeat = navRepeatRef.current;
+      if (direction !== repeat.direction || frame.timestamp >= repeat.nextAt) {
+        const currentIndex = unlocked.findIndex((level) => level.id === hoveredLevelId);
+        const nextIndex =
+          currentIndex === -1 ? 0 : (currentIndex + direction + unlocked.length) % unlocked.length;
+        setHoveredLevel(unlocked[nextIndex].id);
+        navRepeatRef.current = {
+          direction,
+          nextAt:
+            frame.timestamp +
+            (direction === repeat.direction
+              ? WORLD_MAP_NAV_REPEAT_MS
+              : WORLD_MAP_NAV_INITIAL_REPEAT_MS),
+        };
+      }
+    }
+
+    if (frame.buttonPressed("a")) {
+      const target = LEVELS.find((level) => level.id === hoveredLevelId) ?? fallback;
+      if (!target || !isLevelUnlocked(target.id, progress)) return;
+      audio.ensureResumed();
+      audio.play("level-select", "ui", 0.7, 80);
+      startLevel(target.id);
+      return;
+    }
+
+    if (frame.buttonPressed("b") || frame.buttonPressed("start")) setMenuOpen(true);
+  });
 
   return (
     <div className="hud">

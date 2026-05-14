@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LEVELS } from "../levels";
 import {
   DIFFICULTY_ACCENT,
@@ -30,6 +30,17 @@ export const SaveSlots = () => {
   const totalLevels = LEVELS.length;
 
   const beginDelete = (id: SlotId) => setConfirmDeleteId(id);
+
+  useEffect(() => {
+    if (confirmDeleteId === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setConfirmDeleteId(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [confirmDeleteId]);
 
   const confirmDelete = () => {
     if (confirmDeleteId === null) return;
