@@ -7,6 +7,7 @@ import {
   readAudioPrefs,
   saveAudioPrefs,
 } from "../audio/preferences";
+import { IconSpeaker } from "./MenuIcons";
 
 type BusKey = Exclude<keyof AudioPrefs, "muted">;
 
@@ -61,7 +62,10 @@ export const SoundControls = () => {
   return (
     <section className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg pt-3 px-4 pb-3 mb-5">
       <div className="flex items-center justify-between mb-2.5">
-        <div className="text-[10px] font-bold tracking-uber text-gold">SOUND</div>
+        <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-uber text-gold">
+          <IconSpeaker size={14} className="shrink-0" />
+          SOUND
+        </div>
         <button
           type="button"
           className={`px-2.5 py-1 rounded-[5px] border text-[10px] font-bold tracking-uber font-[inherit] cursor-pointer ${

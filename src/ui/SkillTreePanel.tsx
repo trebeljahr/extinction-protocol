@@ -162,7 +162,7 @@ export const SkillTreePanel = () => {
 
   return (
     <MenuOverlay
-      title="Operations · Tower R&D"
+      title="Operations · Lab"
       subtitle={`${available} stars available · ${spent} invested · ${earned} earned`}
       onClose={() => setOpen(false)}
       cardClassName="!w-[min(1180px,calc(100vw-48px))] !max-w-none"

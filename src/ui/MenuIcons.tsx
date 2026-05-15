@@ -1,0 +1,88 @@
+import type { FC, ReactNode } from "react";
+
+export type MenuIconProps = {
+  size?: number;
+  className?: string;
+};
+
+type SvgProps = MenuIconProps & {
+  label: string;
+  children: ReactNode;
+};
+
+const Svg: FC<SvgProps> = ({ size = 18, className, label, children }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    className={className}
+    role="img"
+    aria-label={label}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <title>{label}</title>
+    {children}
+  </svg>
+);
+
+export const IconLab: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Lab">
+    <path d="M9 3h6" />
+    <path d="M10 3v6.2L5.4 17.5A2 2 0 0 0 7.1 20.5h9.8a2 2 0 0 0 1.7-3L14 9.2V3" />
+    <path d="M7.6 14h8.8" />
+    <circle cx="11" cy="16.5" r="0.7" fill="currentColor" stroke="none" />
+    <circle cx="14" cy="17.5" r="0.5" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const IconBook: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Compendium">
+    <path d="M4 4.5h6.5a2.5 2.5 0 0 1 2.5 2.5v13" />
+    <path d="M20 4.5h-6.5A2.5 2.5 0 0 0 11 7v13" />
+    <path d="M4 4.5v13.5h6.5A2.5 2.5 0 0 1 13 20.5" />
+    <path d="M20 4.5v13.5h-6.5A2.5 2.5 0 0 0 11 20.5" />
+  </Svg>
+);
+
+export const IconTrophy: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Achievements">
+    <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+    <path d="M7 6H4.5v1.5A3.5 3.5 0 0 0 8 11" />
+    <path d="M17 6h2.5v1.5A3.5 3.5 0 0 1 16 11" />
+    <path d="M9.5 13.5h5l-.5 3h-4l-.5-3Z" />
+    <path d="M8 19.5h8" />
+    <path d="M10 16.5v3M14 16.5v3" />
+  </Svg>
+);
+
+export const IconCoin: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Credits">
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="6" />
+    <path d="M10 9.5h3a1.5 1.5 0 0 1 0 3H10" />
+    <path d="M10 12.5h3a1.5 1.5 0 0 1 0 3H10" />
+    <path d="M10 8v8" />
+  </Svg>
+);
+
+export const IconFloppy: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Save slot">
+    <path d="M5 4.5h11.5L19.5 7.5V18a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Z" />
+    <path d="M8 4.5h7v4H8z" />
+    <rect x="7.5" y="12.5" width="9" height="6.5" rx="0.5" />
+    <path d="M9.5 14.5h5" />
+    <path d="M9.5 16.5h5" />
+  </Svg>
+);
+
+export const IconSpeaker: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Sound">
+    <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" />
+    <path d="M15 9a4 4 0 0 1 0 6" />
+    <path d="M17.5 6.5a7 7 0 0 1 0 11" />
+  </Svg>
+);

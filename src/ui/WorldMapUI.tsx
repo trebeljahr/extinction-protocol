@@ -20,6 +20,7 @@ import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
+import { IconBook, IconCoin, IconFloppy, IconLab, IconTrophy } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
@@ -126,15 +127,15 @@ export const WorldMapUI = () => {
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
           onClick={() => setSkillTreeOpen(true)}
-          aria-label="Open tower R&D"
+          aria-label="Open lab"
           title={
             availableStars > 0
-              ? `Tower R&D — ${availableStars} star${availableStars === 1 ? "" : "s"} unspent`
-              : "Tower R&D"
+              ? `Lab — ${availableStars} star${availableStars === 1 ? "" : "s"} unspent`
+              : "Lab"
           }
         >
-          <span className="text-base leading-none">★</span>
-          <span className="text-sm font-bold tracking-wide uppercase">R&amp;D</span>
+          <IconLab size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Lab</span>
           {availableStars > 0 && (
             <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-gold text-bg text-[11px] font-bold tabular-nums">
               {availableStars}
@@ -188,52 +189,57 @@ export const WorldMapUI = () => {
               </button>
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   setSkillTreeOpen(true);
                 }}
               >
-                Tower R&amp;D {availableStars > 0 ? `(${availableStars}★)` : ""}
+                <IconLab size={16} className="shrink-0" />
+                Lab {availableStars > 0 ? `(${availableStars}★)` : ""}
               </button>
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   setCompendiumOpen(true);
                 }}
               >
+                <IconBook size={16} className="shrink-0" />
                 Compendium
               </button>
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   setAchievementsOpen(true);
                 }}
               >
+                <IconTrophy size={16} className="shrink-0" />
                 Achievements
               </button>
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   setCreditsOpen(true);
                 }}
               >
+                <IconCoin size={16} className="shrink-0" />
                 Credits
               </button>
               <button
                 type="button"
-                className="btn btn-ghost w-full"
+                className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
                   goToSlots();
                 }}
               >
+                <IconFloppy size={16} className="shrink-0" />
                 Change save slot
               </button>
             </div>

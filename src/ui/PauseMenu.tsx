@@ -7,6 +7,7 @@ import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
+import { IconBook, IconTrophy } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { useKeyboardHintsVisible } from "./useInputMode";
@@ -83,16 +84,18 @@ export const PauseMenu = ({ onResume }: Props) => {
         <ActionsCol>
           <button
             type="button"
-            className="btn btn-ghost w-full"
+            className="btn btn-ghost w-full flex items-center justify-center gap-2"
             onClick={() => setCompendiumOpen(true)}
           >
+            <IconBook size={16} className="shrink-0" />
             Compendium
           </button>
           <button
             type="button"
-            className="btn btn-ghost w-full"
+            className="btn btn-ghost w-full flex items-center justify-center gap-2"
             onClick={() => setAchievementsOpen(true)}
           >
+            <IconTrophy size={16} className="shrink-0" />
             Achievements
           </button>
           <button
