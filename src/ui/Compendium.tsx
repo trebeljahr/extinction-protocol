@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useGamepadInput } from "../input/gamepad";
 import { hasEncountered, hasMatriarchEncountered } from "../progress";
 import {
   ENEMY_DESCRIPTION,
@@ -124,6 +125,25 @@ export const Compendium = () => {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [setCompendiumOpen]);
+
+  // The global menu-nav hook (App.tsx) already wires dpad focus, A
+  // activate, and B/Start escape for every modal. Compendium adds
+  // LB/RB to jump between sections so a gamepad user doesn't have to
+  // step focus through dozens of item tabs just to switch tab strips.
+  // No conflict with Placement's LB/RB tower cycling — that handler
+  // early-returns while compendiumOpen is true.
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
+  useGamepadInput((frame) => {
+    if (!frame.gamepad) return;
+    const cycle = (direction: -1 | 1) => {
+      const idx = SECTION_ORDER.indexOf(sectionRef.current);
+      const next = (idx + direction + SECTION_ORDER.length) % SECTION_ORDER.length;
+      setSection(SECTION_ORDER[next]);
+    };
+    if (frame.buttonPressed("lb")) cycle(-1);
+    if (frame.buttonPressed("rb")) cycle(1);
+  });
 
   const encounteredCount = ENEMY_ENTRIES.filter((e) => entrySeen(e, progress)).length;
 

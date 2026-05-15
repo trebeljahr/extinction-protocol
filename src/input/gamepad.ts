@@ -137,6 +137,16 @@ export const useGamepadInput = (handler: GamepadListener, enabled = true) => {
 export const snapGamepadAxis = (value: number, deadzone = GAMEPAD_STICK_DEADZONE) =>
   Math.abs(value) > deadzone ? value : 0;
 
+// Remaps post-deadzone magnitude to a full 0..1 range so cursor speed
+// ramps smoothly from rest instead of jumping to deadzone-magnitude on
+// first deflection. Returns sign-preserved scaled value, or 0 inside
+// the deadzone.
+export const scaleGamepadAxis = (value: number, deadzone = GAMEPAD_STICK_DEADZONE) => {
+  const abs = Math.abs(value);
+  if (abs <= deadzone) return 0;
+  return Math.sign(value) * ((abs - deadzone) / (1 - deadzone));
+};
+
 export const snapGamepadDirection = (value: number, deadzone = GAMEPAD_MENU_DEADZONE) => {
   if (value > deadzone) return 1;
   if (value < -deadzone) return -1;

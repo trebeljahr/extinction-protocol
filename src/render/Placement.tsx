@@ -2,7 +2,7 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
-import { GAMEPAD_STICK_DEADZONE, snapGamepadAxis, useGamepadInput } from "../input/gamepad";
+import { GAMEPAD_STICK_DEADZONE, scaleGamepadAxis, useGamepadInput } from "../input/gamepad";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import type { TowerKind } from "../sim/types";
 import { TOWER_COST, TOWER_STATS } from "../sim/world";
@@ -14,6 +14,11 @@ type Vec2 = { x: number; y: number };
 const TOUCH_PLACEMENT_OFFSET_PX = 84;
 const TOUCH_PLACEMENT_STALE_MS = 900;
 const TOUCH_CLICK_SUPPRESS_MS = 700;
+// Window after a touch interaction during which gamepad cursor/button
+// input is ignored on the play canvas. Stops accidental stick deflection
+// from kicking the player out of an active touch placement, and prevents
+// hint flicker when a touch device also has a paired controller idling.
+const GAMEPAD_TOUCH_LOCKOUT_MS = 500;
 const GAMEPAD_CURSOR_SPEED = 9;
 const GAMEPAD_TOWER_ORDER: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 
@@ -34,6 +39,7 @@ export const Placement = () => {
   const touchPointersRef = useRef<Set<number>>(new Set());
   const multiTouchPlacementRef = useRef(false);
   const suppressClickUntilRef = useRef(0);
+  const lastTouchInputAtRef = useRef(0);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
   const selectedKind = useGame((s) => s.selectedKind);
@@ -146,6 +152,12 @@ export const Placement = () => {
       return;
     }
 
+    // Suppress stick/cursor input briefly after a touch so accidental
+    // controller contact doesn't override an in-progress finger gesture.
+    // Button presses (pause, call-wave, cycle) still go through — those
+    // are deliberate and not subject to the same conflict.
+    const touchLocked = Date.now() - lastTouchInputAtRef.current < GAMEPAD_TOUCH_LOCKOUT_MS;
+
     if (frame.buttonPressed("start")) state.togglePause();
     if (frame.buttonPressed("y")) state.callWaveEarly();
 
@@ -182,16 +194,19 @@ export const Placement = () => {
 
     const dpadX = Number(frame.buttonDown("right")) - Number(frame.buttonDown("left"));
     const dpadY = Number(frame.buttonDown("down")) - Number(frame.buttonDown("up"));
-    const leftX = snapGamepadAxis(frame.axis("leftX"), GAMEPAD_STICK_DEADZONE);
-    const leftY = snapGamepadAxis(frame.axis("leftY"), GAMEPAD_STICK_DEADZONE);
-    const rightX = snapGamepadAxis(frame.axis("rightX"), GAMEPAD_STICK_DEADZONE);
-    const rightY = snapGamepadAxis(frame.axis("rightY"), GAMEPAD_STICK_DEADZONE);
-    const stickX = rightX || leftX;
-    const stickY = rightY || leftY;
+    const leftX = scaleGamepadAxis(frame.axis("leftX"), GAMEPAD_STICK_DEADZONE);
+    const leftY = scaleGamepadAxis(frame.axis("leftY"), GAMEPAD_STICK_DEADZONE);
+    const rightX = scaleGamepadAxis(frame.axis("rightX"), GAMEPAD_STICK_DEADZONE);
+    const rightY = scaleGamepadAxis(frame.axis("rightY"), GAMEPAD_STICK_DEADZONE);
+    // Pick the stronger deflection per axis so a player using both
+    // sticks at once doesn't lose one to the OR short-circuit. Either
+    // stick can drive the cursor; whichever is pushed harder wins.
+    const stickX = Math.abs(rightX) >= Math.abs(leftX) ? rightX : leftX;
+    const stickY = Math.abs(rightY) >= Math.abs(leftY) ? rightY : leftY;
     const moveX = dpadX || stickX;
     const moveY = dpadY || stickY;
 
-    if (moveX || moveY) {
+    if ((moveX || moveY) && !touchLocked) {
       const base = controllerHoverRef.current ?? hoverRef.current ?? { x: 0, y: 0 };
       const next = {
         x: THREE.MathUtils.clamp(
@@ -210,7 +225,7 @@ export const Placement = () => {
       clearTouchPlacement();
     }
 
-    if (frame.buttonPressed("a")) {
+    if (frame.buttonPressed("a") && !touchLocked) {
       const pos = controllerHoverRef.current ?? hoverRef.current ?? { x: 0, y: 0 };
       if (state.towerAtPos(pos)) audio.ui("select");
       state.tryPlaceOrSelect(pos);
@@ -220,6 +235,7 @@ export const Placement = () => {
   });
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (isTouchEvent(e)) lastTouchInputAtRef.current = Date.now();
     if (isTouchEvent(e) && selectedKind && multiTouchPlacementRef.current) return;
     if (isTouchEvent(e) && selectedKind) {
       updateTouchPlacement(e);
@@ -234,6 +250,7 @@ export const Placement = () => {
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (isTouchEvent(e)) {
+      lastTouchInputAtRef.current = Date.now();
       touchPointersRef.current.add(e.nativeEvent.pointerId);
       if (selectedKind && touchPointersRef.current.size > 1) {
         multiTouchPlacementRef.current = true;
@@ -246,14 +263,21 @@ export const Placement = () => {
 
   const onPointerUp = (e: ThreeEvent<PointerEvent>) => {
     if (!isTouchEvent(e)) return;
+    lastTouchInputAtRef.current = Date.now();
 
     const wasMultiTouch = multiTouchPlacementRef.current || touchPointersRef.current.size > 1;
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
     if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
     if (!selectedKind) return;
 
-    suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
-    if (wasMultiTouch) return;
+    // Multi-touch always suppresses the synthetic click — the remaining
+    // finger isn't a tap intent. For a single-finger lift, only suppress
+    // once we've actually committed a placement, so a failed canConfirm
+    // doesn't lock the player out of the next ~700ms of clicks.
+    if (wasMultiTouch) {
+      suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
+      return;
+    }
 
     const hasFreshTouchPlacement =
       lastTouchPlacementRef.current !== null &&
@@ -261,12 +285,14 @@ export const Placement = () => {
     const pos = hasFreshTouchPlacement ? lastTouchPlacementRef.current! : updateTouchPlacement(e);
     if (!touchPlacementCanConfirm(pos)) return;
 
+    suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
     useGame.getState().tryPlaceOrSelect(pos);
   };
 
   const onPointerCancel = (e: ThreeEvent<PointerEvent>) => {
     if (!isTouchEvent(e)) return;
+    lastTouchInputAtRef.current = Date.now();
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
     if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
   };
