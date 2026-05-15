@@ -345,6 +345,7 @@ type GameStore = {
   resetAllMetaSkills: () => void;
   setDifficulty: (difficulty: Difficulty) => void;
   difficultyPickerOpen: boolean;
+  autoPausedForDifficultyPicker: boolean;
   setDifficultyPickerOpen: (open: boolean) => void;
   // Lowest difficulty seen during the current run. Set on level start to
   // the active progress.difficulty, then ratcheted down by setDifficulty
@@ -690,7 +691,26 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   difficultyPickerOpen: false,
-  setDifficultyPickerOpen: (open) => set({ difficultyPickerOpen: open }),
+  autoPausedForDifficultyPicker: false,
+  setDifficultyPickerOpen: (open) => {
+    const s = get();
+    const { world } = s;
+    let autoPaused = s.autoPausedForDifficultyPicker;
+    if (open) {
+      if (world.status === "running") {
+        world.status = "paused";
+        autoPaused = true;
+      }
+    } else {
+      if (autoPaused && world.status === "paused") world.status = "running";
+      autoPaused = false;
+    }
+    set({
+      difficultyPickerOpen: open,
+      autoPausedForDifficultyPicker: autoPaused,
+      ui: snapshot(world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
   runMinDifficulty: null,
 
   setDifficulty: (difficulty) => {
