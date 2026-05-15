@@ -20,8 +20,17 @@ import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
-import { IconBook, IconCoin, IconFloppy, IconLab, IconTrophy } from "./MenuIcons";
+import {
+  IconBook,
+  IconCog,
+  IconCoin,
+  IconFloppy,
+  IconLab,
+  IconStar,
+  IconTrophy,
+} from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
+import { QuickSettings } from "./QuickSettings";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
 
@@ -118,23 +127,16 @@ export const WorldMapUI = () => {
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
       </div>
 
-      <div className="world-map-actions absolute top-6 right-6 pointer-events-none">
+      <div className="world-map-actions absolute top-6 right-6 pointer-events-none flex items-center gap-1.5">
+        <QuickSettings />
         <button
           type="button"
-          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md w-9 h-9 flex items-center justify-center backdrop-blur-sm pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setMenuOpen(true)}
           aria-label="Open menu"
           title="Menu"
         >
-          <span
-            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
-            aria-hidden
-          >
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="text-sm font-bold tracking-wide uppercase">Menu</span>
+          <IconCog size={18} />
         </button>
       </div>
 
@@ -150,7 +152,27 @@ export const WorldMapUI = () => {
         </button>
       </div>
 
-      <div className="world-map-rd absolute bottom-6 right-6 pointer-events-none">
+      <div className="world-map-rd absolute bottom-6 right-6 pointer-events-none flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setAchievementsOpen(true)}
+          aria-label="Open achievements"
+          title="Achievements"
+        >
+          <IconTrophy size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Achievements</span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setCompendiumOpen(true)}
+          aria-label="Open compendium"
+          title="Compendium"
+        >
+          <IconBook size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Compendium</span>
+        </button>
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
@@ -165,7 +187,8 @@ export const WorldMapUI = () => {
           <IconLab size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Lab</span>
           {availableStars > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-gold text-bg text-[11px] font-bold tabular-nums">
+            <span className="ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full bg-gold text-black text-[11px] font-bold tabular-nums">
+              <IconStar size={10} className="shrink-0" />
               {availableStars}
             </span>
           )}
@@ -199,28 +222,6 @@ export const WorldMapUI = () => {
               >
                 <IconLab size={16} className="shrink-0" />
                 Lab {availableStars > 0 ? `(${availableStars}★)` : ""}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost w-full flex items-center justify-center gap-2"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setCompendiumOpen(true);
-                }}
-              >
-                <IconBook size={16} className="shrink-0" />
-                Compendium
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost w-full flex items-center justify-center gap-2"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setAchievementsOpen(true);
-                }}
-              >
-                <IconTrophy size={16} className="shrink-0" />
-                Achievements
               </button>
               <button
                 type="button"

@@ -1678,6 +1678,10 @@
     align-items: stretch;
   }
 
+  .hud-corner-cluster {
+    z-index: 46;
+  }
+
   .hud-menu-btn {
     margin-left: auto;
     display: inline-flex;
@@ -2663,9 +2667,11 @@
     }
     /* Menu button — shrink padding; keyboard hint visibility is driven
        by the runtime input-mode signal above. */
-    .hud-menu-btn {
+    .hud-corner-cluster {
       top: calc(8px + var(--safe-top)) !important;
       right: calc(8px + var(--safe-right)) !important;
+    }
+    .hud-menu-btn {
       padding: 6px 10px;
       gap: 6px;
       font-size: var(--fs-md);

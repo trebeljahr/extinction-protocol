@@ -62,10 +62,51 @@ export const IconTrophy: FC<MenuIconProps> = (p) => (
 export const IconCoin: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Credits">
     <circle cx="12" cy="12" r="8.5" />
-    <circle cx="12" cy="12" r="6" />
-    <path d="M10 9.5h3a1.5 1.5 0 0 1 0 3H10" />
-    <path d="M10 12.5h3a1.5 1.5 0 0 1 0 3H10" />
-    <path d="M10 8v8" />
+    <circle cx="12" cy="12" r="5.5" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const IconCog: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Settings">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  </Svg>
+);
+
+export const IconStar: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Star">
+    <path
+      d="M12 2.5 L14.9 8.9 L22 9.8 L16.7 14.6 L18.1 21.5 L12 17.9 L5.9 21.5 L7.3 14.6 L2 9.8 L9.1 8.9 Z"
+      fill="currentColor"
+      stroke="none"
+    />
+  </Svg>
+);
+
+export const IconSpeakerMute: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Sound muted">
+    <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" />
+    <path d="M16 9.5l5 5" />
+    <path d="M21 9.5l-5 5" />
+  </Svg>
+);
+
+export const IconFullscreen: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Enter fullscreen">
+    <path d="M4 9V4h5" />
+    <path d="M15 4h5v5" />
+    <path d="M20 15v5h-5" />
+    <path d="M9 20H4v-5" />
+  </Svg>
+);
+
+export const IconFullscreenExit: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Exit fullscreen">
+    <path d="M9 4v5H4" />
+    <path d="M20 9h-5V4" />
+    <path d="M15 20v-5h5" />
+    <path d="M4 15h5v5" />
   </Svg>
 );
 

@@ -36,7 +36,11 @@ export const LevelIntro = () => {
       e.preventDefault();
       fadeOut();
     };
-    const onClick = () => fadeOut();
+    const onClick = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (target?.closest(".quick-settings")) return;
+      fadeOut();
+    };
 
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onClick, true);
