@@ -12,6 +12,7 @@ export type MapGestureConfig = {
   panSpeed?: number;
   zoomSpeed?: number;
   reserveLeftClick?: boolean;
+  reserveTouchPlacement?: boolean;
 };
 
 export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureConfig>(
@@ -24,6 +25,7 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       panSpeed = 1.4,
       zoomSpeed = 0.9,
       reserveLeftClick = false,
+      reserveTouchPlacement = false,
     },
     ref,
   ) {
@@ -55,12 +57,18 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
 
     useDragGate(controlsRef, reserveLeftClick, gl);
 
+    // While a tower kind is armed, one-finger touch belongs to the
+    // placement gesture (Placement parks a ghost + Confirm pill on
+    // drag, or places inline on tap). Park OrbitControls — ROTATE
+    // is a no-op here because enableRotate is false — so the drag
+    // doesn't simultaneously pan the camera. Two-finger DOLLY_PAN
+    // still works for camera adjustment mid-placement.
     const touches = useMemo(
       () => ({
-        ONE: THREE.TOUCH.PAN,
+        ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
         TWO: THREE.TOUCH.DOLLY_PAN,
       }),
-      [],
+      [reserveTouchPlacement],
     );
 
     return (
