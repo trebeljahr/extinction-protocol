@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { audio } from "../audio/AudioManager";
 import { hasEncountered, hasMatriarchEncountered } from "../progress";
 import {
   ENEMY_DESCRIPTION,
@@ -113,10 +112,6 @@ export const Compendium = () => {
   const [selectedEnemy, setSelectedEnemy] = useState<EnemyEntry>(firstEncountered);
   const [selectedTower, setSelectedTower] = useState<TowerKind>(TOWER_ORDER[0]);
   const [selectedMech, setSelectedMech] = useState<MechanicId>(MECHANIC_ORDER[0]);
-
-  useEffect(() => {
-    audio.ui("click");
-  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

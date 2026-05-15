@@ -18,26 +18,28 @@ export const useAudioBridge = () => {
       applyAudioPrefs(loadAudioPrefs());
     });
 
-    const pickTrack = (): MusicTrack => {
-      const s = useGame.getState();
-      if (s.screen === "playing") return biomeTrack(s.world.biome);
+    type GameState = ReturnType<typeof useGame.getState>;
+    // Keep lobby music playing while the Field Report overlay is up so the
+    // biome track doesn't crossfade in behind the briefing or kick on mid-
+    // load. The crossfade fires when the player dismisses the intro.
+    const pickTrack = (s: GameState): MusicTrack => {
+      if (s.screen === "playing" && !s.levelIntroVisible) return biomeTrack(s.world.biome);
       return "music";
     };
 
     const resumeOnInteract = async () => {
       await audio.ensureResumed();
-      audio.startMusic(pickTrack());
+      audio.startMusic(pickTrack(useGame.getState()));
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
     };
     window.addEventListener("pointerdown", resumeOnInteract);
     window.addEventListener("keydown", resumeOnInteract);
 
-    // Crossfade music whenever the screen changes (worldMap ↔ playing ↔
-    // results) or when the player enters a level on a different biome.
     const unsubMusic = useGame.subscribe((state, prev) => {
-      if (state.screen === prev.screen && state.world.biome === prev.world.biome) return;
-      audio.crossfadeTo(pickTrack());
+      const next = pickTrack(state);
+      if (next === pickTrack(prev)) return;
+      audio.crossfadeTo(next);
     });
 
     // Compare via `ui.status` (a fresh snapshot per set()) rather than
@@ -99,8 +101,7 @@ export const useAudioBridge = () => {
           audio.playSplat();
           break;
         case "wave-start":
-          audio.startMusic(pickTrack());
-          audio.play("wave-call", "notifications", 0.28, 350, 0.65);
+          audio.play("wave-start", "notifications", 0.18, 350, 0.65);
           break;
         case "boss-wave-start":
           // Boss sting: layer "new-enemy" (dramatic announcement cue) on

@@ -227,7 +227,7 @@ export class AudioManager {
     const src = this.ctx.createBufferSource();
     src.buffer = sample.buffer;
     const gain = this.ctx.createGain();
-    const trim = key === "victory" ? 0.38 : key === "star" ? 0.78 : key === "new-enemy" ? 0.88 : 1;
+    const trim = key === "victory" ? 0.2 : key === "star" ? 0.78 : key === "new-enemy" ? 0.88 : 1;
     gain.gain.value = Math.min(1, volumeScale * trim);
     src.connect(gain).connect(busGain);
     keyVoices.add(src);
