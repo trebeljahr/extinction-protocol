@@ -3557,11 +3557,15 @@
     (max-height: 500px) and (max-width: 1024px) {
     .save-slots-grid {
       position: relative;
-      grid-template-columns: 1fr;
-      max-width: 420px;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      width: 100%;
+      max-width: 900px;
       margin: 0 auto;
-      padding: 0 20px 20px;
+      padding: 0 16px 16px;
+      gap: 12px;
       bottom: auto;
+      box-sizing: border-box;
+      min-width: 0;
     }
     .save-slots-screen {
       overflow-y: auto;
@@ -3570,6 +3574,7 @@
     }
     .save-slots-title {
       position: relative;
+      top: auto;
       padding: 36px 20px 20px;
     }
     .save-slots-bg {
@@ -3602,9 +3607,18 @@
       pointer-events: auto;
     }
 
-    /* Slot stage: back button top-left, leave room under it for title. */
+    /* Slot stage: title shrinks and pulls toward the top so the slot
+       tiles get the bulk of the viewport. Back button still anchors
+       top-left underneath. */
     .save-slots-screen--slots .save-slots-title {
-      padding: calc(56px + var(--safe-top)) 20px 16px;
+      padding: calc(12px + var(--safe-top)) 20px 8px;
+    }
+    .save-slots-screen--slots .save-slots-title h1 {
+      font-size: clamp(22px, 4vw, 36px);
+    }
+    .save-slots-screen--slots .save-slots-subtitle {
+      margin-top: 4px;
+      font-size: var(--fs-xs);
     }
     .save-slots-back-btn {
       display: inline-flex;
