@@ -63,11 +63,14 @@ export const useAudioBridge = () => {
       audio.syncFlames(activeFlameTowerIds(state.world.towers));
     });
 
-    // Generic UI feedback: every button press plays a click. Buttons can
-    // override the sample with `data-ui-sound` (e.g. "close" for close
+    // Generic UI feedback: every button activation plays a click. Buttons
+    // can override the sample with `data-ui-sound` (e.g. "close" for close
     // buttons, "select" for the tower picker) — see `audio.ui` for the
     // valid set. The attribute keeps the audio contract explicit at the
     // source instead of inferred from class-name strings.
+    //
+    // Listens on `click` (not `pointerdown`) so a touch that drags into a
+    // scroll — never producing a click — doesn't fire the sample.
     type UiSound = "click" | "tab" | "open" | "close" | "error" | "select";
     const VALID_SOUNDS: ReadonlySet<UiSound> = new Set([
       "click",
@@ -77,7 +80,7 @@ export const useAudioBridge = () => {
       "error",
       "select",
     ]);
-    const onUiPointerDown = (e: PointerEvent) => {
+    const onUiClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const btn = target.closest("button") as HTMLButtonElement | null;
@@ -85,7 +88,7 @@ export const useAudioBridge = () => {
       const attr = btn.dataset.uiSound as UiSound | undefined;
       audio.ui(attr && VALID_SOUNDS.has(attr) ? attr : "click");
     };
-    document.addEventListener("pointerdown", onUiPointerDown);
+    document.addEventListener("click", onUiClick);
 
     const unsub = useGame.getState().onEvent((e: GameEvent) => {
       const state = useGame.getState();
@@ -156,7 +159,7 @@ export const useAudioBridge = () => {
       unsub();
       unsubMusic();
       unsubFlames();
-      document.removeEventListener("pointerdown", onUiPointerDown);
+      document.removeEventListener("click", onUiClick);
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
     };
