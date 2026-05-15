@@ -109,7 +109,7 @@ export const SaveSlots = () => {
 
       <header className="save-slots-title">
         <h1>Extinction Protocol</h1>
-        <div className="save-slots-subtitle">{showMenu ? "Defense Network" : "Select a save"}</div>
+        {!showMenu && <div className="save-slots-subtitle">Select a save</div>}
       </header>
 
       {showMenu && (
