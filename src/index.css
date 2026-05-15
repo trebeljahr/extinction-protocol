@@ -2444,15 +2444,17 @@
   }
 
   /* When the picker pops open on mobile it sits as a wrapping flex
-     row that fits the small viewport (vs. the desktop single-row that
-     would overflow). The .tower-picker base rule still anchors it to
-     the bottom of the screen. */
+     row that hugs its content (vs. the desktop single-row that would
+     overflow). Centered horizontally and clamped to the viewport so it
+     never butts up against the edges. The .tower-picker base rule still
+     anchors it to the bottom of the screen. */
   .tower-picker-mobile-open {
     position: absolute;
-    left: 8px;
-    right: 8px;
+    left: 50%;
     bottom: calc(12px + var(--safe-bottom));
-    transform: none;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 16px);
+    width: max-content;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
