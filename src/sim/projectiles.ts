@@ -6,7 +6,9 @@ import { addShake, applyDamage, createExplosion, emit, spawnParticles } from "./
 const HIT_RADIUS = 0.5;
 
 const applyHit = (world: World, p: Projectile) => {
-  emit(world, { type: "impact", pos: p.pos });
+  const ownerKind =
+    p.ownerTowerId !== null ? (world.towerById.get(p.ownerTowerId)?.kind ?? null) : null;
+  if (ownerKind !== "pulse") emit(world, { type: "impact", pos: p.pos });
   // Carry T3 anti-modifier flags + kill-credit attribution from the
   // firing tower into applyDamage.
   const hitOpts = {
