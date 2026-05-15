@@ -149,6 +149,19 @@
     overscroll-behavior: none;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    /* Kill text selection app-wide — long-press on mobile and drag on
+       desktop otherwise pull a selection cursor over HUD copy, which
+       breaks game immersion and reveals the web origin. Form inputs
+       opt back in explicitly below. */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   canvas {
@@ -3516,11 +3529,11 @@
   }
   .save-slots-start-btn {
     font-family: var(--font-display);
-    font-size: var(--fs-lg);
-    letter-spacing: 0.28em;
+    font-size: var(--fs-h1);
+    letter-spacing: 0.32em;
     text-transform: uppercase;
-    padding: 14px 28px;
-    min-width: 220px;
+    padding: 18px 44px;
+    min-width: 260px;
   }
 
   /* Mobile-only back button (shown on `.save-slots-screen--slots` stage). */
@@ -3569,8 +3582,9 @@
     .save-slots-screen--menu .save-slots-menu-actions {
       display: flex;
       justify-content: center;
-      padding: 0 20px calc(40px + var(--safe-bottom));
-      margin-top: auto;
+      align-items: center;
+      flex: 1;
+      padding: 0 20px calc(20px + var(--safe-bottom));
       pointer-events: none;
       position: relative;
       z-index: 2;

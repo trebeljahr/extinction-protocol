@@ -120,7 +120,7 @@ export const SaveSlots = () => {
             onClick={() => setStage("slots")}
             data-ui-sound="open"
           >
-            Press Start
+            Start
           </button>
         </div>
       )}

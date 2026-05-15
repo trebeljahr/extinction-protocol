@@ -147,8 +147,22 @@ export const App = () => {
 
   // Entry-flow screens render standalone — no canvas, no HUD. They
   // sit above everything else and gate access to the gameplay canvas.
-  if (screen === "splash") return <Splash />;
-  if (screen === "slots") return <SaveSlots />;
+  // LandscapeNudge rides along so the rotate prompt appears from the
+  // very first menu screen, not only once gameplay starts.
+  if (screen === "splash")
+    return (
+      <>
+        <Splash />
+        <LandscapeNudge />
+      </>
+    );
+  if (screen === "slots")
+    return (
+      <>
+        <SaveSlots />
+        <LandscapeNudge />
+      </>
+    );
 
   return (
     <>
