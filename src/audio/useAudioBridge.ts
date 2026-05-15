@@ -40,17 +40,21 @@ export const useAudioBridge = () => {
       audio.crossfadeTo(pickTrack());
     });
 
+    // Compare via `ui.status` (a fresh snapshot per set()) rather than
+    // `world.status`. The store mutates `world` in place on pause, so
+    // `state.world === prev.world` and a direct `world.status` compare
+    // would never see the running→paused transition.
     const unsubFlames = useGame.subscribe((state, prev) => {
       const stateSig = activeFlameSignature(state.world.towers);
       const prevSig = activeFlameSignature(prev.world.towers);
       if (
         state.screen === prev.screen &&
-        state.world.status === prev.world.status &&
+        state.ui.status === prev.ui.status &&
         stateSig === prevSig
       ) {
         return;
       }
-      if (state.screen !== "playing" || state.world.status !== "running") {
+      if (state.screen !== "playing" || state.ui.status !== "running") {
         audio.stopAllFlames();
         return;
       }
