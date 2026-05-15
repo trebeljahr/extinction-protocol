@@ -284,15 +284,19 @@ export class AudioManager {
     const cooldownMs = kind === "pulse" ? 22 : 42;
     const lastAt = this.lastPulseAtByTower.get(towerKey) ?? 0;
     if (wallNow - lastAt < cooldownMs) return;
-    if (this.activePulseBursts.size >= 24) return;
+    if (this.activePulseBursts.size >= 30) return;
     this.lastPulseAtByTower.set(towerKey, wallNow);
     if (lastAt > 0) this.lastPulseIntervalByTower.set(towerKey, wallNow - lastAt);
 
     const isHive = kind === "hive";
     const interval = this.lastPulseIntervalByTower.get(towerKey) ?? 500;
     const rapid = !isHive && interval < 260;
-    const peak = isHive ? 0.24 : rapid ? 0.32 : 0.36;
-    const duration = isHive ? 0.075 : rapid ? 0.058 : 0.072;
+    // Per-shot pitch wobble (~4%) keeps consecutive rounds from feeling
+    // like a single looped sample - that "mechanical, not digital"
+    // quality is what separates a gatling burst from a synth tone.
+    const detune = !isHive ? 1 + (Math.random() - 0.5) * 0.08 : 1;
+    const peak = isHive ? 0.24 : rapid ? 0.44 : 0.4;
+    const duration = isHive ? 0.075 : rapid ? 0.065 : 0.08;
     const sampleRate = ctx.sampleRate;
     const length = Math.ceil(duration * sampleRate);
 
@@ -304,29 +308,35 @@ export class AudioManager {
 
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.Q.value = isHive ? 1.35 : rapid ? 2.35 : 2.1;
-    bp.frequency.setValueAtTime(isHive ? 2200 : rapid ? 3800 : 3300, now);
-    bp.frequency.exponentialRampToValueAtTime(isHive ? 1200 : rapid ? 2100 : 1700, now + duration);
+    bp.Q.value = isHive ? 1.35 : rapid ? 2.2 : 2.0;
+    bp.frequency.setValueAtTime((isHive ? 2200 : rapid ? 3500 : 3100) * detune, now);
+    bp.frequency.exponentialRampToValueAtTime(
+      (isHive ? 1200 : rapid ? 1900 : 1500) * detune,
+      now + duration,
+    );
 
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
-    hp.frequency.value = isHive ? 420 : 900;
+    hp.frequency.value = isHive ? 420 : 800;
 
     const noiseGain = ctx.createGain();
     noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(peak, now + 0.0012);
+    noiseGain.gain.linearRampToValueAtTime(peak * 0.82, now + 0.0006);
     noiseGain.gain.exponentialRampToValueAtTime(
       0.001,
-      now + (isHive ? 0.045 : rapid ? 0.034 : 0.046),
+      now + (isHive ? 0.045 : rapid ? 0.052 : 0.062),
     );
 
     noise.connect(bp).connect(hp).connect(noiseGain).connect(towersGain);
 
-    const bodyDur = isHive ? 0.05 : rapid ? 0.04 : 0.052;
+    const bodyDur = isHive ? 0.05 : rapid ? 0.058 : 0.07;
     const body = ctx.createOscillator();
     body.type = isHive ? "triangle" : "sawtooth";
-    body.frequency.setValueAtTime(isHive ? 250 : rapid ? 520 : 430, now);
-    body.frequency.exponentialRampToValueAtTime(isHive ? 88 : rapid ? 180 : 145, now + bodyDur);
+    body.frequency.setValueAtTime((isHive ? 250 : rapid ? 480 : 410) * detune, now);
+    body.frequency.exponentialRampToValueAtTime(
+      (isHive ? 88 : rapid ? 150 : 120) * detune,
+      now + bodyDur,
+    );
 
     const bodyFilter = ctx.createBiquadFilter();
     bodyFilter.type = "lowpass";
@@ -334,32 +344,49 @@ export class AudioManager {
 
     const bodyGain = ctx.createGain();
     bodyGain.gain.setValueAtTime(0, now);
-    bodyGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.24 : 0.3), now + 0.001);
+    bodyGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.24 : 0.42), now + 0.0008);
     bodyGain.gain.exponentialRampToValueAtTime(0.001, now + bodyDur);
 
     body.connect(bodyFilter).connect(bodyGain).connect(towersGain);
 
-    const clickDur = rapid ? 0.012 : 0.016;
+    // Sub-bass thump: a sine plunging from low to very-low gives the
+    // gas-operation thud of a heavy machine gun. Without it the burst
+    // is all mid/high content and reads as "hollow" / "digital" - that
+    // missing low-end layer is what the previous synth lacked.
+    const thumpDur = isHive ? 0.05 : rapid ? 0.06 : 0.075;
+    const thump = ctx.createOscillator();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime((isHive ? 110 : rapid ? 95 : 85) * detune, now);
+    thump.frequency.exponentialRampToValueAtTime(isHive ? 55 : 38, now + thumpDur);
+
+    const thumpGain = ctx.createGain();
+    thumpGain.gain.setValueAtTime(0, now);
+    thumpGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.4 : rapid ? 0.7 : 0.62), now + 0.001);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + thumpDur);
+
+    thump.connect(thumpGain).connect(towersGain);
+
+    const clickDur = rapid ? 0.014 : 0.018;
     const click = ctx.createOscillator();
     click.type = "square";
-    click.frequency.setValueAtTime(isHive ? 150 : rapid ? 260 : 220, now);
-    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : rapid ? 130 : 105, now + clickDur);
+    click.frequency.setValueAtTime(isHive ? 150 : rapid ? 280 : 230, now);
+    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : rapid ? 140 : 110, now + clickDur);
 
     const clickGain = ctx.createGain();
     clickGain.gain.setValueAtTime(0, now);
     clickGain.gain.linearRampToValueAtTime(
-      peak * (isHive ? 0.16 : rapid ? 0.34 : 0.27),
-      now + 0.0008,
+      peak * (isHive ? 0.16 : rapid ? 0.38 : 0.3),
+      now + 0.0005,
     );
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
 
     click.connect(clickGain).connect(towersGain);
 
-    const railDur = rapid ? 0.035 : 0.045;
+    const railDur = rapid ? 0.03 : 0.04;
     const rail = ctx.createOscillator();
     rail.type = "square";
-    rail.frequency.setValueAtTime(rapid ? 5200 : 4400, now);
-    rail.frequency.exponentialRampToValueAtTime(rapid ? 3000 : 2400, now + railDur);
+    rail.frequency.setValueAtTime((rapid ? 5000 : 4200) * detune, now);
+    rail.frequency.exponentialRampToValueAtTime((rapid ? 2900 : 2300) * detune, now + railDur);
 
     const railFilter = ctx.createBiquadFilter();
     railFilter.type = "highpass";
@@ -368,8 +395,8 @@ export class AudioManager {
     const railGain = ctx.createGain();
     railGain.gain.setValueAtTime(0, now);
     railGain.gain.linearRampToValueAtTime(
-      isHive ? 0.012 : peak * (rapid ? 0.11 : 0.08),
-      now + 0.0006,
+      isHive ? 0.012 : peak * (rapid ? 0.13 : 0.1),
+      now + 0.0005,
     );
     railGain.gain.exponentialRampToValueAtTime(0.001, now + railDur);
 
@@ -377,10 +404,12 @@ export class AudioManager {
 
     this.activePulseBursts.add(noise);
     this.activePulseBursts.add(body);
+    this.activePulseBursts.add(thump);
     this.activePulseBursts.add(click);
     this.activePulseBursts.add(rail);
     noise.onended = () => this.activePulseBursts.delete(noise);
     body.onended = () => this.activePulseBursts.delete(body);
+    thump.onended = () => this.activePulseBursts.delete(thump);
     click.onended = () => this.activePulseBursts.delete(click);
     rail.onended = () => this.activePulseBursts.delete(rail);
 
@@ -388,6 +417,8 @@ export class AudioManager {
     noise.stop(now + duration);
     body.start(now);
     body.stop(now + bodyDur);
+    thump.start(now);
+    thump.stop(now + thumpDur);
     click.start(now);
     click.stop(now + clickDur);
     rail.start(now);
