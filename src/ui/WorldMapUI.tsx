@@ -113,16 +113,44 @@ export const WorldMapUI = () => {
 
   return (
     <div className="hud">
-      <div className="world-map-title absolute top-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <div className="text-xl font-bold tracking-uber text-fg-secondary uppercase">
-          Extinction Protocol
-        </div>
-        <div className="text-xs tracking-[0.3em] text-fg-dim mt-1 uppercase">Select Outpost</div>
-      </div>
-
-      <div className="world-map-actions absolute top-6 right-6 flex gap-2.5 items-stretch pointer-events-none flex-wrap justify-end max-w-[calc(50vw-200px)]">
+      <div className="world-map-stats absolute top-6 left-6 flex flex-col gap-2 pointer-events-none">
         <MetaChip label="TOTAL STARS" value={total} max={maxTotal} />
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
+      </div>
+
+      <div className="world-map-actions absolute top-6 right-6 pointer-events-none">
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open menu"
+          title="Menu"
+        >
+          <span
+            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
+            aria-hidden
+          >
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="text-sm font-bold tracking-wide uppercase">Menu</span>
+        </button>
+      </div>
+
+      <div className="world-map-difficulty absolute bottom-6 left-6 pointer-events-none">
+        <button
+          type="button"
+          className={`world-map-utility-btn ${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
+          onClick={() => setDifficultyPickerOpen(true)}
+          aria-label="Change difficulty"
+          title="Change difficulty"
+        >
+          <DifficultyTag difficulty={difficulty} />
+        </button>
+      </div>
+
+      <div className="world-map-rd absolute bottom-6 right-6 pointer-events-none">
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
@@ -141,32 +169,6 @@ export const WorldMapUI = () => {
               {availableStars}
             </span>
           )}
-        </button>
-        <button
-          type="button"
-          className={`world-map-utility-btn ${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
-          onClick={() => setDifficultyPickerOpen(true)}
-          aria-label="Change difficulty"
-          title="Change difficulty"
-        >
-          <DifficultyTag difficulty={difficulty} />
-        </button>
-        <button
-          type="button"
-          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2.5 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setMenuOpen(true)}
-          aria-label="Open menu"
-          title="Menu"
-        >
-          <span
-            className="inline-flex flex-col justify-between w-[18px] h-[14px] [&>span]:block [&>span]:h-0.5 [&>span]:w-full [&>span]:bg-current [&>span]:rounded-[1px]"
-            aria-hidden
-          >
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="text-sm font-bold tracking-wide uppercase">Menu</span>
         </button>
       </div>
 
@@ -253,7 +255,7 @@ export const WorldMapUI = () => {
       )}
 
       {hovered && (
-        <div className="world-map-hover-card absolute left-6 bottom-20 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
+        <div className="world-map-hover-card absolute left-6 bottom-24 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
           <div className="flex gap-2.5 items-baseline mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
             <span className="text-xs font-bold text-gold tracking-mid">#{hovered.id}</span>
             <span className="text-[15px] font-bold text-fg flex-1">{hovered.name}</span>
