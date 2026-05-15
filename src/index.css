@@ -2426,6 +2426,13 @@
     border-color: rgba(255, 120, 120, 0.55);
     color: #ffd6d6;
   }
+  /* When a parked-drag Confirm pill follows Cancel, slide Cancel to
+     the left of center so they don't crash on narrow phones. Solo
+     Cancel stays centered (existing behavior). */
+  .tower-picker-handle-cancel:has(+ .tower-picker-handle-confirm) {
+    left: calc(12px + var(--safe-left, 0px));
+    transform: none;
+  }
   .tower-picker-handle-cancel-icon {
     display: inline-flex;
     align-items: center;
@@ -2438,6 +2445,30 @@
     font-size: 16px;
     line-height: 1;
     color: #ffd6d6;
+  }
+  .tower-picker-handle-confirm {
+    /* Right-anchored Confirm pill — appears only while a drag preview
+       is parked. Green styling so it reads as the affirmative action
+       opposite the red Cancel pill. */
+    left: auto;
+    right: calc(12px + var(--safe-right, 0px));
+    transform: none;
+    background: rgba(18, 56, 32, 0.94);
+    border-color: rgba(120, 255, 160, 0.55);
+    color: #d6ffe2;
+  }
+  .tower-picker-handle-confirm-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(120, 255, 160, 0.18);
+    border: 1px solid rgba(120, 255, 160, 0.55);
+    font-size: 13px;
+    line-height: 1;
+    color: #d6ffe2;
   }
 
   .tower-picker-close {

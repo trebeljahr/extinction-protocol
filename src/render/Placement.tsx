@@ -13,10 +13,11 @@ import { GhostTower } from "./GhostTower";
 type Vec2 = { x: number; y: number };
 
 const TOUCH_CLICK_SUPPRESS_MS = 700;
-// Pixel distance past which a single-finger touch is a pan, not a tap.
-// At/below this, lift commits a placement / selects. Above this, the
-// gesture is treated as a drag (OrbitControls handles the pan, and the
-// lift is ignored). 12px works on both desktop emulation and phones.
+// Pixel distance past which a single-finger touch counts as a drag.
+// At/below this, lift commits a placement / selects inline (snappy
+// tap UX). Above this, OrbitControls already panned the camera and
+// the lift parks a Confirm pill instead of placing — gives the player
+// a chance to fine-tune before committing.
 const TOUCH_TAP_THRESHOLD_PX = 12;
 // Window after a touch interaction during which gamepad cursor/button
 // input is ignored on the play canvas. Stops accidental stick deflection
@@ -102,6 +103,10 @@ export const Placement = () => {
       multiTouchRef.current = false;
       suppressClickUntilRef.current = 0;
     }
+    // Any kind change (including switch from one tower to another)
+    // invalidates a parked Confirm placement — it referred to the
+    // previous kind's footprint/cost.
+    useGame.setState({ pendingTouchPlacement: null });
   }, [selectedKind, setControllerActiveState, setControllerHoverState, setHoverState]);
 
   useGamepadInput((frame) => {
@@ -217,13 +222,18 @@ export const Placement = () => {
     if (isTouchEvent(e)) {
       lastTouchInputAtRef.current = Date.now();
       touchPointersRef.current.add(e.nativeEvent.pointerId);
-      if (touchPointersRef.current.size > 1) multiTouchRef.current = true;
-      else {
-        touchStartRef.current = {
-          x: e.nativeEvent.clientX,
-          y: e.nativeEvent.clientY,
-        };
+      if (touchPointersRef.current.size > 1) {
+        multiTouchRef.current = true;
+        touchStartRef.current = null;
+        return;
       }
+      // Starting a fresh single-finger interaction wipes any parked
+      // Confirm pending — the user is repositioning, not confirming.
+      useGame.setState({ pendingTouchPlacement: null });
+      touchStartRef.current = {
+        x: e.nativeEvent.clientX,
+        y: e.nativeEvent.clientY,
+      };
       return;
     }
     onPointerMove(e);
@@ -235,11 +245,10 @@ export const Placement = () => {
 
     const wasMultiTouch = multiTouchRef.current || touchPointersRef.current.size > 1;
     // Compare lift position to touchdown position — if the finger moved
-    // past the tap threshold the gesture was a pan, and OrbitControls
-    // already handled it. Computed against the down point (not via
-    // pointermove deltas) because R3F mesh moves only fire while the
-    // pointer is over the mesh, but pan can drag the finger past the
-    // HUD where mesh moves stop firing.
+    // past the tap threshold the gesture was a pan/drag. Computed against
+    // the down point (not via pointermove deltas) because R3F mesh moves
+    // only fire while the pointer is over the mesh, but pan can drag the
+    // finger past the HUD where mesh moves stop firing.
     const start = touchStartRef.current;
     let wasDragged = false;
     if (start) {
@@ -256,19 +265,23 @@ export const Placement = () => {
     }
 
     // Multi-touch (pinch/two-finger gesture) never commits a placement.
-    // A drag past the tap threshold was a pan, not a tap — firing
-    // tryPlaceOrSelect at the lift point would hijack the pan into a
-    // tower select or stray placement.
-    if (wasMultiTouch || wasDragged) {
+    if (wasMultiTouch) {
       suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
       return;
     }
 
-    // Single-finger tap places at the lift position. Done here rather
-    // than in onClick so we don't rely on R3F deciding the gesture was
-    // a "click" — a slight finger slide should still place where lifted.
     const pos = eventPoint(e);
     suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
+
+    // Drag → park preview at lift point and arm the Confirm pill so
+    // the player can fine-tune before committing. Tap → place inline
+    // for the snappy quick-tap UX.
+    if (wasDragged) {
+      setHoverState(pos);
+      useGame.getState().setPendingTouchPlacement(pos);
+      return;
+    }
+
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
     useGame.getState().tryPlaceOrSelect(pos);
   };

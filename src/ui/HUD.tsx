@@ -41,6 +41,7 @@ export const HUD = () => {
   const callEarlyTimer = useGame((s) => s.ui.callEarlyTimer);
   const selectedKind = useGame((s) => s.selectedKind);
   const setSelectedKind = useGame((s) => s.setSelectedKind);
+  const pendingTouchPlacement = useGame((s) => s.pendingTouchPlacement);
   const togglePause = useGame((s) => s.togglePause);
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
@@ -269,6 +270,22 @@ export const HUD = () => {
           </span>
           <span className="tower-picker-handle-label">Cancel</span>
           <span className="tower-picker-handle-active">{TOWER_LABEL[selectedKind]}</span>
+        </button>
+      )}
+
+      {isMobile && !pickerOpen && selectedKind !== null && pendingTouchPlacement !== null && (
+        <button
+          type="button"
+          className="tower-picker-handle tower-picker-handle-confirm"
+          onClick={() => useGame.getState().confirmTouchPlacement()}
+          aria-label={`Confirm placing ${TOWER_LABEL[selectedKind]}`}
+          title="Confirm placement"
+          data-ui-sound="select"
+        >
+          <span className="tower-picker-handle-confirm-icon" aria-hidden>
+            ✓
+          </span>
+          <span className="tower-picker-handle-label">Place</span>
         </button>
       )}
 

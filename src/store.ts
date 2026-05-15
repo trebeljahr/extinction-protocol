@@ -295,6 +295,12 @@ type GameStore = {
   selectedKind: TowerKind | null;
   selectedTreeId: number | null;
   selectedRockId: number | null;
+  // Mobile-only: when the player drags a finger to position the
+  // ghost tower, lifting does NOT place — it parks the cursor here
+  // and surfaces a Confirm button. A quick tap still places inline.
+  // Cleared on confirm, on a tap-place, on tower-kind change, and
+  // on every clearSelection.
+  pendingTouchPlacement: Vec2 | null;
   // Hive drone-assignment cursor: when set, the next tower click goes
   // to the drone slot identified here instead of selecting that tower.
   // Cleared by completing the assignment, clicking the same hive,
@@ -363,6 +369,8 @@ type GameStore = {
   canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
+  setPendingTouchPlacement: (pos: Vec2 | null) => void;
+  confirmTouchPlacement: () => void;
 
   selectTower: (id: number | null) => void;
   upgradeSelected: (branch: "a" | "b") => void;
@@ -520,6 +528,7 @@ export const useGame = create<GameStore>((set, get) => ({
   selectedKind: null,
   selectedTreeId: null,
   selectedRockId: null,
+  pendingTouchPlacement: null,
   assigningDroneSlot: null,
   eventListeners: [],
 
@@ -986,9 +995,21 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedKind: null,
       selectedTreeId: null,
       selectedRockId: null,
+      pendingTouchPlacement: null,
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
+  },
+
+  setPendingTouchPlacement: (pos) => {
+    set({ pendingTouchPlacement: pos });
+  },
+
+  confirmTouchPlacement: () => {
+    const pos = get().pendingTouchPlacement;
+    if (!pos) return;
+    set({ pendingTouchPlacement: null });
+    get().tryPlaceOrSelect(pos);
   },
 
   inspectEnemy: (id, kind, maxHp, bossVariant) => {
