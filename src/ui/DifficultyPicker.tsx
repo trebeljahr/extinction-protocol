@@ -61,7 +61,7 @@ export const DifficultyPicker = () => {
           </button>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-5 overflow-y-auto">
+        <div className="grid grid-cols-4 gap-2 p-3 sm:gap-3 sm:p-5 overflow-y-auto">
           {DIFFICULTIES.map((d) => {
             const m = DIFFICULTY_MULTIPLIERS[d];
             const accent = DIFFICULTY_ACCENT[d];
@@ -74,7 +74,7 @@ export const DifficultyPicker = () => {
                   setDifficulty(d);
                   audio.ui("select");
                 }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-lg border bg-surface-1 transition-all text-left cursor-pointer ${
+                className={`relative flex flex-col items-center gap-1 p-2 sm:gap-2 sm:p-4 rounded-lg border bg-surface-1 transition-all text-left cursor-pointer ${
                   active
                     ? `${accent.border} ${GLOW[d]}`
                     : "border-border hover:border-border-strong"
@@ -83,23 +83,23 @@ export const DifficultyPicker = () => {
               >
                 {active && (
                   <span
-                    className={`absolute top-2 right-2 text-[9px] font-bold tracking-wide uppercase ${accent.text}`}
+                    className={`absolute top-1 right-1 sm:top-2 sm:right-2 text-[9px] font-bold tracking-wide uppercase ${accent.text}`}
                   >
                     Active
                   </span>
                 )}
                 <div
-                  className={`w-full aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
+                  className={`w-12 h-12 sm:w-full sm:h-auto sm:aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
                 >
                   <DifficultyModelIcon difficulty={d} className="w-full h-full" />
                 </div>
-                <div className={`text-base font-bold ${accent.text} tracking-mid`}>
+                <div className={`text-xs sm:text-base font-bold ${accent.text} tracking-mid`}>
                   {DIFFICULTY_LABEL[d]}
                 </div>
-                <div className="text-[11px] text-fg-muted text-center min-h-[28px]">
+                <div className="hidden sm:block text-[11px] text-fg-muted text-center min-h-[28px]">
                   {DIFFICULTY_TAGLINE[d]}
                 </div>
-                <ul className="w-full text-[11px] text-fg-muted flex flex-col gap-1 mt-1 border-t border-border-faint pt-2 tabular-nums">
+                <ul className="hidden sm:flex w-full text-[11px] text-fg-muted flex-col gap-1 mt-1 border-t border-border-faint pt-2 tabular-nums">
                   <Stat label="Enemy HP" value={formatPercent(m.hp)} />
                   <Stat label="Start gold" value={formatPercent(m.startGold)} />
                   <Stat label="Gold/kill" value={formatPercent(m.goldKill)} />
