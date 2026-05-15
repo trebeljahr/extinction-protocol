@@ -250,179 +250,17 @@ export class AudioManager {
     }
   }
 
-  playShoot(kind: TowerKind, towerId?: number) {
+  playShoot(kind: TowerKind, _towerId?: number) {
     if (kind === "flame") return;
-    if (kind === "pulse" || kind === "hive") {
-      this.playPulseBurst(kind, towerId);
-      return;
-    }
-    const map: Record<TowerKind, [string, number, number, number]> = {
-      pulse: ["shoot-pulse", 0.35, 60, 0.7], // unused — see early return
+    const map: Record<Exclude<TowerKind, "flame">, [string, number, number, number]> = {
+      pulse: ["shoot-pulse", 0.35, 60, 0.7],
       chain: ["shoot-chain", 0.35, 90, 0.9],
       cryo: ["shoot-cryo", 0.45, 150, 1.1],
       mortar: ["shoot-mortar", 0.55, 200, 1.4],
-      flame: ["shoot-mortar", 0.3, 80, 0.6], // unused — see early return
-      hive: ["shoot-pulse", 0.28, 80, 0.7], // unused — see early return
+      hive: ["shoot-pulse", 0.28, 80, 0.7],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, "towers", vol, cd, maxDur);
-  }
-
-  // Synthesised pulse/rail burst: sharper and more layered than the old
-  // click-only transient, with per-tower cooldowns so fast towers keep
-  // their cadence instead of getting globally throttled.
-  private lastPulseAtByTower = new Map<number, number>();
-  private lastPulseIntervalByTower = new Map<number, number>();
-  private activePulseBursts = new Set<AudioScheduledSourceNode>();
-  playPulseBurst(kind: "pulse" | "hive", towerId?: number) {
-    const towersGain = this.busGains.towers;
-    if (!this.ctx || !towersGain || this.muted) return;
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    const wallNow = performance.now();
-    const towerKey = towerId ?? -1;
-    const cooldownMs = kind === "pulse" ? 22 : 42;
-    const lastAt = this.lastPulseAtByTower.get(towerKey) ?? 0;
-    if (wallNow - lastAt < cooldownMs) return;
-    if (this.activePulseBursts.size >= 30) return;
-    this.lastPulseAtByTower.set(towerKey, wallNow);
-    if (lastAt > 0) this.lastPulseIntervalByTower.set(towerKey, wallNow - lastAt);
-
-    const isHive = kind === "hive";
-    const interval = this.lastPulseIntervalByTower.get(towerKey) ?? 500;
-    const rapid = !isHive && interval < 260;
-    // Per-shot pitch wobble (~4%) keeps consecutive rounds from feeling
-    // like a single looped sample - that "mechanical, not digital"
-    // quality is what separates a gatling burst from a synth tone.
-    const detune = !isHive ? 1 + (Math.random() - 0.5) * 0.08 : 1;
-    const peak = isHive ? 0.24 : rapid ? 0.44 : 0.4;
-    const duration = isHive ? 0.075 : rapid ? 0.065 : 0.08;
-    const sampleRate = ctx.sampleRate;
-    const length = Math.ceil(duration * sampleRate);
-
-    const noiseBuf = ctx.createBuffer(1, length, sampleRate);
-    const data = noiseBuf.getChannelData(0);
-    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.Q.value = isHive ? 1.35 : rapid ? 2.2 : 2.0;
-    bp.frequency.setValueAtTime((isHive ? 2200 : rapid ? 3500 : 3100) * detune, now);
-    bp.frequency.exponentialRampToValueAtTime(
-      (isHive ? 1200 : rapid ? 1900 : 1500) * detune,
-      now + duration,
-    );
-
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = isHive ? 420 : 800;
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(peak * 0.82, now + 0.0006);
-    noiseGain.gain.exponentialRampToValueAtTime(
-      0.001,
-      now + (isHive ? 0.045 : rapid ? 0.052 : 0.062),
-    );
-
-    noise.connect(bp).connect(hp).connect(noiseGain).connect(towersGain);
-
-    const bodyDur = isHive ? 0.05 : rapid ? 0.058 : 0.07;
-    const body = ctx.createOscillator();
-    body.type = isHive ? "triangle" : "sawtooth";
-    body.frequency.setValueAtTime((isHive ? 250 : rapid ? 480 : 410) * detune, now);
-    body.frequency.exponentialRampToValueAtTime(
-      (isHive ? 88 : rapid ? 150 : 120) * detune,
-      now + bodyDur,
-    );
-
-    const bodyFilter = ctx.createBiquadFilter();
-    bodyFilter.type = "lowpass";
-    bodyFilter.frequency.setValueAtTime(isHive ? 1200 : rapid ? 2400 : 2100, now);
-
-    const bodyGain = ctx.createGain();
-    bodyGain.gain.setValueAtTime(0, now);
-    bodyGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.24 : 0.42), now + 0.0008);
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + bodyDur);
-
-    body.connect(bodyFilter).connect(bodyGain).connect(towersGain);
-
-    // Sub-bass thump: a sine plunging from low to very-low gives the
-    // gas-operation thud of a heavy machine gun. Without it the burst
-    // is all mid/high content and reads as "hollow" / "digital" - that
-    // missing low-end layer is what the previous synth lacked.
-    const thumpDur = isHive ? 0.05 : rapid ? 0.06 : 0.075;
-    const thump = ctx.createOscillator();
-    thump.type = "sine";
-    thump.frequency.setValueAtTime((isHive ? 110 : rapid ? 95 : 85) * detune, now);
-    thump.frequency.exponentialRampToValueAtTime(isHive ? 55 : 38, now + thumpDur);
-
-    const thumpGain = ctx.createGain();
-    thumpGain.gain.setValueAtTime(0, now);
-    thumpGain.gain.linearRampToValueAtTime(peak * (isHive ? 0.4 : rapid ? 0.7 : 0.62), now + 0.001);
-    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + thumpDur);
-
-    thump.connect(thumpGain).connect(towersGain);
-
-    const clickDur = rapid ? 0.014 : 0.018;
-    const click = ctx.createOscillator();
-    click.type = "square";
-    click.frequency.setValueAtTime(isHive ? 150 : rapid ? 280 : 230, now);
-    click.frequency.exponentialRampToValueAtTime(isHive ? 80 : rapid ? 140 : 110, now + clickDur);
-
-    const clickGain = ctx.createGain();
-    clickGain.gain.setValueAtTime(0, now);
-    clickGain.gain.linearRampToValueAtTime(
-      peak * (isHive ? 0.16 : rapid ? 0.38 : 0.3),
-      now + 0.0005,
-    );
-    clickGain.gain.exponentialRampToValueAtTime(0.001, now + clickDur);
-
-    click.connect(clickGain).connect(towersGain);
-
-    const railDur = rapid ? 0.03 : 0.04;
-    const rail = ctx.createOscillator();
-    rail.type = "square";
-    rail.frequency.setValueAtTime((rapid ? 5000 : 4200) * detune, now);
-    rail.frequency.exponentialRampToValueAtTime((rapid ? 2900 : 2300) * detune, now + railDur);
-
-    const railFilter = ctx.createBiquadFilter();
-    railFilter.type = "highpass";
-    railFilter.frequency.value = 1800;
-
-    const railGain = ctx.createGain();
-    railGain.gain.setValueAtTime(0, now);
-    railGain.gain.linearRampToValueAtTime(
-      isHive ? 0.012 : peak * (rapid ? 0.13 : 0.1),
-      now + 0.0005,
-    );
-    railGain.gain.exponentialRampToValueAtTime(0.001, now + railDur);
-
-    rail.connect(railFilter).connect(railGain).connect(towersGain);
-
-    this.activePulseBursts.add(noise);
-    this.activePulseBursts.add(body);
-    this.activePulseBursts.add(thump);
-    this.activePulseBursts.add(click);
-    this.activePulseBursts.add(rail);
-    noise.onended = () => this.activePulseBursts.delete(noise);
-    body.onended = () => this.activePulseBursts.delete(body);
-    thump.onended = () => this.activePulseBursts.delete(thump);
-    click.onended = () => this.activePulseBursts.delete(click);
-    rail.onended = () => this.activePulseBursts.delete(rail);
-
-    noise.start(now);
-    noise.stop(now + duration);
-    body.start(now);
-    body.stop(now + bodyDur);
-    thump.start(now);
-    thump.stop(now + thumpDur);
-    click.start(now);
-    click.stop(now + clickDur);
-    rail.start(now);
-    rail.stop(now + railDur);
   }
 
   // --- Continuous flamethrower sound (per-tower, looping sample) ---------
@@ -794,16 +632,6 @@ export class AudioManager {
       }
       set.clear();
     }
-    for (const src of this.activePulseBursts) {
-      try {
-        src.stop();
-      } catch {
-        /* ok */
-      }
-    }
-    this.activePulseBursts.clear();
-    this.lastPulseAtByTower.clear();
-    this.lastPulseIntervalByTower.clear();
     this.stopAllFlames();
   }
 

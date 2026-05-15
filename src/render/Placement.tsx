@@ -12,8 +12,6 @@ import { GhostTower } from "./GhostTower";
 
 type Vec2 = { x: number; y: number };
 
-const TOUCH_PLACEMENT_OFFSET_PX = 84;
-const TOUCH_PLACEMENT_STALE_MS = 900;
 const TOUCH_CLICK_SUPPRESS_MS = 700;
 // Window after a touch interaction during which gamepad cursor/button
 // input is ignored on the play canvas. Stops accidental stick deflection
@@ -26,7 +24,6 @@ const GAMEPAD_TOWER_ORDER: TowerKind[] = ["pulse", "chain", "flame", "hive", "mo
 export const Placement = () => {
   const { camera, gl } = useThree();
   const [hover, setHover] = useState<Vec2 | null>(null);
-  const [touchAnchor, setTouchAnchor] = useState<Vec2 | null>(null);
   const [controllerHover, setControllerHover] = useState<Vec2 | null>(null);
   const [controllerActive, setControllerActive] = useState(false);
   const hoverRef = useRef<Vec2 | null>(null);
@@ -35,10 +32,8 @@ export const Placement = () => {
   const raycasterRef = useRef(new THREE.Raycaster());
   const groundPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const groundPointRef = useRef(new THREE.Vector3());
-  const lastTouchPlacementRef = useRef<Vec2 | null>(null);
-  const lastTouchPlacementAtRef = useRef(0);
   const touchPointersRef = useRef<Set<number>>(new Set());
-  const multiTouchPlacementRef = useRef(false);
+  const multiTouchRef = useRef(false);
   const suppressClickUntilRef = useRef(0);
   const lastTouchInputAtRef = useRef(0);
   const gold = useGame((s) => s.ui.gold);
@@ -82,58 +77,25 @@ export const Placement = () => {
     return { x: hit.x, y: -hit.z };
   };
 
-  const eventPoint = (e: ThreeEvent<PointerEvent | MouseEvent>, offsetY = 0): Vec2 => {
+  const eventPoint = (e: ThreeEvent<PointerEvent | MouseEvent>): Vec2 => {
     const clientX = e.nativeEvent.clientX;
-    const clientY = e.nativeEvent.clientY - offsetY;
+    const clientY = e.nativeEvent.clientY;
     return pointFromScreen(clientX, clientY) ?? { x: e.point.x, y: -e.point.z };
   };
 
   const isTouchEvent = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
     "pointerType" in e.nativeEvent && e.nativeEvent.pointerType === "touch";
 
-  const clearTouchPlacement = useCallback(() => {
-    setTouchAnchor(null);
-    lastTouchPlacementRef.current = null;
-    lastTouchPlacementAtRef.current = 0;
-  }, []);
-
-  const updateTouchPlacement = (e: ThreeEvent<PointerEvent>): Vec2 => {
-    const pos = eventPoint(e, TOUCH_PLACEMENT_OFFSET_PX);
-    setControllerActiveState(false);
-    setHoverState(pos);
-    setTouchAnchor(eventPoint(e, 0));
-    lastTouchPlacementRef.current = pos;
-    lastTouchPlacementAtRef.current = Date.now();
-    return pos;
-  };
-
-  const touchPlacementCanConfirm = (pos: Vec2): boolean => {
-    const state = useGame.getState();
-    if (state.towerAtPos(pos)) return true;
-    const kind = state.selectedKind;
-    if (kind === null || state.ui.status !== "running") return false;
-    if (!state.freeTowers && state.ui.gold < effectiveTowerCost(kind, state.progress.metaSkills))
-      return false;
-    return state.canPlace(pos);
-  };
-
   useEffect(() => {
     if (!selectedKind) {
       setHoverState(null);
-      clearTouchPlacement();
       setControllerHoverState(null);
       setControllerActiveState(false);
       touchPointersRef.current.clear();
-      multiTouchPlacementRef.current = false;
+      multiTouchRef.current = false;
       suppressClickUntilRef.current = 0;
     }
-  }, [
-    selectedKind,
-    clearTouchPlacement,
-    setControllerActiveState,
-    setControllerHoverState,
-    setHoverState,
-  ]);
+  }, [selectedKind, setControllerActiveState, setControllerHoverState, setHoverState]);
 
   useGamepadInput((frame) => {
     if (!frame.gamepad) {
@@ -175,7 +137,6 @@ export const Placement = () => {
           : (currentIndex + direction + GAMEPAD_TOWER_ORDER.length) % GAMEPAD_TOWER_ORDER.length;
       state.setSelectedKind(GAMEPAD_TOWER_ORDER[nextIndex]);
       setControllerActiveState(true);
-      clearTouchPlacement();
     };
 
     if (frame.buttonPressed("lb")) cycleTower(-1);
@@ -224,7 +185,6 @@ export const Placement = () => {
       };
       setControllerActiveState(true);
       setControllerHoverState(next);
-      clearTouchPlacement();
     }
 
     if (frame.buttonPressed("a") && !touchLocked) {
@@ -237,28 +197,21 @@ export const Placement = () => {
   });
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
-    if (isTouchEvent(e)) lastTouchInputAtRef.current = Date.now();
-    if (isTouchEvent(e) && selectedKind && multiTouchPlacementRef.current) return;
-    if (isTouchEvent(e) && selectedKind) {
-      updateTouchPlacement(e);
+    if (isTouchEvent(e)) {
+      lastTouchInputAtRef.current = Date.now();
       return;
     }
-
     const pos = eventPoint(e);
     setControllerActiveState(false);
     setHoverState(pos);
-    clearTouchPlacement();
   };
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (isTouchEvent(e)) {
       lastTouchInputAtRef.current = Date.now();
       touchPointersRef.current.add(e.nativeEvent.pointerId);
-      if (selectedKind && touchPointersRef.current.size > 1) {
-        multiTouchPlacementRef.current = true;
-        clearTouchPlacement();
-        return;
-      }
+      if (touchPointersRef.current.size > 1) multiTouchRef.current = true;
+      return;
     }
     onPointerMove(e);
   };
@@ -267,26 +220,20 @@ export const Placement = () => {
     if (!isTouchEvent(e)) return;
     lastTouchInputAtRef.current = Date.now();
 
-    const wasMultiTouch = multiTouchPlacementRef.current || touchPointersRef.current.size > 1;
+    const wasMultiTouch = multiTouchRef.current || touchPointersRef.current.size > 1;
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
-    if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
-    if (!selectedKind) return;
+    if (touchPointersRef.current.size === 0) multiTouchRef.current = false;
 
-    // Multi-touch always suppresses the synthetic click — the remaining
-    // finger isn't a tap intent. For a single-finger lift, only suppress
-    // once we've actually committed a placement, so a failed canConfirm
-    // doesn't lock the player out of the next ~700ms of clicks.
+    // Multi-touch (pinch/two-finger gesture) never commits a placement.
     if (wasMultiTouch) {
       suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
       return;
     }
 
-    const hasFreshTouchPlacement =
-      lastTouchPlacementRef.current !== null &&
-      Date.now() - lastTouchPlacementAtRef.current < TOUCH_PLACEMENT_STALE_MS;
-    const pos = hasFreshTouchPlacement ? lastTouchPlacementRef.current! : updateTouchPlacement(e);
-    if (!touchPlacementCanConfirm(pos)) return;
-
+    // Single-finger tap places at the lift position. Done here rather
+    // than in onClick so we don't rely on R3F deciding the gesture was
+    // a "click" — a slight finger slide should still place where lifted.
+    const pos = eventPoint(e);
     suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
     useGame.getState().tryPlaceOrSelect(pos);
@@ -296,25 +243,18 @@ export const Placement = () => {
     if (!isTouchEvent(e)) return;
     lastTouchInputAtRef.current = Date.now();
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
-    if (touchPointersRef.current.size === 0) multiTouchPlacementRef.current = false;
+    if (touchPointersRef.current.size === 0) multiTouchRef.current = false;
   };
 
   const onPointerOut = (e: ThreeEvent<PointerEvent>) => {
-    if (isTouchEvent(e) && selectedKind) return;
-    if (!controllerActiveRef.current) {
-      setHoverState(null);
-      clearTouchPlacement();
-    }
+    if (isTouchEvent(e)) return;
+    if (!controllerActiveRef.current) setHoverState(null);
   };
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (Date.now() < suppressClickUntilRef.current) return;
-    const hasFreshTouchPlacement =
-      lastTouchPlacementRef.current !== null &&
-      Date.now() - lastTouchPlacementAtRef.current < TOUCH_PLACEMENT_STALE_MS;
-    const pos =
-      selectedKind && hasFreshTouchPlacement ? lastTouchPlacementRef.current! : eventPoint(e);
+    const pos = eventPoint(e);
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
     useGame.getState().tryPlaceOrSelect(pos);
   };
@@ -363,15 +303,6 @@ export const Placement = () => {
           <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[hoveredTower.range - 0.04, hoveredTower.range, 64]} />
             <meshBasicMaterial color="#ffd66a" transparent opacity={0.22} side={THREE.DoubleSide} />
-          </mesh>
-        </group>
-      )}
-
-      {showPlacement && touchAnchor && !controllerActive && (
-        <group position={[touchAnchor.x, 0, -touchAnchor.y]}>
-          <mesh position={[0, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.16, 0.26, 32]} />
-            <meshBasicMaterial color="#93c5fd" transparent opacity={0.34} side={THREE.DoubleSide} />
           </mesh>
         </group>
       )}
