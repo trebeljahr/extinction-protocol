@@ -11,7 +11,7 @@ import {
   PRELOAD_URLS,
 } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
-import { useGame } from "../store";
+import { EASTER_EGG_DESPAWN_FADE, useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
 
 const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
@@ -364,11 +364,27 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     const intensity = isUnlockPopRef.current ? baseIntensity * 1.6 : baseIntensity;
     const pop = computePop(popElapsed, intensity);
 
+    // Static gold-reward eggs (skull) shrink out over the despawn grace
+    // window so collecting one reads as the prop dissolving into the
+    // particle burst instead of disappearing on the same frame the click
+    // lands. Moving eggs keep fade=1 and just despawn at the edge.
+    let fade = 1;
+    if (
+      egg.triggered &&
+      egg.vel == null &&
+      egg.despawnAt !== null &&
+      def.goldReward !== undefined
+    ) {
+      const worldTime = useGame.getState().world.time;
+      const remaining = egg.despawnAt - worldTime;
+      fade = Math.max(0, Math.min(1, remaining / EASTER_EGG_DESPAWN_FADE));
+    }
+
     // Apply pop to the visible (inner) group only — the outer hit sphere
     // keeps its constant radius so multi-click eggs don't have a moving
     // hitbox between taps. Axial barrel-roll rotation lives here too.
     if (innerRef.current) {
-      innerRef.current.scale.setScalar(scale * pop);
+      innerRef.current.scale.setScalar(scale * pop * fade);
       if (egg.vel != null && def.clickRoll?.tumble) {
         innerRef.current.position.y = rollLift;
         _barrelForward.set(egg.vel.x, 0, -egg.vel.y);

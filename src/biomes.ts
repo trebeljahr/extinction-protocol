@@ -529,7 +529,6 @@ export const BIOME_STORY_PROPS: Record<Biome, string[]> = {
   desert: [
     "/models/landmarks/desert/Tent.glb",
     "/models/landmarks/desert/Chest.glb",
-    "/models/landmarks/desert/Skull.glb",
     "/models/scifi/rover.glb",
     "/models/scifi/barrels.glb",
   ],
@@ -540,7 +539,6 @@ export const BIOME_STORY_PROPS: Record<Biome, string[]> = {
     "/models/scifi/satelliteDish.glb",
   ],
   wasteland: [
-    "/models/landmarks/wasteland/Skull.glb",
     "/models/scifi/machine_barrelLarge.glb",
     "/models/scifi/meteor_detailed.glb",
     "/models/scifi/barrels.glb",

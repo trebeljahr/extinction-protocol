@@ -429,6 +429,12 @@ let nextToastKey = 1;
 
 const EASTER_EGG_CLICK_THRESHOLD = 10;
 
+// Seconds a static gold-reward egg lingers after being triggered so the
+// renderer can shrink it out instead of popping off the same frame the
+// click lands. The renderer reads `egg.triggered + despawnAt - world.time`
+// to drive the fade and the world tick despawns once the timer elapses.
+export const EASTER_EGG_DESPAWN_FADE = 0.6;
+
 const tryUnlockEasterEgg = (
   progress: ProgressData,
   id: AchievementId,
@@ -440,8 +446,9 @@ const tryUnlockEasterEgg = (
   };
 };
 
-const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty) => {
-  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty]);
+const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty, progress: ProgressData) => {
+  const unlockedAch = new Set(Object.keys(progress.unlocked));
+  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch);
   return {
     world,
     ui: snapshot(world, 0, 0, emptyInspect),
@@ -494,7 +501,7 @@ export const isUnlocked = (levelId: number, progress: ProgressData) =>
   isLevelUnlocked(levelId, progress);
 
 export const useGame = create<GameStore>((set, get) => ({
-  ...buildWorldForLevel(getLevel(1), DEFAULT_DIFFICULTY),
+  ...buildWorldForLevel(getLevel(1), DEFAULT_DIFFICULTY, emptyProgress()),
   engine: new Engine(),
   selectedKind: null,
   selectedTreeId: null,
@@ -526,7 +533,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const { engine, progress } = s;
     if (!isLevelUnlocked(id, progress)) return;
     engine.reset();
-    const built = buildWorldForLevel(level, progress.difficulty);
+    const built = buildWorldForLevel(level, progress.difficulty, progress);
     // Carry the debug invincibility flag across level starts/retries so a
     // toggled-on tester doesn't have to flip it again every restart.
     built.world.invincible = s.invincible;
@@ -612,7 +619,7 @@ export const useGame = create<GameStore>((set, get) => ({
       newEnemyQueue: [],
       deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
-      ...buildWorldForLevel(getLevel(1), progress.difficulty),
+      ...buildWorldForLevel(getLevel(1), progress.difficulty, progress),
     });
   },
 
@@ -1111,7 +1118,11 @@ export const useGame = create<GameStore>((set, get) => ({
         w.gold += def.goldReward;
         spawnParticles(w, egg.pos, 14, "#ffd700", [3, 6], 0.7);
         spawnParticles(w, egg.pos, 10, "#ffec80", [2, 4.5], 0.5);
-        egg.despawnAt = w.time;
+        // Give the renderer a short window to fade/shrink the model out
+        // rather than vanishing on the same tick the click registers.
+        // clickRoll eggs (the barrel) overwrite this below with their
+        // tumble lifetime; static gold rewards (skull) use the grace.
+        egg.despawnAt = w.time + EASTER_EGG_DESPAWN_FADE;
         emit(w, { type: "easter-egg-click" });
         updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
       }

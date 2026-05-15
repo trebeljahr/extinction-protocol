@@ -249,10 +249,14 @@ const buildEasterEggs = (
   seed: number,
   firstId: number,
   lava: LavaFeatures | null,
+  unlockedAchievements: ReadonlySet<string>,
 ): { eggs: EasterEgg[]; nextId: number } => {
   // Only consider statically-placed eggs here — moving ones spawn on a
-  // schedule via updateEasterEggs.
-  const matching = EASTER_EGG_DEFS.filter((d) => d.biomes.includes(biome) && !d.motion);
+  // schedule via updateEasterEggs. Eggs whose achievement has already
+  // been unlocked never spawn again so each surprise lands once per save.
+  const matching = EASTER_EGG_DEFS.filter(
+    (d) => d.biomes.includes(biome) && !d.motion && !unlockedAchievements.has(d.achievement),
+  );
   if (matching.length === 0) return { eggs: [], nextId: firstId };
   const rng = mulberry32(seed);
   if (rng() > 0.42) return { eggs: [], nextId: firstId };
@@ -313,9 +317,16 @@ const buildEasterEggs = (
   return { eggs: [], nextId: firstId };
 };
 
-const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEntry[] => {
+const buildEasterEggSchedule = (
+  biome: Biome,
+  seed: number,
+  unlockedAchievements: ReadonlySet<string>,
+): EasterEggScheduleEntry[] => {
   const matching = EASTER_EGG_DEFS.filter(
-    (d) => d.biomes.includes(biome) && d.scheduled !== undefined,
+    (d) =>
+      d.biomes.includes(biome) &&
+      d.scheduled !== undefined &&
+      !unlockedAchievements.has(d.achievement),
   );
   if (matching.length === 0) return [];
   const rng = mulberry32(seed);
@@ -329,6 +340,7 @@ const buildEasterEggSchedule = (biome: Biome, seed: number): EasterEggScheduleEn
 export const createWorld = (
   level: LevelConfig,
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
+  unlockedAchievements: ReadonlySet<string> = new Set(),
 ): World => {
   const biome = biomeForPos(level.nodePos);
   // Smooth the authored corner waypoints into the dense polyline that
@@ -353,8 +365,13 @@ export const createWorld = (
     level.id * 2311 + 47,
     afterRocks,
     lava,
+    unlockedAchievements,
   );
-  const easterEggSchedule = buildEasterEggSchedule(biome, level.id * 5471 + 3);
+  const easterEggSchedule = buildEasterEggSchedule(
+    biome,
+    level.id * 5471 + 3,
+    unlockedAchievements,
+  );
   // Compose per-level hpScale × difficulty.hp into each wave's hpMul. The
   // spawner already respects spec.hpMul, so baking it once at creation
   // means the rest of the sim doesn't need to know about difficulty.
@@ -465,20 +482,23 @@ export const updateEasterEggs = (world: World, dt: number) => {
     }
     world.easterEggSchedule = remaining;
   }
-  // Integrate motion + despawn expired eggs.
+  // Integrate motion + despawn expired eggs. Static gold-reward eggs (skull)
+  // get a short post-click grace via despawnAt so the renderer can fade them
+  // out rather than vanishing on the same frame the click registers.
   if (world.easterEggs.length > 0) {
     world.easterEggs = world.easterEggs.filter((egg) => {
-      if (!egg.vel) return true;
-      egg.pos.x += egg.vel.x * dt;
-      egg.pos.y += egg.vel.y * dt;
-      const def = EASTER_EGG_BY_ID[egg.defId];
-      // Tumble-mode eggs (barrel) keep their launch heading and accumulate
-      // spin into rollPitch so they roll about their long axis instead of
-      // pivoting around their vertical axis like a tumbleweed.
-      if (def?.clickRoll?.tumble) {
-        egg.rollPitch += egg.spin * dt;
-      } else {
-        egg.rotY += egg.spin * dt;
+      if (egg.vel) {
+        egg.pos.x += egg.vel.x * dt;
+        egg.pos.y += egg.vel.y * dt;
+        const def = EASTER_EGG_BY_ID[egg.defId];
+        // Tumble-mode eggs (barrel) keep their launch heading and accumulate
+        // spin into rollPitch so they roll about their long axis instead of
+        // pivoting around their vertical axis like a tumbleweed.
+        if (def?.clickRoll?.tumble) {
+          egg.rollPitch += egg.spin * dt;
+        } else {
+          egg.rotY += egg.spin * dt;
+        }
       }
       if (egg.despawnAt !== null && world.time >= egg.despawnAt) return false;
       return true;
