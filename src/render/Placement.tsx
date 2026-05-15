@@ -13,6 +13,11 @@ import { GhostTower } from "./GhostTower";
 type Vec2 = { x: number; y: number };
 
 const TOUCH_CLICK_SUPPRESS_MS = 700;
+// Pixel distance past which a single-finger touch is a pan, not a tap.
+// At/below this, lift commits a placement / selects. Above this, the
+// gesture is treated as a drag (OrbitControls handles the pan, and the
+// lift is ignored). 12px works on both desktop emulation and phones.
+const TOUCH_TAP_THRESHOLD_PX = 12;
 // Window after a touch interaction during which gamepad cursor/button
 // input is ignored on the play canvas. Stops accidental stick deflection
 // from kicking the player out of an active touch placement, and prevents
@@ -33,6 +38,7 @@ export const Placement = () => {
   const groundPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const groundPointRef = useRef(new THREE.Vector3());
   const touchPointersRef = useRef<Set<number>>(new Set());
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const multiTouchRef = useRef(false);
   const suppressClickUntilRef = useRef(0);
   const lastTouchInputAtRef = useRef(0);
@@ -92,6 +98,7 @@ export const Placement = () => {
       setControllerHoverState(null);
       setControllerActiveState(false);
       touchPointersRef.current.clear();
+      touchStartRef.current = null;
       multiTouchRef.current = false;
       suppressClickUntilRef.current = 0;
     }
@@ -211,6 +218,12 @@ export const Placement = () => {
       lastTouchInputAtRef.current = Date.now();
       touchPointersRef.current.add(e.nativeEvent.pointerId);
       if (touchPointersRef.current.size > 1) multiTouchRef.current = true;
+      else {
+        touchStartRef.current = {
+          x: e.nativeEvent.clientX,
+          y: e.nativeEvent.clientY,
+        };
+      }
       return;
     }
     onPointerMove(e);
@@ -221,11 +234,32 @@ export const Placement = () => {
     lastTouchInputAtRef.current = Date.now();
 
     const wasMultiTouch = multiTouchRef.current || touchPointersRef.current.size > 1;
+    // Compare lift position to touchdown position — if the finger moved
+    // past the tap threshold the gesture was a pan, and OrbitControls
+    // already handled it. Computed against the down point (not via
+    // pointermove deltas) because R3F mesh moves only fire while the
+    // pointer is over the mesh, but pan can drag the finger past the
+    // HUD where mesh moves stop firing.
+    const start = touchStartRef.current;
+    let wasDragged = false;
+    if (start) {
+      const dx = e.nativeEvent.clientX - start.x;
+      const dy = e.nativeEvent.clientY - start.y;
+      if (dx * dx + dy * dy > TOUCH_TAP_THRESHOLD_PX * TOUCH_TAP_THRESHOLD_PX) {
+        wasDragged = true;
+      }
+    }
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
-    if (touchPointersRef.current.size === 0) multiTouchRef.current = false;
+    if (touchPointersRef.current.size === 0) {
+      multiTouchRef.current = false;
+      touchStartRef.current = null;
+    }
 
     // Multi-touch (pinch/two-finger gesture) never commits a placement.
-    if (wasMultiTouch) {
+    // A drag past the tap threshold was a pan, not a tap — firing
+    // tryPlaceOrSelect at the lift point would hijack the pan into a
+    // tower select or stray placement.
+    if (wasMultiTouch || wasDragged) {
       suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
       return;
     }
@@ -243,7 +277,10 @@ export const Placement = () => {
     if (!isTouchEvent(e)) return;
     lastTouchInputAtRef.current = Date.now();
     touchPointersRef.current.delete(e.nativeEvent.pointerId);
-    if (touchPointersRef.current.size === 0) multiTouchRef.current = false;
+    if (touchPointersRef.current.size === 0) {
+      multiTouchRef.current = false;
+      touchStartRef.current = null;
+    }
   };
 
   const onPointerOut = (e: ThreeEvent<PointerEvent>) => {

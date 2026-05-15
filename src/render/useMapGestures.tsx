@@ -12,7 +12,6 @@ export type MapGestureConfig = {
   panSpeed?: number;
   zoomSpeed?: number;
   reserveLeftClick?: boolean;
-  reserveTouchPlacement?: boolean;
 };
 
 export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureConfig>(
@@ -25,7 +24,6 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       panSpeed = 1.4,
       zoomSpeed = 0.9,
       reserveLeftClick = false,
-      reserveTouchPlacement = false,
     },
     ref,
   ) {
@@ -59,10 +57,10 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
 
     const touches = useMemo(
       () => ({
-        ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
+        ONE: THREE.TOUCH.PAN,
         TWO: THREE.TOUCH.DOLLY_PAN,
       }),
-      [reserveTouchPlacement],
+      [],
     );
 
     return (

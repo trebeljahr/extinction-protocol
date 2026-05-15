@@ -71,7 +71,6 @@ export const CameraRig = () => {
 
   const paths = useGame((s) => s.world.paths);
   const levelId = useGame((s) => s.world.levelId);
-  const selectedKind = useGame((s) => s.selectedKind);
   const size = useThree((s) => s.size);
 
   // Local one-shot rumble triggered when the run flips to "lost". The
@@ -156,7 +155,6 @@ export const CameraRig = () => {
         panSpeed={1.4}
         zoomSpeed={0.9}
         reserveLeftClick
-        reserveTouchPlacement={selectedKind !== null}
       />
     </group>
   );
