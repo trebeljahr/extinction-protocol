@@ -45,14 +45,14 @@ export const useAudioBridge = () => {
     // `state.world === prev.world` and a direct `world.status` compare
     // would never see the running→paused transition.
     const unsubFlames = useGame.subscribe((state, prev) => {
-      const stateSig = activeFlameSignature(state.world.towers);
-      const prevSig = activeFlameSignature(prev.world.towers);
-      if (
-        state.screen === prev.screen &&
-        state.ui.status === prev.ui.status &&
-        stateSig === prevSig
-      ) {
-        return;
+      const towersChanged = state.world.towers !== prev.world.towers;
+      const screenChanged = state.screen !== prev.screen;
+      const statusChanged = state.ui.status !== prev.ui.status;
+      if (!towersChanged && !screenChanged && !statusChanged) return;
+      if (towersChanged && !screenChanged && !statusChanged) {
+        if (activeFlameSignature(state.world.towers) === activeFlameSignature(prev.world.towers)) {
+          return;
+        }
       }
       if (state.screen !== "playing" || state.ui.status !== "running") {
         audio.stopAllFlames();

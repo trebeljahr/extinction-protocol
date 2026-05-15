@@ -284,7 +284,7 @@ export class AudioManager {
     const cooldownMs = kind === "pulse" ? 22 : 42;
     const lastAt = this.lastPulseAtByTower.get(towerKey) ?? 0;
     if (wallNow - lastAt < cooldownMs) return;
-    if (this.activePulseBursts.size >= 18) return;
+    if (this.activePulseBursts.size >= 24) return;
     this.lastPulseAtByTower.set(towerKey, wallNow);
     if (lastAt > 0) this.lastPulseIntervalByTower.set(towerKey, wallNow - lastAt);
 
@@ -771,6 +771,8 @@ export class AudioManager {
       }
     }
     this.activePulseBursts.clear();
+    this.lastPulseAtByTower.clear();
+    this.lastPulseIntervalByTower.clear();
     this.stopAllFlames();
   }
 
