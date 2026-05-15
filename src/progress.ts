@@ -1,3 +1,4 @@
+import type { AllMetaSkills } from "./sim/metaSkills";
 import type { BossVariant, EnemyKind } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
@@ -76,6 +77,10 @@ export type ProgressData = {
   unlocked: Record<string, number>;
   difficulty: Difficulty;
   seenIntros?: Record<number, true>;
+  // Meta-skill ranks per tower kind. Each rank costs 1 star and is
+  // applied at tower creation. Total invested stars + freed stars must
+  // not exceed totalStars(progress) — enforced at the store layer.
+  metaSkills: AllMetaSkills;
 };
 
 export type SlotMeta = {
@@ -110,6 +115,7 @@ export const emptyProgress = (): ProgressData => ({
   unlocked: {},
   difficulty: DEFAULT_DIFFICULTY,
   seenIntros: {},
+  metaSkills: {},
 });
 
 const defaultName = (id: SlotId) => `Save ${id}`;
@@ -156,6 +162,8 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
       raw.seenIntros && typeof raw.seenIntros === "object"
         ? (raw.seenIntros as Record<number, true>)
         : {},
+    metaSkills:
+      raw.metaSkills && typeof raw.metaSkills === "object" ? (raw.metaSkills as AllMetaSkills) : {},
   };
 };
 

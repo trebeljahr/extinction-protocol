@@ -25,9 +25,18 @@ import {
   saveSlot,
   setDifficulty as setDifficultyOnProgress,
   starsForLives,
+  totalStars,
 } from "./progress";
 import { Engine } from "./sim/loop";
 import type { MechanicId } from "./sim/mechanicsText";
+import {
+  applyMetaSkillsToTower,
+  effectiveTowerCost,
+  resetAllRanks,
+  resetKindRanks,
+  setRank as setMetaSkillRank,
+  spentMetaStars,
+} from "./sim/metaSkills";
 import { segmentLength } from "./sim/path";
 import {
   canCallEarly,
@@ -65,7 +74,6 @@ import {
   spawnEnemy,
   spawnMovingEasterEgg,
   spawnParticles,
-  TOWER_COST,
   TOWER_FOOTPRINT,
   TREE_FOOTPRINT,
   TREE_REMOVE_COST,
@@ -309,6 +317,7 @@ type GameStore = {
   compendiumOpen: boolean;
   achievementsOpen: boolean;
   creditsOpen: boolean;
+  skillTreeOpen: boolean;
   achievementToasts: AchievementToast[];
   newEnemyQueue: NewSightingId[];
   deferredNewEnemyQueue: NewSightingId[];
@@ -330,6 +339,10 @@ type GameStore = {
   setCompendiumOpen: (open: boolean) => void;
   setAchievementsOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
+  setSkillTreeOpen: (open: boolean) => void;
+  setMetaSkillRank: (kind: TowerKind, nodeId: string, rank: number) => void;
+  resetMetaSkillsForKind: (kind: TowerKind) => void;
+  resetAllMetaSkills: () => void;
   setDifficulty: (difficulty: Difficulty) => void;
   difficultyPickerOpen: boolean;
   setDifficultyPickerOpen: (open: boolean) => void;
@@ -518,6 +531,7 @@ export const useGame = create<GameStore>((set, get) => ({
   compendiumOpen: false,
   achievementsOpen: false,
   creditsOpen: false,
+  skillTreeOpen: false,
   achievementToasts: [],
   newEnemyQueue: [],
   deferredNewEnemyQueue: [],
@@ -640,6 +654,40 @@ export const useGame = create<GameStore>((set, get) => ({
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
 
   setCreditsOpen: (open) => set({ creditsOpen: open }),
+
+  setSkillTreeOpen: (open) => set({ skillTreeOpen: open }),
+
+  // Updates the chosen tower's skill rank, clamped 0..MAX_RANK by the
+  // metaSkills helper. Refuses the update if the player doesn't have
+  // enough free stars; treated as a silent no-op so the UI's affordable
+  // check stays the single source of truth for disabled state.
+  setMetaSkillRank: (kind, nodeId, rank) => {
+    const s = get();
+    const earned = totalStars(s.progress);
+    const next = setMetaSkillRank(s.progress.metaSkills, kind, nodeId, rank);
+    if (next === s.progress.metaSkills) return;
+    if (spentMetaStars(next) > earned) return;
+    const progress = { ...s.progress, metaSkills: next };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  resetMetaSkillsForKind: (kind) => {
+    const s = get();
+    const next = resetKindRanks(s.progress.metaSkills, kind);
+    if (next === s.progress.metaSkills) return;
+    const progress = { ...s.progress, metaSkills: next };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  resetAllMetaSkills: () => {
+    const s = get();
+    if (Object.keys(s.progress.metaSkills).length === 0) return;
+    const progress = { ...s.progress, metaSkills: resetAllRanks() };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
 
   difficultyPickerOpen: false,
   setDifficultyPickerOpen: (open) => set({ difficultyPickerOpen: open }),
@@ -1254,7 +1302,7 @@ export const useGame = create<GameStore>((set, get) => ({
     // an active wave. Selection/deselection above is fine in any state
     // (auto-pause on new-enemy sighting is a common moment to deselect).
     if (w.status !== "running") return;
-    const cost = TOWER_COST[s.selectedKind];
+    const cost = effectiveTowerCost(s.selectedKind, s.progress.metaSkills);
     // Debug "free towers" mode skips both the affordability check and
     // the spend; lets a tester sanity-check matchups without grinding.
     const free = s.freeTowers;
@@ -1268,6 +1316,12 @@ export const useGame = create<GameStore>((set, get) => ({
     }
     if (!free) w.gold -= cost;
     const placed = createTower(w, s.selectedKind, pos);
+    // Bake meta-skill ranks into the new tower's base stats. Done after
+    // createTower (rather than inside it) so world.ts stays decoupled
+    // from the progress system. totalSpent stays at the original
+    // TOWER_COST baseline so sell refunds aren't inflated by discounts.
+    applyMetaSkillsToTower(placed, s.progress.metaSkills);
+    placed.totalSpent = cost;
     autoAssignDroneToNewTower(w, placed);
     emit(w, { type: "tower-placed", towerKind: s.selectedKind });
     // Keep the currently-picked tower kind selected (so the player can

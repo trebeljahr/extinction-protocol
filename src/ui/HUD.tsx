@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { getLevel, getLevelOrdinal } from "../levels";
 import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
+import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
-import {
-  DAMAGE_TYPE_COLOR,
-  DAMAGE_TYPE_LABEL,
-  TOWER_COST,
-  TOWER_DAMAGE_TYPE,
-  TOWER_LABEL,
-} from "../sim/world";
+import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
@@ -50,6 +45,7 @@ export const HUD = () => {
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
   const difficulty = useGame((s) => s.progress.difficulty);
+  const progress = useGame((s) => s.progress);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
@@ -250,7 +246,7 @@ export const HUD = () => {
             </button>
           )}
           {KINDS.map((kind) => {
-            const cost = TOWER_COST[kind];
+            const cost = effectiveTowerCost(kind, progress.metaSkills);
             const affordable = gold >= cost;
             const active = selectedKind === kind;
             const dmgType = TOWER_DAMAGE_TYPE[kind];

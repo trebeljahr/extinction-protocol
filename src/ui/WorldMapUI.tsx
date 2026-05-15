@@ -13,6 +13,7 @@ import {
   isLevelUnlocked,
   totalStars,
 } from "../progress";
+import { spentMetaStars } from "../sim/metaSkills";
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
@@ -48,6 +49,7 @@ export const WorldMapUI = () => {
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
+  const setSkillTreeOpen = useGame((s) => s.setSkillTreeOpen);
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   const difficulty = progress.difficulty;
@@ -65,6 +67,7 @@ export const WorldMapUI = () => {
   const total = totalStars(progress);
   const maxTotal = LEVELS.length * 3;
   const completed = LEVELS.filter((l) => getStars(progress, l.id) > 0).length;
+  const availableStars = Math.max(0, total - spentMetaStars(progress.metaSkills));
 
   useGamepadMenuNavigation(menuOpen);
 
@@ -121,6 +124,25 @@ export const WorldMapUI = () => {
         <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
         <button
           type="button"
+          className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
+          onClick={() => setSkillTreeOpen(true)}
+          aria-label="Open tower R&D"
+          title={
+            availableStars > 0
+              ? `Tower R&D — ${availableStars} star${availableStars === 1 ? "" : "s"} unspent`
+              : "Tower R&D"
+          }
+        >
+          <span className="text-base leading-none">★</span>
+          <span className="text-sm font-bold tracking-wide uppercase">R&amp;D</span>
+          {availableStars > 0 && (
+            <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-gold text-bg text-[11px] font-bold tabular-nums">
+              {availableStars}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
           className={`world-map-utility-btn ${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
           onClick={() => setDifficultyPickerOpen(true)}
           aria-label="Change difficulty"
@@ -163,6 +185,16 @@ export const WorldMapUI = () => {
               >
                 <DifficultyModelIcon difficulty={difficulty} className="w-5 h-5 shrink-0" />
                 Difficulty · {DIFFICULTY_LABEL[difficulty]}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSkillTreeOpen(true);
+                }}
+              >
+                Tower R&amp;D {availableStars > 0 ? `(${availableStars}★)` : ""}
               </button>
               <button
                 type="button"

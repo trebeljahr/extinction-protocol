@@ -4,8 +4,9 @@ import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
 import { GAMEPAD_STICK_DEADZONE, scaleGamepadAxis, useGamepadInput } from "../input/gamepad";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
-import { TOWER_COST, TOWER_STATS } from "../sim/world";
+import { TOWER_STATS } from "../sim/world";
 import { useGame } from "../store";
 import { GhostTower } from "./GhostTower";
 
@@ -111,7 +112,8 @@ export const Placement = () => {
     if (state.towerAtPos(pos)) return true;
     const kind = state.selectedKind;
     if (kind === null || state.ui.status !== "running") return false;
-    if (!state.freeTowers && state.ui.gold < TOWER_COST[kind]) return false;
+    if (!state.freeTowers && state.ui.gold < effectiveTowerCost(kind, state.progress.metaSkills))
+      return false;
     return state.canPlace(pos);
   };
 
@@ -324,7 +326,9 @@ export const Placement = () => {
     activeHover !== null && hoveredTower === null && status === "running" && selectedKind !== null;
 
   const canPlaceHere =
-    showPlacement && gold >= TOWER_COST[selectedKind!] && useGame.getState().canPlace(activeHover!);
+    showPlacement &&
+    gold >= effectiveTowerCost(selectedKind!, useGame.getState().progress.metaSkills) &&
+    useGame.getState().canPlace(activeHover!);
 
   const placementColor = canPlaceHere ? "#3dff8a" : "#ff5a7a";
   const range = selectedKind ? TOWER_STATS[selectedKind].range : 0;

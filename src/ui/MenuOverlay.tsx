@@ -7,6 +7,9 @@ type Props = {
   onClose: () => void;
   closeLabel?: string;
   closeTitle?: string;
+  // Extra classes appended to the card. Use `!w-…` to override the
+  // default 560px max-width when a wider modal is needed.
+  cardClassName?: string;
   children: React.ReactNode;
 };
 
@@ -16,6 +19,7 @@ export const MenuOverlay = ({
   onClose,
   closeLabel = "Close",
   closeTitle,
+  cardClassName = "",
   children,
 }: Props) => {
   useEffect(() => {
@@ -46,7 +50,9 @@ export const MenuOverlay = ({
         if (e.key === "Escape" && e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="overlay-card menu-overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left">
+      <div
+        className={`overlay-card menu-overlay-card relative min-w-[440px] pt-7 px-8 pb-6 text-left ${cardClassName}`}
+      >
         <button
           type="button"
           className="btn-close absolute top-3 right-3"

@@ -38,6 +38,9 @@ const CreditsPanel = lazy(() =>
 const DifficultyPicker = lazy(() =>
   import("./ui/DifficultyPicker").then((m) => ({ default: m.DifficultyPicker })),
 );
+const SkillTreePanel = lazy(() =>
+  import("./ui/SkillTreePanel").then((m) => ({ default: m.SkillTreePanel })),
+);
 
 const SceneRoot = () => {
   const screen = useGame((s) => s.screen);
@@ -82,10 +85,12 @@ export const App = () => {
   const achievementsOpen = useGame((s) => s.achievementsOpen);
   const creditsOpen = useGame((s) => s.creditsOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
+  const skillTreeOpen = useGame((s) => s.skillTreeOpen);
   const selectedKind = useGame((s) => s.selectedKind);
   const paused = useGame((s) => s.ui.status === "paused");
   const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
-  const modalOpen = compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen;
+  const modalOpen =
+    compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen || skillTreeOpen;
   const isMobile = useIsMobile();
   useInputModeSignal();
   useAudioBridge();
@@ -185,6 +190,11 @@ export const App = () => {
       {difficultyPickerOpen && (
         <Suspense fallback={null}>
           <DifficultyPicker />
+        </Suspense>
+      )}
+      {skillTreeOpen && (
+        <Suspense fallback={null}>
+          <SkillTreePanel />
         </Suspense>
       )}
       {screen === "playing" && levelIntroVisible && <LevelIntro />}
