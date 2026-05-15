@@ -1,5 +1,5 @@
 import { useGLTF } from "@react-three/drei";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
   BIOME_COSMETICS,
@@ -306,36 +306,163 @@ const cosmeticBaseScale = (source: MeshSource, url: string): number => {
   return TARGET_SIZE_BY_ROLE[classifyPropUrl(url)] / source.maxDim;
 };
 
-const TraceMarkMesh = ({ mark }: { mark: TraceMark }) => (
-  <group position={[mark.pos.x, 0.046, -mark.pos.y]} rotation={[0, mark.rotY, 0]}>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[mark.sx, mark.sy, 1]} raycast={noRaycast}>
-      <circleGeometry args={[1, 18]} />
-      <meshBasicMaterial color={mark.color} transparent opacity={mark.opacity} depthWrite={false} />
-    </mesh>
-  </group>
-);
+// Shared instanced geometry/material caches. Every level's traces +
+// markers collapse to four draw calls (one per part) regardless of how
+// many individual marks the layer produced.
+const STORY_GEOMS = {
+  trace: new THREE.CircleGeometry(1, 18),
+  markerPole: new THREE.CylinderGeometry(0.025, 0.035, 0.36, 7),
+  markerTri: new THREE.CircleGeometry(0.18, 3),
+};
 
-const WarningMarkerMesh = ({ marker }: { marker: WarningMarker }) => (
-  <group position={[marker.pos.x, 0, -marker.pos.y]} rotation={[0, marker.rotY, 0]}>
-    <mesh position={[0, 0.18, 0]} raycast={noRaycast}>
-      <cylinderGeometry args={[0.025, 0.035, 0.36, 7]} />
-      <meshStandardMaterial color={marker.accent} roughness={0.7} metalness={0.15} />
-    </mesh>
-    <mesh position={[0, 0.42, 0.018]} rotation={[0, 0, Math.PI / 2]} raycast={noRaycast}>
-      <circleGeometry args={[0.18, 3]} />
-      <meshBasicMaterial color={marker.color} side={THREE.DoubleSide} />
-    </mesh>
-    <mesh
-      position={[0, 0.42, 0.021]}
-      rotation={[0, 0, Math.PI / 2]}
-      scale={0.56}
+const traceMaterial = (color: string, opacity: number) =>
+  new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+const markerPoleMaterial = (accent: string) =>
+  new THREE.MeshStandardMaterial({ color: accent, roughness: 0.7, metalness: 0.15 });
+const markerTriMaterial = (color: string) =>
+  new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+
+const STORY_MATERIALS: Partial<
+  Record<
+    Biome,
+    {
+      trace: THREE.Material;
+      pole: THREE.Material;
+      tri: THREE.Material;
+      accent: THREE.Material;
+    }
+  >
+> = {};
+
+const storyMaterialsFor = (biome: Biome) => {
+  const cached = STORY_MATERIALS[biome];
+  if (cached) return cached;
+  const style = STORY_TRACE_STYLE[biome];
+  const built = {
+    trace: traceMaterial(style.trace, style.traceOpacity),
+    pole: markerPoleMaterial(style.markerAccent),
+    tri: markerTriMaterial(style.marker),
+    accent: markerTriMaterial(style.markerAccent),
+  };
+  STORY_MATERIALS[biome] = built;
+  return built;
+};
+
+const InstancedTraces = ({ items, biome }: { items: TraceMark[]; biome: Biome }) => {
+  const ref = useRef<THREE.InstancedMesh | null>(null);
+  const material = storyMaterialsFor(biome).trace;
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < items.length; i++) {
+      const m = items[i];
+      dummy.position.set(m.pos.x, 0.046, -m.pos.y);
+      // YXZ Euler so the composition is RotY(rotY) * RotX(-π/2) — same
+      // as the original group(rotY) + mesh(-π/2,0,0) nesting.
+      dummy.rotation.set(-Math.PI / 2, m.rotY, 0, "YXZ");
+      dummy.scale.set(m.sx, m.sy, 1);
+      dummy.updateMatrix();
+      ref.current.setMatrixAt(i, dummy.matrix);
+    }
+    ref.current.count = items.length;
+    ref.current.instanceMatrix.needsUpdate = true;
+  }, [items]);
+
+  if (items.length === 0) return null;
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[STORY_GEOMS.trace, material, items.length]}
       raycast={noRaycast}
-    >
-      <circleGeometry args={[0.18, 3]} />
-      <meshBasicMaterial color={marker.accent} side={THREE.DoubleSide} />
-    </mesh>
-  </group>
-);
+    />
+  );
+};
+
+// Per-instance matrix for a marker sub-part. The local offset is the
+// part's position inside the marker group; rotZ is its Z rotation.
+// Composition: position(marker) * RotY(rotY) * Translate(localOffset) * RotZ(rotZ) * Scale(scale).
+const setMarkerPartMatrix = (
+  dummy: THREE.Object3D,
+  m: WarningMarker,
+  localOffset: [number, number, number],
+  rotZ: number,
+  scale: number,
+) => {
+  const cos = Math.cos(m.rotY);
+  const sin = Math.sin(m.rotY);
+  const [lx, ly, lz] = localOffset;
+  // RotateY(rotY) applied to local offset:
+  //   wx =  lx * cos + lz * sin
+  //   wz = -lx * sin + lz * cos
+  const wx = lx * cos + lz * sin;
+  const wz = -lx * sin + lz * cos;
+  dummy.position.set(m.pos.x + wx, ly, -m.pos.y + wz);
+  // YXZ Euler so we end up with RotY(rotY) * RotZ(rotZ) — group rotation
+  // applied first, then the per-part Z rotation in the local frame.
+  dummy.rotation.set(0, m.rotY, rotZ, "YXZ");
+  dummy.scale.setScalar(scale);
+  dummy.updateMatrix();
+};
+
+const InstancedMarkers = ({ items, biome }: { items: WarningMarker[]; biome: Biome }) => {
+  const poleRef = useRef<THREE.InstancedMesh | null>(null);
+  const triRef = useRef<THREE.InstancedMesh | null>(null);
+  const accentRef = useRef<THREE.InstancedMesh | null>(null);
+  const mats = storyMaterialsFor(biome);
+
+  useEffect(() => {
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < items.length; i++) {
+      const m = items[i];
+      if (poleRef.current) {
+        setMarkerPartMatrix(dummy, m, [0, 0.18, 0], 0, 1);
+        poleRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      if (triRef.current) {
+        setMarkerPartMatrix(dummy, m, [0, 0.42, 0.018], Math.PI / 2, 1);
+        triRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      if (accentRef.current) {
+        setMarkerPartMatrix(dummy, m, [0, 0.42, 0.021], Math.PI / 2, 0.56);
+        accentRef.current.setMatrixAt(i, dummy.matrix);
+      }
+    }
+    if (poleRef.current) {
+      poleRef.current.count = items.length;
+      poleRef.current.instanceMatrix.needsUpdate = true;
+    }
+    if (triRef.current) {
+      triRef.current.count = items.length;
+      triRef.current.instanceMatrix.needsUpdate = true;
+    }
+    if (accentRef.current) {
+      accentRef.current.count = items.length;
+      accentRef.current.instanceMatrix.needsUpdate = true;
+    }
+  }, [items]);
+
+  if (items.length === 0) return null;
+  return (
+    <>
+      <instancedMesh
+        ref={poleRef}
+        args={[STORY_GEOMS.markerPole, mats.pole, items.length]}
+        raycast={noRaycast}
+      />
+      <instancedMesh
+        ref={triRef}
+        args={[STORY_GEOMS.markerTri, mats.tri, items.length]}
+        raycast={noRaycast}
+      />
+      <instancedMesh
+        ref={accentRef}
+        args={[STORY_GEOMS.markerTri, mats.accent, items.length]}
+        raycast={noRaycast}
+      />
+    </>
+  );
+};
 
 export const BiomeCosmetics = () => {
   const biome = useGame((s) => s.world.biome);
@@ -397,18 +524,8 @@ export const BiomeCosmetics = () => {
 
   return (
     <group>
-      {culledDetails.traces.map((mark) => (
-        <TraceMarkMesh
-          key={`${mark.pos.x.toFixed(2)}:${mark.pos.y.toFixed(2)}:${mark.rotY.toFixed(2)}`}
-          mark={mark}
-        />
-      ))}
-      {culledDetails.markers.map((marker) => (
-        <WarningMarkerMesh
-          key={`${marker.pos.x.toFixed(2)}:${marker.pos.y.toFixed(2)}:${marker.rotY.toFixed(2)}`}
-          marker={marker}
-        />
-      ))}
+      <InstancedTraces items={culledDetails.traces} biome={biome} />
+      <InstancedMarkers items={culledDetails.markers} biome={biome} />
       {culledDetails.groups.map(([url, items]) => (
         <InstancedGroup
           key={url}

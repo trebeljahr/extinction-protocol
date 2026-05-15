@@ -279,6 +279,13 @@ export const spawnerTick = (world: World, dt: number) => {
   }
 
   if (world.spawnQueue.length === 0 && world.bossTrickleStreams.length === 0) {
+    // Hold wave-clear until any enemy mid-HQ-attack has resolved. Without
+    // this, the "WAVE CLEAR +Xg" banner can show while a matriarch is
+    // still chomping the gate; the life loss then registers immediately
+    // afterward and reads as broken.
+    for (const e of world.enemies) {
+      if (e.alive && e.leak) return;
+    }
     world.waveActive = false;
     world.nextWaveIn = world.wave < world.totalWaves ? WAVE_GAP_SECONDS : 0;
     world.midwaveTimer = 0;

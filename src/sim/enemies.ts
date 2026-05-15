@@ -40,20 +40,30 @@ const applyLeakHit = (world: World, e: Enemy) => {
 const beginLeakAttack = (world: World, e: Enemy, path: Vec2[]) => {
   const end = path[path.length - 1];
   const dir = pathEndDirection(path);
+  const attackPos = {
+    x: end.x - dir.x * LEAK_ATTACK_STANDOFF,
+    y: end.y - dir.y * LEAK_ATTACK_STANDOFF,
+  };
+  // If the enemy has already overrun the standoff point (fast enemy on
+  // a slow frame can land past `attackPos`), start from the standoff so
+  // the run-in lerp never slides backwards.
+  const offsetX = e.pos.x - attackPos.x;
+  const offsetY = e.pos.y - attackPos.y;
+  const past = offsetX * dir.x + offsetY * dir.y > 0;
   e.leak = {
     startedAt: world.time,
     impactAt: world.time + LEAK_RUN_IN_SECONDS + LEAK_POSE_SECONDS,
-    startPos: { ...e.pos },
-    attackPos: {
-      x: end.x - dir.x * LEAK_ATTACK_STANDOFF,
-      y: end.y - dir.y * LEAK_ATTACK_STANDOFF,
-    },
+    startPos: past ? { ...attackPos } : { ...e.pos },
+    attackPos,
   };
   e.segment = path.length - 2;
   e.segmentT = 1;
   e.lateralOffset = 0;
   e.slowFactor = 1;
   e.slowUntil = 0;
+  // Clear frost so a cryo'd enemy doesn't pose at HQ with full blue
+  // tint — leak path skips the frost-decay branch in updateEnemies.
+  e.frost = 0;
 };
 
 const updateLeakAttack = (world: World, e: Enemy) => {
@@ -229,7 +239,10 @@ export const updateEnemies = (world: World, dt: number) => {
     // her current progress, with enough lateral spread to read as a
     // swarm bursting from around the body instead of a trailing queue.
     const mid = (c.spawnCount - 1) / 2;
-    const progressSpread = c.spawnCount > 1 ? (c.spawnIndex - mid) * 0.07 : -0.05;
+    // All children spawn AT or BEHIND the matriarch on the path. Positive
+    // progress would clip a hatchling through her model from the front,
+    // which the L5 raptor matriarch debut shows clearly.
+    const progressSpread = c.spawnCount > 1 ? -Math.abs(c.spawnIndex - mid) * 0.07 : -0.05;
     const sideSpread = c.spawnCount > 1 ? (c.spawnIndex - mid) * 0.42 : 0;
     child.lateralOffset += sideSpread;
     plantEnemyOnPath(world, child, c.pathIndex, c.segment, c.segmentT - 0.04 + progressSpread);

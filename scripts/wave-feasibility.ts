@@ -124,6 +124,10 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
     return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
   }
   if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen);
+  // Hive contributes 0 direct DPS — it buffs neighbour towers via
+  // drones, which this feasibility model doesn't simulate. Keep at 0
+  // so hive is never picked as a wave's "best" tower; do not reintroduce
+  // a 3× multiplier without modelling drone assignment.
   if (kind === "hive") return 0;
   return 1;
 };

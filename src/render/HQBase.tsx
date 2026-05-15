@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
-import { useMemo } from "react";
-import type * as THREE from "three";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import type { Vec2 } from "../sim/types";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
@@ -184,42 +184,163 @@ const HQBasePad = ({ position, yaw }: { position: [number, number]; yaw: number 
   </group>
 );
 
-const BasePrimitive = ({ item }: { item: PrimitiveInstance }) => {
-  if (item.kind === "light") {
-    return (
-      <group position={[item.pos.x, 0, -item.pos.y]} rotation={[0, item.rotY, 0]}>
-        <mesh position={[0, 0.26, 0]} raycast={noRaycast}>
-          <cylinderGeometry args={[0.035, 0.045, 0.52, 8]} />
-          <meshStandardMaterial color="#242b34" roughness={0.78} metalness={0.28} />
-        </mesh>
-        <mesh position={[0, 0.57, 0]} raycast={noRaycast}>
-          <sphereGeometry args={[0.09, 10, 8]} />
-          <meshStandardMaterial
-            color="#bdf4ff"
-            emissive="#5eeaff"
-            emissiveIntensity={1.4}
-            roughness={0.25}
-          />
-        </mesh>
-      </group>
-    );
-  }
+// Shared geometries/materials for the instanced fences + lights. Built
+// once at module load — every HQ pad reuses the same buffers so the
+// whole base-decoration layer collapses to five draw calls regardless
+// of how many paths the level has.
+const PRIMITIVE_GEOMS = {
+  fenceBar: new THREE.BoxGeometry(1, 0.08, 0.08),
+  fencePost: new THREE.BoxGeometry(0.08, 0.44, 0.08),
+  lightPole: new THREE.CylinderGeometry(0.035, 0.045, 0.52, 8),
+  lightBall: new THREE.SphereGeometry(0.09, 10, 8),
+};
+const PRIMITIVE_MATS = {
+  fenceBar: new THREE.MeshStandardMaterial({ color: "#3f4752", roughness: 0.72, metalness: 0.18 }),
+  fencePost: new THREE.MeshStandardMaterial({ color: "#2a313a", roughness: 0.75, metalness: 0.2 }),
+  lightPole: new THREE.MeshStandardMaterial({ color: "#242b34", roughness: 0.78, metalness: 0.28 }),
+  lightBall: new THREE.MeshStandardMaterial({
+    color: "#bdf4ff",
+    emissive: "#5eeaff",
+    emissiveIntensity: 1.4,
+    roughness: 0.25,
+  }),
+};
+
+type InstancedPart = {
+  geom: THREE.BufferGeometry;
+  mat: THREE.Material;
+  // Local offset (in the primitive's own frame) before applying the
+  // primitive's world position + rotY.
+  localPos: [number, number, number];
+  // x scale comes from the fence length; everything else stays at 1.
+  scaleFromLength?: boolean;
+};
+
+const buildMatrix = (
+  it: PrimitiveInstance,
+  part: InstancedPart,
+  dummy: THREE.Object3D,
+): THREE.Matrix4 => {
+  const cos = Math.cos(it.rotY);
+  const sin = Math.sin(it.rotY);
+  const [lx, ly, lz] = part.localPos;
+  // RotateY(rotY) applied to local offset:
+  //   wx =  lx * cos + lz * sin
+  //   wz = -lx * sin + lz * cos
+  const wx = lx * cos + lz * sin;
+  const wz = -lx * sin + lz * cos;
+  dummy.position.set(it.pos.x + wx, ly, -it.pos.y + wz);
+  dummy.rotation.set(0, it.rotY, 0);
+  const sx = part.scaleFromLength ? it.length : 1;
+  dummy.scale.set(sx, 1, 1);
+  dummy.updateMatrix();
+  return dummy.matrix;
+};
+
+const InstancedPrimitiveMesh = ({
+  items,
+  part,
+}: {
+  items: PrimitiveInstance[];
+  part: InstancedPart;
+}) => {
+  const ref = useRef<THREE.InstancedMesh | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < items.length; i++) {
+      ref.current.setMatrixAt(i, buildMatrix(items[i], part, dummy));
+    }
+    ref.current.count = items.length;
+    ref.current.instanceMatrix.needsUpdate = true;
+  }, [items, part]);
+
+  if (items.length === 0) return null;
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[part.geom, part.mat, items.length]}
+      raycast={noRaycast}
+      castShadow
+      receiveShadow
+    />
+  );
+};
+
+const BasePrimitives = ({ items }: { items: PrimitiveInstance[] }) => {
+  const fences = useMemo(() => items.filter((it) => it.kind === "fence"), [items]);
+  const lights = useMemo(() => items.filter((it) => it.kind === "light"), [items]);
 
   return (
-    <group position={[item.pos.x, 0, -item.pos.y]} rotation={[0, item.rotY, 0]}>
-      <mesh position={[0, 0.28, 0]} raycast={noRaycast}>
-        <boxGeometry args={[item.length, 0.08, 0.08]} />
-        <meshStandardMaterial color="#3f4752" roughness={0.72} metalness={0.18} />
-      </mesh>
-      <mesh position={[-item.length / 2, 0.22, 0]} raycast={noRaycast}>
-        <boxGeometry args={[0.08, 0.44, 0.08]} />
-        <meshStandardMaterial color="#2a313a" roughness={0.75} metalness={0.2} />
-      </mesh>
-      <mesh position={[item.length / 2, 0.22, 0]} raycast={noRaycast}>
-        <boxGeometry args={[0.08, 0.44, 0.08]} />
-        <meshStandardMaterial color="#2a313a" roughness={0.75} metalness={0.2} />
-      </mesh>
-    </group>
+    <>
+      <InstancedPrimitiveMesh
+        items={fences}
+        part={{
+          geom: PRIMITIVE_GEOMS.fenceBar,
+          mat: PRIMITIVE_MATS.fenceBar,
+          localPos: [0, 0.28, 0],
+          scaleFromLength: true,
+        }}
+      />
+      <FencePostsOffset items={fences} sign={-1} />
+      <FencePostsOffset items={fences} sign={1} />
+      <InstancedPrimitiveMesh
+        items={lights}
+        part={{
+          geom: PRIMITIVE_GEOMS.lightPole,
+          mat: PRIMITIVE_MATS.lightPole,
+          localPos: [0, 0.26, 0],
+        }}
+      />
+      <InstancedPrimitiveMesh
+        items={lights}
+        part={{
+          geom: PRIMITIVE_GEOMS.lightBall,
+          mat: PRIMITIVE_MATS.lightBall,
+          localPos: [0, 0.57, 0],
+        }}
+      />
+    </>
+  );
+};
+
+// Fence posts need a per-instance offset along the bar (±length/2). The
+// localPos in InstancedPart is fixed, so we add a thin wrapper that
+// shifts the localPos per render — both posts share the same geometry
+// and material, only the offset sign differs.
+const FencePostsOffset = ({ items, sign }: { items: PrimitiveInstance[]; sign: 1 | -1 }) => {
+  const ref = useRef<THREE.InstancedMesh | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const cos = Math.cos(it.rotY);
+      const sin = Math.sin(it.rotY);
+      const lx = (sign * it.length) / 2;
+      const wx = lx * cos;
+      const wz = -lx * sin;
+      dummy.position.set(it.pos.x + wx, 0.22, -it.pos.y + wz);
+      dummy.rotation.set(0, it.rotY, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      ref.current.setMatrixAt(i, dummy.matrix);
+    }
+    ref.current.count = items.length;
+    ref.current.instanceMatrix.needsUpdate = true;
+  }, [items, sign]);
+
+  if (items.length === 0) return null;
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[PRIMITIVE_GEOMS.fencePost, PRIMITIVE_MATS.fencePost, items.length]}
+      raycast={noRaycast}
+      castShadow
+      receiveShadow
+    />
   );
 };
 
@@ -315,10 +436,7 @@ export const HQBase = () => {
         // biome-ignore lint/suspicious/noArrayIndexKey: stable per level
         <HQBasePad key={i} position={pad.position} yaw={pad.yaw} />
       ))}
-      {visible.primitives.map((item, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: deterministic base layout
-        <BasePrimitive key={i} item={item} />
-      ))}
+      <BasePrimitives items={visible.primitives} />
       {[...grouped.entries()].map(([url, items]) => (
         <InstancedGroup
           key={url}

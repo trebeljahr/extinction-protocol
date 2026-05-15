@@ -68,6 +68,9 @@ const rockUrls = (biome: Biome): string[] =>
     .flatMap((l) => l.urls)
     .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
 
+// Tents are handled by the landmark bucket as hero objects on the world
+// map. Filter them out of the secondary story slot so a single node
+// doesn't end up with two tents stacked next to each other.
 const storyUrls = (biome: Biome): string[] =>
   BIOME_STORY_PROPS[biome].filter((u) => !/tent/i.test(u));
 

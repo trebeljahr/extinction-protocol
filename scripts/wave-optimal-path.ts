@@ -135,6 +135,7 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
   }
   if (s.splashRadius > 0) return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
   if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen);
+  // Hive contributes 0 direct DPS — see scripts/wave-feasibility.ts.
   if (kind === "hive") return 0;
   return 1;
 };
