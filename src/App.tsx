@@ -65,7 +65,15 @@ const isLowEndDevice = (): boolean => {
 
 const lowEnd = isLowEndDevice();
 const bloomKernel = lowEnd ? KernelSize.SMALL : KernelSize.MEDIUM;
-const dprCap: [number, number] = lowEnd ? [1, 1.75] : [1, 2];
+// Bumped low-end ceiling from 1.75 → 2 so retina phones don't sub-sample
+// the framebuffer. Sub-2× on a 3× device produces stair-step edges along
+// dinosaur silhouettes that no MSAA pass can fully hide.
+const dprCap: [number, number] = lowEnd ? [1, 2] : [1, 2];
+// MSAA in the postprocessing composer. The Canvas-level antialias prop
+// is bypassed once EffectComposer renders into its own multisample-less
+// render target, so silhouettes go jagged. Cheaper sample count on
+// low-end devices; 4x is the standard sweet-spot on desktop.
+const composerMultisampling = lowEnd ? 2 : 4;
 
 export const App = () => {
   const screen = useGame((s) => s.screen);
@@ -143,7 +151,7 @@ export const App = () => {
         <ErrorBoundary fallback={(error, reset) => <CanvasFailure error={error} reset={reset} />}>
           <Canvas shadows dpr={dprCap} gl={{ antialias: true }}>
             <SceneRoot />
-            <EffectComposer multisampling={0}>
+            <EffectComposer multisampling={composerMultisampling}>
               <Bloom
                 intensity={0.28}
                 luminanceThreshold={bloomThreshold}
