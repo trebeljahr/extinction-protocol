@@ -45,6 +45,7 @@ export const HUD = () => {
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
   const difficulty = useGame((s) => s.progress.difficulty);
+  const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const progress = useGame((s) => s.progress);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
@@ -178,12 +179,15 @@ export const HUD = () => {
             </div>
           </div>
         )}
-        <div
-          className={`${difficultyAccent.tint} border ${difficultyAccent.border} rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2`}
-          title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]}`}
+        <button
+          type="button"
+          onClick={() => setDifficultyPickerOpen(true)}
+          className={`${difficultyAccent.tint} border ${difficultyAccent.border} rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong`}
+          title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]} · Change`}
+          aria-label="Change difficulty"
         >
           <DifficultyTag difficulty={difficulty} label="Mode" size="sm" />
-        </div>
+        </button>
       </div>
 
       <button
