@@ -3544,8 +3544,17 @@
   /* On narrower viewports the 3-up bottom row would overflow — fall back
      to a single-column stack centred above the bottom edge. The screen
      splits into two stages: `--menu` keeps the diorama hero with just a
-     Start button; `--slots` swaps in the slot grid + a back affordance. */
-  @media (max-width: 780px) {
+     Start button; `--slots` swaps in the slot grid + a back affordance.
+     Three-pronged query mirrors `useIsMobile()` and adds a short-height
+     arm: narrow widths, coarse pointers up to 1024px (iPad portrait +
+     landscape phones with width 780–1024), and any viewport ≤500px tall
+     in the 1024px range (landscape phones regardless of pointer
+     detection, which is unreliable). Without these the JSX renders the
+     Start button on landscape phones but the base `display: none` hides
+     it — so the user can't open the game. */
+  @media (max-width: 780px),
+    (pointer: coarse) and (max-width: 1024px),
+    (max-height: 500px) and (max-width: 1024px) {
     .save-slots-grid {
       position: relative;
       grid-template-columns: 1fr;
