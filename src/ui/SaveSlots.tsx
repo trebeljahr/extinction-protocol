@@ -12,10 +12,19 @@ import { SaveSlotsScene } from "../render/SaveSlotsScene";
 import { useGame } from "../store";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { SettingsMenu } from "./SettingsMenu";
+import { useIsMobile } from "./useMediaQuery";
+
+type MobileStage = "menu" | "slots";
 
 export const SaveSlots = () => {
   const selectSlot = useGame((s) => s.selectSlot);
   const deleteSlot = useGame((s) => s.deleteSlot);
+  const isMobile = useIsMobile();
+
+  // Mobile splits this screen into two stages: a clean main menu that
+  // shows off the diorama, then a dedicated slot picker reached via a
+  // big Start button. Desktop ignores `stage` and renders both at once.
+  const [stage, setStage] = useState<MobileStage>("menu");
 
   // listSlots() reads localStorage directly — bumping `revision` forces
   // a re-render after delete since the store doesn't mirror slot
@@ -42,6 +51,19 @@ export const SaveSlots = () => {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [confirmDeleteId]);
 
+  // Back from slot picker to main menu on mobile.
+  useEffect(() => {
+    if (!isMobile || stage !== "slots") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (confirmDeleteId !== null) return;
+      e.preventDefault();
+      setStage("menu");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobile, stage, confirmDeleteId]);
+
   const confirmDelete = () => {
     if (confirmDeleteId === null) return;
     deleteSlot(confirmDeleteId);
@@ -49,8 +71,13 @@ export const SaveSlots = () => {
     setRevision((n) => n + 1);
   };
 
+  const showMenu = isMobile && stage === "menu";
+  const showSlots = !isMobile || stage === "slots";
+
   return (
-    <div className="save-slots-screen">
+    <div
+      className={`save-slots-screen ${showMenu ? "save-slots-screen--menu" : "save-slots-screen--slots"}`}
+    >
       <div className="save-slots-bg">
         <Canvas
           shadows
@@ -65,27 +92,55 @@ export const SaveSlots = () => {
 
       <div className="save-slots-vignette" aria-hidden />
 
+      {isMobile && stage === "slots" && (
+        <button
+          type="button"
+          className="save-slots-back-btn"
+          onClick={() => setStage("menu")}
+          aria-label="Back to main menu"
+          data-ui-sound="close"
+        >
+          <span aria-hidden>‹</span>
+          <span>Back</span>
+        </button>
+      )}
+
       <SettingsMenu />
 
       <header className="save-slots-title">
         <h1>Extinction Protocol</h1>
-        <div className="save-slots-subtitle">Select a save</div>
+        <div className="save-slots-subtitle">{showMenu ? "Defense Network" : "Select a save"}</div>
       </header>
 
-      <div className="save-slots-grid">
-        {slots.map((slot) => (
-          <SaveSlotTile
-            key={slot.id}
-            slot={slot}
-            totalLevels={totalLevels}
-            isConfirmingDelete={confirmDeleteId === slot.id}
-            onSelect={() => selectSlot(slot.id)}
-            onBeginDelete={() => beginDelete(slot.id)}
-            onConfirmDelete={confirmDelete}
-            onCancelDelete={() => setConfirmDeleteId(null)}
-          />
-        ))}
-      </div>
+      {showMenu && (
+        <div className="save-slots-menu-actions">
+          <button
+            type="button"
+            className="btn save-slots-start-btn"
+            onClick={() => setStage("slots")}
+            data-ui-sound="open"
+          >
+            Press Start
+          </button>
+        </div>
+      )}
+
+      {showSlots && (
+        <div className="save-slots-grid">
+          {slots.map((slot) => (
+            <SaveSlotTile
+              key={slot.id}
+              slot={slot}
+              totalLevels={totalLevels}
+              isConfirmingDelete={confirmDeleteId === slot.id}
+              onSelect={() => selectSlot(slot.id)}
+              onBeginDelete={() => beginDelete(slot.id)}
+              onConfirmDelete={confirmDelete}
+              onCancelDelete={() => setConfirmDeleteId(null)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

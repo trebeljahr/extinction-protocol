@@ -2855,6 +2855,9 @@
     .menu-overlay {
       padding: 0;
       place-items: stretch;
+      /* Solid backdrop on phones so the diorama/HUD don't bleed through the
+         card's 0.95-alpha fill — same colour as `--surface-1` family. */
+      background: #0a1016;
     }
     .menu-overlay-card {
       width: 100vw;
@@ -2869,6 +2872,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background: #121a24;
     }
     .menu-panel-scroll {
       max-height: none;
@@ -3505,11 +3509,32 @@
     line-height: 1.4;
   }
 
+  /* Mobile main menu action button (shown only on `.save-slots-screen--menu`).
+     Anchored low in the viewport so the diorama remains the hero. */
+  .save-slots-menu-actions {
+    display: none;
+  }
+  .save-slots-start-btn {
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    min-width: 220px;
+  }
+
+  /* Mobile-only back button (shown on `.save-slots-screen--slots` stage). */
+  .save-slots-back-btn {
+    display: none;
+  }
+
   /* On narrower viewports the 3-up bottom row would overflow — fall back
-     to a single-column stack centred above the bottom edge. */
+     to a single-column stack centred above the bottom edge. The screen
+     splits into two stages: `--menu` keeps the diorama hero with just a
+     Start button; `--slots` swaps in the slot grid + a back affordance. */
   @media (max-width: 780px) {
     .save-slots-grid {
-      position: static;
+      position: relative;
       grid-template-columns: 1fr;
       max-width: 420px;
       margin: 0 auto;
@@ -3522,7 +3547,7 @@
       flex-direction: column;
     }
     .save-slots-title {
-      position: static;
+      position: relative;
       padding: 36px 20px 20px;
     }
     .save-slots-bg {
@@ -3530,6 +3555,66 @@
     }
     .save-slot-tile {
       min-height: 0;
+    }
+
+    /* Menu stage: title sits up high, the start button anchors near the
+       bottom — both leave the middle band clear so the diorama reads. */
+    .save-slots-screen--menu {
+      overflow: hidden;
+      justify-content: flex-start;
+    }
+    .save-slots-screen--menu .save-slots-title {
+      padding: calc(48px + var(--safe-top)) 20px 0;
+    }
+    .save-slots-screen--menu .save-slots-menu-actions {
+      display: flex;
+      justify-content: center;
+      padding: 0 20px calc(40px + var(--safe-bottom));
+      margin-top: auto;
+      pointer-events: none;
+      position: relative;
+      z-index: 2;
+    }
+    .save-slots-screen--menu .save-slots-start-btn {
+      pointer-events: auto;
+    }
+
+    /* Slot stage: back button top-left, leave room under it for title. */
+    .save-slots-screen--slots .save-slots-title {
+      padding: calc(56px + var(--safe-top)) 20px 16px;
+    }
+    .save-slots-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      position: absolute;
+      top: calc(8px + var(--safe-top));
+      left: calc(8px + var(--safe-left));
+      z-index: 30;
+      background: rgba(10, 16, 22, 0.78);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(120, 160, 200, 0.22);
+      border-radius: var(--radius-md);
+      padding: 8px 12px 8px 8px;
+      color: var(--color-fg-secondary);
+      font: inherit;
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .save-slots-back-btn > :first-child {
+      font-size: 1.4em;
+      line-height: 1;
+      margin-top: -2px;
+    }
+    .save-slots-back-btn:hover,
+    .save-slots-back-btn:focus-visible {
+      color: #fff;
+      border-color: var(--color-blue);
     }
   }
 
