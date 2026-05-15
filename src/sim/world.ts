@@ -1229,6 +1229,8 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     kills: 0,
     damageDealt: 0,
     flameActive: false,
+    flameHeat: 0,
+    flameOverheatedUntil: 0,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);

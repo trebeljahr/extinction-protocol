@@ -284,6 +284,18 @@ export const FLAME_TAIL_FALLOFF = 0.45;
 const FLAME_DISTANCE_FALLOFF = 0.35;
 const FLAME_MIN_RANGE_MUL = 0.55;
 
+// Overheat. Pyre fills heat while engaging a target and locks itself
+// out once full so it can't solo persistent swarm waves — the player
+// has to layer explosive/cryo coverage to bridge the cool-down. Fill
+// time runs longer than lockout so steady-state uptime stays ~60%,
+// enough to remain a strong damage option but not the only answer.
+export const FLAME_HEAT_FILL_TIME = 2.5;
+export const FLAME_OVERHEAT_DURATION = 1.6;
+// Idle decay rate (heat/s). Faster than fill so a brief sightline
+// break fully resets the meter before re-engaging — the lockout is
+// the deterrent, not chronic heat carry-over between engagements.
+const FLAME_HEAT_RECOVERY = 0.6;
+
 type FlameHit = {
   enemy: Enemy;
   distance: number;
@@ -525,7 +537,8 @@ export const updateTowers = (world: World, dt: number) => {
     t.targetId = target?.id ?? null;
 
     if (t.kind === "flame") {
-      if (target) {
+      const overheated = world.time < t.flameOverheatedUntil;
+      if (target && !overheated) {
         if (!t.flameActive) {
           t.flameActive = true;
           emit(world, { type: "flame-start", towerId: t.id, pos: t.pos });
@@ -536,9 +549,22 @@ export const updateTowers = (world: World, dt: number) => {
           t.cooldown = 1 / effectiveFireRate(t);
           emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
         }
-      } else if (t.flameActive) {
-        t.flameActive = false;
-        emit(world, { type: "flame-stop", towerId: t.id });
+        t.flameHeat = Math.min(1, t.flameHeat + dt / FLAME_HEAT_FILL_TIME);
+        if (t.flameHeat >= 1) {
+          t.flameOverheatedUntil = world.time + FLAME_OVERHEAT_DURATION;
+          t.flameActive = false;
+          emit(world, { type: "flame-stop", towerId: t.id });
+        }
+      } else {
+        if (t.flameActive) {
+          t.flameActive = false;
+          emit(world, { type: "flame-stop", towerId: t.id });
+        }
+        // Bleed heat to zero across the lockout window so the meter
+        // is empty exactly when fire resumes; idle (non-overheated)
+        // recovery uses the slower constant rate.
+        const decay = overheated ? 1 / FLAME_OVERHEAT_DURATION : FLAME_HEAT_RECOVERY;
+        t.flameHeat = Math.max(0, t.flameHeat - dt * decay);
       }
       continue;
     }

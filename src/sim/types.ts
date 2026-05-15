@@ -179,6 +179,12 @@ export type Tower = {
   // the enemy's remaining HP so overkill doesn't inflate the stat).
   damageDealt: number;
   flameActive: boolean;
+  // Pyre overheat. `flameHeat` accumulates [0..1] while the tower is
+  // burning a target; on reaching 1 it triggers an enforced cool-down
+  // and `flameOverheatedUntil` is set to the sim time when firing can
+  // resume. Stops one Pyre from soloing infinite swarm waves by itself.
+  flameHeat: number;
+  flameOverheatedUntil: number;
 };
 
 export type Tree = {

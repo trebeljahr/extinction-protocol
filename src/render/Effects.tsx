@@ -75,6 +75,30 @@ export const Effects = () => {
     };
   }, [beamPairs]);
 
+  // Override the InstancedMesh bounding spheres so the renderer never
+  // culls them when their nominal origin pans off-screen — particle
+  // positions are baked into per-instance matrices, not the mesh's
+  // matrixWorld, so the default origin-radius-1 sphere fails the
+  // frustum test as soon as the player zooms in and pans away from
+  // origin. `frustumCulled={false}` covers the common path; this
+  // belts-and-suspenders the cases where Three.js recomputes the
+  // sphere on geometry change.
+  useEffect(() => {
+    const big = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1e4);
+    const meshes = [
+      particleRef.current,
+      explosionRef.current,
+      flashRef.current,
+      cryoWaveRef.current,
+      cryoHaloRef.current,
+    ];
+    for (const m of meshes) {
+      if (!m) continue;
+      m.boundingSphere = big.clone();
+      m.geometry.boundingSphere = big.clone();
+    }
+  }, []);
+
   useFrame((state) => {
     const { world } = useGame.getState();
     const now = world.time;

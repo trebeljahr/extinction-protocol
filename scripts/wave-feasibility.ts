@@ -25,7 +25,11 @@
 
 import { LEVELS } from "../src/levels";
 import { pathLength } from "../src/sim/path";
-import { flameThroughputCapacity } from "../src/sim/towers";
+import {
+  FLAME_HEAT_FILL_TIME,
+  FLAME_OVERHEAT_DURATION,
+  flameThroughputCapacity,
+} from "../src/sim/towers";
 import type { EnemyKind, EnemySpec, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
@@ -246,7 +250,14 @@ const effectiveDpsVsWave = (
   }
   const avgResist = totalHp > 0 ? weightedResist / totalHp : 1;
   const aoe = aoeMultiplier(cfg.kind, cfg, Math.min(wave.totalEnemies, 10));
-  return cfg.damage * cfg.fireRate * avgResist * aoe;
+  // Pyre's overheat lockout caps sustained uptime — fold the duty
+  // cycle into its DPS so feasibility doesn't credit it for the
+  // forced cool-down seconds.
+  const uptime =
+    cfg.kind === "flame"
+      ? FLAME_HEAT_FILL_TIME / (FLAME_HEAT_FILL_TIME + FLAME_OVERHEAT_DURATION)
+      : 1;
+  return cfg.damage * cfg.fireRate * avgResist * aoe * uptime;
 };
 
 // ------- Per-level analysis -------
