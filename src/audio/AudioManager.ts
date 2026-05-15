@@ -8,7 +8,6 @@ type Sample = {
 
 type FlameVoice = {
   sample: AudioBufferSourceNode;
-  noise: AudioBufferSourceNode;
   master: GainNode;
 };
 
@@ -271,18 +270,6 @@ export class AudioManager {
 
   private static readonly MAX_FLAME_VOICES = 4;
   private activeFlames = new Map<number, FlameVoice>();
-  private flameNoiseBuffer: AudioBuffer | null = null;
-
-  private ensureFlameNoiseBuffer() {
-    if (!this.ctx || this.flameNoiseBuffer) return this.flameNoiseBuffer;
-    const sampleRate = this.ctx.sampleRate;
-    const length = sampleRate;
-    const buf = this.ctx.createBuffer(1, length, sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
-    this.flameNoiseBuffer = buf;
-    return buf;
-  }
 
   startFlame(towerId: number) {
     const towersGain = this.busGains.towers;
@@ -298,45 +285,16 @@ export class AudioManager {
 
     const master = ctx.createGain();
     master.gain.setValueAtTime(0, now);
-    master.gain.linearRampToValueAtTime(0.5, now + 0.08);
+    master.gain.linearRampToValueAtTime(0.55, now + 0.06);
     master.connect(towersGain);
-
-    const tone = ctx.createBiquadFilter();
-    tone.type = "lowpass";
-    tone.frequency.setValueAtTime(2600, now);
-    tone.Q.value = 0.75;
-    tone.connect(master);
-
-    const sampleGain = ctx.createGain();
-    sampleGain.gain.value = 0.58;
-    sampleGain.connect(tone);
 
     const sampleSrc = ctx.createBufferSource();
     sampleSrc.buffer = sample.buffer;
     sampleSrc.loop = true;
-    sampleSrc.playbackRate.value = 0.94 + Math.random() * 0.12;
-    sampleSrc.connect(sampleGain);
+    sampleSrc.connect(master);
     sampleSrc.start(now, Math.random() * sample.buffer.duration);
 
-    const noiseBuf = this.ensureFlameNoiseBuffer();
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-    noise.loop = true;
-
-    const noiseHp = ctx.createBiquadFilter();
-    noiseHp.type = "highpass";
-    noiseHp.frequency.value = 150;
-
-    const noiseLp = ctx.createBiquadFilter();
-    noiseLp.type = "lowpass";
-    noiseLp.frequency.value = 2200;
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.12;
-    noise.connect(noiseHp).connect(noiseLp).connect(noiseGain).connect(master);
-    noise.start(now, Math.random());
-
-    this.activeFlames.set(towerId, { sample: sampleSrc, noise, master });
+    this.activeFlames.set(towerId, { sample: sampleSrc, master });
   }
 
   stopFlame(towerId: number) {
@@ -354,11 +312,6 @@ export class AudioManager {
     const stopAt = now + fade + 0.01;
     try {
       flame.sample.stop(stopAt);
-    } catch {
-      /* ok */
-    }
-    try {
-      flame.noise.stop(stopAt);
     } catch {
       /* ok */
     }
