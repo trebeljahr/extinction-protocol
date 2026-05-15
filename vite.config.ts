@@ -51,6 +51,27 @@ export default defineConfig(async ({ command, mode }) => {
   const hatchkitPlugins =
     command === "serve" && env.HATCHKIT_LOCAL_DEV !== "0" ? await loadHatchkitLocalDev() : [];
 
+  // Re-add the Network: <tailscale/LAN IP> banner that the hatchkit
+  // plugin strips. Wraps `server.printUrls` after hatchkit's override
+  // so we still get Local (vite) → Network (this) → Tailscale (hatchkit,
+  // async). Loaded only on `vite` (serve), pass-through on build.
+  const networkUrlsPlugin: PluginOption = {
+    name: "print-network-urls",
+    apply: "serve",
+    configureServer(server) {
+      const wrapped = server.printUrls.bind(server);
+      server.printUrls = () => {
+        wrapped();
+        const network = server.resolvedUrls?.network ?? [];
+        for (const url of network) {
+          server.config.logger.info(
+            `  \x1b[32m➜\x1b[0m  \x1b[1mNetwork\x1b[0m: \x1b[36m${url}\x1b[0m`,
+          );
+        }
+      };
+    },
+  };
+
   return {
     plugins: [
       react(),
@@ -67,6 +88,7 @@ export default defineConfig(async ({ command, mode }) => {
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.
       ...hatchkitPlugins,
+      networkUrlsPlugin,
     ] as PluginOption[],
     clearScreen: false,
     server: {
