@@ -226,7 +226,7 @@ export const HUD = () => {
         </span>
       </button>
 
-      {isMobile && !pickerOpen && (
+      {isMobile && !pickerOpen && selectedKind === null && (
         <button
           type="button"
           className="tower-picker-handle"
@@ -246,9 +246,23 @@ export const HUD = () => {
             <span />
           </span>
           <span className="tower-picker-handle-label">Build</span>
-          {selectedKind && (
-            <span className="tower-picker-handle-active">{TOWER_LABEL[selectedKind]}</span>
-          )}
+        </button>
+      )}
+
+      {isMobile && !pickerOpen && selectedKind !== null && (
+        <button
+          type="button"
+          className="tower-picker-handle tower-picker-handle-cancel"
+          onClick={() => useGame.getState().clearSelection()}
+          aria-label={`Cancel placing ${TOWER_LABEL[selectedKind]}`}
+          title="Cancel placement"
+          data-ui-sound="close"
+        >
+          <span className="tower-picker-handle-cancel-icon" aria-hidden>
+            ×
+          </span>
+          <span className="tower-picker-handle-label">Cancel</span>
+          <span className="tower-picker-handle-active">{TOWER_LABEL[selectedKind]}</span>
         </button>
       )}
 
