@@ -149,7 +149,8 @@ export const Trees = () => {
         setHoveredId={setHoveredId}
       />
 
-      {hovered &&
+      {running &&
+        hovered &&
         hovered.id !== selectedTreeId &&
         (() => {
           const r = treeSelectionRadius(sources[hovered.variant], hovered.scale);
@@ -169,7 +170,8 @@ export const Trees = () => {
             </group>
           );
         })()}
-      {selected &&
+      {running &&
+        selected &&
         (() => {
           const r = treeSelectionRadius(sources[selected.variant], selected.scale);
           return (

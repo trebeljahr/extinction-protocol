@@ -1291,12 +1291,10 @@ export const useGame = create<GameStore>((set, get) => ({
       nextHive.id === s.assigningDroneSlot.hiveId;
     world.selectedTowerId = id;
     const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
-    const nextTree = id !== null ? null : s.selectedTreeId;
-    const nextRock = id !== null ? null : s.selectedRockId;
     set({
       selectedKind: id !== null ? null : s.selectedKind,
-      selectedTreeId: nextTree,
-      selectedRockId: nextRock,
+      selectedTreeId: null,
+      selectedRockId: null,
       inspectedEnemy: nextInspect,
       assigningDroneSlot: keepAssigning ? s.assigningDroneSlot : null,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),

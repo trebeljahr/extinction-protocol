@@ -159,7 +159,7 @@ export const HUD = () => {
             title={showKeyboardHints ? "Call next wave early (Space)" : "Call next wave early"}
           >
             <div className="stat-label text-mint">
-              CALL WAVE <span className="kbd-only">[Space]</span>
+              CALL NEXT WAVE <span className="kbd-only">[Space]</span>
             </div>
             <div className="stat-value">
               +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
@@ -167,7 +167,7 @@ export const HUD = () => {
           </button>
         ) : (
           <Stat
-            label={waveActive || wave >= totalWaves ? "WAVE" : "NEXT"}
+            label={wave >= totalWaves ? "FINAL WAVE" : waveActive ? "WAVE" : "NEXT"}
             value={waveStatus}
             accentClass="text-mint"
           />

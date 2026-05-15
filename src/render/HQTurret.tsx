@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
@@ -32,6 +32,7 @@ const SHOCKWAVE_DURATION = 0.85;
 type Pose = {
   position: [number, number];
   yaw: number;
+  pathIndex: number;
 };
 
 // Inner ref-driven HQ. Wraps the cloned model in an outer group so we can
@@ -73,9 +74,21 @@ const HQOne = ({ pose }: { pose: Pose }) => {
 
   // Live event tracking — we read these inside useFrame rather than via
   // selectors so the component never re-mounts between waves.
-  const livesRef = useRef(useGame.getState().world.lives);
   const flashUntilRef = useRef(0);
   const lostStartRef = useRef<number | null>(null);
+
+  // Per-HQ flash: subscribe to life-lost events and trigger only when the
+  // leak came down THIS HQ's path. Watching `world.lives` directly would
+  // flash every HQ on the map since lives is a single global counter.
+  useEffect(() => {
+    const unsub = useGame.getState().onEvent((ev) => {
+      if (ev.type !== "life-lost") return;
+      if (ev.pathIndex !== pose.pathIndex) return;
+      if (useGame.getState().world.status === "lost") return;
+      flashUntilRef.current = performance.now() / 1000 + FLASH_DURATION;
+    });
+    return unsub;
+  }, [pose.pathIndex]);
 
   useFrame(() => {
     const outer = outerRef.current;
@@ -95,14 +108,6 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     } else {
       lostStartRef.current = null;
     }
-
-    // Damage flash on `lives` decrease. We skip the flash on the killing
-    // blow itself — the death sequence is its own brighter flash, no need
-    // to double up.
-    if (world.lives < livesRef.current && world.status !== "lost") {
-      flashUntilRef.current = now + FLASH_DURATION;
-    }
-    livesRef.current = world.lives;
 
     const lostAt = lostStartRef.current;
     const deathT = lostAt === null ? 0 : Math.min(1, (now - lostAt) / DEATH_DURATION);
@@ -246,7 +251,8 @@ export const HQTurrets = () => {
   const paths = useGame((s) => s.world.paths);
   const poses = useMemo<Pose[]>(() => {
     const out: Pose[] = [];
-    for (const path of paths) {
+    for (let i = 0; i < paths.length; i++) {
+      const path = paths[i];
       if (path.length < 2) continue;
       const last = path[path.length - 1];
       const prev = path[path.length - 2];
@@ -256,7 +262,7 @@ export const HQTurrets = () => {
       const incomingX = prev.x - last.x;
       const incomingY = prev.y - last.y;
       const yaw = Math.atan2(incomingX, -incomingY);
-      out.push({ position: [last.x, last.y], yaw });
+      out.push({ position: [last.x, last.y], yaw, pathIndex: i });
     }
     return out;
   }, [paths]);
@@ -264,9 +270,8 @@ export const HQTurrets = () => {
   if (poses.length === 0) return null;
   return (
     <>
-      {poses.map((pose, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: pose array is stable per level
-        <HQOne key={i} pose={pose} />
+      {poses.map((pose) => (
+        <HQOne key={pose.pathIndex} pose={pose} />
       ))}
     </>
   );

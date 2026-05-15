@@ -29,7 +29,7 @@ const pathEndDirection = (path: Vec2[]): Vec2 => {
 const applyLeakHit = (world: World, e: Enemy) => {
   if (!world.invincible) world.lives -= e.damage;
   e.alive = false;
-  emit(world, { type: "life-lost" });
+  emit(world, { type: "life-lost", pathIndex: e.pathIndex });
   // Slight jolt so the hit registers — previous 0.18 mag with decay 6
   // faded in two frames and was easy to miss. Scales with the enemy's
   // damage so a titan at the gate hits harder than a lone raptor.

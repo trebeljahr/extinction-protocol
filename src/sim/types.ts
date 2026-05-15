@@ -353,7 +353,7 @@ export type GameEvent =
   | { type: "wave-clear"; wave: number }
   | { type: "boss-wave-start"; wave: number }
   | { type: "boss-defeated"; wave: number; bonus: number }
-  | { type: "life-lost" }
+  | { type: "life-lost"; pathIndex: number }
   | { type: "game-over"; won: boolean }
   | { type: "upgrade" }
   | { type: "tower-placed"; towerKind: TowerKind }

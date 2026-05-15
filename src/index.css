@@ -2037,7 +2037,7 @@
   /* Achievements panel */
   .achievements-overlay {
     padding: 24px;
-    z-index: 65;
+    z-index: 66;
     position: fixed;
   }
 

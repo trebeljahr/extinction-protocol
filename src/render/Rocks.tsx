@@ -142,7 +142,7 @@ export const Rocks = () => {
         setHoveredId={setHoveredId}
       />
 
-      {hovered && hovered.id !== selectedRockId && (
+      {running && hovered && hovered.id !== selectedRockId && (
         <RockRing
           pos={hovered.pos}
           radius={rockEffectiveRadius(biome, hovered)}
@@ -152,7 +152,7 @@ export const Rocks = () => {
           opacity={0.9}
         />
       )}
-      {selected && (
+      {running && selected && (
         <RockRing
           pos={selected.pos}
           radius={rockEffectiveRadius(biome, selected) + 0.08}
