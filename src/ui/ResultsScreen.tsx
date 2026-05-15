@@ -64,13 +64,12 @@ export const ResultsScreen = () => {
   return (
     <div className="overlay">
       <div className="overlay-card min-w-[420px] px-10 py-8">
-        <h1>{result.won ? "Outpost held." : "Extinction complete."}</h1>
-        <div className="text-[13px] tracking-uber uppercase text-fg-dim -mt-2 mb-5">
-          {result.levelName}
+        <div className="flex items-center justify-center gap-4 mb-1">
+          <h1 className="!mb-0">{result.won ? "Outpost held." : "Extinction complete."}</h1>
+          <StarDisplay count={result.stars} size={28} animate />
         </div>
-
-        <div className="flex justify-center mt-2.5 mb-[18px]">
-          <StarDisplay count={result.stars} size={44} animate />
+        <div className="text-[13px] tracking-uber uppercase text-fg-dim mb-5">
+          {result.levelName}
         </div>
 
         <div className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg px-4 py-3.5 mb-5">
