@@ -93,6 +93,22 @@ export const HUD = () => {
     return () => document.body.classList.remove(cls);
   }, [isMobile, pickerOpen]);
 
+  // Tap outside the open mobile picker → close it. Tower selection
+  // already auto-closes via the selectedKind effect above; this covers
+  // the "tap the canvas/HUD to dismiss" case so the drawer doesn't
+  // strand itself open after a misfire. Desktop ignores pickerOpen so
+  // skip the listener entirely there.
+  useEffect(() => {
+    if (!isMobile || !pickerOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t?.closest(".tower-picker, .tower-picker-handle")) return;
+      setPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [isMobile, pickerOpen]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
