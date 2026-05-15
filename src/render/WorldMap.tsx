@@ -2,7 +2,11 @@ import { Environment, OrthographicCamera } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import type { OrthographicCamera as OrthographicCameraImpl } from "three";
+import * as THREE from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { LEVELS } from "../levels";
+import { getStars, isLevelUnlocked, type ProgressData } from "../progress";
+import { useGame } from "../store";
 import { BiomeGround } from "./BiomeGround";
 import { BiomeProps } from "./BiomeProps";
 import { LevelNode } from "./LevelNode";
@@ -42,12 +46,59 @@ const MAX_ZOOM_MULT = 2.5;
 // looser fit when the height-fit math comes out below this.
 const MIN_FIT_ZOOM = 8;
 
+// Mobile viewport breakpoint. Matches useMediaQuery's useIsMobile() narrow
+// branch (max-width: 720) so behavior is consistent across UI and canvas.
+const MOBILE_VIEWPORT_PX = 720;
+// Zoom-in multiplier applied over fitZoom on mobile so ~2 levels show on
+// each side of the current level node.
+const MOBILE_FOCUS_ZOOM_MULT = 2.2;
+// Fraction of the visible world-Z extent to drop the focused level below
+// screen center. Positive = node sits below midline.
+const MOBILE_Y_OFFSET_FRAC = 0.18;
+// Camera-to-target Z offset baked into the OrthographicCamera position
+// (0, 30, 11.36). Preserved when shifting target so the look angle stays
+// fixed.
+const CAMERA_Z_OFFSET = 11.36;
+const CAMERA_Y = 30;
+
 const computeFitZoom = (width: number, height: number): number => {
   const halfX = CONTENT_W / 2;
   const halfZ = CONTENT_H / 2;
   const fitX = width / (2 * halfX);
   const fitZ = (height * TILT_GROUND_FACTOR) / (2 * halfZ);
   return Math.max(MIN_FIT_ZOOM, Math.min(fitX, fitZ));
+};
+
+// First unlocked, not-yet-cleared level. Fall back to the last level once
+// the player has 1+ stars on every level so re-entries still center on a
+// recognizable node instead of (0,0).
+const findCurrentLevelId = (progress: ProgressData): number => {
+  for (const l of LEVELS) {
+    if (isLevelUnlocked(l.id, progress) && getStars(progress, l.id) === 0) return l.id;
+  }
+  return LEVELS[LEVELS.length - 1].id;
+};
+
+type CameraFocus = { zoom: number; targetX: number; targetZ: number };
+
+const computeMobileFocus = (
+  progress: ProgressData,
+  fitZoom: number,
+  maxZoom: number,
+  viewportHeightPx: number,
+): CameraFocus | null => {
+  const id = findCurrentLevelId(progress);
+  const level = LEVELS.find((l) => l.id === id);
+  if (!level) return null;
+  const zoom = Math.min(Math.max(fitZoom * MOBILE_FOCUS_ZOOM_MULT, fitZoom), maxZoom);
+  const visibleHeightWorld = (viewportHeightPx / zoom) * TILT_GROUND_FACTOR;
+  const nodeWorldZ = -level.nodePos.y;
+  const rawTargetZ = nodeWorldZ - visibleHeightWorld * MOBILE_Y_OFFSET_FRAC;
+  return {
+    zoom,
+    targetX: THREE.MathUtils.clamp(level.nodePos.x, -PAN_LIMIT_X, PAN_LIMIT_X),
+    targetZ: THREE.MathUtils.clamp(rawTargetZ, -PAN_LIMIT_Z, PAN_LIMIT_Z),
+  };
 };
 
 // Sky/fog tone — kept dim enough that mipmap-bloom on the canvas edge
@@ -60,33 +111,61 @@ const FOG = "#4a5868";
 const HEMI_TOP = "#d6e6f4";
 const HEMI_BOTTOM = "#7a6848";
 
-const MapCamera = ({ fitZoom }: { fitZoom: number }) => {
+const MapCamera = ({ fitZoom, focus }: { fitZoom: number; focus: CameraFocus | null }) => {
   const cameraRef = useRef<OrthographicCameraImpl>(null);
-  // Re-seat the camera at the fit baseline whenever the viewport-derived
-  // fit zoom changes (resize / orientation flip). Without this the map
-  // stays at the previous zoom even after the viewport changes shape.
+  // Re-seat the camera whenever the viewport-derived fit zoom changes
+  // (resize / orientation flip) or when the mobile-focus target changes
+  // (progress update). Without this the map stays at the previous
+  // zoom/position even after the viewport changes shape.
   useEffect(() => {
     const cam = cameraRef.current;
     if (!cam) return;
-    cam.zoom = fitZoom;
+    const targetX = focus?.targetX ?? 0;
+    const targetZ = focus?.targetZ ?? 0;
+    cam.position.set(targetX, CAMERA_Y, targetZ + CAMERA_Z_OFFSET);
+    cam.zoom = focus?.zoom ?? fitZoom;
     cam.updateProjectionMatrix();
-  }, [fitZoom]);
+  }, [fitZoom, focus]);
   return (
     <OrthographicCamera
       ref={cameraRef}
       makeDefault
-      position={[0, 30, 11.36]}
-      zoom={fitZoom}
+      position={[focus?.targetX ?? 0, CAMERA_Y, (focus?.targetZ ?? 0) + CAMERA_Z_OFFSET]}
+      zoom={focus?.zoom ?? fitZoom}
       near={0.1}
       far={200}
     />
   );
 };
 
+// Sister to MapCamera — re-seats the OrbitControls target so the gestural
+// pan/zoom origin matches the focused level. Lives as a child of the
+// scene so it can read the controls instance r3f publishes via makeDefault.
+const MapFocusTarget = ({ focus }: { focus: CameraFocus | null }) => {
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
+  useEffect(() => {
+    if (!controls) return;
+    const targetX = focus?.targetX ?? 0;
+    const targetZ = focus?.targetZ ?? 0;
+    controls.target.set(targetX, 0, targetZ);
+    controls.update();
+  }, [controls, focus]);
+  return null;
+};
+
 export const WorldMapScene = () => {
   const size = useThree((s) => s.size);
+  const progress = useGame((s) => s.progress);
   const fitZoom = useMemo(() => computeFitZoom(size.width, size.height), [size.width, size.height]);
   const maxZoom = Math.min(fitZoom * MAX_ZOOM_MULT, ABS_MAX_ZOOM);
+  const isMobile = size.width <= MOBILE_VIEWPORT_PX;
+  // Mobile entry view focuses on the player's current level (highest
+  // unlocked, not-yet-cleared) and zooms in enough that ~2 sibling levels
+  // are visible. Desktop keeps the whole-map fit view.
+  const focus = useMemo(
+    () => (isMobile ? computeMobileFocus(progress, fitZoom, maxZoom, size.height) : null),
+    [isMobile, progress, fitZoom, maxZoom, size.height],
+  );
   return (
     <>
       <color attach="background" args={[BG]} />
@@ -104,9 +183,11 @@ export const WorldMapScene = () => {
 
       Initial zoom is computed from the viewport so phones don't open
       half-cropped. Used as both the camera's starting zoom and the
-      OrbitControls minZoom (zooming out further would expose BG).
+      OrbitControls minZoom (zooming out further would expose BG). On
+      mobile the camera additionally offsets to center on the player's
+      current level — see computeMobileFocus.
     */}
-      <MapCamera fitZoom={fitZoom} />
+      <MapCamera fitZoom={fitZoom} focus={focus} />
 
       <MapOrbitControls
         panLimitX={PAN_LIMIT_X}
@@ -116,6 +197,7 @@ export const WorldMapScene = () => {
         panSpeed={1.6}
         zoomSpeed={0.8}
       />
+      <MapFocusTarget focus={focus} />
 
       <Environment preset="park" background={false} environmentIntensity={0.6} />
 
