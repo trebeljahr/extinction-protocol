@@ -414,7 +414,13 @@ const TowerSectionView = ({
               aria-pressed={selected === kind}
               title={locked ? "Locked" : TOWER_LABEL[kind]}
             >
-              <span className="compendium-tab-index">{TOWER_ORDER.indexOf(kind) + 1}</span>
+              <span className="compendium-tab-icon" aria-hidden>
+                {locked ? (
+                  <span className="compendium-tab-locked-glyph">?</span>
+                ) : (
+                  <TowerPreview kind={kind} />
+                )}
+              </span>
               <span className="compendium-tab-name">{locked ? "???" : TOWER_LABEL[kind]}</span>
             </button>
           );

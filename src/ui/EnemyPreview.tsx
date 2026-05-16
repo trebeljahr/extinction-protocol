@@ -23,7 +23,19 @@ type Props = {
 const findClip = (clips: THREE.AnimationClip[], needle: string) =>
   clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
-const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVariant }) => {
+const Creature = ({
+  kind,
+  bossVariant,
+  position = [0, 0, 0],
+  rotationY = 0,
+  scaleMul = 1,
+}: {
+  kind: EnemyKind;
+  bossVariant?: BossVariant;
+  position?: [number, number, number];
+  rotationY?: number;
+  scaleMul?: number;
+}) => {
   const isMatriarch = kind === "boss" && bossVariant !== undefined;
   const cfg = isMatriarch ? BOSS_VARIANT_MODEL[bossVariant] : ENEMY_MODEL[kind];
   const clipTimeScale = isMatriarch ? (BOSS_VARIANT_MODEL[bossVariant].timeScale ?? 1) : 1;
@@ -36,7 +48,7 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    const s = cfg.targetSize / maxDim;
+    const s = (cfg.targetSize / maxDim) * scaleMul;
     cloned.scale.setScalar(s);
     cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
     const tint =
@@ -71,7 +83,7 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
       }
     });
     return cloned;
-  }, [gltf.scene, cfg.targetSize, isMatriarch, bossVariant]);
+  }, [gltf.scene, cfg.targetSize, isMatriarch, bossVariant, scaleMul]);
 
   useEffect(() => {
     const mx = new THREE.AnimationMixer(obj);
@@ -97,8 +109,103 @@ const Creature = ({ kind, bossVariant }: { kind: EnemyKind; bossVariant?: BossVa
     mixerRef.current?.update(delta);
   });
 
-  return <primitive object={obj} />;
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      <primitive object={obj} />
+    </group>
+  );
 };
+
+// Hand-arranged swarm pack — 5 raptors at slightly varied scales/yaws so
+// the silhouette reads as "many small raptors" rather than one creature.
+// Positions are in world units (additive to the auto-grounded creature
+// pivot), so the values stay sensible even when the camera span scales
+// to a tiny pack.
+const SWARM_PACK: Array<{
+  pos: [number, number, number];
+  rotY: number;
+  scaleMul: number;
+}> = [
+  { pos: [0.0, 0, 0.0], rotY: -0.05, scaleMul: 0.7 },
+  { pos: [0.55, 0, -0.4], rotY: -0.25, scaleMul: 0.62 },
+  { pos: [-0.5, 0, -0.3], rotY: 0.18, scaleMul: 0.65 },
+  { pos: [0.3, 0, 0.55], rotY: 0.4, scaleMul: 0.6 },
+  { pos: [-0.45, 0, 0.45], rotY: -0.35, scaleMul: 0.58 },
+];
+
+// Static decor — small trees, rocks and grass tufts placed around the
+// creature so the preview reads as a tiny diorama instead of a model on
+// an empty disc. Positions are normalized to the camera span (see
+// EnemyPreview) so the layout scales the same for a small raptor as for
+// a titan. Items sit just outside the creature footprint and inside the
+// ground disc radius (span * 2.5).
+type DecorSpec = {
+  url: string;
+  // Position offset relative to span: actual world pos = [rx*span, 0, rz*span]
+  rx: number;
+  rz: number;
+  rotY: number;
+  // Target on-screen size in world units. Scale gets computed against
+  // the model's bounding box so e.g. Grass and Tree end up comparable
+  // even though their authored sizes differ wildly.
+  targetSize: number;
+};
+
+const DECOR: DecorSpec[] = [
+  // Back row — taller trees behind the creature.
+  { url: "/models/nature/Tree2.glb", rx: -1.5, rz: -1.6, rotY: 0.3, targetSize: 2.4 },
+  { url: "/models/nature/Tree1.glb", rx: 1.6, rz: -1.7, rotY: -0.4, targetSize: 2.1 },
+  { url: "/models/nature/Tree4.glb", rx: 0.0, rz: -2.0, rotY: 1.2, targetSize: 1.9 },
+  // Side rocks framing the creature.
+  { url: "/models/nature/Rock1.glb", rx: -1.8, rz: 0.4, rotY: 0.6, targetSize: 0.85 },
+  { url: "/models/nature/Rock2.glb", rx: 1.7, rz: 0.6, rotY: -0.9, targetSize: 0.7 },
+  { url: "/models/nature/Rock3.glb", rx: 1.0, rz: 1.5, rotY: 1.4, targetSize: 0.6 },
+  // Front grass tufts — low decor so they don't compete with silhouette.
+  { url: "/models/nature/Grass1.glb", rx: -0.6, rz: 1.4, rotY: 0.0, targetSize: 0.45 },
+  { url: "/models/nature/Grass2.glb", rx: 0.5, rz: 1.6, rotY: 0.8, targetSize: 0.4 },
+  { url: "/models/nature/Grass3.glb", rx: -1.2, rz: 1.0, rotY: -0.5, targetSize: 0.42 },
+  { url: "/models/nature/Grass1.glb", rx: 1.3, rz: -0.4, rotY: 1.7, targetSize: 0.4 },
+];
+
+// Static GLB prop. Measures bbox + applies uniform scale to hit
+// `targetSize`, then ground-aligns so box.min.y lands at 0. No
+// animation, no skinning — keeps every preview tick cheap.
+const Prop = ({ spec, span }: { spec: DecorSpec; span: number }) => {
+  const gltf = useGLTF(spec.url);
+  const obj = useMemo(() => {
+    const cloned = gltf.scene.clone(true);
+    const box = measureVisibleBox(cloned);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const s = spec.targetSize / maxDim;
+    cloned.scale.setScalar(s);
+    const center = box.getCenter(new THREE.Vector3());
+    cloned.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+    cloned.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.castShadow = true;
+      m.receiveShadow = true;
+    });
+    return cloned;
+  }, [gltf.scene, spec.targetSize]);
+  return (
+    <group position={[spec.rx * span, 0, spec.rz * span]} rotation={[0, spec.rotY, 0]}>
+      <primitive object={obj} />
+    </group>
+  );
+};
+
+// Preload so opening the compendium doesn't pop in trees frame-by-frame.
+useGLTF.preload("/models/nature/Tree1.glb");
+useGLTF.preload("/models/nature/Tree2.glb");
+useGLTF.preload("/models/nature/Tree4.glb");
+useGLTF.preload("/models/nature/Rock1.glb");
+useGLTF.preload("/models/nature/Rock2.glb");
+useGLTF.preload("/models/nature/Rock3.glb");
+useGLTF.preload("/models/nature/Grass1.glb");
+useGLTF.preload("/models/nature/Grass2.glb");
+useGLTF.preload("/models/nature/Grass3.glb");
 
 export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
   const isMatriarch = kind === "boss" && bossVariant !== undefined;
@@ -108,6 +215,7 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
   const span =
     (isMatriarch ? BOSS_VARIANT_MODEL[bossVariant].targetSize : ENEMY_MODEL[kind].targetSize) + 0.4;
   const target: [number, number, number] = [0, span * 0.35, 0];
+  const isSwarm = kind === "swarm";
   return (
     <div className="enemy-preview" style={{ width: size, height: size }}>
       <Canvas
@@ -121,7 +229,7 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
           far: 50,
         }}
       >
-        <color attach="background" args={["#1b2a22"]} />
+        <color attach="background" args={["#3a4858"]} />
 
         {/* Matches PlayScene lighting so creatures don't look flat or dark. */}
         <Environment preset="park" background={false} environmentIntensity={0.6} />
@@ -147,15 +255,32 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
           edge. Sat at y=-0.02 so it's always just *below* the creature's
           bbox-computed foot level: some animations dip the visible mesh a
           hair below the bind pose and without this the creature looked
-          like it was floating above the plane.
+          like it was floating above the plane. Neutral dirt tone (was the
+          old greenish #2b3e28) so the decor doesn't fight the new grey sky.
         */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
           <circleGeometry args={[span * 2.5, 56]} />
-          <meshStandardMaterial color="#2b3e28" roughness={0.98} metalness={0} />
+          <meshStandardMaterial color="#4a4438" roughness={0.98} metalness={0} />
         </mesh>
 
         <Suspense fallback={null}>
-          <Creature kind={kind} bossVariant={bossVariant} />
+          {isSwarm ? (
+            SWARM_PACK.map((p, i) => (
+              <Creature
+                key={i}
+                kind={kind}
+                bossVariant={bossVariant}
+                position={p.pos}
+                rotationY={p.rotY}
+                scaleMul={p.scaleMul}
+              />
+            ))
+          ) : (
+            <Creature kind={kind} bossVariant={bossVariant} />
+          )}
+          {DECOR.map((spec, i) => (
+            <Prop key={i} spec={spec} span={span} />
+          ))}
         </Suspense>
 
         <OrbitControls

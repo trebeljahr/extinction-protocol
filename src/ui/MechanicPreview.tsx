@@ -393,7 +393,7 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
           far: 50,
         }}
       >
-        <color attach="background" args={["#1b2a22"]} />
+        <color attach="background" args={["#3a4858"]} />
 
         <Environment preset="park" background={false} environmentIntensity={0.6} />
         <ambientLight intensity={0.55} color="#eaf2ff" />
@@ -414,7 +414,7 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
 
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
           <circleGeometry args={[span * 2.5, 56]} />
-          <meshStandardMaterial color="#2b3e28" roughness={0.98} metalness={0} />
+          <meshStandardMaterial color="#4a4438" roughness={0.98} metalness={0} />
         </mesh>
 
         <Suspense fallback={null}>
