@@ -54,6 +54,17 @@ type Item = {
   visZ: number;
   visYaw: number;
   visInit: boolean;
+  // Carries the enemy's leak state from the prior live frame so the
+  // render layer can tell a true kill (play death anim) apart from an
+  // HQ-impact despawn (just pool — the leak attack pose already played).
+  wasLeak: boolean;
+  // Death-anim bookkeeping. While `dying`, the item stays mounted at
+  // its last-known pose so the Death clip (or tilt-fall fallback) can
+  // finish before pooling.
+  dying: boolean;
+  dyingStart: number;
+  dyingDuration: number;
+  dyingBaseRotX: number;
 };
 
 // Exp-damp half-life (seconds). Lower = snappier, higher = floatier.
@@ -134,6 +145,20 @@ export const ModelEnemyMesh = ({
       null,
     [animations],
   );
+  // Optional per-kind Death clip. All shipping GLBs include one (the
+  // findClip needle is case-insensitive substring), but we still fall
+  // back to a tilt-fall in the dying tick if a future model omits it.
+  const deathClip = useMemo(
+    () =>
+      findClip(animations, "Death") ??
+      findClip(animations, "Die") ??
+      findClip(animations, "Dead") ??
+      null,
+    [animations],
+  );
+  // How long the dying mesh lingers before pooling when no Death clip
+  // is available. A real Death clip plays to its full duration instead.
+  const DEATH_FALLBACK_SEC = 0.6;
 
   // Invisible, oversized tap target. Lets users hit the enemy even when
   // their finger lands next to the silhouette — critical on touch. The
@@ -217,6 +242,15 @@ export const ModelEnemyMesh = ({
             recycled.proxy.userData.enemyMaxHp = e.maxHp;
           }
           recycled.visInit = false;
+          // Pool may have stashed a corpse mid-fall; reset transient
+          // death state so the recycled clone runs fresh.
+          recycled.wasLeak = false;
+          recycled.dying = false;
+          recycled.dyingStart = 0;
+          recycled.dyingDuration = 0;
+          recycled.dyingBaseRotX = 0;
+          recycled.obj.rotation.x = 0;
+          recycled.obj.rotation.z = 0;
           item = recycled;
         } else {
           const obj = cloneSkinned(scene);
@@ -269,12 +303,21 @@ export const ModelEnemyMesh = ({
             visZ: 0,
             visYaw: 0,
             visInit: false,
+            wasLeak: false,
+            dying: false,
+            dyingStart: 0,
+            dyingDuration: 0,
+            dyingBaseRotX: 0,
           };
         }
         itemsRef.current.set(e.id, item);
       }
 
       const leak = e.leak;
+      // Stash for the dead-detection pass: leaked enemies (made it to
+      // HQ) skip the death anim — they already played the attack pose
+      // and despawning them at the gate looks cleaner without a corpse.
+      item.wasLeak = leak !== undefined;
       const desiredClip = leak && attackClip ? attackClip : activeClip;
       if (item.clip !== desiredClip) {
         item.mixer.stopAllAction();
@@ -390,32 +433,98 @@ export const ModelEnemyMesh = ({
       });
     }
 
-    for (const [id, item] of itemsRef.current) {
-      if (!live.has(id)) {
-        item.mixer.stopAllAction();
-        if (poolRef.current.length < POOL_LIMIT) {
-          // Stash for reuse: hide in place, keep parent attachment, drop
-          // the userData id so a stale click can't dispatch.
-          item.obj.visible = false;
-          item.obj.userData.enemyId = undefined;
-          if (item.proxy) {
-            item.proxy.visible = false;
-            item.proxy.userData.enemyId = undefined;
-          }
-          poolRef.current.push(item);
-        } else {
-          // Pool full — drop. Dispose per-clone materials we created in
-          // the constructor branch so GPU resources don't leak.
-          item.obj.traverse((o) => {
-            const m = o as THREE.Mesh;
-            if (!m.isMesh || !m.material) return;
-            if (Array.isArray(m.material)) for (const mm of m.material) mm.dispose();
-            else (m.material as THREE.Material).dispose();
-          });
-          parent.remove(item.obj);
-          if (item.proxy) parent.remove(item.proxy);
+    const recycleOrDispose = (item: Item) => {
+      item.mixer.stopAllAction();
+      // Reset rotation before pooling so the next recycle starts upright
+      // even if the corpse was mid-tilt when the timer expired.
+      item.obj.rotation.x = 0;
+      item.obj.rotation.z = 0;
+      if (poolRef.current.length < POOL_LIMIT) {
+        // Stash for reuse: hide in place, keep parent attachment, drop
+        // the userData id so a stale click can't dispatch.
+        item.obj.visible = false;
+        item.obj.userData.enemyId = undefined;
+        if (item.proxy) {
+          item.proxy.visible = false;
+          item.proxy.userData.enemyId = undefined;
         }
+        poolRef.current.push(item);
+      } else {
+        // Pool full — drop. Dispose per-clone materials we created in
+        // the constructor branch so GPU resources don't leak.
+        item.obj.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh || !m.material) return;
+          if (Array.isArray(m.material)) for (const mm of m.material) mm.dispose();
+          else (m.material as THREE.Material).dispose();
+        });
+        parent.remove(item.obj);
+        if (item.proxy) parent.remove(item.proxy);
+      }
+    };
+
+    for (const [id, item] of itemsRef.current) {
+      if (live.has(id)) continue;
+
+      if (item.dying) {
+        // Death anim in flight: keep ticking the mixer (or tilt-fall the
+        // pose if no Death clip is driving it) until the duration runs
+        // out, then pool. world.time freezes when status !== "running",
+        // so a pause mid-fall holds the pose until the player resumes.
+        if (!frozen) item.mixer.update(delta);
+        const elapsed = world.time - item.dyingStart;
+        const t = Math.max(0, Math.min(1, elapsed / item.dyingDuration));
+        if (item.clip === null) {
+          const eased = 1 - (1 - t) ** 2;
+          item.obj.rotation.x = item.dyingBaseRotX - eased * (Math.PI / 2);
+        }
+        if (t >= 1) {
+          recycleOrDispose(item);
+          itemsRef.current.delete(id);
+        }
+        continue;
+      }
+
+      // Fresh transition from live → gone. Skip the death anim for
+      // leakers (they reached HQ — the attack pose already covered it)
+      // and for non-running states (wave reset shouldn't pile corpses).
+      const playDeath = !item.wasLeak && world.status === "running";
+      if (!playDeath) {
+        recycleOrDispose(item);
         itemsRef.current.delete(id);
+        continue;
+      }
+
+      item.dying = true;
+      item.dyingStart = world.time;
+      item.dyingBaseRotX = item.obj.rotation.x;
+      // Strip click affordance immediately — corpse mid-fall is not a
+      // valid inspect target.
+      item.obj.userData.enemyId = undefined;
+      item.obj.traverse((o) => {
+        o.userData.enemyId = undefined;
+      });
+      if (item.proxy) {
+        item.proxy.visible = false;
+        item.proxy.userData.enemyId = undefined;
+      }
+      if (deathClip) {
+        item.mixer.stopAllAction();
+        const action = item.mixer.clipAction(deathClip);
+        action.reset();
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.timeScale = 1;
+        action.play();
+        item.clip = deathClip;
+        item.mixer.timeScale = 1;
+        item.dyingDuration = Math.max(0.1, deathClip.duration);
+      } else {
+        // No Death clip in this GLB — freeze the run/walk loop so the
+        // pose holds, and let the dying tick handle the forward topple.
+        item.mixer.stopAllAction();
+        item.clip = null;
+        item.dyingDuration = DEATH_FALLBACK_SEC;
       }
     }
   });
