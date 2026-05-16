@@ -117,6 +117,37 @@
   --btn-pad-sm: 6px 10px;
   --btn-pad-md: 8px 14px;
   --btn-pad-lg: 10px 20px;
+
+  /* === Custom cursors — sci-fi/alien-tech vibe matching the UI palette.
+     Hotspots are intentional: default arrow points from top-left tip,
+     pointer/active reticle pivots on its center dot, crosshair on its
+     dead center. Each entry ends with a system-cursor fallback so the
+     UI remains usable on platforms (Tauri/older browsers) that refuse
+     SVG cursors. === */
+  --cursor-default: url("/cursors/cursor-default.svg") 3 2, default;
+  --cursor-pointer: url("/cursors/cursor-pointer.svg") 14 14, pointer;
+  --cursor-active: url("/cursors/cursor-active.svg") 14 14, pointer;
+  --cursor-crosshair: url("/cursors/cursor-crosshair.svg") 16 16, crosshair;
+}
+
+/* Cursor utilities — unlayered so they outrank Tailwind's
+   `.cursor-pointer` / `.cursor-default` / `.cursor-crosshair` utilities
+   (which live in the `utilities` layer) and remap them onto the custom
+   SVG cursors. Tailwind still decides *whether* a cursor is pointer;
+   we only swap the visual. `:active` swaps to the "charged" reticle
+   for click feedback on every interactive Tailwind button, not just
+   `.btn` variants. */
+.cursor-pointer {
+  cursor: var(--cursor-pointer);
+}
+.cursor-default {
+  cursor: var(--cursor-default);
+}
+.cursor-crosshair {
+  cursor: var(--cursor-crosshair);
+}
+.cursor-pointer:active:not(:disabled):not([aria-disabled="true"]) {
+  cursor: var(--cursor-active);
 }
 
 /* Wrap all hand-written rules in the `components` layer so Tailwind's
@@ -155,6 +186,7 @@
        opt back in explicitly below. */
     user-select: none;
     -webkit-user-select: none;
+    cursor: var(--cursor-default);
   }
 
   input,
@@ -167,7 +199,7 @@
   canvas {
     display: block;
     touch-action: none;
-    cursor: default;
+    cursor: var(--cursor-default);
   }
 
   /* Safe-area inset CSS variables — fall back to 0 on platforms that
@@ -186,7 +218,7 @@
      the HUD keep `cursor: pointer` because their rules win on
      specificity. */
   body.is-placing canvas {
-    cursor: crosshair;
+    cursor: var(--cursor-crosshair);
   }
 
   .hud {
@@ -267,7 +299,7 @@
   }
 
   .call-wave-btn {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     color: var(--color-fg);
     font-family: inherit;
     text-align: left;
@@ -458,7 +490,7 @@
     background: rgba(14, 20, 28, 0.85);
     border: 1px solid rgba(120, 160, 200, 0.18);
     border-radius: 8px;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     color: var(--color-fg);
     font-family: inherit;
     transition:
@@ -530,7 +562,7 @@
     line-height: 1;
     border-radius: 50%;
     color: var(--color-pink);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition:
       background 0.12s,
       color 0.12s;
@@ -908,7 +940,7 @@
     /* Eat pointer events so a rapid-click near the upgrade button position
      after maxing lands here, not on the Sell button underneath. */
     pointer-events: auto;
-    cursor: default;
+    cursor: var(--cursor-default);
   }
 
   .panel-footer {
@@ -968,12 +1000,12 @@
     /* Reset cursor in case body inherited a `pointer` from a 3D hover
        handler (Trees / Rocks / LevelNode) that was active when the modal
        opened — without this the entire overlay shows a clickable cursor. */
-    cursor: default;
+    cursor: var(--cursor-default);
   }
   /* MenuOverlay flags itself with role="presentation" since the backdrop
      is a click-to-close target; pointer cursor signals that affordance. */
   .overlay[role="presentation"] {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 
   .overlay-card {
@@ -983,7 +1015,7 @@
     padding: 28px 36px;
     text-align: center;
     min-width: 320px;
-    cursor: default;
+    cursor: var(--cursor-default);
     /* Cap to viewport so long pause-menu content (settings + debug + nested
        lists) scrolls inside the card instead of overflowing off-screen.
        `100dvh` follows the dynamic viewport on mobile so the card never
@@ -1342,7 +1374,7 @@
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .compendium-section:hover {
     border-color: rgba(180, 220, 255, 0.55);
@@ -1509,7 +1541,7 @@
    below. Each variant rule only overrides its own visual identity. */
   :where(.btn, .btn-close, .btn-sell, .btn-sell-cancel, .btn-upgrade) {
     font-family: inherit;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     pointer-events: auto;
     font-weight: 700;
     letter-spacing: var(--tracking-tight);
@@ -1548,13 +1580,35 @@
     border-radius: var(--radius-md);
     border: 1px solid transparent;
     padding: var(--btn-pad-md, 8px 14px);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     pointer-events: auto;
     transition:
       background var(--t-base),
       border-color var(--t-base),
       color var(--t-base),
+      box-shadow var(--t-base),
       transform var(--t-fast);
+  }
+
+  /* Tactile hover: tiny upward lift + cyan halo. Combined with each
+     variant's color swap, this gives buttons a "ready to fire" feel
+     without slow easing or huge motion. Active resets the transform
+     so the press feedback (scale(0.94) below) reads as a real press
+     instead of fighting the hover offset. */
+  .btn:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-ghost:hover:not(:disabled),
+  .btn-close:hover:not(:disabled),
+  .btn-upgrade:hover:not(:disabled),
+  .btn-sell:hover:not(:disabled),
+  .btn-sell-cancel:hover:not(:disabled),
+  .btn-sell-confirm:hover:not(:disabled),
+  .targeting-btn:hover:not(:disabled),
+  .compendium-tab:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px rgba(61, 209, 255, 0.18),
+      0 4px 12px -2px rgba(61, 209, 255, 0.22);
   }
 
   .btn:disabled,
@@ -1567,12 +1621,22 @@
 
   /* Press feedback — small scale-down on click registers the hit even
      when the visual hover state is subtle. The transition on .transform
-     for these buttons already runs on `--t-fast`. */
+     for these buttons already runs on `--t-fast`. Swap the cursor to
+     the "charged" reticle for the duration of the press so the click
+     feels acknowledged hand-side too. */
   .btn:not(:disabled):active,
   .btn-secondary:not(:disabled):active,
   .btn-ghost:not(:disabled):active,
-  .btn-close:not(:disabled):active {
+  .btn-close:not(:disabled):active,
+  .btn-upgrade:not(:disabled):active,
+  .btn-sell:not(:disabled):active,
+  .btn-sell-cancel:not(:disabled):active,
+  .btn-sell-confirm:not(:disabled):active,
+  .targeting-btn:not(:disabled):active,
+  .compendium-tab:not(:disabled):active {
     transform: scale(0.94);
+    cursor: var(--cursor-active);
+    box-shadow: none;
   }
 
   /* Size modifiers — apply alongside the variant class for explicit
@@ -1710,7 +1774,7 @@
     font-size: var(--fs-lg);
     font-weight: 700;
     letter-spacing: 0.06em;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     backdrop-filter: blur(6px);
     pointer-events: auto;
     transition:
@@ -1892,7 +1956,7 @@
     place-items: center;
     background: rgba(8, 12, 18, 0.72);
     pointer-events: auto;
-    cursor: default;
+    cursor: var(--cursor-default);
     z-index: 45;
     animation: levelIntroFadeIn 0.3s ease-out;
   }
@@ -1997,7 +2061,7 @@
     border-radius: 10px;
     color: var(--color-fg);
     font-family: inherit;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     backdrop-filter: blur(8px);
     box-shadow:
       0 0 0 1px rgba(255, 214, 106, 0.15),
@@ -2411,7 +2475,7 @@
     text-transform: uppercase;
     backdrop-filter: blur(var(--blur-md));
     pointer-events: auto;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     z-index: 26;
   }
@@ -2505,7 +2569,7 @@
     font-size: 18px;
     line-height: 1;
     pointer-events: auto;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     backdrop-filter: blur(var(--blur-md));
     /* Hidden on desktop — this control only mounts when isMobile. */
   }
@@ -3317,7 +3381,7 @@
     place-items: center;
     background: radial-gradient(ellipse at center, #0e1622 0%, #060a10 70%, #03070b 100%);
     z-index: 100;
-    cursor: default;
+    cursor: var(--cursor-default);
     animation: splashIn 0.18s ease-out;
   }
   .splash-exit {
@@ -3757,7 +3821,7 @@
       font-weight: 700;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      cursor: pointer;
+      cursor: var(--cursor-pointer);
       transition: color 0.15s, border-color 0.15s;
     }
     .save-slots-back-btn > :first-child {
@@ -3853,7 +3917,7 @@
     border: 1px solid rgba(120, 160, 200, 0.22);
     border-radius: 6px;
     color: var(--color-fg);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3919,7 +3983,7 @@
     border: none;
     color: inherit;
     font: inherit;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     padding: 0;
     width: 100%;
   }
@@ -3969,7 +4033,7 @@
     font-size: 10px;
     padding: 4px 6px;
     border-radius: 6px;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .hero-swap-btn:hover {
     border-color: var(--color-blue);
@@ -3989,7 +4053,7 @@
     padding: 6px 10px 6px 6px;
     font-family: inherit;
     color: inherit;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     pointer-events: auto;
     backdrop-filter: blur(6px);
     transition:
@@ -4132,7 +4196,7 @@
     color: var(--color-fg);
     font-family: inherit;
     text-align: left;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition:
       border-color 0.12s,
       transform 0.08s;
@@ -4282,7 +4346,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition: border-color 0.12s, transform 0.12s, box-shadow 0.12s;
     font: inherit;
     color: inherit;
@@ -4398,7 +4462,7 @@
     border: 1px solid var(--color-border-faint);
     padding: 5px 10px;
     border-radius: 6px;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .hero-detail-back:hover {
     color: var(--color-fg);
