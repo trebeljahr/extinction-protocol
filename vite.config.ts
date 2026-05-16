@@ -34,6 +34,13 @@ export default defineConfig(async ({ command, mode }) => {
   // production domain.
   // The inline shim queues track() calls fired before the deferred
   // script attaches, so callers don't need to wait for load.
+  // Build SHA injected into index.html as a `<meta>` tag so prod
+  // can be curl-verified (`curl … | grep build-sha`). Fed by the
+  // deploy workflow via `--build-arg VITE_BUILD_SHA=$GITHUB_SHA`,
+  // surfaced to Vite through the matching `ENV VITE_BUILD_SHA` in
+  // the Dockerfile. Falls back to "dev" for local builds.
+  const buildSha = env.VITE_BUILD_SHA ?? "dev";
+  const buildShaTag = `<meta name="build-sha" content="${buildSha}" />`;
   const plausibleTag = plausibleDomain
     ? `<script>
       (function () {
@@ -79,7 +86,9 @@ export default defineConfig(async ({ command, mode }) => {
       {
         name: "plausible-html",
         transformIndexHtml(html: string) {
-          return html.replace("<!--PLAUSIBLE-->", plausibleTag);
+          return html
+            .replace("<!--BUILD-SHA-->", buildShaTag)
+            .replace("<!--PLAUSIBLE-->", plausibleTag);
         },
       },
       // Tailscale-served dev URL via host-wide Caddy + tailscale serve

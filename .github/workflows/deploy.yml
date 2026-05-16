@@ -69,6 +69,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            VITE_BUILD_SHA=${{ github.sha }}
 
       - name: Trigger Coolify deploy
         env:
@@ -81,3 +83,33 @@ jobs:
           fi
           curl -fsSL -X GET "$COOLIFY_WEBHOOK_URL" \
             -H "Authorization: Bearer $COOLIFY_TOKEN"
+
+      # Polls prod for the `<meta name="build-sha">` tag baked into this
+      # build's index.html. Catches the silent-deploy class of failure
+      # where Coolify reports success but the container still serves the
+      # previous image (e.g. cached `:latest`, port misconfig, restart
+      # failure). Soft-fails (warns instead of failing the job) if the
+      # verify URL isn't configured, so existing repos don't break.
+      - name: Verify deploy
+        env:
+          VERIFY_URL: ${{ vars.DEPLOY_VERIFY_URL || 'https://protocol.trebeljahr.com/' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$VERIFY_URL" ]; then
+            echo "::notice::DEPLOY_VERIFY_URL not set — skipping deploy verification."
+            exit 0
+          fi
+          echo "Verifying $VERIFY_URL serves build $EXPECTED_SHA..."
+          deadline=$(( $(date +%s) + 180 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            html="$(curl -fsSL --max-time 10 "$VERIFY_URL?cb=$(date +%s)" || true)"
+            served="$(printf '%s' "$html" | grep -oE 'name="build-sha" content="[a-f0-9]+"' | grep -oE '[a-f0-9]+"$' | tr -d '"' || true)"
+            if [ -n "$served" ] && [ "${EXPECTED_SHA#$served}" != "$EXPECTED_SHA" ]; then
+              echo "OK — prod is serving $served"
+              exit 0
+            fi
+            echo "  served=${served:-<none>} expected=${EXPECTED_SHA:0:7}… retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Deploy verification timed out. Expected $EXPECTED_SHA, prod still serving '${served:-<none>}'. Check Coolify logs."
+          exit 1
