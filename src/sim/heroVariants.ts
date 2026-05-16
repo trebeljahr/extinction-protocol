@@ -95,7 +95,7 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     unlockStars: 0,
     abilities: [
       { type: "dash", cooldown: 5.5, duration: 0.35, speed: 11.0 },
-      { type: "burst", cooldown: 10.0, radius: 3.6, damage: 110, damageType: "explosive" },
+      { type: "burst", cooldown: 10.0, radius: 3.6, damage: 110, damageType: "kinetic" },
       {
         type: "barrage",
         cooldown: 14.0,
@@ -103,7 +103,7 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
         range: 9.0,
         damage: 26,
         splashRadius: 1.2,
-        damageType: "explosive",
+        damageType: "kinetic",
       },
     ],
     tint: "#9fd8ff",
