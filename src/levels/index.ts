@@ -1087,6 +1087,100 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 16, stego: 8, allosaur: 6, titan: 2 }),
       chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 8, armored: 7, titan: 2 }),
     ],
+    heroic: {
+      startGold: 450,
+      tagline: "No mortar — pick off healers by hand",
+      // Mortar splash trivializes clustered healing paras. Take it
+      // away and the player has to focus-fire each healer with pulse
+      // or burn them down with flame DoT before the aura cycles.
+      forbiddenTowers: ["mortar"],
+      waves: [
+        mixed({ raptor: 20, swarm: 16, allosaur: 6 }),
+        rush(90, 18),
+        // Heavier healing convoy — five paras instead of three, the
+        // raptor escort doubled, no mortar to splash through.
+        {
+          archetype: "convoy",
+          spacing: 0.5,
+          spawns: [
+            { kind: "raptor", count: 10, pathIndex: 0 },
+            ...toSpawns({ para: 5 }, 0, { healAura: true }),
+            { kind: "raptor", count: 10, pathIndex: 0 },
+          ],
+        },
+        heavy({ armored: 8, stego: 5, allosaur: 4 }),
+        // Healing-buffed armored push — 5 armored fed by 3 healers,
+        // no AoE to clear the healer cluster.
+        {
+          archetype: "heavy",
+          spacing: 0.9,
+          spawns: [
+            ...toSpawns({ armored: 5, stego: 3, allosaur: 4 }),
+            ...toSpawns({ para: 3 }, 0, { healAura: true }),
+          ],
+        },
+        chaos({ raptor: 22, swarm: 28, allosaur: 10, stego: 5, armored: 3 }),
+        rush(140, 30),
+        // Healing + regen stack: paras keeping the regen stegos topped
+        // off. Without mortar, picking off healers is a precision burst job.
+        {
+          archetype: "heavy",
+          spacing: 0.95,
+          spawns: [
+            ...toSpawns({ stego: 4 }, 0, { regen: true }),
+            ...toSpawns({ armored: 8, titan: 1 }),
+            ...toSpawns({ para: 3 }, 0, { healAura: true }),
+          ],
+        },
+        // Chaos with shielded healers — bubbles delay the focus-burst
+        // that's supposed to kill the healers.
+        {
+          archetype: "chaos",
+          spacing: 0.28,
+          spawns: [
+            ...toSpawns({ raptor: 24, swarm: 28, allosaur: 10, stego: 6, armored: 3 }),
+            ...toSpawns({ para: 4 }, 0, { shielded: true, healAura: true }),
+          ],
+        },
+        heavy({ armored: 18, stego: 9, allosaur: 7, titan: 2 }),
+        chaos({ raptor: 30, swarm: 40, allosaur: 13, stego: 8, armored: 7, titan: 3 }),
+      ],
+    },
+    iron: {
+      startGold: 460,
+      tagline: "One life. Pulse, chain, flame, hive. Stop the healers.",
+      // Anti-heal precision comp: pulse for burst-killing healers,
+      // chain for shield chip, flame DoT to outpace regen, hive to
+      // amp the rate-of-fire. No cryo, no mortar.
+      lockedLoadout: ["pulse", "chain", "flame", "hive"],
+      singleLife: true,
+      noSelling: true,
+      waves: [
+        mixed({ raptor: 18, swarm: 14, allosaur: 5 }),
+        rush(75, 14),
+        {
+          archetype: "convoy",
+          spacing: 0.55,
+          spawns: [
+            { kind: "raptor", count: 6, pathIndex: 0 },
+            ...toSpawns({ para: 3 }, 0, { healAura: true }),
+            { kind: "raptor", count: 6, pathIndex: 0 },
+          ],
+        },
+        heavy({ armored: 7, stego: 4, allosaur: 3 }),
+        {
+          archetype: "heavy",
+          spacing: 0.9,
+          spawns: [
+            ...toSpawns({ armored: 4, stego: 3, allosaur: 3 }),
+            ...toSpawns({ para: 2 }, 0, { healAura: true }),
+          ],
+        },
+        chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }),
+        heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
+        chaos({ raptor: 26, swarm: 32, allosaur: 11, stego: 7, armored: 6, titan: 2 }),
+      ],
+    },
   },
   {
     id: 14,
