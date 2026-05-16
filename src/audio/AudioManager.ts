@@ -54,6 +54,17 @@ export class AudioManager {
   private trimmedKeys = new Set<string>();
   private music: MusicPlayback | null = null;
   private currentMusicKey: MusicTrack | null = null;
+  // Monotonic counter — every crossfadeTo() captures a token, and any post-
+  // await work bails out if a newer request has come in. Without this, two
+  // overlapping crossfadeTo() calls (e.g. pointerdown + keydown both firing
+  // the first-interaction resume handler before either's await completes)
+  // each create a playback and the earlier one orphans, audible as a doubled
+  // track that keeps playing across subsequent screen transitions.
+  private musicRequestToken = 0;
+  // Key of the track currently being loaded by an in-flight crossfadeTo.
+  // Lets duplicate same-key requests short-circuit before tearing down the
+  // current playback and starting a redundant load.
+  private musicPendingKey: MusicTrack | null = null;
   private musicUrls: Record<MusicTrack, string> | null = null;
   private lastPlayedAt = new Map<string, number>();
   private activeVoices = new Map<string, Set<AudioBufferSourceNode>>();
@@ -463,8 +474,13 @@ export class AudioManager {
     if (!this.ctx) return;
     this.clearMusicRefresh(playback);
     const now = this.ctx.currentTime;
+    // Read the live computed gain *before* cancelScheduledValues, otherwise
+    // mid-ramp cancellation collapses the param back to its last anchored
+    // setValueAtTime (0 during a fade-in) and we silently jump-cut instead
+    // of fading out from where we actually were.
+    const currentGain = playback.gain.gain.value;
     playback.gain.gain.cancelScheduledValues(now);
-    playback.gain.gain.setValueAtTime(playback.gain.gain.value, now);
+    playback.gain.gain.setValueAtTime(currentGain, now);
     playback.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
     for (const src of playback.sources) {
       try {
@@ -473,7 +489,17 @@ export class AudioManager {
         /* ok */
       }
     }
-    window.setTimeout(() => playback.sources.clear(), (fadeSec + 0.1) * 1000);
+    window.setTimeout(
+      () => {
+        playback.sources.clear();
+        try {
+          playback.gain.disconnect();
+        } catch {
+          /* ok */
+        }
+      },
+      (fadeSec + 0.1) * 1000,
+    );
   }
 
   private scheduleMusicRefresh(playback: MusicPlayback, buffer: AudioBuffer) {
@@ -521,8 +547,16 @@ export class AudioManager {
 
   async crossfadeTo(key: MusicTrack, fadeSec = 1.5) {
     if (!this.ctx || !this.musicGain) return;
+    // Already playing this exact track — nothing to do.
     if (this.currentMusicKey === key && this.music) return;
+    // A previous crossfadeTo for the same key is mid-load — don't tear it
+    // down and start a duplicate. This drops the redundant request that
+    // would otherwise race and create an orphaned playback.
+    if (this.musicPendingKey === key) return;
+
+    const token = ++this.musicRequestToken;
     this.currentMusicKey = key;
+    this.musicPendingKey = key;
 
     // Fade out the current track immediately, before awaiting the new
     // track's load. Biome MP3s are 5-13MB and can take seconds on first
@@ -533,11 +567,18 @@ export class AudioManager {
     this.music = null;
 
     const ok = await this.ensureMusicLoaded(key);
-    if (!ok) return;
-    // Aborted: another track was requested while we were loading.
-    if (this.currentMusicKey !== key) return;
+    // Superseded by a newer crossfadeTo or stopMusic — bail without
+    // creating a playback that would orphan once the latest request lands.
+    if (token !== this.musicRequestToken) return;
+    if (!ok) {
+      this.musicPendingKey = null;
+      return;
+    }
     const sample = this.samples.get(key);
-    if (!sample?.buffer) return;
+    if (!sample?.buffer) {
+      this.musicPendingKey = null;
+      return;
+    }
     if (!this.trimmedKeys.has(key)) {
       sample.buffer = this.trimBuffer(sample.buffer);
       this.trimmedKeys.add(key);
@@ -558,11 +599,16 @@ export class AudioManager {
       sources: new Set(),
     };
     this.music = playback;
+    this.musicPendingKey = null;
     this.refillMusicSchedule(playback, sample.buffer);
   }
 
   stopMusic() {
     this.currentMusicKey = null;
+    this.musicPendingKey = null;
+    // Invalidate any in-flight crossfadeTo so it doesn't resurrect music
+    // right after we stopped it.
+    this.musicRequestToken++;
     if (!this.ctx) {
       this.music = null;
       return;

@@ -28,10 +28,13 @@ export const useAudioBridge = () => {
     };
 
     const resumeOnInteract = async () => {
-      await audio.ensureResumed();
-      audio.startMusic(pickTrack(useGame.getState()));
+      // Detach listeners synchronously before the await so a pointerdown
+      // and keydown firing in the same task don't both run this handler
+      // and double-trigger startMusic (which would orphan a playback).
       window.removeEventListener("pointerdown", resumeOnInteract);
       window.removeEventListener("keydown", resumeOnInteract);
+      await audio.ensureResumed();
+      audio.startMusic(pickTrack(useGame.getState()));
     };
     window.addEventListener("pointerdown", resumeOnInteract);
     window.addEventListener("keydown", resumeOnInteract);
