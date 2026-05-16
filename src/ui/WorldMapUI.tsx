@@ -217,17 +217,6 @@ export const WorldMapUI = () => {
                 className="btn btn-ghost w-full flex items-center justify-center gap-2"
                 onClick={() => {
                   setMenuOpen(false);
-                  setSkillTreeOpen(true);
-                }}
-              >
-                <IconLab size={16} className="shrink-0" />
-                Lab {availableStars > 0 ? `(${availableStars}★)` : ""}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost w-full flex items-center justify-center gap-2"
-                onClick={() => {
-                  setMenuOpen(false);
                   setCreditsOpen(true);
                 }}
               >
