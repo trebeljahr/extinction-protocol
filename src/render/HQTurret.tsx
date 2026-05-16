@@ -1,16 +1,20 @@
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "../store";
+import { bakeObjectToGeometry, type FractureChunk, fractureGeometry } from "./fractureMesh";
 import { measureVisibleBox } from "./measureModel";
 
 // The Plasma Turret is the hero model from the title-screen diorama. It
 // doesn't appear as a buildable in gameplay; instead one instance per path
 // endpoint stands in for the player's HQ — that's where enemy leaks land,
 // and that's what the player is defending. When `world.lives` decreases the
-// HQ flashes red; when lives hit zero it tilts forward, sinks, and a bright
-// shell flash plays before the results screen takes over.
+// HQ flashes red; when lives hit zero the model unmounts and a pre-fractured
+// voronoi set of chunks is dropped into a Rapier physics world that fires
+// them outward and lets them tumble to rest. The previous "tilt + sink"
+// faceplant looked weak — this reads as a real demolition.
 //
 // The sim loop stops ticking on loss (see CameraRig.tsx and spawner.ts), so
 // `world.time` and the existing explosion/particle systems freeze the instant
@@ -25,9 +29,12 @@ const HQ_TARGET_SIZE = 1.9;
 // screen delay in store.ts so the explosion completes before the overlay
 // covers the world.
 const FLASH_DURATION = 0.45;
-const DEATH_DURATION = 1.1;
 const EXPLOSION_DURATION = 0.7;
 const SHOCKWAVE_DURATION = 0.85;
+// Number of voronoi cells the turret shatters into. ~14 is enough to read
+// as a real demolition without flooding Rapier with bodies — each cell is
+// already a closed convex hull so its collider is one shape.
+const FRACTURE_CHUNKS = 14;
 
 type Pose = {
   position: [number, number];
@@ -35,20 +42,29 @@ type Pose = {
   pathIndex: number;
 };
 
+// Pre-rotate a vector by the HQ yaw so chunk launch directions defined in
+// the model's local frame land in world space.
+const rotateXZ = (x: number, y: number, z: number, yaw: number): [number, number, number] => {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return [x * c + z * s, y, -x * s + z * c];
+};
+
 // Inner ref-driven HQ. Wraps the cloned model in an outer group so we can
 // mutate transform every frame without round-tripping through React state.
 const HQOne = ({ pose }: { pose: Pose }) => {
   const { scene } = useGLTF(HQ_URL);
   const outerRef = useRef<THREE.Group>(null);
-  const tiltRef = useRef<THREE.Group>(null);
   const flashRef = useRef<THREE.Mesh>(null);
   const coreFlashRef = useRef<THREE.Mesh>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
+  const status = useGame((s) => s.world.status);
+  const isLost = status === "lost";
 
   // Bind-pose-accurate baseline: same `measureVisibleBox` we use for every
   // other model so the HQ's feet sit on y=0 instead of floating where the
   // raw geometry bbox extends.
-  const { scaledClone, baseY } = useMemo(() => {
+  const { scaledClone, baseY, chunks, chunkMaterial, sourceCenter } = useMemo(() => {
     const s =
       HQ_TARGET_SIZE /
       Math.max(...measureVisibleBox(scene).getSize(new THREE.Vector3()).toArray(), 0.001);
@@ -69,8 +85,48 @@ const HQOne = ({ pose }: { pose: Pose }) => {
       }
     });
     const groundedBox = measureVisibleBox(c);
-    return { scaledClone: c, baseY: -groundedBox.min.y };
-  }, [scene]);
+    const baseYLocal = -groundedBox.min.y;
+
+    // Bake into a single local-space geometry and voronoi-fracture once.
+    // Seeded per-path so each HQ gets a stable but distinct shatter pattern.
+    const baked = bakeObjectToGeometry(c);
+    const chunkList = fractureGeometry(baked, FRACTURE_CHUNKS, pose.pathIndex + 7);
+    const bakedBox = new THREE.Box3().setFromBufferAttribute(
+      baked.getAttribute("position") as THREE.BufferAttribute,
+    );
+    const center = bakedBox.getCenter(new THREE.Vector3());
+
+    // Pick a representative material from the source meshes; falls back to
+    // a neutral metallic if the GLB has nothing readable.
+    let mat: THREE.Material | null = null;
+    c.traverse((o) => {
+      if (mat) return;
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.material && !Array.isArray(m.material)) {
+        const cloned = (m.material as THREE.Material).clone();
+        if (cloned instanceof THREE.MeshStandardMaterial) {
+          cloned.transparent = true;
+        }
+        mat = cloned;
+      }
+    });
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial({
+        color: "#8a92a0",
+        metalness: 0.6,
+        roughness: 0.5,
+        transparent: true,
+      });
+    }
+
+    return {
+      scaledClone: c,
+      baseY: baseYLocal,
+      chunks: chunkList,
+      chunkMaterial: mat as THREE.Material,
+      sourceCenter: center,
+    };
+  }, [scene, pose.pathIndex]);
 
   // Live event tracking — we read these inside useFrame rather than via
   // selectors so the component never re-mounts between waves.
@@ -92,47 +148,21 @@ const HQOne = ({ pose }: { pose: Pose }) => {
 
   useFrame(() => {
     const outer = outerRef.current;
-    const tilt = tiltRef.current;
     const flash = flashRef.current;
-    if (!outer || !tilt) return;
+    if (!outer) return;
 
-    const { world } = useGame.getState();
     const now = performance.now() / 1000;
 
-    // Stateless detection — covers normal play (running → lost) and HMR
-    // remounts that drop us straight into a "lost" world. As long as the
-    // ref is reset when we leave the loss state we'll start the timer
-    // fresh on the next entry.
-    if (world.status === "lost") {
+    if (isLost) {
       if (lostStartRef.current === null) lostStartRef.current = now;
     } else {
       lostStartRef.current = null;
     }
 
     const lostAt = lostStartRef.current;
-    const deathT = lostAt === null ? 0 : Math.min(1, (now - lostAt) / DEATH_DURATION);
-    const deathEase = 1 - (1 - deathT) ** 3;
 
-    // Base placement — set every frame so the death shake can perturb it.
     outer.position.set(pose.position[0], baseY, -pose.position[1]);
     outer.rotation.set(0, pose.yaw, 0);
-
-    if (lostAt !== null) {
-      // Tilt forward toward the path, sink into the ground. The "forward"
-      // direction in the model's local space after yaw rotation is +z;
-      // rotating around X tips the cannons down. We push past 90° for the
-      // final fifth of the anim so the model visibly faceplants.
-      tilt.rotation.set(deathEase * 1.1, 0, deathEase * 0.25);
-      tilt.position.y = -deathEase * 0.6;
-      // Rumble that decays as the model settles. Stronger early so the
-      // initial hit reads as a real impact, not a gentle slump.
-      const rumble = (1 - deathEase) ** 2 * 0.18;
-      outer.position.x += (Math.random() - 0.5) * rumble;
-      outer.position.z += (Math.random() - 0.5) * rumble;
-    } else {
-      tilt.rotation.set(0, 0, 0);
-      tilt.position.y = 0;
-    }
 
     // Layered death explosion: an inner white-hot core, an outer fireball,
     // and a flat ground shockwave ring radiating from the HQ base. Each
@@ -173,74 +203,170 @@ const HQOne = ({ pose }: { pose: Pose }) => {
       }
     }
 
-    // Damage emissive flash on all materials.
-    const flashAge = flashUntilRef.current - now;
-    const flashLevel = Math.max(0, Math.min(1, flashAge / FLASH_DURATION));
-    const emissiveR = flashLevel * 1.1;
-    const emissiveG = flashLevel * 0.25;
-    const emissiveB = flashLevel * 0.15;
-    scaledClone.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
-      const apply = (mm: THREE.MeshStandardMaterial) => {
-        if (!mm.emissive) return;
-        mm.emissive.setRGB(emissiveR, emissiveG, emissiveB);
-      };
-      if (Array.isArray(mat)) mat.forEach(apply);
-      else if (mat) apply(mat);
-    });
+    // Damage emissive flash on all materials. Skipped during death so the
+    // chunks don't inherit a red emissive that fights the explosion glow.
+    if (!isLost) {
+      const flashAge = flashUntilRef.current - now;
+      const flashLevel = Math.max(0, Math.min(1, flashAge / FLASH_DURATION));
+      const emissiveR = flashLevel * 1.1;
+      const emissiveG = flashLevel * 0.25;
+      const emissiveB = flashLevel * 0.15;
+      scaledClone.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const mat = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+        const apply = (mm: THREE.MeshStandardMaterial) => {
+          if (!mm.emissive) return;
+          mm.emissive.setRGB(emissiveR, emissiveG, emissiveB);
+        };
+        if (Array.isArray(mat)) mat.forEach(apply);
+        else if (mat) apply(mat);
+      });
+    }
   });
 
   return (
-    <group ref={outerRef}>
-      <group ref={tiltRef}>
-        <primitive object={scaledClone} />
+    <>
+      <group ref={outerRef}>
+        {!isLost && <primitive object={scaledClone} />}
+        {/* Death explosion: warm outer fireball + white-hot inner core.
+            Hidden during regular play; ref-driven scaling/opacity during the
+            loss cinematic. Both depth-write off so they layer cleanly over
+            the chunks behind them. */}
+        <mesh ref={flashRef} visible={false} position={[0, HQ_TARGET_SIZE * 0.45, 0]}>
+          <sphereGeometry args={[1, 18, 14]} />
+          <meshBasicMaterial
+            color="#ff9b3a"
+            transparent
+            opacity={0}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh ref={coreFlashRef} visible={false} position={[0, HQ_TARGET_SIZE * 0.45, 0]}>
+          <sphereGeometry args={[1, 16, 12]} />
+          <meshBasicMaterial
+            color="#fff4d6"
+            transparent
+            opacity={0}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        {/* Flat ground shockwave — a wide ring on the floor that races
+            outward. Anchored to y=0.05 in world space so it stays on the
+            ground while the chunks fly. */}
+        <mesh
+          ref={shockwaveRef}
+          visible={false}
+          position={[0, 0.05, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[0.45, 0.6, 48]} />
+          <meshBasicMaterial
+            color="#ffd07a"
+            transparent
+            opacity={0}
+            depthWrite={false}
+            toneMapped={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
       </group>
-      {/* Death explosion: warm outer fireball + white-hot inner core.
-          Hidden during regular play; ref-driven scaling/opacity during the
-          loss cinematic. Both depth-write off so they layer cleanly over
-          the tilting HQ behind them. */}
-      <mesh ref={flashRef} visible={false} position={[0, HQ_TARGET_SIZE * 0.45, 0]}>
-        <sphereGeometry args={[1, 18, 14]} />
-        <meshBasicMaterial
-          color="#ff9b3a"
-          transparent
-          opacity={0}
-          depthWrite={false}
-          toneMapped={false}
+      {isLost && chunks.length > 0 && (
+        <ChunkPhysics
+          chunks={chunks}
+          chunkMaterial={chunkMaterial}
+          sourceCenter={sourceCenter}
+          pose={pose}
+          baseY={baseY}
         />
-      </mesh>
-      <mesh ref={coreFlashRef} visible={false} position={[0, HQ_TARGET_SIZE * 0.45, 0]}>
-        <sphereGeometry args={[1, 16, 12]} />
-        <meshBasicMaterial
-          color="#fff4d6"
-          transparent
-          opacity={0}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
-      {/* Flat ground shockwave — a wide ring on the floor that races
-          outward. Anchored to y=0.05 in world space (independent of the
-          tilt group) so it stays on the ground even as the HQ topples. */}
-      <mesh
-        ref={shockwaveRef}
-        visible={false}
-        position={[0, 0.05, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <ringGeometry args={[0.45, 0.6, 48]} />
-        <meshBasicMaterial
-          color="#ffd07a"
-          transparent
-          opacity={0}
-          depthWrite={false}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
+      )}
+    </>
+  );
+};
+
+// Separated so the Physics provider mounts only after `world.status === "lost"`
+// — every Rapier provider spawns its own world (and the WASM init on first
+// mount). Keeping it inside the lost-branch guarantees zero physics cost
+// during normal play.
+const ChunkPhysics = ({
+  chunks,
+  chunkMaterial,
+  sourceCenter,
+  pose,
+  baseY,
+}: {
+  chunks: FractureChunk[];
+  chunkMaterial: THREE.Material;
+  sourceCenter: THREE.Vector3;
+  pose: Pose;
+  baseY: number;
+}) => {
+  // Compute per-chunk launch in world space once at mount. Direction is
+  // (chunk origin − model centroid) projected through the HQ yaw so each
+  // piece flies outward from where it lived in the intact model.
+  const launches = useMemo(() => {
+    return chunks.map((c, i) => {
+      const offX = c.origin.x - sourceCenter.x;
+      const offY = c.origin.y - sourceCenter.y;
+      const offZ = c.origin.z - sourceCenter.z;
+      const len = Math.hypot(offX, offY, offZ) || 1;
+      const dirLocal: [number, number, number] = [offX / len, offY / len, offZ / len];
+      const [dxw, dyw, dzw] = rotateXZ(dirLocal[0], dirLocal[1], dirLocal[2], pose.yaw);
+      // Burst speed: deterministic-but-varied per chunk so the explosion
+      // has spread without every piece launching at the same velocity.
+      const speed = 5.5 + ((i * 17) % 11) * 0.5;
+      const upBoost = 3.2 + ((i * 31) % 13) * 0.18;
+      const [px, , pz] = rotateXZ(c.origin.x, 0, c.origin.z, pose.yaw);
+      return {
+        position: [pose.position[0] + px, baseY + c.origin.y, -pose.position[1] + pz] as [
+          number,
+          number,
+          number,
+        ],
+        rotation: [0, pose.yaw, 0] as [number, number, number],
+        linearVelocity: [dxw * speed, dyw * speed + upBoost, dzw * speed] as [
+          number,
+          number,
+          number,
+        ],
+        angularVelocity: [
+          (((i * 47) % 17) / 17 - 0.5) * 12,
+          (((i * 31) % 19) / 19 - 0.5) * 12,
+          (((i * 53) % 23) / 23 - 0.5) * 12,
+        ] as [number, number, number],
+        geometry: c.geometry,
+        radius: c.radius,
+      };
+    });
+  }, [chunks, sourceCenter, pose, baseY]);
+
+  return (
+    <Physics gravity={[0, -14, 0]} timeStep={1 / 60} colliders={false}>
+      {/* Invisible ground so chunks rest instead of falling forever. The
+          chunk rigid bodies fall asleep on contact thanks to canSleep. */}
+      <RigidBody type="fixed" colliders={false}>
+        <CuboidCollider args={[80, 0.1, 80]} position={[0, -0.11, 0]} />
+      </RigidBody>
+      {launches.map((l, i) => (
+        <RigidBody
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable per shatter
+          key={i}
+          colliders="hull"
+          position={l.position}
+          rotation={l.rotation}
+          linearVelocity={l.linearVelocity}
+          angularVelocity={l.angularVelocity}
+          linearDamping={0.08}
+          angularDamping={0.2}
+          canSleep
+          ccd={false}
+        >
+          <mesh geometry={l.geometry} material={chunkMaterial} />
+        </RigidBody>
+      ))}
+    </Physics>
   );
 };
 
