@@ -40,6 +40,15 @@ import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
 
+// HQ base weapon — a short-range kinetic laser bolted onto the HQ
+// turret. Last-ditch defense: tight range so it only engages enemies
+// already close to the gate, modest damage that scales through two
+// upgrade branches. One set of stats applies to every HQ on the map
+// (multi-path levels each fire their own beam from these shared stats).
+export const BASE_RANGE = 4.8;
+export const BASE_DAMAGE = 8;
+export const BASE_FIRE_RATE = 1.0;
+
 // Hero unit — single controllable mecha that walks the field, auto-shoots
 // dinos in range, and fires three activated abilities. Tuned to feel
 // supportive (towers still carry) rather than solo-carry.
@@ -488,6 +497,18 @@ export const createWorld = (
     events: [],
     shake: { magnitude: 0, decay: 0 },
     selectedTowerId: null,
+    selectedBase: false,
+    base: {
+      damage: BASE_DAMAGE,
+      fireRate: BASE_FIRE_RATE,
+      range: BASE_RANGE,
+      cooldowns: paths.map(() => 0),
+      targetIds: paths.map(() => null),
+      upgrades: { a: 0, b: 0 },
+      totalSpent: 0,
+      kills: 0,
+      damageDealt: 0,
+    },
     runEnemyKinds: {},
     runTowerKinds: {},
     easterEggs: eggs,

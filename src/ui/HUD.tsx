@@ -5,6 +5,7 @@ import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
+import { BasePanel } from "./BasePanel";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
@@ -367,6 +368,7 @@ export const HUD = () => {
       )}
 
       <TowerPanel />
+      <BasePanel />
       <EnemyPanel />
       <TreePanel />
       <HeroPanel />

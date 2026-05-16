@@ -237,6 +237,24 @@ export type Hero = {
   motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
 };
 
+// HQ base weapon — a last-ditch defensive laser that fires from every
+// path-endpoint HQ. Upgrades persist for the run; there's only one set
+// of upgrades regardless of how many HQ turrets the level has (multi-
+// path levels just get more laser sources sharing the same stats).
+export type Base = {
+  damage: number;
+  fireRate: number;
+  range: number;
+  // One cooldown + target slot per path-endpoint HQ so each gun fires
+  // independently. Sized to world.paths.length at world creation.
+  cooldowns: number[];
+  targetIds: (EntityId | null)[];
+  upgrades: { a: 0 | 1 | 2 | 3; b: 0 | 1 | 2 | 3 };
+  totalSpent: number;
+  kills: number;
+  damageDealt: number;
+};
+
 export type ProjectileKind = "direct" | "splash";
 
 export type Projectile = {
@@ -450,6 +468,8 @@ export type World = {
   events: GameEvent[];
   shake: Shake;
   selectedTowerId: EntityId | null;
+  selectedBase: boolean;
+  base: Base;
   runEnemyKinds: Partial<Record<EnemyKind, boolean>>;
   runTowerKinds: Partial<Record<TowerKind, boolean>>;
   easterEggs: EasterEgg[];

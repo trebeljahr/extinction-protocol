@@ -29,6 +29,8 @@ import { flameThroughputCapacity } from "../src/sim/towers";
 import type { EnemyKind, EnemySpec, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
+  BASE_DAMAGE,
+  BASE_FIRE_RATE,
   BOSS_VARIANT_CHILD,
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_STATS,
@@ -130,6 +132,41 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
   // a 3× multiplier without modelling drone assignment.
   if (kind === "hive") return 0;
   return 1;
+};
+
+// ------- Base laser modeling -------
+//
+// The HQ base weapon fires from every path endpoint at the closest-to-
+// gate enemy in its short range. The feasibility model treats it as a
+// constant additive DPS contribution across the combat window, at the
+// no-upgrade baseline (lower bound — actual play can buy upgrades).
+//
+// Kinetic damage type; resist is HP-weighted across the wave's mix.
+// Each HQ fires independently so the contribution scales with
+// paths.length.
+
+const baseDpsContribution = (spec: WaveSpec, hqCount: number, longestPath: number): number => {
+  let weighted = 0;
+  let totalHp = 0;
+  for (const s of spec.spawns) {
+    const stats = specStats(s);
+    const hp = stats.hp * s.count;
+    const baseMul = specResist(s, "kinetic");
+    weighted += baseMul * hp;
+    totalHp += hp;
+    if (s.kind === "boss" && s.bossVariant) {
+      const child = BOSS_VARIANT_CHILD[s.bossVariant];
+      if (child) {
+        const lifetime = longestPath / stats.speed;
+        const childCount = Math.max(0, Math.floor(lifetime / child.interval)) * s.count;
+        const childHp = ENEMY_STATS[child.kind].hp * childCount;
+        weighted += ENEMY_RESIST[child.kind].kinetic * childHp;
+        totalHp += childHp;
+      }
+    }
+  }
+  const avgResist = totalHp > 0 ? weighted / totalHp : 1;
+  return BASE_DAMAGE * BASE_FIRE_RATE * hqCount * avgResist;
 };
 
 // ------- Wave modeling -------
@@ -290,6 +327,10 @@ const bestSetup = (
   longestPath: number,
 ): TowerPick[] => {
   const picks: TowerPick[] = [];
+  // Free DPS from the HQ base laser — one beam per path endpoint, no
+  // tower-purchase cost. Added to every pick's total since the base is
+  // always on regardless of which tower kind the player commits to.
+  const baseDps = baseDpsContribution(spec, paths.length, longestPath);
   for (const cfg of ALL_CONFIGS) {
     if (cfg.damage <= 0) continue;
     const count = Math.floor(budget / cfg.cost);
@@ -300,7 +341,7 @@ const bestSetup = (
     // Optimistic: assumes the player picks the best spot for this kind's range.
     const covPer = pathCoverage(paths, cfg.range);
     const covFrac = coverageFraction(count, covPer, paths.length);
-    const totalDps = perTowerDps * count * covFrac;
+    const totalDps = perTowerDps * count * covFrac + baseDps;
     picks.push({
       kind: cfg.kind,
       tierA: cfg.tierA,

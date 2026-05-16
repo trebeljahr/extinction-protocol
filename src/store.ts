@@ -66,7 +66,7 @@ import type {
   Vec2,
   World,
 } from "./sim/types";
-import { applyUpgrade, sellTower } from "./sim/upgrades";
+import { applyBaseUpgrade, applyUpgrade, sellTower } from "./sim/upgrades";
 import { distSq } from "./sim/vec2";
 import {
   createTower,
@@ -111,6 +111,7 @@ type UiSnapshot = {
   callEarlyBonus: number;
   callEarlyTimer: number;
   selectedTowerId: number | null;
+  selectedBase: boolean;
   towerVersion: number;
   treeVersion: number;
   inspectedEnemyId: number | null;
@@ -188,6 +189,7 @@ const snapshot = (
     callEarlyBonus: earlyCallGoldReward(w),
     callEarlyTimer: Math.ceil(earlyCallTimerSec(w)),
     selectedTowerId: w.selectedTowerId,
+    selectedBase: w.selectedBase,
     towerVersion,
     treeVersion,
     inspectedEnemyId: inspect.id,
@@ -226,6 +228,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.callEarlyBonus === b.callEarlyBonus &&
   a.callEarlyTimer === b.callEarlyTimer &&
   a.selectedTowerId === b.selectedTowerId &&
+  a.selectedBase === b.selectedBase &&
   a.towerVersion === b.towerVersion &&
   a.treeVersion === b.treeVersion &&
   a.inspectedEnemyId === b.inspectedEnemyId &&
@@ -302,6 +305,22 @@ const towerAt = (world: World, pos: Vec2, radius = 0.9): Tower | null => {
     if (distSq(t.pos, pos) <= r2) return t;
   }
   return null;
+};
+
+// Click radius for the HQ. Roughly matches the visible turret + pad
+// footprint so a tap on or near the structure registers. Tighter than
+// the pad's full extent so clicks at the far edge of the deco area
+// still go to whatever empty ground is underneath (tower spot, etc).
+const BASE_CLICK_RADIUS = 1.8;
+
+const hqAt = (world: World, pos: Vec2): boolean => {
+  const r2 = BASE_CLICK_RADIUS * BASE_CLICK_RADIUS;
+  for (const path of world.paths) {
+    if (path.length === 0) continue;
+    const end = path[path.length - 1];
+    if (distSq(end, pos) <= r2) return true;
+  }
+  return false;
 };
 
 const treeById = (world: World, id: number): Tree | null =>
@@ -408,6 +427,8 @@ type GameStore = {
   upgradeSelected: (branch: "a" | "b") => void;
   sellSelected: () => void;
   setTargetingMode: (mode: TargetingMode) => void;
+  selectBase: (on: boolean) => void;
+  upgradeBase: (branch: "a" | "b") => void;
   callWaveEarly: () => void;
 
   // Hive drone assignment flow:
@@ -1000,7 +1021,10 @@ export const useGame = create<GameStore>((set, get) => ({
   setSelectedKind: (kind) => {
     const s = get();
     const { world, towerVersion, treeVersion } = s;
-    if (kind !== null) world.selectedTowerId = null;
+    if (kind !== null) {
+      world.selectedTowerId = null;
+      world.selectedBase = false;
+    }
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = kind !== null ? null : s.selectedTreeId;
     const nextRock = kind !== null ? null : s.selectedRockId;
@@ -1039,6 +1063,7 @@ export const useGame = create<GameStore>((set, get) => ({
   clearSelection: () => {
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
+    world.selectedBase = false;
     set({
       selectedKind: null,
       selectedTreeId: null,
@@ -1063,6 +1088,7 @@ export const useGame = create<GameStore>((set, get) => ({
   inspectEnemy: (id, kind, maxHp, bossVariant) => {
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
+    world.selectedBase = false;
     const inspect: InspectState = { id, kind, maxHp, bossVariant };
     set({
       selectedKind: null,
@@ -1122,6 +1148,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const tree = treeById(w, id);
     if (!tree) return;
     w.selectedTowerId = null;
+    w.selectedBase = false;
     const nextCount = (s.treeClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.treeClickCounts, [id]: nextCount };
     const unlock =
@@ -1180,6 +1207,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const rock = rockById(w, id);
     if (!rock) return;
     w.selectedTowerId = null;
+    w.selectedBase = false;
     const nextCount = (s.rockClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.rockClickCounts, [id]: nextCount };
     const unlock =
@@ -1330,8 +1358,25 @@ export const useGame = create<GameStore>((set, get) => ({
         return;
       }
       w.selectedTowerId = hit.id;
+      w.selectedBase = false;
       set({
         selectedKind: null,
+        selectedTreeId: null,
+        selectedRockId: null,
+        inspectedEnemy: emptyInspect,
+        ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+      });
+      return;
+    }
+
+    // HQ click — selects the base weapon panel. Wins over the empty-
+    // ground deselect path below, but loses to active tower placement
+    // and drone-assignment cursors since both want the click to go
+    // through to the canvas action.
+    if (s.selectedKind === null && !s.assigningDroneSlot && hqAt(w, pos)) {
+      w.selectedTowerId = null;
+      w.selectedBase = true;
+      set({
         selectedTreeId: null,
         selectedRockId: null,
         inspectedEnemy: emptyInspect,
@@ -1373,11 +1418,13 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.selectedKind === null) {
       const hasAnySelection =
         w.selectedTowerId !== null ||
+        w.selectedBase ||
         s.selectedTreeId !== null ||
         s.selectedRockId !== null ||
         s.inspectedEnemy.id !== null;
       if (hasAnySelection) {
         w.selectedTowerId = null;
+        w.selectedBase = false;
         set({
           selectedTreeId: null,
           selectedRockId: null,
@@ -1433,6 +1480,7 @@ export const useGame = create<GameStore>((set, get) => ({
       nextHive?.kind === "hive" &&
       nextHive.id === s.assigningDroneSlot.hiveId;
     world.selectedTowerId = id;
+    if (id !== null) world.selectedBase = false;
     const nextInspect = id !== null ? emptyInspect : s.inspectedEnemy;
     set({
       selectedKind: id !== null ? null : s.selectedKind,
@@ -1484,6 +1532,37 @@ export const useGame = create<GameStore>((set, get) => ({
     if (t.targetingMode === mode) return;
     t.targetingMode = mode;
     t.targetId = null;
+    const newVersion = s.towerVersion + 1;
+    set({
+      towerVersion: newVersion,
+      ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
+
+  selectBase: (on) => {
+    const s = get();
+    const w = s.world;
+    if (w.selectedBase === on) return;
+    w.selectedBase = on;
+    if (on) {
+      w.selectedTowerId = null;
+      set({
+        selectedKind: null,
+        selectedTreeId: null,
+        selectedRockId: null,
+        inspectedEnemy: emptyInspect,
+        ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
+      });
+    } else {
+      set({ ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+    }
+  },
+
+  upgradeBase: (branch) => {
+    const s = get();
+    if (!applyBaseUpgrade(s.world, branch)) return;
+    // Bump towerVersion so the panel (which subscribes to it) re-reads
+    // the new tier without needing its own version counter.
     const newVersion = s.towerVersion + 1;
     set({
       towerVersion: newVersion,

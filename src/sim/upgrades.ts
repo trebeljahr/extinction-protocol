@@ -1,4 +1,4 @@
-import type { Tower, TowerKind, World } from "./types";
+import type { Base, Tower, TowerKind, World } from "./types";
 import { emit } from "./world";
 
 export type BranchId = "a" | "b";
@@ -491,6 +491,144 @@ export const applyUpgrade = (world: World, tower: Tower, branch: BranchId): bool
   next.apply(tower);
   tower.upgrades[branch] = (tower.upgrades[branch] + 1) as 0 | 1 | 2 | 3;
   tower.totalSpent += next.cost;
+  emit(world, { type: "upgrade" });
+  return true;
+};
+
+// HQ base laser upgrade tree. Separate from the tower tree because the
+// apply signatures take a `Base` rather than a `Tower`, but the panel
+// reads them with the same tier model so the UI can reuse the same
+// component shape.
+export type BaseUpgrade = {
+  name: string;
+  desc: string;
+  cost: number;
+  apply: (b: Base) => void;
+};
+export type BaseBranch = {
+  label: string;
+  tiers: [BaseUpgrade, BaseUpgrade, BaseUpgrade];
+};
+
+// Costs scale steeper than tower upgrades because the base is a free
+// always-on contribution — pricing it like a tower would make the laser
+// trivially better than buying a second pulse.
+export const BASE_UPGRADES: { a: BaseBranch; b: BaseBranch } = {
+  a: {
+    label: "Focusing Lens",
+    tiers: [
+      {
+        name: "Tuned Lens",
+        desc: "+60% damage",
+        cost: 90,
+        apply: (b) => {
+          b.damage *= 1.6;
+        },
+      },
+      {
+        name: "Phase Array",
+        desc: "+70% damage",
+        cost: 180,
+        apply: (b) => {
+          b.damage *= 1.7;
+        },
+      },
+      {
+        name: "Annihilation Beam",
+        desc: "+80% damage, +0.4 range",
+        cost: 360,
+        apply: (b) => {
+          b.damage *= 1.8;
+          b.range += 0.4;
+        },
+      },
+    ],
+  },
+  b: {
+    label: "Capacitor Bank",
+    tiers: [
+      {
+        name: "Quick-Cycle",
+        desc: "+30% fire rate",
+        cost: 90,
+        apply: (b) => {
+          b.fireRate *= 1.3;
+        },
+      },
+      {
+        name: "Overcharge",
+        desc: "+35% fire rate, +0.4 range",
+        cost: 180,
+        apply: (b) => {
+          b.fireRate *= 1.35;
+          b.range += 0.4;
+        },
+      },
+      {
+        name: "Continuous Beam",
+        desc: "+40% fire rate, +0.6 range",
+        cost: 360,
+        apply: (b) => {
+          b.fireRate *= 1.4;
+          b.range += 0.6;
+        },
+      },
+    ],
+  },
+};
+
+const BASE_STAT_KEYS = ["damage", "fireRate", "range"] as const;
+type BaseStatKey = (typeof BASE_STAT_KEYS)[number];
+
+export type BaseStatDelta = {
+  key: BaseStatKey;
+  from: number;
+  to: number;
+};
+
+export const previewBaseUpgrade = (base: Base, upgrade: BaseUpgrade): BaseStatDelta[] => {
+  const clone: Base = { ...base, upgrades: { ...base.upgrades } };
+  upgrade.apply(clone);
+  const out: BaseStatDelta[] = [];
+  for (const key of BASE_STAT_KEYS) {
+    const from = base[key];
+    const to = clone[key];
+    if (Math.abs(from - to) > 1e-6) out.push({ key, from, to });
+  }
+  return out;
+};
+
+export const BASE_STAT_LABEL: Record<BaseStatKey, string> = {
+  damage: "DMG",
+  fireRate: "RATE",
+  range: "RNG",
+};
+
+const BASE_STAT_PRECISION: Record<BaseStatKey, number> = {
+  damage: 1,
+  fireRate: 2,
+  range: 1,
+};
+
+export const formatBaseStat = (key: BaseStatKey, value: number): string =>
+  value.toFixed(BASE_STAT_PRECISION[key]);
+
+export const nextBaseUpgrade = (base: Base, branch: BranchId): BaseUpgrade | null => {
+  const tier = base.upgrades[branch];
+  if (tier >= 3) return null;
+  // tier is 0..2 here — guarded by the early return above. The tuple
+  // type narrows once we widen tier through this index expression.
+  return BASE_UPGRADES[branch].tiers[tier as 0 | 1 | 2];
+};
+
+export const applyBaseUpgrade = (world: World, branch: BranchId): boolean => {
+  const next = nextBaseUpgrade(world.base, branch);
+  if (!next) return false;
+  if (world.gold < next.cost) return false;
+  world.gold -= next.cost;
+  next.apply(world.base);
+  world.base.upgrades[branch] = (world.base.upgrades[branch] + 1) as 0 | 1 | 2 | 3;
+  world.base.totalSpent += next.cost;
   emit(world, { type: "upgrade" });
   return true;
 };

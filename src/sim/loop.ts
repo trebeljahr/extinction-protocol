@@ -1,3 +1,4 @@
+import { updateBase } from "./base";
 import { updateDefensive } from "./defensive";
 import {
   updateBeams,
@@ -54,6 +55,7 @@ export class Engine {
     updateHero(world, TICK_DT);
     updateDefensive(world, TICK_DT);
     updateTowers(world, TICK_DT);
+    updateBase(world, TICK_DT);
     updateProjectiles(world, TICK_DT);
     updateBeams(world);
     updateExplosions(world);
