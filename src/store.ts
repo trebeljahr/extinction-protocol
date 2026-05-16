@@ -19,6 +19,7 @@ import {
   isLevelUnlocked,
   isModeUnlocked,
   loadSlot,
+  markEasterEggTriggered,
   markEncountered,
   markMatriarchsEncountered,
   minDifficulty,
@@ -27,6 +28,7 @@ import {
   setDifficulty as setDifficultyOnProgress,
   starsForRun,
   totalStars,
+  triggeredEasterEggIdsForLevel,
 } from "./progress";
 import {
   orderHeroMove as simOrderHeroMove,
@@ -623,8 +625,8 @@ const buildWorldForLevel = (
   difficulty: Difficulty,
   progress: ProgressData,
 ) => {
-  const unlockedAch = new Set(Object.keys(progress.unlocked));
-  const world = createWorld(level, mode, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch, {
+  const triggeredEggs = triggeredEasterEggIdsForLevel(progress, level.id);
+  const world = createWorld(level, mode, DIFFICULTY_MULTIPLIERS[difficulty], triggeredEggs, {
     variant: progress.activeHero,
     xp: progress.heroXp[progress.activeHero] ?? 0,
     skills: progress.heroSkills,
@@ -1568,6 +1570,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const updates: Partial<GameStore> = {};
     if (egg.clickCount >= def.clickThreshold && !egg.triggered) {
       egg.triggered = true;
+      emit(w, { type: "easter-egg-click", defId: def.id });
+      // Chain progress updates so each helper reads the prior result —
+      // markEasterEggTriggered AND tryUnlockEasterEgg can both fire on
+      // the same click, and we mustn't lose either write.
+      let nextProgress: ProgressData = s.progress;
+      const marked = markEasterEggTriggered(nextProgress, w.levelId, def.id);
+      if (marked) nextProgress = marked;
       // Click-roll eggs (the barrel) topple toward the closest map edge
       // and despawn once they leave. Heading aims at the nearest edge so
       // the barrel always rolls *off* the playfield rather than veering
@@ -1581,7 +1590,6 @@ export const useGame = create<GameStore>((set, get) => ({
         // clickRoll eggs (the barrel) overwrite this below with their
         // tumble lifetime; static gold rewards (skull) use the grace.
         egg.despawnAt = w.time + EASTER_EGG_DESPAWN_FADE;
-        emit(w, { type: "easter-egg-click" });
         updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
       }
       if (def.clickRoll) {
@@ -1602,15 +1610,18 @@ export const useGame = create<GameStore>((set, get) => ({
         egg.spin = def.clickRoll.spinRate;
         egg.despawnAt = w.time + def.clickRoll.lifetime;
       }
-      const unlock = tryUnlockEasterEgg(s.progress, def.achievement);
+      const unlock = tryUnlockEasterEgg(nextProgress, def.achievement);
       if (unlock) {
-        persistProgress(s.activeSlot, unlock.progress);
-        updates.progress = unlock.progress;
+        nextProgress = unlock.progress;
         updates.achievementToasts = [
           ...s.achievementToasts,
           { id: unlock.id, key: nextToastKey++ },
         ];
         track("achievement_unlocked", { achievement_id: unlock.id });
+      }
+      if (nextProgress !== s.progress) {
+        persistProgress(s.activeSlot, nextProgress);
+        updates.progress = nextProgress;
       }
     }
     set(updates);

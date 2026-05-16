@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Biome } from "../biomes";
+import { EASTER_EGG_BY_ID } from "../easterEggs";
 import type { GameEvent, Tower } from "../sim/types";
 import { useGame } from "../store";
 import { audio, type MusicTrack } from "./AudioManager";
@@ -141,9 +142,18 @@ export const useAudioBridge = () => {
         case "wave-called-early":
           audio.play("wave-clear", "notifications", 0.6, 500);
           break;
-        case "easter-egg-click":
+        case "easter-egg-click": {
+          // Per-def sfx override (e.g. skull plays a deeper impact crack
+          // on top of the generic egg click). Layered so the per-def
+          // sample lands first, then the standard click tone tags the
+          // pickup feedback.
+          const def = EASTER_EGG_BY_ID[e.defId];
+          if (def?.sfx) {
+            audio.play(def.sfx.sample, "ui", def.sfx.volume ?? 0.7, 60, def.sfx.duration);
+          }
           audio.play("tower-sell", "ui", 0.65, 60, 0.8);
           break;
+        }
         case "flame-start":
           if (state.screen !== "playing" || state.world.status !== "running") break;
           audio.startFlame(e.towerId);

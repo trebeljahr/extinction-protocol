@@ -179,6 +179,12 @@ export type Tower = {
   // the enemy's remaining HP so overkill doesn't inflate the stat).
   damageDealt: number;
   flameActive: boolean;
+  // Flame heat builds while firing and drains while idle. When it caps
+  // at 1.0 the tower flips into `flameOverheated` and stops firing until
+  // heat fully drains. Forces the player to pair flame towers with
+  // splash so a single nozzle can't sit on a swarm wave indefinitely.
+  flameHeat: number;
+  flameOverheated: boolean;
 };
 
 export type Tree = {
@@ -483,7 +489,7 @@ export type GameEvent =
   | { type: "place-failed"; reason: "gold" | "spot" }
   | { type: "new-enemy" }
   | { type: "wave-called-early" }
-  | { type: "easter-egg-click" }
+  | { type: "easter-egg-click"; defId: string }
   | { type: "flame-start"; towerId: number; pos: Vec2 }
   | { type: "flame-stop"; towerId: number };
 

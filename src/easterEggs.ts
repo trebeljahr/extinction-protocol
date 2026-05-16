@@ -88,6 +88,12 @@ export type EasterEggDef = {
   reaction?: EasterEggReaction;
   chimneyOffset?: ChimneyOffset;
   goldReward?: number;
+  // Relative pick weight when multiple eggs match a biome. Default 1.
+  // Set <1 to make an egg rarer (skull is intentionally rare).
+  spawnWeight?: number;
+  // Optional sfx override emitted via easter-egg-click. Falls back to the
+  // generic egg click sample when omitted.
+  sfx?: { sample: string; volume?: number; duration?: number };
 };
 
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
@@ -98,15 +104,24 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/wasteland/Skull.glb",
     targetSize: 1.0,
     clickThreshold: 1,
+    // Heavy bone-fragment burst — three layers so the click reads as a
+    // shatter (white shards + dust + gold reward sparkle).
     effect: {
-      particleColor: "#dfe7ef",
-      particleCount: 20,
-      particleSpeed: [1.8, 4.0],
-      particleLife: 0.55,
-      secondary: { color: "#ffd66a", count: 10, speed: [1.2, 2.6], life: 0.45 },
+      particleColor: "#f4ecdc",
+      particleCount: 32,
+      particleSpeed: [3.2, 6.4],
+      particleLife: 0.7,
+      secondary: { color: "#9a8060", count: 18, speed: [1.6, 3.2], life: 0.55 },
     },
     goldReward: 20,
-    reaction: { popIntensity: 0.36 },
+    // Springy snap-pop so the skull visibly breaks apart on the click.
+    reaction: { popIntensity: 0.6 },
+    // Picked far less than its biome-mates so desert maps don't read as
+    // a bone yard — skull lands as a rare find, not standard decor.
+    spawnWeight: 0.25,
+    // Dual-layer crack: impact sample carries the bone-snap, then the
+    // generic click sample tags the gold pickup below in the bridge.
+    sfx: { sample: "impact", volume: 0.9, duration: 0.9 },
   },
   {
     id: "mushroom",

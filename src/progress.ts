@@ -129,6 +129,10 @@ export type ProgressData = {
   heroXp: Partial<Record<HeroVariant, number>>;
   // Per-hero skill tree ranks. Shape mirrors AllMetaSkills.
   heroSkills: AllHeroSkills;
+  // Persistent per-(levelId, eggId) one-shot guard. Once an egg fires on
+  // a given map it never spawns there again, even before the achievement
+  // unlocks globally. Keyed `${levelId}:${eggId}`.
+  triggeredEasterEggs: Record<string, true>;
 };
 
 export type SlotMeta = {
@@ -168,6 +172,7 @@ export const emptyProgress = (): ProgressData => ({
   heroUnlocks: { george: true },
   heroXp: {},
   heroSkills: {},
+  triggeredEasterEggs: {},
 });
 
 const defaultName = (id: SlotId) => `Save ${id}`;
@@ -261,6 +266,10 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
         : {},
     heroSkills:
       raw.heroSkills && typeof raw.heroSkills === "object" ? (raw.heroSkills as AllHeroSkills) : {},
+    triggeredEasterEggs:
+      raw.triggeredEasterEggs && typeof raw.triggeredEasterEggs === "object"
+        ? (raw.triggeredEasterEggs as Record<string, true>)
+        : {},
   };
 };
 
@@ -511,3 +520,28 @@ export const getMultipliers = (p: ProgressData): DifficultyMultipliers =>
 // changes difficulty mid-level.
 export const minDifficulty = (a: Difficulty, b: Difficulty): Difficulty =>
   DIFFICULTIES.indexOf(a) <= DIFFICULTIES.indexOf(b) ? a : b;
+
+export const easterEggTriggerKey = (levelId: number, eggId: string): string =>
+  `${levelId}:${eggId}`;
+
+export const triggeredEasterEggIdsForLevel = (p: ProgressData, levelId: number): Set<string> => {
+  const out = new Set<string>();
+  const prefix = `${levelId}:`;
+  for (const k of Object.keys(p.triggeredEasterEggs)) {
+    if (k.startsWith(prefix)) out.add(k.slice(prefix.length));
+  }
+  return out;
+};
+
+export const markEasterEggTriggered = (
+  p: ProgressData,
+  levelId: number,
+  eggId: string,
+): ProgressData | null => {
+  const key = easterEggTriggerKey(levelId, eggId);
+  if (p.triggeredEasterEggs[key]) return null;
+  return {
+    ...p,
+    triggeredEasterEggs: { ...p.triggeredEasterEggs, [key]: true },
+  };
+};

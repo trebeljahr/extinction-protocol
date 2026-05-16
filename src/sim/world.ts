@@ -1,5 +1,5 @@
 import { BIOME_LAYERS, type Biome, type BiomeLayer, biomeForPos } from "../biomes";
-import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "../easterEggs";
+import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS, type EasterEggDef } from "../easterEggs";
 import {
   buildLavaFeatures,
   hasFlowFeatures,
@@ -306,6 +306,17 @@ const buildRocks = (
   return { rocks, nextId };
 };
 
+const pickWeightedEgg = (defs: EasterEggDef[], rng: () => number): EasterEggDef => {
+  let total = 0;
+  for (const d of defs) total += d.spawnWeight ?? 1;
+  let pick = rng() * total;
+  for (const d of defs) {
+    pick -= d.spawnWeight ?? 1;
+    if (pick <= 0) return d;
+  }
+  return defs[defs.length - 1];
+};
+
 const buildEasterEggs = (
   biome: Biome,
   paths: Vec2[][],
@@ -314,18 +325,18 @@ const buildEasterEggs = (
   seed: number,
   firstId: number,
   lava: LavaFeatures | null,
-  unlockedAchievements: ReadonlySet<string>,
+  triggeredEggsOnLevel: ReadonlySet<string>,
 ): { eggs: EasterEgg[]; nextId: number } => {
   // Only consider statically-placed eggs here — moving ones spawn on a
-  // schedule via updateEasterEggs. Eggs whose achievement has already
-  // been unlocked never spawn again so each surprise lands once per save.
+  // schedule via updateEasterEggs. Eggs already triggered on this level
+  // never spawn again so each surprise lands once per map.
   const matching = EASTER_EGG_DEFS.filter(
-    (d) => d.biomes.includes(biome) && !d.motion && !unlockedAchievements.has(d.achievement),
+    (d) => d.biomes.includes(biome) && !d.motion && !triggeredEggsOnLevel.has(d.id),
   );
   if (matching.length === 0) return { eggs: [], nextId: firstId };
   const rng = mulberry32(seed);
   if (rng() > 0.42) return { eggs: [], nextId: firstId };
-  const def = matching[Math.floor(rng() * matching.length)];
+  const def = pickWeightedEgg(matching, rng);
   const clearance = PATH_WIDTH / 2 + 1.5;
   const pathR2 = clearance * clearance;
   const minPropGap = 1.4;
@@ -385,18 +396,15 @@ const buildEasterEggs = (
 const buildEasterEggSchedule = (
   biome: Biome,
   seed: number,
-  unlockedAchievements: ReadonlySet<string>,
+  triggeredEggsOnLevel: ReadonlySet<string>,
 ): EasterEggScheduleEntry[] => {
   const matching = EASTER_EGG_DEFS.filter(
-    (d) =>
-      d.biomes.includes(biome) &&
-      d.scheduled !== undefined &&
-      !unlockedAchievements.has(d.achievement),
+    (d) => d.biomes.includes(biome) && d.scheduled !== undefined && !triggeredEggsOnLevel.has(d.id),
   );
   if (matching.length === 0) return [];
   const rng = mulberry32(seed);
   if (rng() > 0.5) return [];
-  const def = matching[Math.floor(rng() * matching.length)];
+  const def = pickWeightedEgg(matching, rng);
   const s = def.scheduled!;
   const t = s.earliestSec + rng() * Math.max(0, s.latestSec - s.earliestSec);
   return [{ defId: def.id, triggerTime: t }];
@@ -418,7 +426,7 @@ export const createWorld = (
   level: LevelConfig,
   mode: LevelMode = "normal",
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
-  unlockedAchievements: ReadonlySet<string> = new Set(),
+  triggeredEggsOnLevel: ReadonlySet<string> = new Set(),
   heroCtx: HeroContext = DEFAULT_HERO_CONTEXT,
 ): World => {
   const biome = biomeForPos(level.nodePos);
@@ -445,12 +453,12 @@ export const createWorld = (
     level.id * 2311 + 47,
     afterRocks,
     lava,
-    unlockedAchievements,
+    triggeredEggsOnLevel,
   );
   const easterEggSchedule = buildEasterEggSchedule(
     biome,
     level.id * 5471 + 3,
-    unlockedAchievements,
+    triggeredEggsOnLevel,
   );
   // Compose per-level hpScale × difficulty.hp into each wave's hpMul. The
   // spawner already respects spec.hpMul, so baking it once at creation
@@ -1371,6 +1379,8 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     kills: 0,
     damageDealt: 0,
     flameActive: false,
+    flameHeat: 0,
+    flameOverheated: false,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);
