@@ -231,33 +231,36 @@ const buildBestTributary = (
 // without the spikes, and we resample finely enough that adjacent
 // segments are shorter than the river is wide.
 const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
-  const N = 36;
+  const N = 48;
   const out: Vec2[] = [];
   const phase = rng() * Math.PI * 2;
-  const amp = 2.4 + rng() * 2;
+  // Big-meander amplitude: was 2.4–4.4. Bumped to 3.5–6.5 for visibly
+  // windier rivers. The candidate-picker rejects layouts that overflow
+  // into paths, so even the upper end stays usable on busy maps.
+  const amp = 3.5 + rng() * 3;
   const phase2 = rng() * Math.PI * 2;
-  const amp2 = 0.3 + rng() * 0.4;
+  // Higher-frequency wobble: was 0.3–0.7. Bumped to 0.5–1.1 so the bank
+  // has more secondary curl on top of the big meander.
+  const amp2 = 0.5 + rng() * 0.6;
   const margin = 16;
+  // Big-meander wavenumber bumped from 2.2π (~1.1 cycles across the map)
+  // to 3.4π (~1.7 cycles). Secondary wobble bumped from 5.1π to 7.0π.
+  const k1 = Math.PI * 3.4;
+  const k2 = Math.PI * 7;
   if (axis === "h") {
-    const baseY = (rng() - 0.5) * MAP_HEIGHT * 0.55;
+    const baseY = (rng() - 0.5) * MAP_HEIGHT * 0.4;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const x = -MAP_WIDTH / 2 - margin + t * (MAP_WIDTH + 2 * margin);
-      const y =
-        baseY +
-        Math.sin(phase + t * Math.PI * 2.2) * amp +
-        Math.sin(phase2 + t * Math.PI * 5.1) * amp2;
+      const y = baseY + Math.sin(phase + t * k1) * amp + Math.sin(phase2 + t * k2) * amp2;
       out.push({ x, y });
     }
   } else {
-    const baseX = (rng() - 0.5) * MAP_WIDTH * 0.55;
+    const baseX = (rng() - 0.5) * MAP_WIDTH * 0.4;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const y = -MAP_HEIGHT / 2 - margin + t * (MAP_HEIGHT + 2 * margin);
-      const x =
-        baseX +
-        Math.sin(phase + t * Math.PI * 2.2) * amp +
-        Math.sin(phase2 + t * Math.PI * 5.1) * amp2;
+      const x = baseX + Math.sin(phase + t * k1) * amp + Math.sin(phase2 + t * k2) * amp2;
       out.push({ x, y });
     }
   }
