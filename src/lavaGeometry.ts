@@ -182,6 +182,46 @@ const buildTributary = (rng: () => number, parent: Vec2[], parentIdx: number): V
   return out;
 };
 
+const tributaryEndpointInBounds = (points: Vec2[]): boolean => {
+  const last = points[points.length - 1];
+  return !(
+    last.x < -MAP_WIDTH / 2 - 2 ||
+    last.x > MAP_WIDTH / 2 + 2 ||
+    last.y < -MAP_HEIGHT / 2 - 2 ||
+    last.y > MAP_HEIGHT / 2 + 2
+  );
+};
+
+// Same candidate-picker pattern as rivers. First candidate consumes baseRng
+// to preserve old downstream determinism; the rest use private sub-rngs.
+// Returns null if every candidate's endpoint falls off-map (caller skips).
+const TRIBUTARY_CANDIDATES = 8;
+const buildBestTributary = (
+  baseRng: () => number,
+  candidateSeed: number,
+  parent: Vec2[],
+  paths: Vec2[][],
+  width: number,
+): Vec2[] | null => {
+  const baseParentIdx = 2 + Math.floor(baseRng() * Math.max(1, parent.length - 4));
+  const baseTrib = buildTributary(baseRng, parent, baseParentIdx);
+  let best: Vec2[] | null = tributaryEndpointInBounds(baseTrib) ? baseTrib : null;
+  let bestCost = best ? scoreRiverPathInteraction(best, paths, width) : Infinity;
+
+  for (let i = 1; i < TRIBUTARY_CANDIDATES; i++) {
+    const candRng = mulberry32(candidateSeed + i * 12345);
+    const parentIdx = 2 + Math.floor(candRng() * Math.max(1, parent.length - 4));
+    const candidate = buildTributary(candRng, parent, parentIdx);
+    if (!tributaryEndpointInBounds(candidate)) continue;
+    const cost = scoreRiverPathInteraction(candidate, paths, width);
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = candidate;
+    }
+  }
+  return best;
+};
+
 // Meandering polyline crossing the map on the chosen axis. Endpoints push
 // well past the max-panned viewport (visible half ≈ 24 + pan ≈ 16 = 40 on
 // X) so the river clearly runs off the screen at any zoom/pan. Shape is
@@ -222,6 +262,102 @@ const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
     }
   }
   return out;
+};
+
+// Penalty for how badly a river layout interferes with the regular paths.
+// Two terms:
+//   - Parallel proximity: river segment runs close to a path segment AT a
+//     small angle. Reads as the river awkwardly tracing the path.
+//   - Oblique crossing: river segment crosses a path segment at a shallow
+//     angle. Bridges still get built but the deck is wide and ugly, and
+//     the river spends a long stretch bracketing the path.
+// Right-angle crossings cost ~0; far-from-path geometry costs 0. The
+// candidate-picker minimises this.
+const RIVER_PROXIMITY_MARGIN = 1.5;
+const RIVER_PARALLEL_COS = Math.cos((40 * Math.PI) / 180);
+const scoreRiverPathInteraction = (river: Vec2[], paths: Vec2[][], riverWidth: number): number => {
+  if (paths.length === 0) return 0;
+  const proximityThreshold = riverWidth / 2 + PATH_WIDTH / 2 + RIVER_PROXIMITY_MARGIN;
+  const proxSq = proximityThreshold * proximityThreshold;
+  let cost = 0;
+  for (let ri = 0; ri < river.length - 1; ri++) {
+    const r1 = river[ri];
+    const r2 = river[ri + 1];
+    const rdx = r2.x - r1.x;
+    const rdy = r2.y - r1.y;
+    const rLen = Math.hypot(rdx, rdy);
+    if (rLen < 1e-6) continue;
+    const rtx = rdx / rLen;
+    const rty = rdy / rLen;
+    const rmx = (r1.x + r2.x) * 0.5;
+    const rmy = (r1.y + r2.y) * 0.5;
+    for (const path of paths) {
+      for (let pi = 0; pi < path.length - 1; pi++) {
+        const p1 = path[pi];
+        const p2 = path[pi + 1];
+        const pdx = p2.x - p1.x;
+        const pdy = p2.y - p1.y;
+        const pLen = Math.hypot(pdx, pdy);
+        if (pLen < 1e-6) continue;
+        const ptx = pdx / pLen;
+        const pty = pdy / pLen;
+        // |cos(θ)|: 1 = parallel, 0 = perpendicular.
+        const cosA = Math.abs(rtx * ptx + rty * pty);
+        if (segIntersect(r1, r2, p1, p2)) {
+          // Crossings: cost is 0 at perpendicular (cosA=0), 6.25 at 45°
+          // (cosA²=0.5), 25 at near-parallel grazing crossings.
+          cost += cosA * cosA * 25;
+          continue;
+        }
+        // Non-crossing: only penalise when the river is BOTH close AND
+        // running roughly parallel to the path. Anything < 40° from the
+        // path direction counts as parallel.
+        if (cosA <= RIVER_PARALLEL_COS) continue;
+        const d2 = distPointToSegSq(rmx, rmy, p1.x, p1.y, p2.x, p2.y);
+        if (d2 >= proxSq) continue;
+        const closeness = 1 - Math.sqrt(d2) / proximityThreshold;
+        cost += rLen * cosA * cosA * closeness * 12;
+      }
+    }
+  }
+  return cost;
+};
+
+// Candidate-picker: try N rng-seeded river layouts, score each against the
+// paths, return the lowest-cost one. The first candidate uses the shared
+// `baseRng` on the preferred axis so downstream consumers (lakes,
+// tributaries) see the SAME rng sequence as before — old levels are
+// unchanged unless a better candidate is found. Subsequent candidates
+// spin private mulberry32 sub-rngs so they don't perturb the shared
+// stream. Half of the extra candidates flip to the off-axis with a small
+// surcharge — flips happen only when the off-axis layout beats the
+// preferred-axis best by enough to overcome the surcharge (e.g. when
+// every horizontal layout would run parallel to a stack of horizontal
+// paths).
+const RIVER_CANDIDATES = 16;
+const OFF_AXIS_PENALTY = 30;
+const buildBestRiver = (
+  baseRng: () => number,
+  candidateSeed: number,
+  preferredAxis: "h" | "v",
+  paths: Vec2[][],
+  riverWidth: number,
+): Vec2[] => {
+  let best = buildRiver(baseRng, preferredAxis);
+  let bestCost = scoreRiverPathInteraction(best, paths, riverWidth);
+  const otherAxis: "h" | "v" = preferredAxis === "h" ? "v" : "h";
+  for (let i = 1; i < RIVER_CANDIDATES; i++) {
+    const candRng = mulberry32(candidateSeed + i * 12345);
+    const axis = i % 2 === 0 ? preferredAxis : otherAxis;
+    const candidate = buildRiver(candRng, axis);
+    const surcharge = axis === preferredAxis ? 0 : OFF_AXIS_PENALTY;
+    const cost = scoreRiverPathInteraction(candidate, paths, riverWidth) + surcharge;
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = candidate;
+    }
+  }
+  return best;
 };
 
 const buildLakes = (
@@ -492,28 +628,24 @@ export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome
   for (let i = 0; i < config.riverCount; i++) {
     const axis: "h" | "v" =
       config.riverCount > 1 ? (i % 2 === 0 ? "h" : "v") : rng() < 0.5 ? "h" : "v";
-    mainPoints.push(buildRiver(rng, axis));
+    const candidateSeed = levelId * 7919 + 4001 + i * 911;
+    mainPoints.push(buildBestRiver(rng, candidateSeed, axis, paths, config.riverWidth));
   }
   const rivers: River[] = mainPoints.map((points) => ({ points, width: config.riverWidth }));
 
   if (config.tributaries) {
     // 1–2 tributaries off each main river, branching from non-endpoint
-    // indices. Skipped if the rolled parentIdx puts the offshoot off the
-    // map. Only fired when the biome opts in (lava only today).
+    // indices. Each branch tries several candidates and keeps the one
+    // with the lowest path-overlap cost; skipped if all candidates land
+    // off-map. Only fired when the biome opts in (lava only today).
+    let tribIdx = 0;
     for (const main of mainPoints) {
       const branchCount = 1 + (rng() < 0.5 ? 1 : 0);
       for (let b = 0; b < branchCount; b++) {
-        const parentIdx = 2 + Math.floor(rng() * Math.max(1, main.length - 4));
-        const points = buildTributary(rng, main, parentIdx);
-        const last = points[points.length - 1];
-        if (
-          last.x < -MAP_WIDTH / 2 - 2 ||
-          last.x > MAP_WIDTH / 2 + 2 ||
-          last.y < -MAP_HEIGHT / 2 - 2 ||
-          last.y > MAP_HEIGHT / 2 + 2
-        )
-          continue;
-        rivers.push({ points, width: config.tributaryWidth });
+        const candidateSeed = levelId * 7919 + 5003 + tribIdx * 137;
+        tribIdx++;
+        const points = buildBestTributary(rng, candidateSeed, main, paths, config.tributaryWidth);
+        if (points) rivers.push({ points, width: config.tributaryWidth });
       }
     }
   }
