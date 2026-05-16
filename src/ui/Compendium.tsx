@@ -48,6 +48,7 @@ import { EnemyPreview } from "./EnemyPreview";
 import { HeroCompendiumSection } from "./HeroCompendiumSection";
 import { MechanicIcon } from "./MechanicIcon";
 import { MechanicPreview } from "./MechanicPreview";
+import { TowerDiorama } from "./TowerDiorama";
 import { TowerPreview } from "./TowerPreview";
 
 type Section = "enemy" | "tower" | "mechanic" | "hero";
@@ -446,8 +447,8 @@ const TowerSectionView = ({
         </div>
       ) : (
         <div className="compendium-detail">
-          <div className="compendium-detail-preview compendium-tower-preview">
-            <TowerPreview kind={selected} />
+          <div className="compendium-detail-preview">
+            <TowerDiorama kind={selected} size={360} />
           </div>
           <div className="compendium-detail-info">
             <div className="compendium-detail-head">
