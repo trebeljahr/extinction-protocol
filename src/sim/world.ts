@@ -898,12 +898,12 @@ export const BOSS_VARIANT_MODEL: Record<
   BossVariant,
   { url: string; targetSize: number; clip?: string; timeScale?: number }
 > = {
-  raptor: { url: "/models/Velociraptor.glb", targetSize: 6.4, timeScale: 0.62 },
-  stego: { url: "/models/Stegosaurus.glb", targetSize: 5.0 },
-  para: { url: "/models/Parasaurolophus.glb", targetSize: 4.6 },
-  allosaur: { url: "/models/Trex.glb", targetSize: 5.5 },
-  armored: { url: "/models/Triceratops.glb", targetSize: 5.4 },
-  apex: { url: "/models/Apatosaurus.glb", targetSize: 18.0, clip: "Walk" },
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 7.4, timeScale: 0.62 },
+  stego: { url: "/models/Stegosaurus.glb", targetSize: 5.8 },
+  para: { url: "/models/Parasaurolophus.glb", targetSize: 5.4 },
+  allosaur: { url: "/models/Trex.glb", targetSize: 6.4 },
+  armored: { url: "/models/Triceratops.glb", targetSize: 6.3 },
+  apex: { url: "/models/Apatosaurus.glb", targetSize: 20.0, clip: "Walk" },
 };
 
 // Per-variant body tint. Applied permanently to matriarch meshes (not
@@ -920,19 +920,22 @@ export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
   apex: "#d440ff", // alien — bioluminescent magenta
 };
 
-// Per-variant material strength for matriarchs. Raptor and stego stay
-// restrained so their species silhouettes read first; later queens keep
-// a stronger supernatural charge.
+// Per-variant material strength for matriarchs. Lower tintAmount than
+// before so the original textured material stays visible — single-hue
+// washes read as "plastic toy". Added metalness + roughness so each
+// queen reads as armored/chitin/tech instead of painted plastic; rising
+// metalness picks up environment reflections so movement reveals subtle
+// highlights players couldn't see on a matte tint.
 export const BOSS_VARIANT_MATERIAL: Record<
   BossVariant,
-  { tintAmount: number; emissiveAmount: number }
+  { tintAmount: number; emissiveAmount: number; metalness: number; roughness: number }
 > = {
-  raptor: { tintAmount: 0.42, emissiveAmount: 0.08 },
-  stego: { tintAmount: 0.38, emissiveAmount: 0.1 },
-  para: { tintAmount: 0.66, emissiveAmount: 0.24 },
-  allosaur: { tintAmount: 0.62, emissiveAmount: 0.18 },
-  armored: { tintAmount: 0.66, emissiveAmount: 0.24 },
-  apex: { tintAmount: 0.68, emissiveAmount: 0.28 },
+  raptor: { tintAmount: 0.22, emissiveAmount: 0.05, metalness: 0.35, roughness: 0.5 },
+  stego: { tintAmount: 0.2, emissiveAmount: 0.07, metalness: 0.55, roughness: 0.42 },
+  para: { tintAmount: 0.32, emissiveAmount: 0.14, metalness: 0.45, roughness: 0.4 },
+  allosaur: { tintAmount: 0.3, emissiveAmount: 0.11, metalness: 0.5, roughness: 0.4 },
+  armored: { tintAmount: 0.36, emissiveAmount: 0.16, metalness: 0.75, roughness: 0.28 },
+  apex: { tintAmount: 0.38, emissiveAmount: 0.2, metalness: 0.55, roughness: 0.35 },
 };
 
 // Child-spawn config — every variant except apex drops a steady drip of

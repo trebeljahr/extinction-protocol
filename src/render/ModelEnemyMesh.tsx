@@ -406,6 +406,10 @@ export const ModelEnemyMesh = ({
             else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
             else mm.color.copy(base);
           }
+          if (matriarch && matriarchMaterial) {
+            mm.metalness = matriarchMaterial.metalness;
+            mm.roughness = matriarchMaterial.roughness;
+          }
           if (!mm.emissive) return;
           if (flashing) {
             // Warm-tinted, dimmed flash instead of pure white at full

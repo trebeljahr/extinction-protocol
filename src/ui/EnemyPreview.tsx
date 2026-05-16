@@ -74,6 +74,8 @@ const Creature = ({
           const std = cloned as THREE.MeshStandardMaterial;
           if (std.color) std.color.lerp(tint, material.tintAmount);
           if (std.emissive) std.emissive.copy(tint).multiplyScalar(material.emissiveAmount);
+          std.metalness = material.metalness;
+          std.roughness = material.roughness;
         }
         return cloned;
       };

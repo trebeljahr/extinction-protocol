@@ -3,8 +3,9 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { HEAL_HUG_RADIUS_BY_KIND } from "../render/HealAuras";
 import { measureVisibleBox } from "../render/measureModel";
-import { buildPlusTexture } from "../render/RegenBadges";
+import { buildPlusGeometry, buildPlusMaterial } from "../render/RegenBadges";
 import type { MechanicId } from "../sim/mechanicsText";
 import type { EnemyKind } from "../sim/types";
 import { ELITE_TINT_BY_KIND, ENEMY_MODEL, HEAL_AURA_RANGE } from "../sim/world";
@@ -192,39 +193,87 @@ const ShieldEffect = ({ kind }: { kind: EnemyKind }) => {
   );
 };
 
-const HealAuraEffect = () => {
-  const groupRef = useRef<THREE.Group>(null);
+// Compendium-side heal preview: matches HealAuras.tsx's narrow inner ring
+// + three phased outgoing waves. Kept as separate refs (not instanced)
+// because the preview shows exactly one healer.
+const HEAL_WAVE_PERIOD = 1.6;
+const HEAL_WAVES = 3;
+const HealAuraEffect = ({ kind }: { kind: EnemyKind }) => {
+  const hugR = HEAL_HUG_RADIUS_BY_KIND[kind];
+  const hugRef = useRef<THREE.Mesh>(null);
+  const waveRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const haloRefs = useRef<Array<THREE.Mesh | null>>([]);
   useFrame((state) => {
-    const g = groupRef.current;
-    if (!g) return;
     const t = state.clock.elapsedTime;
-    const pulse = 1 + Math.sin(t * 1.6) * 0.05;
-    g.scale.set(pulse, pulse, 1);
+    const hug = hugRef.current;
+    if (hug) {
+      const hugPulse = 1 + Math.sin(t * 2.4) * 0.04;
+      hug.scale.set(hugR * hugPulse, hugR * hugPulse, 1);
+    }
+    for (let k = 0; k < HEAL_WAVES; k++) {
+      const wave = waveRefs.current[k];
+      const halo = haloRefs.current[k];
+      if (!wave || !halo) continue;
+      const phase = k / HEAL_WAVES;
+      const progress = (t / HEAL_WAVE_PERIOD + phase) % 1;
+      const radius = hugR + (HEAL_AURA_RANGE - hugR) * progress;
+      const fadeIn = Math.min(1, progress / 0.08);
+      const alpha = fadeIn * (1 - progress);
+      wave.scale.set(radius, radius, 1);
+      halo.scale.set(radius * 0.96, radius * 0.96, 1);
+      (wave.material as THREE.MeshBasicMaterial).opacity = alpha * 0.9;
+      (halo.material as THREE.MeshBasicMaterial).opacity = alpha * 0.5;
+      wave.visible = alpha > 0.01;
+      halo.visible = alpha > 0.01;
+    }
   });
   return (
-    <group ref={groupRef} position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh>
-        <circleGeometry args={[HEAL_AURA_RANGE, 48]} />
+    <group position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh ref={hugRef}>
+        <ringGeometry args={[0.86, 1.0, 56]} />
         <meshBasicMaterial
           color={HEAL_AURA_COLOR}
           transparent
-          opacity={0.18}
+          opacity={0.85}
           side={THREE.DoubleSide}
           depthWrite={false}
           toneMapped={false}
         />
       </mesh>
-      <mesh>
-        <ringGeometry args={[HEAL_AURA_RANGE * 0.94, HEAL_AURA_RANGE, 64]} />
-        <meshBasicMaterial
-          color={HEAL_AURA_COLOR}
-          transparent
-          opacity={0.7}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+      {Array.from({ length: HEAL_WAVES }).map((_, k) => (
+        <group key={k}>
+          <mesh
+            ref={(el) => {
+              waveRefs.current[k] = el;
+            }}
+          >
+            <ringGeometry args={[0.96, 1.0, 64]} />
+            <meshBasicMaterial
+              color={HEAL_AURA_COLOR}
+              transparent
+              opacity={0.9}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh
+            ref={(el) => {
+              haloRefs.current[k] = el;
+            }}
+          >
+            <ringGeometry args={[0.88, 1.0, 64]} />
+            <meshBasicMaterial
+              color={HEAL_AURA_COLOR}
+              transparent
+              opacity={0.5}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 };
@@ -232,88 +281,101 @@ const HealAuraEffect = () => {
 const RegenBadgeEffect = ({ kind }: { kind: EnemyKind }) => {
   const cfg = ENEMY_MODEL[kind];
   const ref = useRef<THREE.Mesh>(null);
-  // Re-uses the same texture builder the in-game RegenBadges use, so a
-  // fix to the cross drawing improves both at once.
-  const tex = useMemo(buildPlusTexture, []);
+  // Reuses the same geometry + material builder the in-game RegenBadges
+  // use so a tweak to the cross shape or color updates both surfaces.
+  const geom = useMemo(buildPlusGeometry, []);
+  const mat = useMemo(buildPlusMaterial, []);
   useFrame((state) => {
     const m = ref.current;
     if (!m) return;
     const t = state.clock.elapsedTime;
-    const camDir = new THREE.Vector3();
-    state.camera.getWorldDirection(camDir);
-    const yaw = Math.atan2(-camDir.x, -camDir.z);
-    const bob = Math.sin(t * 2.6) * 0.06;
-    const pulse = 0.95 + 0.12 * Math.sin(t * 4);
-    m.position.set(0, cfg.targetSize * 1.15 + bob, 0);
-    m.rotation.set(0, yaw, 0);
-    m.scale.set(pulse, pulse, 1);
+    const bob = Math.sin(t * 2.6) * 0.04;
+    const pulse = 1.05 + 0.1 * Math.sin(t * 4);
+    // Sit just above the head — much lower than the old plane to better
+    // tie the icon to the creature it's regenerating.
+    m.position.set(0, cfg.targetSize * 0.6 + bob, 0);
+    m.rotation.set(0, t * 1.1, 0);
+    m.scale.set(pulse, pulse, pulse);
   });
-  return (
-    <mesh ref={ref} renderOrder={6}>
-      <planeGeometry args={[1.4, 1.4]} />
-      <meshBasicMaterial
-        map={tex}
-        transparent
-        depthWrite={false}
-        toneMapped={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
+  return <mesh ref={ref} geometry={geom} material={mat} renderOrder={6} />;
 };
 
-// In-game the fierce halo is a backside additive sphere — at gameplay
-// camera distance (~15 units) it reads as a soft red rim around the
-// silhouette. The compendium camera is much closer (~5 units) and the
-// dark preview background pushes additive blending toward "solid
-// brown sphere," so the preview uses a tighter outer halo + a brighter
-// edge ring + glowing eyes to convey "berserker" without the volumetric
-// brown-out.
-const FierceHaloEffect = ({ kind }: { kind: EnemyKind }) => {
-  const cfg = ENEMY_MODEL[kind];
-  const groupRef = useRef<THREE.Group>(null);
-  // Tight silhouette halo, fully above ground.
-  const halo = cfg.targetSize * 0.5;
-  useFrame((state) => {
-    const g = groupRef.current;
-    if (!g) return;
-    const t = state.clock.elapsedTime;
-    const pulse = 1 + Math.sin(t * 2.0) * 0.06;
-    g.scale.setScalar(pulse);
+// Fierce now reads as a translucent red shell wrapped around the
+// creature — a slightly-larger copy of the dino's own mesh acting as a
+// forcefield. The shell is a *non-skinned* clone of the GLB scene
+// (geometry frozen at bind pose) with all materials replaced by a red
+// transparent shader-displaced material. Bind-pose is fine for the
+// compendium preview where the dino is on Idle and the camera orbits;
+// keeping it static lets us scale the whole shell uniformly outward
+// from the body center via a parent group, instead of fighting per-
+// submesh normals on a skinned hierarchy (which scatters the shell
+// because each sub-mesh inflates from its own local origin).
+const FIERCE_SHELL_SCALE = 1.06;
+
+const buildFierceShellMaterial = (): THREE.MeshBasicMaterial =>
+  new THREE.MeshBasicMaterial({
+    color: new THREE.Color(FIERCE_COLOR),
+    transparent: true,
+    opacity: 0.3,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    toneMapped: false,
   });
-  return (
-    <group ref={groupRef} position={[0, halo * 1.1, 0]}>
-      {/* Soft outer haze — backside additive so it tints the rim only
-          where the sphere is at grazing angle, leaving the silhouette
-          clean rather than washing it brown. */}
-      <mesh renderOrder={4}>
-        <sphereGeometry args={[halo * 1.05, 24, 16]} />
-        <meshBasicMaterial
-          color={FIERCE_COLOR}
-          transparent
-          opacity={0.12}
-          depthWrite={false}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          toneMapped={false}
-        />
-      </mesh>
-      {/* Bright thin shell. Pushes the rim harder so the halo reads as
-          a "this one is dangerous" outline at preview distance. */}
-      <mesh renderOrder={4}>
-        <sphereGeometry args={[halo * 1.18, 24, 16]} />
-        <meshBasicMaterial
-          color={FIERCE_COLOR}
-          transparent
-          opacity={0.22}
-          depthWrite={false}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
+
+// Walk the cloned tree and replace every SkinnedMesh with a plain Mesh
+// at the same place in the hierarchy. The plain Mesh renders the bind-
+// pose geometry without bone matrix processing — exactly the silhouette
+// we want for the forcefield shell.
+const desinewSkinnedMeshes = (root: THREE.Object3D, shellMat: THREE.Material) => {
+  const swaps: Array<{ parent: THREE.Object3D; old: THREE.Object3D; replacement: THREE.Mesh }> = [];
+  root.traverse((node) => {
+    const skin = node as THREE.SkinnedMesh;
+    const mesh = node as THREE.Mesh;
+    if (skin.isSkinnedMesh) {
+      const plain = new THREE.Mesh(skin.geometry, shellMat);
+      plain.position.copy(skin.position);
+      plain.rotation.copy(skin.rotation);
+      plain.scale.copy(skin.scale);
+      plain.frustumCulled = false;
+      plain.castShadow = false;
+      plain.receiveShadow = false;
+      plain.renderOrder = 5;
+      const parent = skin.parent;
+      if (parent) swaps.push({ parent, old: skin, replacement: plain });
+    } else if (mesh.isMesh) {
+      mesh.material = shellMat;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.renderOrder = 5;
+    }
+  });
+  for (const s of swaps) {
+    s.parent.remove(s.old);
+    s.parent.add(s.replacement);
+  }
+};
+
+const FierceShellEffect = ({ kind }: { kind: EnemyKind }) => {
+  const cfg = ENEMY_MODEL[kind];
+  const gltf = useGLTF(cfg.url);
+
+  const obj = useMemo(() => {
+    const measureBox = measureVisibleBox(gltf.scene);
+    const size = measureBox.getSize(new THREE.Vector3());
+    const center = measureBox.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const s = cfg.targetSize / maxDim;
+    // .clone(true) keeps the bind-pose geometry but new Object3D nodes
+    // so the shell tree stays independent of MechanicCreature's tree.
+    const cloned = gltf.scene.clone(true);
+    cloned.scale.setScalar(s * FIERCE_SHELL_SCALE);
+    cloned.position.set(-center.x * s, -measureBox.min.y * s, -center.z * s);
+    const shellMat = buildFierceShellMaterial();
+    desinewSkinnedMeshes(cloned, shellMat);
+    return cloned;
+  }, [gltf.scene, cfg.targetSize]);
+
+  return <primitive object={obj} />;
 };
 
 // "0×" plate above the dino — the same idea as the regen badge but
@@ -438,9 +500,9 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
         </Suspense>
 
         {id === "shielded" && <ShieldEffect kind={kind} />}
-        {id === "healAura" && <HealAuraEffect />}
+        {id === "healAura" && <HealAuraEffect kind={kind} />}
         {id === "regen" && <RegenBadgeEffect kind={kind} />}
-        {id === "fierce" && <FierceHaloEffect kind={kind} />}
+        {id === "fierce" && <FierceShellEffect kind={kind} />}
         {id === "resists" && <ResistsBadgeEffect kind={kind} />}
         {/* "elite" + "slow" tint the creature itself; no overlay mesh. */}
 
