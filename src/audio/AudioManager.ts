@@ -263,11 +263,11 @@ export class AudioManager {
   playShoot(kind: TowerKind, _towerId?: number) {
     if (kind === "flame") return;
     const map: Record<Exclude<TowerKind, "flame">, [string, number, number, number]> = {
-      pulse: ["shoot-pulse", 0.35, 60, 0.7],
+      pulse: ["shoot-pulse", 0.4, 35, 0.4],
       chain: ["shoot-chain", 0.35, 90, 0.9],
       cryo: ["shoot-cryo", 0.45, 150, 1.1],
       mortar: ["shoot-mortar", 0.55, 200, 1.4],
-      hive: ["shoot-pulse", 0.28, 80, 0.7],
+      hive: ["shoot-pulse", 0.3, 45, 0.4],
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, "towers", vol, cd, maxDur);
