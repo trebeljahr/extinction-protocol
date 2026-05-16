@@ -39,6 +39,14 @@ export type BiomeLayer = {
   // scatter. Blocking layers become boulder fields or small dead-tree
   // stands; decor layers become tufts and thickets.
   cluster?: { seeds: number; sigma: number };
+  // Ground-cover mode — small non-blocking decor (grass tufts, mushrooms,
+  // pebbles, flowers) that should spread evenly across the entire map
+  // rather than clump into a handful of Worley features. Ground.tsx
+  // overrides the layer's feature count + spacing ratio when set so the
+  // result reads as a sprinkle, not a few isolated patches. Cross-
+  // groundCover-layer overlap uses a smaller slack so dense grass doesn't
+  // shut out mushrooms/flowers placed afterward.
+  groundCover?: boolean;
 };
 
 export type BiomeStyle = {
@@ -144,16 +152,18 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 1337,
     urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
-    // Reduced from 220 — Ground.tsx now spaces against trees/rocks/other
-    // decor, so the old over-count just made the placement loop give up
-    // early. Cluster mode reads as "tufts of grass" instead of wallpaper.
-    count: 70,
+    // Ground-cover mode — Ground.tsx tiles the map with many small Worley
+    // features and a tight rMin/rMax ratio so grass reads as a near-
+    // uniform sprinkle across the whole field, only thinning around path
+    // clearance + blockers. Higher count keeps the carpet feeling dense
+    // even on busy maps where rocks/bushes carve big holes out of it.
+    count: 220,
     clearance: PATH_WIDTH / 2 + 0.3,
-    minScale: 0.6,
-    maxScale: 1.1,
+    minScale: 0.55,
+    maxScale: 1.0,
     castShadow: false,
-    footprint: 0.28,
-    cluster: { seeds: 6, sigma: 1.8 },
+    footprint: 0.26,
+    groundCover: true,
   },
   {
     seed: 9001,
@@ -183,16 +193,30 @@ const forestLayers = (): BiomeLayer[] => [
   {
     seed: 6464,
     // Mushroom.glb authored 0.78 max-dim; 0.65–1.25 → ~0.5–1.0 world units.
-    // Small enough to read as ground decor rather than an obstacle, so
-    // it's non-blocking — towers placed on top auto-cull them visually.
     urls: ["/models/landmarks/forest/Mushroom.glb"],
-    count: 4,
+    count: 22,
     clearance: PATH_WIDTH / 2 + 0.5,
-    minScale: 0.65,
-    maxScale: 1.25,
+    minScale: 0.55,
+    maxScale: 1.1,
     castShadow: true,
-    footprint: 0.4,
-    cluster: { seeds: 2, sigma: 1.4 },
+    footprint: 0.36,
+    groundCover: true,
+  },
+  {
+    seed: 7373,
+    // BushFlowers authored 1.97 max-dim → scale 0.18–0.32 lands ~0.35–0.63
+    // world units. Previously routed through BIOME_COSMETICS at a fixed 8/
+    // level via a single Worley field; promoted to a ground-cover layer so
+    // it spreads evenly across the forest floor instead of clumping into
+    // three pockets.
+    urls: ["/models/landmarks/forest/BushFlowers.glb"],
+    count: 28,
+    clearance: PATH_WIDTH / 2 + 0.3,
+    minScale: 0.18,
+    maxScale: 0.32,
+    castShadow: false,
+    footprint: 0.28,
+    groundCover: true,
   },
 ];
 
@@ -252,6 +276,43 @@ const desertLayers = (): BiomeLayer[] => [
     cluster: { seeds: 4, sigma: 2.2 },
   },
   DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.09, 0.15),
+  {
+    // Dwarf scrub — desert bushes downscaled into ground-cover sprigs so the
+    // dunes aren't visually empty between the larger rocks and dead trees.
+    // Non-blocking; tiny silhouettes that read as flat scrub from the play
+    // camera but fill the bare ground.
+    seed: 3131,
+    urls: [
+      "/models/biomes/desert/Bush1.glb",
+      "/models/biomes/desert/Bush2.glb",
+      "/models/biomes/desert/Bush3.glb",
+    ],
+    count: 140,
+    clearance: PATH_WIDTH / 2 + 0.2,
+    minScale: 0.16,
+    maxScale: 0.28,
+    castShadow: false,
+    footprint: 0.18,
+    groundCover: true,
+  },
+  {
+    // Loose pebbles — the smallest desert rocks shrunk further so the sand
+    // reads as scattered with grit rather than bare. Non-blocking so they
+    // don't get in the way of build slots; tower placement auto-culls.
+    seed: 5959,
+    urls: [
+      "/models/biomes/desert/Rock1.glb",
+      "/models/biomes/desert/Rock2.glb",
+      "/models/biomes/desert/Rock3.glb",
+    ],
+    count: 110,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.18,
+    maxScale: 0.3,
+    castShadow: false,
+    footprint: 0.2,
+    groundCover: true,
+  },
 ];
 
 const snowLayers = (): BiomeLayer[] => [
@@ -268,6 +329,34 @@ const snowLayers = (): BiomeLayer[] => [
     castShadow: true,
     blocks: true,
     cluster: { seeds: 4, sigma: 2.0 },
+  },
+  {
+    // Snow-scrub patches — biome Bush meshes downscaled into low tufts so
+    // the snowfield reads as windswept brush instead of bare. Non-blocking
+    // ground-cover.
+    seed: 3131,
+    urls: ["/models/biomes/snow/Bush1.glb", "/models/biomes/snow/Bush2.glb"],
+    count: 120,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.18,
+    maxScale: 0.3,
+    castShadow: false,
+    footprint: 0.22,
+    groundCover: true,
+  },
+  {
+    // Ice shards — snow Rock1 at miniature scale dotted across the flats
+    // as frosted pebbles. Same model as the chunky blocker layer so the
+    // material reads as a family; size differential keeps the role clear.
+    seed: 5959,
+    urls: ["/models/biomes/snow/Rock1.glb"],
+    count: 90,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.15,
+    maxScale: 0.26,
+    castShadow: false,
+    footprint: 0.18,
+    groundCover: true,
   },
 ];
 
@@ -305,6 +394,39 @@ const wastelandLayers = (): BiomeLayer[] => [
     cluster: { seeds: 5, sigma: 2.2 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
+  {
+    // Loose rubble — wasteland Rocks downscaled to pebble-grade clutter so
+    // the cracked ground between the larger formations reads as littered
+    // with debris instead of barren. Non-blocking.
+    seed: 3131,
+    urls: [
+      "/models/biomes/wasteland/Rock1.glb",
+      "/models/biomes/wasteland/Rock2.glb",
+      "/models/biomes/wasteland/Rock3.glb",
+      "/models/biomes/wasteland/Rock4.glb",
+      "/models/biomes/wasteland/Rock5.glb",
+    ],
+    count: 150,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.14,
+    maxScale: 0.26,
+    castShadow: false,
+    footprint: 0.18,
+    groundCover: true,
+  },
+  {
+    // Scrub tufts — desert bush mesh repurposed as charred remnant brush;
+    // the muted silhouette reads correctly in wasteland's brown ground.
+    seed: 5959,
+    urls: ["/models/biomes/desert/Bush1.glb", "/models/biomes/desert/Bush2.glb"],
+    count: 90,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.15,
+    maxScale: 0.26,
+    castShadow: false,
+    footprint: 0.18,
+    groundCover: true,
+  },
 ];
 
 const BLUE_CRYSTAL_BLOCKER_URLS = [
@@ -349,6 +471,41 @@ const lavaLayers = (): BiomeLayer[] => [
     cluster: { seeds: 3, sigma: 1.5 },
   },
   DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
+  {
+    // Ember chunks — wasteland Rocks at miniature scale read as cooled
+    // basalt shards scattered across the scorched basin. Non-blocking so
+    // they sprinkle around lava rivers without gating build slots.
+    seed: 3131,
+    urls: [
+      "/models/biomes/wasteland/Rock1.glb",
+      "/models/biomes/wasteland/Rock2.glb",
+      "/models/biomes/wasteland/Rock3.glb",
+      "/models/biomes/wasteland/Rock4.glb",
+      "/models/biomes/wasteland/Rock5.glb",
+    ],
+    count: 140,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.13,
+    maxScale: 0.24,
+    castShadow: false,
+    footprint: 0.18,
+    groundCover: true,
+  },
+  {
+    // Crystal shards — the same small alien-pack crystals used in the
+    // alien biome's ground cover; here they read as cooled glass slivers
+    // ejected from the lava flows. Tiny, non-blocking, sparser than the
+    // rubble layer.
+    seed: 5959,
+    urls: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
+    count: 60,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.05,
+    maxScale: 0.09,
+    castShadow: false,
+    footprint: 0.22,
+    groundCover: true,
+  },
 ];
 
 // Alien uses Quaternius Crystal Pack blue crystals as the signature
@@ -435,6 +592,40 @@ const alienLayers = (): BiomeLayer[] => [
     footprint: 1.45,
   },
   DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 3, 5151, 0.55, 0.85),
+  {
+    // Crystal dust — small alien-pack shards at miniature scale dotted
+    // across the violet plains as luminous grit. Non-blocking; the same
+    // mesh family as the chunky blocker crystals so the material reads
+    // consistently while size differential separates the role.
+    seed: 3131,
+    urls: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
+    count: 130,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.04,
+    maxScale: 0.08,
+    castShadow: false,
+    footprint: 0.2,
+    groundCover: true,
+  },
+  {
+    // Spore tufts — alien plants downscaled into low ground sprigs so the
+    // bare violet ground reads as carpeted with strange flora. Tiny scale
+    // keeps them readable as ground decor rather than a second blocker
+    // layer.
+    seed: 5959,
+    urls: [
+      "/models/biomes/alien/Plant_1.gltf",
+      "/models/biomes/alien/Plant_2.gltf",
+      "/models/biomes/alien/Plant_3.gltf",
+    ],
+    count: 100,
+    clearance: PATH_WIDTH / 2 + 0.25,
+    minScale: 0.08,
+    maxScale: 0.16,
+    castShadow: false,
+    footprint: 0.2,
+    groundCover: true,
+  },
 ];
 
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
@@ -497,17 +688,14 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
   ],
 };
 
-// Small cosmetic props scattered across levels — strictly ground-decor
-// that reads as flat texture, not as an obstacle. Anything that looked
-// like a placement-blocker silhouette (meteors, machines, mushrooms,
-// crystals) was promoted to a blocking layer in BIOME_LAYERS so it goes
-// through the click+clear flow with every other rock-sized prop. Skulls
-// stay reserved for the rarer easter-egg find, not normal map clutter.
-// Only BushFlowers remains: authored at 1.97 max-dim but normalized down
-// to 0.18–0.36 world units, it reads as a flat flower patch, not an
-// obstacle.
+// Small cosmetic props scattered across levels via BiomeCosmetics.tsx. All
+// biomes are now empty: forest's BushFlowers moved to BIOME_LAYERS as a
+// ground-cover layer so it spreads evenly with the same Worley+Poisson
+// pipeline as grass and mushrooms instead of clumping into the cosmetics
+// pass's 8-per-level Worley pockets. The slot is kept so future
+// per-biome cosmetic decals can plug in without resurrecting the type.
 export const BIOME_COSMETICS: Record<Biome, string[]> = {
-  forest: ["/models/landmarks/forest/BushFlowers.glb"],
+  forest: [],
   desert: [],
   snow: [],
   wasteland: [],

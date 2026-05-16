@@ -31,6 +31,8 @@ const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) =
 
 type Placement = { x: number; y: number; scale: number; rot: number; r: number };
 
+type DecorEntry = Placement & { layerIndex: number; groundCover: boolean };
+
 // Default footprint guesses by URL family — used when a BiomeLayer omits
 // `footprint`. Grass is small, bushes are mid, anything else falls back
 // to a conservative 0.5 so unfamiliar packs still get reasonable spacing.
@@ -53,6 +55,25 @@ const PROP_SPACING_SLACK = 0.35;
 // Worley regions is r_min × this. >1 spreads outliers out.
 const DECOR_MAX_SPACING_MUL = 2.3;
 
+// Ground-cover mode tunables. Small non-blocking decor (grass, mushroom,
+// flowers, pebbles, shards) should sprinkle near-uniformly over the
+// whole playable area, not clump into a handful of Worley features the
+// way trees/rocks do. Achieved by:
+//   1. Density-driven feature count — one feature per ~22 world-units²
+//      tiles the map with ~40 small Worley centres so every spot is
+//      inside (or close to) a feature's halo.
+//   2. Small feature radius (2.0) so each centre's high-density zone
+//      stays local.
+//   3. Tight rMin/rMax ratio (1.35×) so the spacing variation between
+//      "dense" and "sparse" is mild — gentle clumping, no bare regions.
+//   4. Reduced cross-layer slack (0.05) so a dense grass field still
+//      leaves room for mushrooms/flowers to slot in between tufts
+//      instead of being completely shut out.
+const GROUND_COVER_AREA_PER_FEATURE = 22;
+const GROUND_COVER_FEATURE_RADIUS = 2.0;
+const GROUND_COVER_MAX_SPACING_MUL = 1.35;
+const GROUND_COVER_CROSS_SLACK = 0.05;
+
 // Build placements for one non-blocking layer using a Worley density
 // field + variable-radius Poisson disk sampling. Density features come
 // from the layer's `cluster` config (seeds → feature count, sigma →
@@ -62,7 +83,7 @@ const DECOR_MAX_SPACING_MUL = 2.3;
 const buildLayer = (
   paths: Vec2[][],
   spec: BiomeLayer,
-  decor: (Placement & { layerIndex: number })[],
+  decor: DecorEntry[],
   blockers: { x: number; y: number; r: number }[],
   lava: LavaFeatures | null,
   levelId: number,
@@ -73,22 +94,39 @@ const buildLayer = (
   const halfW = MAP_WIDTH * 0.475;
   const halfH = MAP_HEIGHT * 0.475;
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
+  const isGroundCover = spec.groundCover === true;
 
   // Per-layer Worley field. Different layers in the same biome get
   // different seeds, so a grass-cluster centre and a bush-cluster
   // centre rarely overlap exactly — the rim reads as varied terrain.
+  //
+  // Ground-cover layers override the cluster knobs with a density-driven
+  // feature count and small feature radius so the Worley tiles the
+  // entire playfield instead of carving out a few isolated pockets.
+  // Result: every region of the map sits inside (or near) a feature's
+  // halo, so spacing stays in the dense end of the rMin/rMax band
+  // almost everywhere.
   const seedBase = spec.seed + levelId * 1103 + layerIndex * 149;
-  const sigma = spec.cluster?.sigma ?? 2.5;
-  const featureRadius = sigma * 2.0;
-  const featureCount = spec.cluster?.seeds ?? 5;
+  let featureRadius: number;
+  let featureCount: number;
+  if (isGroundCover) {
+    const area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    featureCount = Math.max(24, Math.ceil(area / GROUND_COVER_AREA_PER_FEATURE));
+    featureRadius = GROUND_COVER_FEATURE_RADIUS;
+  } else {
+    const sigma = spec.cluster?.sigma ?? 2.5;
+    featureRadius = sigma * 2.0;
+    featureCount = spec.cluster?.seeds ?? 5;
+  }
   const worley = createWorleyField(seedBase, bounds, featureCount, featureRadius);
 
   // Layer min-spacing — derived from footprint × avg scale × 2 (two
-  // halves touching) plus slack. Matches the additive convention the
-  // old rejection loop used between same-layer props.
+  // halves touching) plus slack. Ground-cover layers use a tight
+  // rMin/rMax ratio so spacing variation reads as gentle thinning
+  // rather than dense-vs-empty patches.
   const avgScale = (spec.minScale + spec.maxScale) / 2;
   const rMin = 2 * footprint * avgScale + PROP_SPACING_SLACK;
-  const rMax = rMin * DECOR_MAX_SPACING_MUL;
+  const rMax = rMin * (isGroundCover ? GROUND_COVER_MAX_SPACING_MUL : DECOR_MAX_SPACING_MUL);
   const radiusAt = (x: number, y: number): number => {
     const d = worley.density(x, y);
     return rMin + (1 - d) * (rMax - rMin);
@@ -112,7 +150,13 @@ const buildLayer = (
     for (const d of decor) {
       const dx = d.x - x;
       const dy = d.y - y;
-      const min = candidateR + d.r + PROP_SPACING_SLACK;
+      // Cross-ground-cover collisions use a tiny slack so a dense grass
+      // field doesn't completely shut out the mushroom/flower layers
+      // placed after it. Footprint sums still keep the meshes from
+      // physically overlapping; we just stop padding extra space
+      // between unrelated small decor.
+      const slack = isGroundCover && d.groundCover ? GROUND_COVER_CROSS_SLACK : PROP_SPACING_SLACK;
+      const min = candidateR + d.r + slack;
       if (dx * dx + dy * dy < min * min) return false;
     }
     return true;
@@ -126,7 +170,9 @@ const buildLayer = (
     seed: seedBase * 31 + 23,
     // Seed Bridson with each Worley cluster centre so the layer
     // spreads across all clusters instead of packing every prop
-    // around the first cluster the algorithm reaches.
+    // around the first cluster the algorithm reaches. For ground
+    // cover this means ~40 starting fronts so the Poisson fills the
+    // whole map in parallel.
     initialPoints: worley.features,
   });
 
@@ -137,7 +183,7 @@ const buildLayer = (
     const r = footprint * scale;
     const placement: Placement = { x: p.x, y: p.y, scale, rot: detailRng() * Math.PI * 2, r };
     buckets[variant].push(placement);
-    decor.push({ ...placement, layerIndex });
+    decor.push({ ...placement, layerIndex, groundCover: isGroundCover });
   }
   return buckets;
 };
@@ -224,7 +270,7 @@ export const Ground = () => {
   // so we don't sprinkle grass into the river.
   const layers = useMemo(() => {
     const blockers = buildBlockers(trees, rocks);
-    const decor: (Placement & { layerIndex: number })[] = [];
+    const decor: DecorEntry[] = [];
     const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
     return specs.map((spec, layerIndex) => ({
       spec,
