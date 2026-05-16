@@ -343,7 +343,16 @@ const satisfies = (id: AchievementId, p: ProgressData, w: World, ev: GameEvent |
     case "flawless":
       return ev !== null && ev.type === "game-over" && ev.won && w.lives >= w.startLives;
     case "triple_star":
-      return ev !== null && ev.type === "game-over" && ev.won && starsForLives(w.lives) === 3;
+      // Three-star wording assumes the normal-mode 0-3 grading. Heroic /
+      // iron are binary (clear = 1 star), so the achievement only fires
+      // for full-lives normal clears.
+      return (
+        ev !== null &&
+        ev.type === "game-over" &&
+        ev.won &&
+        w.mode === "normal" &&
+        starsForLives(w.lives) === 3
+      );
     case "full_spectrum":
       return (
         ALL_ENEMY_KINDS.every((k) => w.runEnemyKinds[k]) &&

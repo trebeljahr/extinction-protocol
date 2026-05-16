@@ -7,8 +7,8 @@ import {
   type LavaFeatures,
 } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
-import type { LevelConfig } from "../levels";
-import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
+import { type LevelConfig, resolveLevelMode } from "../levels";
+import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
 import {
   type AllHeroSkills,
   applyHeroSkillsToHero,
@@ -414,11 +414,13 @@ const DEFAULT_HERO_CONTEXT: HeroContext = {
 
 export const createWorld = (
   level: LevelConfig,
+  mode: LevelMode = "normal",
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
   unlockedAchievements: ReadonlySet<string> = new Set(),
   heroCtx: HeroContext = DEFAULT_HERO_CONTEXT,
 ): World => {
   const biome = biomeForPos(level.nodePos);
+  const modeConfig = resolveLevelMode(level, mode);
   // Smooth the authored corner waypoints into the dense polyline that
   // everything downstream walks: enemy advancement, render strip, tower
   // placement clearance, lava bridge cuts, decoration spacing. Doing this
@@ -452,10 +454,15 @@ export const createWorld = (
   // spawner already respects spec.hpMul, so baking it once at creation
   // means the rest of the sim doesn't need to know about difficulty.
   const baseHpScale = (level.hpScale ?? 1) * difficulty.hp;
+  const modeWaves = modeConfig.waves;
   const plannedWaves =
     baseHpScale === 1
-      ? level.waves
-      : level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * baseHpScale }));
+      ? modeWaves
+      : modeWaves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * baseHpScale }));
+  // Iron mode caps lives at 1; every other mode starts at the full HQ
+  // life pool. The runtime never tops these up, so this is the only
+  // place the value is set per run.
+  const startingLives = modeConfig.singleLife ? 1 : STARTING_LIVES;
   // Hero spawns a few units back from HQ along the first path's tangent,
   // shifted off-center so she doesn't sit on the lane. Reuses the path
   // end direction so the spawn lines up with whichever side faces HQ.
@@ -503,15 +510,15 @@ export const createWorld = (
     bossTrickleStreams: [],
     bossTrickleIntervalMul: difficulty.bossTrickleIntervalMul,
     wave: 0,
-    totalWaves: level.waves.length,
+    totalWaves: modeWaves.length,
     waveActive: false,
     nextWaveIn: 2,
     waveTotalEnemies: 0,
     midwaveTimer: 0,
     midwaveTimerMax: 0,
-    gold: Math.floor(level.startGold * difficulty.startGold),
-    lives: STARTING_LIVES,
-    startLives: STARTING_LIVES,
+    gold: Math.floor(modeConfig.startGold * difficulty.startGold),
+    lives: startingLives,
+    startLives: startingLives,
     status: "running",
     nextEntityId: nextId + 1,
     hero,
@@ -538,7 +545,20 @@ export const createWorld = (
     goldKillMul: difficulty.goldKill,
     invincible: false,
     lavaFeatures: lava,
+    mode,
+    forbiddenTowers: new Set(modeConfig.forbiddenTowers ?? []),
+    lockedLoadout: modeConfig.lockedLoadout ?? null,
+    sellingDisabled: modeConfig.noSelling ?? false,
   };
+};
+
+// Centralized check matching mode rules. The HUD greys out forbidden /
+// non-loadout kinds, and tryPlaceOrSelect double-checks at runtime so a
+// stale UI can't sneak a placement past the rules.
+export const isTowerKindAllowed = (world: World, kind: TowerKind): boolean => {
+  if (world.forbiddenTowers.has(kind)) return false;
+  if (world.lockedLoadout && !world.lockedLoadout.includes(kind)) return false;
+  return true;
 };
 
 // Spawn a moving egg (tumbleweed/rover) at a random map edge heading toward

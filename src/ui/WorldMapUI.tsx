@@ -76,7 +76,11 @@ export const WorldMapUI = () => {
   const hoveredStars = hovered ? getStars(progress, hovered.id) : 0;
 
   const total = totalStars(progress);
-  const maxTotal = LEVELS.length * 3;
+  // Each level caps at 5 stars: 3 normal + 1 heroic + 1 iron. The
+  // mode-totals are gated behind clearing normal first, so this max is
+  // the theoretical ceiling once every level has been three-starred
+  // and both challenge modes completed.
+  const maxTotal = LEVELS.length * 5;
   const completed = LEVELS.filter((l) => getStars(progress, l.id) > 0).length;
   const availableStars = Math.max(0, total - spentMetaStars(progress.metaSkills));
 

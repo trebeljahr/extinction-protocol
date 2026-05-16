@@ -52,6 +52,10 @@ export const HUD = () => {
   const difficulty = useGame((s) => s.progress.difficulty);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const progress = useGame((s) => s.progress);
+  // Mode chip + tower picker filtering both read the active mode.
+  const runMode = useGame((s) => s.world.mode);
+  const forbidden = useGame((s) => s.world.forbiddenTowers);
+  const lockedLoadout = useGame((s) => s.world.lockedLoadout);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
@@ -234,6 +238,20 @@ export const HUD = () => {
         >
           <DifficultyTag difficulty={difficulty} label="Mode" size="sm" />
         </button>
+        {runMode !== "normal" && (
+          <div
+            className={`rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide border ${
+              runMode === "heroic"
+                ? "border-orange text-orange bg-[rgba(255,178,102,0.10)]"
+                : "border-red text-red bg-[rgba(255,90,122,0.10)]"
+            }`}
+            title={runMode === "heroic" ? "Heroic challenge mode" : "Iron challenge mode"}
+            aria-label={`${runMode} mode`}
+          >
+            <span aria-hidden>{runMode === "heroic" ? "✦" : "▣"}</span>
+            <span>{runMode}</span>
+          </div>
+        )}
       </div>
 
       <div className="hud-corner-cluster absolute top-4 right-4 flex items-center gap-1.5">
@@ -321,7 +339,10 @@ export const HUD = () => {
               ×
             </button>
           )}
-          {KINDS.map((kind) => {
+          {KINDS.filter(
+            (kind) =>
+              !forbidden.has(kind) && (lockedLoadout === null || lockedLoadout.includes(kind)),
+          ).map((kind) => {
             const cost = effectiveTowerCost(kind, progress.metaSkills);
             const affordable = gold >= cost;
             const active = selectedKind === kind;

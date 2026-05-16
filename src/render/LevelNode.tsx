@@ -3,8 +3,14 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
-import type { LevelConfig } from "../levels";
-import { getStars, isLevelUnlocked } from "../progress";
+import { type LevelConfig, levelHasMode } from "../levels";
+import {
+  getModeStars,
+  getStars,
+  isLevelUnlocked,
+  isModeUnlocked,
+  type LevelMode,
+} from "../progress";
 import { useGame } from "../store";
 
 type Props = { level: LevelConfig };
@@ -33,6 +39,7 @@ export const LevelNode = ({ level }: Props) => {
   const progress = useGame((s) => s.progress);
   const hoveredLevelId = useGame((s) => s.hoveredLevelId);
   const startLevel = useGame((s) => s.startLevel);
+  const openModePicker = useGame((s) => s.openModePicker);
   const setHoveredLevel = useGame((s) => s.setHoveredLevel);
   const [pointerHovered, setPointerHovered] = useState(false);
 
@@ -41,6 +48,17 @@ export const LevelNode = ({ level }: Props) => {
   const completed = stars > 0;
   const unplayed = unlocked && !completed;
   const hovered = pointerHovered || hoveredLevelId === level.id;
+
+  // Mode picker opens only when at least one challenge mode is both
+  // authored on this level AND unlocked for the player. Early-game
+  // levels without heroic/iron content go straight into normal so the
+  // player isn't prompted with a one-option modal.
+  const modePickerAvailable =
+    unlocked &&
+    (["heroic", "iron"] as LevelMode[]).some(
+      (m) => levelHasMode(level, m) && isModeUnlocked(progress, level.id, m),
+    );
+  const modeStars = getModeStars(progress, level.id);
 
   const { baseColor, emissive, emissiveIntensity } = useMemo(() => {
     if (!unlocked) return { baseColor: "#3a4452", emissive: "#000000", emissiveIntensity: 0 };
@@ -69,7 +87,8 @@ export const LevelNode = ({ level }: Props) => {
     if (!unlocked) return;
     audio.ensureResumed();
     audio.play("level-select", "ui", 0.7, 80);
-    startLevel(level.id);
+    if (modePickerAvailable) openModePicker(level.id);
+    else startLevel(level.id);
   };
 
   const handleOver = (e: ThreeEvent<PointerEvent>) => {
@@ -186,6 +205,34 @@ export const LevelNode = ({ level }: Props) => {
             );
           })}
         </group>
+      )}
+
+      {(modeStars.heroic > 0 || modeStars.iron > 0) && (
+        <Html
+          center
+          position={[0, 0.05, labelZ + 0.7]}
+          zIndexRange={[0, 10]}
+          wrapperClass="map-label-wrap"
+        >
+          <div className="flex gap-1 text-[11px] font-bold tabular-nums select-none">
+            {modeStars.heroic > 0 && (
+              <span
+                className="px-1.5 py-0.5 rounded border border-orange text-orange bg-[rgba(255,178,102,0.10)]"
+                title="Heroic cleared"
+              >
+                ✦ H
+              </span>
+            )}
+            {modeStars.iron > 0 && (
+              <span
+                className="px-1.5 py-0.5 rounded border border-red text-red bg-[rgba(255,90,122,0.10)]"
+                title="Iron cleared"
+              >
+                ▣ I
+              </span>
+            )}
+          </div>
+        </Html>
       )}
     </group>
   );

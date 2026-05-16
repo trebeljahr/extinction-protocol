@@ -542,6 +542,13 @@ export type World = {
   invincible: boolean;
   lavaFeatures: import("../lavaGeometry").LavaFeatures | null;
   hero: Hero;
+  // Per-run challenge-mode tags. Heroic + iron set these from their
+  // ModeConfig; normal runs all default to permissive. The sim and HUD
+  // read these directly without re-resolving the mode config each tick.
+  mode: import("../progress").LevelMode;
+  forbiddenTowers: ReadonlySet<TowerKind>;
+  lockedLoadout: readonly TowerKind[] | null;
+  sellingDisabled: boolean;
 };
 
 export type EasterEgg = {

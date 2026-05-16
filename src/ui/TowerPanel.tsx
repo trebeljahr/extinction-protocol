@@ -68,6 +68,10 @@ export const TowerPanel = () => {
   useGame((s) => s.ui.towerVersion);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
+  // Iron mode disables selling; we still render the panel so upgrades
+  // and targeting modes are reachable. SellFooter hides itself when
+  // sellDisabled is true.
+  const sellDisabled = useGame((s) => s.world.sellingDisabled);
 
   if (selectedId === null || status !== "running") return null;
   const tower = useGame.getState().world.towerById.get(selectedId);
@@ -122,7 +126,7 @@ export const TowerPanel = () => {
           <BranchView tower={tower} branchId="b" gold={gold} />
         </div>
 
-        <SellFooter tower={tower} />
+        <SellFooter tower={tower} sellDisabled={sellDisabled} />
       </div>
     );
   }
@@ -232,12 +236,12 @@ export const TowerPanel = () => {
         <BranchView tower={tower} branchId="b" gold={gold} />
       </div>
 
-      <SellFooter tower={tower} />
+      <SellFooter tower={tower} sellDisabled={sellDisabled} />
     </div>
   );
 };
 
-const SellFooter = ({ tower }: { tower: Tower }) => {
+const SellFooter = ({ tower, sellDisabled }: { tower: Tower; sellDisabled: boolean }) => {
   const [confirming, setConfirming] = useState(false);
   // Reset the confirm state whenever the selected tower changes so
   // switching towers never leaves a stale "Confirm Sell" from a
@@ -247,6 +251,16 @@ const SellFooter = ({ tower }: { tower: Tower }) => {
     setConfirming(false);
   }, [tower.id]);
   const refund = sellRefund(tower);
+
+  if (sellDisabled) {
+    return (
+      <div className="panel-footer">
+        <div className="text-[11px] text-fg-dim italic text-center w-full">
+          Iron Mode · selling disabled
+        </div>
+      </div>
+    );
+  }
 
   if (confirming) {
     return (

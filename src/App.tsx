@@ -38,6 +38,7 @@ const CreditsPanel = lazy(() =>
 const DifficultyPicker = lazy(() =>
   import("./ui/DifficultyPicker").then((m) => ({ default: m.DifficultyPicker })),
 );
+const ModePicker = lazy(() => import("./ui/ModePicker").then((m) => ({ default: m.ModePicker })));
 const SkillTreePanel = lazy(() =>
   import("./ui/SkillTreePanel").then((m) => ({ default: m.SkillTreePanel })),
 );
@@ -86,6 +87,7 @@ export const App = () => {
   const achievementsOpen = useGame((s) => s.achievementsOpen);
   const creditsOpen = useGame((s) => s.creditsOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
+  const modePickerOpen = useGame((s) => s.modePickerLevelId !== null);
   const skillTreeOpen = useGame((s) => s.skillTreeOpen);
   const heroShopOpen = useGame((s) => s.heroShopOpen);
   const selectedKind = useGame((s) => s.selectedKind);
@@ -96,6 +98,7 @@ export const App = () => {
     achievementsOpen ||
     creditsOpen ||
     difficultyPickerOpen ||
+    modePickerOpen ||
     skillTreeOpen ||
     heroShopOpen;
   const isMobile = useIsMobile();
@@ -211,6 +214,11 @@ export const App = () => {
       {difficultyPickerOpen && (
         <Suspense fallback={null}>
           <DifficultyPicker />
+        </Suspense>
+      )}
+      {modePickerOpen && (
+        <Suspense fallback={null}>
+          <ModePicker />
         </Suspense>
       )}
       {skillTreeOpen && (

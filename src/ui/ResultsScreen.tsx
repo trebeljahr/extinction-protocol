@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
 import { LEVELS } from "../levels";
-import { isLevelUnlocked } from "../progress";
+import { isLevelUnlocked, LEVEL_MODE_LABEL } from "../progress";
 import { useGame } from "../store";
 import { STAR_STAGGER_MS, StarDisplay } from "./StarDisplay";
 
@@ -66,15 +66,36 @@ export const ResultsScreen = () => {
       <div className="overlay-card min-w-[420px] px-10 py-8">
         <div className="flex items-center justify-center gap-4 mb-1">
           <h1 className="!mb-0">{result.won ? "Outpost held." : "Extinction complete."}</h1>
-          <StarDisplay count={result.stars} size={28} animate />
+          {result.mode === "normal" ? (
+            <StarDisplay count={result.stars as 0 | 1 | 2 | 3} size={28} animate />
+          ) : (
+            <ModeBadge mode={result.mode} earned={result.stars >= 1} />
+          )}
         </div>
         <div className="text-[13px] tracking-uber uppercase text-fg-dim mb-5">
+          {result.mode !== "normal" && (
+            <span className={result.mode === "heroic" ? "text-orange mr-2" : "text-red mr-2"}>
+              {LEVEL_MODE_LABEL[result.mode]} ·
+            </span>
+          )}
           {result.levelName}
         </div>
 
         <div className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg px-4 py-3.5 mb-5">
-          <ResultRow label="Lives remaining" value={`${result.livesRemaining} / 20`} />
-          <ResultRow label="Best" value={<StarDisplay count={result.bestStars} size={14} />} />
+          <ResultRow
+            label="Lives remaining"
+            value={`${result.livesRemaining} / ${result.startingLives}`}
+          />
+          <ResultRow
+            label="Best"
+            value={
+              result.mode === "normal" ? (
+                <StarDisplay count={result.bestStars as 0 | 1 | 2 | 3} size={14} />
+              ) : (
+                <ModeBadge mode={result.mode} earned={result.bestStars >= 1} compact />
+              )
+            }
+          />
           {result.improved && (
             <div className="mt-2.5 text-center text-[11px] tracking-uber text-gold font-bold">
               NEW BEST
@@ -127,3 +148,31 @@ const ResultRow = ({ label, value }: { label: string; value: React.ReactNode }) 
     <span className="text-fg font-bold inline-flex items-center">{value}</span>
   </div>
 );
+
+// Single-icon badge used in place of the 3-star row for heroic/iron
+// runs. Earned = bright + glowing, unearned = dim outline so the player
+// sees what they still owe on this map.
+const ModeBadge = ({
+  mode,
+  earned,
+  compact = false,
+}: {
+  mode: "heroic" | "iron";
+  earned: boolean;
+  compact?: boolean;
+}) => {
+  const icon = mode === "heroic" ? "✦" : "▣";
+  const colorClass = mode === "heroic" ? "text-orange" : "text-red";
+  const borderClass = mode === "heroic" ? "border-orange" : "border-red";
+  const size = compact ? "text-sm px-1.5 py-0.5" : "text-2xl px-3 py-1";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded border ${borderClass} ${size} ${
+        earned ? `${colorClass} font-bold` : "text-fg-dim opacity-50"
+      }`}
+    >
+      <span aria-hidden>{icon}</span>
+      <span className="text-[10px] uppercase tracking-wide">{mode}</span>
+    </span>
+  );
+};

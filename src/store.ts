@@ -7,16 +7,17 @@ import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { isOnLavaSurface } from "./lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
-import { getLevel, LEVELS } from "./levels";
+import { getLevel, LEVELS, levelHasMode, resolveLevelMode } from "./levels";
 import { LEVEL_BRIEFING } from "./levels/briefings";
-import type { Difficulty, ProgressData, SlotId, Stars } from "./progress";
+import type { Difficulty, LevelMode, ProgressData, SlotId, Stars } from "./progress";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTY_MULTIPLIERS,
   deleteSlot as deleteSlotStorage,
   emptyProgress,
-  getStars,
+  getModeStars,
   isLevelUnlocked,
+  isModeUnlocked,
   loadSlot,
   markEncountered,
   markMatriarchsEncountered,
@@ -24,7 +25,7 @@ import {
   recordLevelResult,
   saveSlot,
   setDifficulty as setDifficultyOnProgress,
-  starsForLives,
+  starsForRun,
   totalStars,
 } from "./progress";
 import {
@@ -86,6 +87,7 @@ import {
   createWorld,
   emit,
   HIVE_MAX_DRONES_PER_TOWER,
+  isTowerKindAllowed,
   meshXZRadii,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
@@ -106,8 +108,13 @@ export type LastResult = {
   levelName: string;
   won: boolean;
   livesRemaining: number;
-  stars: Stars;
-  bestStars: Stars;
+  startingLives: number;
+  mode: LevelMode;
+  // Number of stars awarded *this run* for the mode. Normal is 0-3,
+  // heroic/iron are 0 or 1.
+  stars: number;
+  // Best run for the same mode (max of prior and current).
+  bestStars: number;
   improved: boolean;
   unlockedAchievements: AchievementId[];
 };
@@ -453,7 +460,17 @@ type GameStore = {
   selectSlot: (id: SlotId) => void;
   deleteSlot: (id: SlotId) => void;
 
-  startLevel: (id: number) => void;
+  // Default mode is "normal" — heroic/iron are passed in by the mode
+  // picker. The store keeps no separate selectedMode; the active mode
+  // lives on World.mode and on lastResult.mode so cross-screen reads
+  // (HUD chip, results screen, etc.) stay in sync.
+  startLevel: (id: number, mode?: LevelMode) => void;
+  // Level pending the mode-picker overlay. null while the picker is
+  // closed; set to a level id when the world map opens the picker so
+  // the picker UI knows which level to show modes for.
+  modePickerLevelId: number | null;
+  openModePicker: (id: number) => void;
+  closeModePicker: () => void;
   retryCurrentLevel: () => void;
   goToWorldMap: () => void;
   setHoveredLevel: (id: number | null) => void;
@@ -600,9 +617,14 @@ const tryUnlockEasterEgg = (
   };
 };
 
-const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty, progress: ProgressData) => {
+const buildWorldForLevel = (
+  level: LevelConfig,
+  mode: LevelMode,
+  difficulty: Difficulty,
+  progress: ProgressData,
+) => {
   const unlockedAch = new Set(Object.keys(progress.unlocked));
-  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch, {
+  const world = createWorld(level, mode, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch, {
     variant: progress.activeHero,
     xp: progress.heroXp[progress.activeHero] ?? 0,
     skills: progress.heroSkills,
@@ -659,7 +681,7 @@ export const isUnlocked = (levelId: number, progress: ProgressData) =>
   isLevelUnlocked(levelId, progress);
 
 export const useGame = create<GameStore>((set, get) => ({
-  ...buildWorldForLevel(getLevel(1), DEFAULT_DIFFICULTY, emptyProgress()),
+  ...buildWorldForLevel(getLevel(1), "normal", DEFAULT_DIFFICULTY, emptyProgress()),
   engine: new Engine(),
   selectedKind: null,
   selectedTreeId: null,
@@ -671,6 +693,7 @@ export const useGame = create<GameStore>((set, get) => ({
   screen: "splash",
   activeSlot: null,
   selectedLevelId: null,
+  modePickerLevelId: null,
   progress: emptyProgress(),
   hoveredLevelId: null,
   lastResult: null,
@@ -686,14 +709,22 @@ export const useGame = create<GameStore>((set, get) => ({
   treeClickCounts: {},
   rockClickCounts: {},
 
-  startLevel: (id) => {
+  startLevel: (id, modeArg) => {
     const level = LEVELS.find((l) => l.id === id);
     if (!level) return;
     const s = get();
     const { engine, progress } = s;
     if (!isLevelUnlocked(id, progress)) return;
+    // Resolve the requested mode. Caller defaults to "normal"; heroic /
+    // iron must both be unlocked AND defined on the level (the picker
+    // already enforces this, but reject defensively in case startLevel
+    // is invoked from elsewhere — e.g. retry after the level was patched).
+    let mode: LevelMode = modeArg ?? "normal";
+    if (mode !== "normal") {
+      if (!levelHasMode(level, mode) || !isModeUnlocked(progress, id, mode)) mode = "normal";
+    }
     engine.reset();
-    const built = buildWorldForLevel(level, progress.difficulty, progress);
+    const built = buildWorldForLevel(level, mode, progress.difficulty, progress);
     // Carry the debug invincibility flag across level starts/retries so a
     // toggled-on tester doesn't have to flip it again every restart.
     built.world.invincible = s.invincible;
@@ -705,6 +736,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: null,
       selectedRockId: null,
       selectedLevelId: id,
+      modePickerLevelId: null,
       hoveredLevelId: null,
       lastResult: null,
       newEnemyQueue: [],
@@ -719,9 +751,23 @@ export const useGame = create<GameStore>((set, get) => ({
     track("level_start", { level_id: id });
   },
 
+  openModePicker: (id) => {
+    const s = get();
+    if (!isLevelUnlocked(id, s.progress)) return;
+    set({ modePickerLevelId: id });
+  },
+  closeModePicker: () => {
+    if (get().modePickerLevelId === null) return;
+    set({ modePickerLevelId: null });
+  },
+
   retryCurrentLevel: () => {
-    const id = get().selectedLevelId ?? 1;
-    get().startLevel(id);
+    const s = get();
+    const id = s.selectedLevelId ?? 1;
+    // Retry preserves the mode the player was in — restarting an Iron
+    // attempt should keep the one-life + locked loadout, not silently
+    // drop back to normal.
+    s.startLevel(id, s.world.mode);
   },
 
   goToWorldMap: () => {
@@ -779,7 +825,7 @@ export const useGame = create<GameStore>((set, get) => ({
       newEnemyQueue: [],
       deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
-      ...buildWorldForLevel(getLevel(1), progress.difficulty, progress),
+      ...buildWorldForLevel(getLevel(1), "normal", progress.difficulty, progress),
     });
   },
 
@@ -876,13 +922,14 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.screen === "playing" && s.selectedLevelId !== null) {
       const w = s.world;
       const level = getLevel(s.selectedLevelId);
+      const modeConfig = resolveLevelMode(level, w.mode);
       const mul = DIFFICULTY_MULTIPLIERS[difficulty];
       w.speedMul = mul.speed;
       w.goldKillMul = mul.goldKill;
       const baseHpScale = (level.hpScale ?? 1) * mul.hp;
       const startIdx = Math.max(0, w.wave); // index of next wave to start
-      for (let i = startIdx; i < level.waves.length; i++) {
-        const orig = level.waves[i];
+      for (let i = startIdx; i < modeConfig.waves.length; i++) {
+        const orig = modeConfig.waves[i];
         w.plannedWaves[i] = {
           ...orig,
           hpMul: (orig.hpMul ?? 1) * baseHpScale,
@@ -1027,9 +1074,17 @@ export const useGame = create<GameStore>((set, get) => ({
         }
         if (ev.type === "game-over") {
           const w = s.world;
-          const stars: Stars = ev.won ? starsForLives(w.lives) : 0;
-          const prev = getStars(progress, w.levelId);
-          if (ev.won && stars > prev) progress = recordLevelResult(progress, w.levelId, stars);
+          const mode: LevelMode = w.mode;
+          const stars = starsForRun(mode, w.lives, ev.won);
+          const prevModeStars = getModeStars(progress, w.levelId);
+          const prev =
+            mode === "normal"
+              ? prevModeStars.normal
+              : mode === "heroic"
+                ? prevModeStars.heroic
+                : prevModeStars.iron;
+          const improved = ev.won && stars > prev;
+          if (improved) progress = recordLevelResult(progress, w.levelId, mode, stars);
           if (ev.won) {
             progress = {
               ...progress,
@@ -1037,15 +1092,17 @@ export const useGame = create<GameStore>((set, get) => ({
             };
           }
           const level = LEVELS.find((l) => l.id === w.levelId);
-          const bestStars: Stars = Math.max(prev, ev.won ? stars : 0) as Stars;
+          const bestStars = Math.max(prev, ev.won ? stars : 0);
           lastResult = {
             levelId: w.levelId,
             levelName: level?.name ?? `Level ${w.levelId}`,
             won: ev.won,
             livesRemaining: w.lives,
+            startingLives: w.startLives,
+            mode,
             stars,
             bestStars,
-            improved: ev.won && stars > prev,
+            improved,
             unlockedAchievements: [],
           };
           if (ev.won) {
@@ -1118,6 +1175,9 @@ export const useGame = create<GameStore>((set, get) => ({
   setSelectedKind: (kind) => {
     const s = get();
     const { world, towerVersion, treeVersion } = s;
+    // Reject arming a kind the active mode forbids. Keyboard hotkeys and
+    // the picker both route through here, so this is the single chokepoint.
+    if (kind !== null && !isTowerKindAllowed(world, kind)) return;
     if (kind !== null) {
       world.selectedTowerId = null;
       world.selectedBase = false;
@@ -1652,6 +1712,14 @@ export const useGame = create<GameStore>((set, get) => ({
     // an active wave. Selection/deselection above is fine in any state
     // (auto-pause on new-enemy sighting is a common moment to deselect).
     if (w.status !== "running") return;
+    // Mode rule check before spending gold. The HUD greys out denied
+    // kinds, but a stale picker selection (e.g. the player armed a kind
+    // before opening the heroic/iron run) is rejected here so rules
+    // can't be bypassed mid-run.
+    if (!isTowerKindAllowed(w, s.selectedKind)) {
+      emit(w, { type: "place-failed", reason: "spot" });
+      return;
+    }
     const cost = effectiveTowerCost(s.selectedKind, s.progress.metaSkills);
     // Debug "free towers" mode skips both the affordability check and
     // the spend; lets a tester sanity-check matchups without grinding.
@@ -1729,6 +1797,9 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.world.selectedTowerId === null) return;
     const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
+    // Iron mode disables selling entirely — every placement is committed
+    // for the run. The UI hides the sell button, but reject defensively.
+    if (s.world.sellingDisabled) return;
     sellTower(s.world, t);
     emit(s.world, { type: "tower-sold" });
     const newVersion = s.towerVersion + 1;
@@ -2081,8 +2152,19 @@ export const useGame = create<GameStore>((set, get) => ({
       ...s.progress,
       starsByLevel: { ...s.progress.starsByLevel },
     };
-    if (stars === 0) delete next.starsByLevel[levelId];
-    else next.starsByLevel[levelId] = stars;
+    // Debug only touches the normal-mode star slot. Heroic + iron stars
+    // are preserved if already earned so toggling normal back to 0 in
+    // the debug menu doesn't nuke a player's challenge clears.
+    const prev = s.progress.starsByLevel[levelId];
+    if (stars === 0 && (!prev || (prev.heroic === 0 && prev.iron === 0))) {
+      delete next.starsByLevel[levelId];
+    } else {
+      next.starsByLevel[levelId] = {
+        normal: stars,
+        heroic: prev?.heroic ?? 0,
+        iron: prev?.iron ?? 0,
+      };
+    }
     // Re-run checks so progress-only achievements (campaign, perfect_run)
     // unlock when stars cross their thresholds via this debug path.
     const res = checkAchievements(next, s.world, null);

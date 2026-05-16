@@ -37,7 +37,8 @@
  * bonuses (variable) or assume surviving towers from earlier waves.
  */
 
-import { LEVELS } from "../src/levels";
+import { LEVELS, levelHasMode, resolveLevelMode } from "../src/levels";
+import { LEVEL_MODES, type LevelMode } from "../src/progress";
 import { type AllHeroSkills, applyHeroSkillsToHero } from "../src/sim/heroSkills";
 import { HERO_SPECS, type HeroVariantSpec } from "../src/sim/heroVariants";
 import {
@@ -720,7 +721,10 @@ const bestSetup = (
   heroDps: number,
   baseConfigs: BaseConfig[],
   coverageCache: Map<number, number>,
+  modeCfg?: { forbiddenTowers?: TowerKind[]; lockedLoadout?: TowerKind[] },
 ): TowerPick[] => {
+  const forbidden = new Set(modeCfg?.forbiddenTowers ?? []);
+  const lockedLoadout = modeCfg?.lockedLoadout ?? null;
   const picks: TowerPick[] = [];
   for (const baseCfg of baseConfigs) {
     if (baseCfg.cost > budget) continue;
@@ -728,6 +732,10 @@ const bestSetup = (
     const baseDps = baseDpsContribution(spec, paths.length, longestPath, baseCfg);
     for (const cfg of configs) {
       if (cfg.damage <= 0) continue;
+      // Honor mode rules so heroic forbids / iron loadouts don't get
+      // "cleared" by a tower the player literally can't place.
+      if (forbidden.has(cfg.kind)) continue;
+      if (lockedLoadout && !lockedLoadout.includes(cfg.kind)) continue;
       const count = Math.floor(remaining / cfg.cost);
       if (count === 0) continue;
       const perTowerDps = effectiveDpsVsWave(cfg, wave, spec, longestPath);
@@ -770,8 +778,9 @@ const bestSetup = (
   return [picks[0], ...topByKind.filter((p) => p !== picks[0])].slice(0, 3);
 };
 
-const analyzeLevel = (levelIdx: number, opts: AnalysisOpts) => {
+const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "normal") => {
   const level = LEVELS[levelIdx];
+  const cfg = resolveLevelMode(level, mode);
   const hpScale = level.hpScale ?? 1;
   const longestPath = Math.max(...level.paths.map(pathLength));
   const towerStarBudget = opts.towerStarBudget ?? defaultTowerStarBudget(level.id);
@@ -784,12 +793,12 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts) => {
   let cumulativeBonus = 0;
   const coverageCache = new Map<number, number>();
 
-  for (let i = 0; i < level.waves.length; i++) {
-    const spec = level.waves[i];
+  for (let i = 0; i < cfg.waves.length; i++) {
+    const spec = cfg.waves[i];
     const waveNumber = i + 1;
     const wave = analyzeWave(spec, hpScale, longestPath);
     const dur = combatWindow(spec, waveNumber, wave, longestPath);
-    const budget = level.startGold + cumulativeBounty + cumulativeBonus;
+    const budget = cfg.startGold + cumulativeBounty + cumulativeBonus;
     const requiredDps = wave.totalHp / dur;
     const heroDps =
       opts.heroVariant !== null
@@ -813,6 +822,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts) => {
       heroDps,
       baseConfigs,
       coverageCache,
+      cfg,
     );
 
     rows.push({
@@ -832,7 +842,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts) => {
     cumulativeBonus += 5 + waveNumber;
   }
 
-  return { level, rows, longestPath, towerStarBudget, heroSkillBudget };
+  return { level, mode, cfg, rows, longestPath, towerStarBudget, heroSkillBudget };
 };
 
 // ------- Output -------
@@ -855,10 +865,16 @@ const fmt = (n: number, d = 0) => n.toFixed(d);
 const pad = (s: string | number, n: number) => String(s).padStart(n);
 const padR = (s: string | number, n: number) => String(s).padEnd(n);
 
-const printLevel = (levelIdx: number, detail: boolean, opts: AnalysisOpts) => {
-  const { level, rows, longestPath, towerStarBudget, heroSkillBudget } = analyzeLevel(
+const printLevel = (
+  levelIdx: number,
+  detail: boolean,
+  opts: AnalysisOpts,
+  mode: LevelMode = "normal",
+) => {
+  const { level, cfg, rows, longestPath, towerStarBudget, heroSkillBudget } = analyzeLevel(
     levelIdx,
     opts,
+    mode,
   );
   const clearedCount = rows.filter((r) => r.best && r.best.potentialDamage >= r.totalHp).length;
   const tightestWave = rows.reduce(
@@ -871,10 +887,22 @@ const printLevel = (levelIdx: number, detail: boolean, opts: AnalysisOpts) => {
 
   const heroLabel = opts.heroVariant ? `${opts.heroVariant}(${heroSkillBudget}sp)` : "off";
   const baseLabel = opts.searchBaseUpgrades ? "searched" : "rank0/0";
+  const modeTag =
+    mode === "normal"
+      ? ""
+      : mode === "heroic"
+        ? ` ${C.yellow}[HEROIC]${C.reset}`
+        : ` ${C.red}[IRON]${C.reset}`;
+  const rules: string[] = [];
+  if (cfg.forbiddenTowers?.length) rules.push(`deny ${cfg.forbiddenTowers.join(",")}`);
+  if (cfg.lockedLoadout?.length) rules.push(`loadout ${cfg.lockedLoadout.join(",")}`);
+  if (cfg.singleLife) rules.push("1 life");
+  if (cfg.noSelling) rules.push("no sell");
+  const rulesTag = rules.length > 0 ? ` ${C.magenta}(${rules.join(" · ")})${C.reset}` : "";
   console.log(
-    `\n${C.bold}═══ L${level.id}: ${level.name}${C.reset}` +
+    `\n${C.bold}═══ L${level.id}: ${level.name}${modeTag}${C.reset}${rulesTag}` +
       `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
-      ` ${C.dim}startGold=${level.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u, ` +
+      ` ${C.dim}startGold=${cfg.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u, ` +
       `hero=${heroLabel}, towerStars=${towerStarBudget}, base=${baseLabel}${C.reset}`,
   );
   console.log(
@@ -1041,6 +1069,22 @@ const ratioArg = args.find((a: string) => a.startsWith("--ratio="));
 const starsArg = args.find((a: string) => a.startsWith("--stars="));
 const heroSkillsArg = args.find((a: string) => a.startsWith("--hero-skills="));
 const heroArg = args.find((a: string) => a.startsWith("--hero="));
+// --mode=normal|heroic|iron|all — pick which modes the report iterates.
+// Default is "all" so authors get feasibility for every defined variant
+// in one pass, with normal always shown first per level.
+const modeArg = args.find((a: string) => a.startsWith("--mode="));
+const modeFilter: LevelMode[] = ((): LevelMode[] => {
+  if (!modeArg) return LEVEL_MODES;
+  const v = modeArg.split("=")[1];
+  if (v === "all") return LEVEL_MODES;
+  if (v === "normal" || v === "heroic" || v === "iron") return [v];
+  console.error(`--mode must be normal | heroic | iron | all`);
+  process.exit(1);
+})();
+const modesForLevel = (levelIdx: number): LevelMode[] => {
+  const level = LEVELS[levelIdx];
+  return modeFilter.filter((m) => m === "normal" || levelHasMode(level, m));
+};
 const levelArg = args.find((a: string) => /^\d+$/.test(a));
 
 const parseHeroVariant = (value: string | undefined): HeroVariant => {
@@ -1072,31 +1116,47 @@ if (softMode) {
     console.error(`Level must be 1..${LEVELS.length}`);
     process.exit(1);
   }
-  printLevel(idx, detail, baseOpts);
+  for (const m of modesForLevel(idx)) printLevel(idx, detail, baseOpts, m);
 } else {
-  for (let i = 0; i < LEVELS.length; i++) printLevel(i, detail, baseOpts);
-  // Global summary
-  console.log(`\n${C.bold}═══ Summary${C.reset}`);
-  let totalWaves = 0;
-  let clearable = 0;
-  const problemWaves: string[] = [];
   for (let i = 0; i < LEVELS.length; i++) {
-    const { level, rows } = analyzeLevel(i, baseOpts);
-    totalWaves += rows.length;
-    for (const r of rows) {
-      const feas = r.best ? r.best.potentialDamage / r.totalHp : 0;
-      if (feas >= 1) clearable++;
-      else problemWaves.push(`L${level.id}W${r.wave} (${fmt(feas, 2)}×)`);
+    for (const m of modesForLevel(i)) printLevel(i, detail, baseOpts, m);
+  }
+  // Global summary — one line per mode so authors can spot the gap
+  // between the polished campaign and a still-rough challenge variant.
+  console.log(`\n${C.bold}═══ Summary${C.reset}`);
+  for (const m of modeFilter) {
+    let totalWaves = 0;
+    let clearable = 0;
+    const problemWaves: string[] = [];
+    let levelsWithMode = 0;
+    for (let i = 0; i < LEVELS.length; i++) {
+      if (m !== "normal" && !levelHasMode(LEVELS[i], m)) continue;
+      levelsWithMode++;
+      const { level, rows } = analyzeLevel(i, baseOpts, m);
+      totalWaves += rows.length;
+      for (const r of rows) {
+        const feas = r.best ? r.best.potentialDamage / r.totalHp : 0;
+        if (feas >= 1) clearable++;
+        else problemWaves.push(`L${level.id}W${r.wave} (${fmt(feas, 2)}×)`);
+      }
+    }
+    if (totalWaves === 0) {
+      console.log(`${C.dim}${m}: no levels defined${C.reset}`);
+      continue;
+    }
+    const tag =
+      m === "normal" ? "" : ` ${C.dim}(${levelsWithMode}/${LEVELS.length} levels)${C.reset}`;
+    console.log(
+      `${C.bold}${m}${C.reset}${tag}: ${clearable}/${totalWaves} waves theoretically clearable ` +
+        `${C.dim}(${((clearable / totalWaves) * 100).toFixed(1)}%)${C.reset}`,
+    );
+    if (problemWaves.length > 0) {
+      console.log(`  ${C.red}Below 1.0×: ${problemWaves.join(", ")}${C.reset}`);
     }
   }
   const heroLbl = baseOpts.heroVariant ?? "off";
   console.log(
-    `${clearable}/${totalWaves} waves theoretically clearable ` +
-      `${C.dim}(${((clearable / totalWaves) * 100).toFixed(1)}%)${C.reset}` +
-      ` ${C.dim}— hero=${heroLbl}, towerStars=${baseOpts.towerStarBudget ?? "auto"}, ` +
+    `${C.dim}— hero=${heroLbl}, towerStars=${baseOpts.towerStarBudget ?? "auto"}, ` +
       `heroSp=${baseOpts.heroSkillBudget ?? "auto"}, base=${baseOpts.searchBaseUpgrades ? "searched" : "rank0"}${C.reset}`,
   );
-  if (problemWaves.length > 0) {
-    console.log(`${C.red}Below 1.0×: ${problemWaves.join(", ")}${C.reset}`);
-  }
 }

@@ -5,6 +5,37 @@ import type { BossVariant, EnemyKind, HeroVariant } from "./sim/types";
 export type Stars = 0 | 1 | 2 | 3;
 export type SlotId = 1 | 2 | 3;
 
+// Per-level mode: orthogonal to Difficulty. Normal is the base 3-star
+// campaign; Heroic + Iron are KR-style challenge variants with handcrafted
+// waves and rules. Each adds one bonus star per level on top of normal's
+// three (max 5 stars per level).
+export type LevelMode = "normal" | "heroic" | "iron";
+
+export const LEVEL_MODES: LevelMode[] = ["normal", "heroic", "iron"];
+
+export const LEVEL_MODE_LABEL: Record<LevelMode, string> = {
+  normal: "Standard",
+  heroic: "Heroic",
+  iron: "Iron",
+};
+
+export const LEVEL_MODE_TAGLINE: Record<LevelMode, string> = {
+  normal: "The intended campaign",
+  heroic: "Tougher waves. Towers denied.",
+  iron: "One life. Locked loadout. No selling.",
+};
+
+// Per-level mode-star record. Normal still grades 0-3 from lives saved;
+// heroic + iron are binary (clear = 1 bonus star). Sum across all modes
+// gives a single level's contribution to totalStars (max 5).
+export type ModeStars = {
+  normal: Stars;
+  heroic: 0 | 1;
+  iron: 0 | 1;
+};
+
+export const emptyModeStars = (): ModeStars => ({ normal: 0, heroic: 0, iron: 0 });
+
 export type ProgressStats = {
   killsTotal: number;
   winsTotal: number;
@@ -65,9 +96,13 @@ export const DIFFICULTY_ACCENT: Record<Difficulty, DifficultyAccent> = {
 
 export const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
+// v2 added mode-stars (heroic + iron). v1 saves auto-migrate: the old
+// per-level number becomes ModeStars.normal with heroic + iron zeroed.
+export const PROGRESS_VERSION = 2 as const;
+
 export type ProgressData = {
-  version: 1;
-  starsByLevel: Record<number, Stars>;
+  version: 2;
+  starsByLevel: Record<number, ModeStars>;
   encountered: Partial<Record<EnemyKind, boolean>>;
   // Per-variant matriarch encounter set. The Compendium's matriarch
   // entries unlock as the player first sees each biome's queen. Legacy
@@ -120,7 +155,7 @@ const NAME_MAX_LEN = 24;
 const emptyStats = (): ProgressStats => ({ killsTotal: 0, winsTotal: 0 });
 
 export const emptyProgress = (): ProgressData => ({
-  version: 1,
+  version: PROGRESS_VERSION,
   starsByLevel: {},
   encountered: {},
   matriarchsEncountered: {},
@@ -140,11 +175,42 @@ const defaultName = (id: SlotId) => `Save ${id}`;
 const isDifficulty = (v: unknown): v is Difficulty =>
   typeof v === "string" && (DIFFICULTIES as readonly string[]).includes(v);
 
-const isProgressLike = (parsed: unknown): parsed is Partial<ProgressData> =>
-  typeof parsed === "object" &&
-  parsed !== null &&
-  (parsed as { version?: unknown }).version === 1 &&
-  typeof (parsed as { starsByLevel?: unknown }).starsByLevel === "object";
+const isProgressLike = (parsed: unknown): parsed is Partial<ProgressData> => {
+  if (typeof parsed !== "object" || parsed === null) return false;
+  const v = (parsed as { version?: unknown }).version;
+  if (v !== 1 && v !== 2) return false;
+  return typeof (parsed as { starsByLevel?: unknown }).starsByLevel === "object";
+};
+
+// Normalize a per-level entry from any historical shape into ModeStars.
+// v1 saves stored a bare 0|1|2|3 number per level; v2 stores ModeStars.
+const normalizeModeStars = (raw: unknown): ModeStars => {
+  if (typeof raw === "number") {
+    const n = (Math.max(0, Math.min(3, Math.floor(raw))) | 0) as Stars;
+    return { normal: n, heroic: 0, iron: 0 };
+  }
+  if (raw && typeof raw === "object") {
+    const o = raw as Partial<ModeStars>;
+    const normal = (Math.max(0, Math.min(3, Math.floor(Number(o.normal ?? 0)))) | 0) as Stars;
+    const heroic = (o.heroic === 1 ? 1 : 0) as 0 | 1;
+    const iron = (o.iron === 1 ? 1 : 0) as 0 | 1;
+    return { normal, heroic, iron };
+  }
+  return emptyModeStars();
+};
+
+const normalizeStarsMap = (raw: unknown): Record<number, ModeStars> => {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<number, ModeStars> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const id = Number(k);
+    if (!Number.isFinite(id)) continue;
+    const m = normalizeModeStars(v);
+    if (m.normal === 0 && m.heroic === 0 && m.iron === 0) continue;
+    out[id] = m;
+  }
+  return out;
+};
 
 const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
   const stats = raw.stats as Partial<ProgressStats> | undefined;
@@ -159,11 +225,8 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
       ? { raptor: true, stego: true, para: true, allosaur: true, armored: true, apex: true }
       : rawMatriarchs;
   return {
-    version: 1,
-    starsByLevel:
-      raw.starsByLevel && typeof raw.starsByLevel === "object"
-        ? (raw.starsByLevel as Record<number, Stars>)
-        : {},
+    version: PROGRESS_VERSION,
+    starsByLevel: normalizeStarsMap(raw.starsByLevel),
     encountered,
     matriarchsEncountered,
     stats: {
@@ -268,15 +331,20 @@ const ensureMigrated = () => {
   migrateLegacyToSlot1();
 };
 
+// Total stars summed across every level × every mode. Normal contributes
+// 0-3, heroic + iron contribute 0-1 each, so each level caps at 5.
 export const totalStars = (p: ProgressData): number => {
   let sum = 0;
-  for (const s of Object.values(p.starsByLevel)) sum += s;
+  for (const m of Object.values(p.starsByLevel)) sum += m.normal + m.heroic + m.iron;
   return sum;
 };
 
+// A level counts as "cleared" once normal has at least one star — heroic
+// and iron can only be attempted after normal is fully starred, so they
+// can't backfill this count.
 const levelsClearedCount = (p: ProgressData): number => {
   let n = 0;
-  for (const s of Object.values(p.starsByLevel)) if (s > 0) n++;
+  for (const m of Object.values(p.starsByLevel)) if (m.normal > 0) n++;
   return n;
 };
 
@@ -337,20 +405,65 @@ export const starsForLives = (lives: number): Stars => {
   return 0;
 };
 
-export const getStars = (p: ProgressData, levelId: number): Stars => p.starsByLevel[levelId] ?? 0;
+// Mode-aware star resolution from a finished run. Normal grades on lives;
+// heroic + iron are binary win/lose. Iron clears imply 0 leaks because
+// the run had one life — no extra logic needed.
+export const starsForRun = (mode: LevelMode, lives: number, won: boolean): number => {
+  if (!won) return 0;
+  if (mode === "normal") return starsForLives(lives);
+  return 1;
+};
+
+export const getModeStars = (p: ProgressData, levelId: number): ModeStars =>
+  p.starsByLevel[levelId] ?? emptyModeStars();
+
+// Back-compat: the campaign/world-map still cares only about normal-mode
+// stars when gating progression. New mode-aware UI reads via getModeStars.
+export const getStars = (p: ProgressData, levelId: number): Stars =>
+  getModeStars(p, levelId).normal;
+
+export const levelTotalStars = (p: ProgressData, levelId: number): number => {
+  const m = getModeStars(p, levelId);
+  return m.normal + m.heroic + m.iron;
+};
 
 export const isLevelUnlocked = (levelId: number, p: ProgressData): boolean => {
   if (levelId <= 1) return true;
   return getStars(p, levelId - 1) >= 1;
 };
 
-export const recordLevelResult = (p: ProgressData, levelId: number, stars: Stars): ProgressData => {
-  const prev = getStars(p, levelId);
-  if (stars <= prev) return p;
-  return {
-    ...p,
-    starsByLevel: { ...p.starsByLevel, [levelId]: stars },
-  };
+// Mode availability gating on a level the player has already unlocked.
+//   normal → as soon as the level itself is unlocked
+//   heroic → requires 3-star normal on this level
+//   iron   → requires heroic cleared on this level
+export const isModeUnlocked = (p: ProgressData, levelId: number, mode: LevelMode): boolean => {
+  if (!isLevelUnlocked(levelId, p)) return false;
+  if (mode === "normal") return true;
+  const m = getModeStars(p, levelId);
+  if (mode === "heroic") return m.normal >= 3;
+  return m.heroic >= 1;
+};
+
+export const recordLevelResult = (
+  p: ProgressData,
+  levelId: number,
+  mode: LevelMode,
+  stars: number,
+): ProgressData => {
+  const prev = getModeStars(p, levelId);
+  let next = prev;
+  if (mode === "normal") {
+    const s = (Math.max(0, Math.min(3, Math.floor(stars))) | 0) as Stars;
+    if (s <= prev.normal) return p;
+    next = { ...prev, normal: s };
+  } else if (mode === "heroic") {
+    if (stars < 1 || prev.heroic >= 1) return p;
+    next = { ...prev, heroic: 1 };
+  } else {
+    if (stars < 1 || prev.iron >= 1) return p;
+    next = { ...prev, iron: 1 };
+  }
+  return { ...p, starsByLevel: { ...p.starsByLevel, [levelId]: next } };
 };
 
 export const markEncountered = (p: ProgressData, kinds: EnemyKind[]): ProgressData | null => {

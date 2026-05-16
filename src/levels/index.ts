@@ -1,3 +1,4 @@
+import type { LevelMode } from "../progress";
 import type {
   BossTrickleStream,
   BossVariant,
@@ -10,16 +11,25 @@ import type {
   WaveSpec,
 } from "../sim/types";
 
-// Challenge-mode override block — replaces a level's startGold/waves and
-// adds restrictions. Read by the mode selector + run setup; absent fields
-// fall back to the normal-mode level config.
+// Per-mode override block. Heroic + iron each get their own handcrafted
+// wave script and starting gold, plus rule flags that the sim consumes
+// at world creation. Normal mode reuses the top-level level fields.
 export type ModeConfig = {
   startGold: number;
   waves: WaveSpec[];
+  // Heroic mode: tower kinds the player may not place this level. UI
+  // hides them from the picker; runtime placement double-checks.
   forbiddenTowers?: TowerKind[];
+  // Iron mode: only these tower kinds may be placed (everything else is
+  // forbidden). Empty/undefined = no loadout restriction.
   lockedLoadout?: TowerKind[];
+  // Iron mode: lives = 1. Any leak ends the run.
   singleLife?: boolean;
+  // Iron mode: sell button disabled — no eco recovery, every placement
+  // is committed for the run.
   noSelling?: boolean;
+  // Optional short blurb shown on the level intro card under the mode
+  // badge. One sentence; the picker shows LEVEL_MODE_TAGLINE generically.
   tagline?: string;
 };
 
@@ -31,10 +41,29 @@ export type LevelConfig = {
   startGold: number;
   nodePos: { x: number; y: number };
   hpScale?: number;
-  heroic?: ModeConfig;
-  iron?: ModeConfig;
   // Biome is inferred from nodePos via biomeForPos() — there is no per-level
   // override. See src/biomes.ts for zone definitions.
+  heroic?: ModeConfig;
+  iron?: ModeConfig;
+};
+
+// Resolve which ModeConfig the sim should use for a given mode. Normal
+// mode synthesizes a ModeConfig from the level's top-level fields so the
+// rest of the engine can stay mode-agnostic — every world is built from
+// the resolved ModeConfig + the level's path/nodePos.
+export const resolveLevelMode = (level: LevelConfig, mode: LevelMode): ModeConfig => {
+  if (mode === "heroic" && level.heroic) return level.heroic;
+  if (mode === "iron" && level.iron) return level.iron;
+  return { startGold: level.startGold, waves: level.waves };
+};
+
+// True if a given level actually defines content for the requested
+// challenge mode. Normal is always defined; heroic/iron must be authored
+// per level. The mode picker uses this to grey out unfinished modes.
+export const levelHasMode = (level: LevelConfig, mode: LevelMode): boolean => {
+  if (mode === "normal") return true;
+  if (mode === "heroic") return !!level.heroic;
+  return !!level.iron;
 };
 
 const p = (...coords: number[]): Vec2[] => {
@@ -284,6 +313,51 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 12, swarm: 10, allosaur: 2 }),
       mixed({ raptor: 14, swarm: 10, allosaur: 3 }),
     ],
+    // Heroic: no pulse rifle. The cheap kinetic spammer is the obvious
+    // L1 opener; denying it forces chain (electric) as the primary
+    // single-target answer, with flame for swarm cleanup. Extra gold
+    // covers the higher per-tower cost. Waves trade one of the intro
+    // beats for an armored introduction so the build choice matters by
+    // mid-run.
+    heroic: {
+      startGold: 340,
+      forbiddenTowers: ["pulse"],
+      tagline: "Pulse Rifle confiscated. Chain or burn.",
+      waves: [
+        intro(8),
+        intro(10, 3),
+        mixed({ raptor: 10, swarm: 6 }),
+        rush(28),
+        mixed({ raptor: 12, swarm: 8, allosaur: 2 }),
+        heavy({ armored: 1, stego: 1, allosaur: 2 }),
+        mixed({ raptor: 14, swarm: 10, allosaur: 3 }),
+        rush(42, 6),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3, stego: 1 }),
+        chaos({ raptor: 14, swarm: 18, allosaur: 4, stego: 2 }),
+      ],
+    },
+    // Iron: one life, no selling, chain + flame only. Big gold bank to
+    // place the opening defenses before the first wave commits — every
+    // placement is permanent so wrong spots cost the run. The wave list
+    // skips the gentle intros: the player committed to iron and the
+    // map opens at "swarm cleanup matters" pressure.
+    iron: {
+      startGold: 820,
+      lockedLoadout: ["chain", "flame"],
+      singleLife: true,
+      noSelling: true,
+      tagline: "1 life. Chain + Flame. No sell.",
+      waves: [
+        mixed({ raptor: 10, swarm: 6 }),
+        rush(25),
+        heavy({ stego: 2, allosaur: 2 }),
+        mixed({ raptor: 14, swarm: 12, allosaur: 2 }),
+        chaos({ raptor: 14, swarm: 16, allosaur: 3, stego: 2 }),
+        rush(40, 6),
+        heavy({ armored: 3, stego: 2 }),
+        chaos({ raptor: 18, swarm: 22, allosaur: 5, stego: 2, armored: 1 }),
+      ],
+    },
   },
   {
     id: 2,
@@ -1322,6 +1396,110 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
     ],
+    // Heroic: no mortar. The explosive splash answer to the para
+    // matriarch's child stream is gone, so the player must rely on
+    // chain-bounce + flame DoT for AoE. Extra gold + a leaner wave
+    // count keeps it tractable; the boss still appears at the end with
+    // a denser child trickle to keep the pressure honest.
+    heroic: {
+      startGold: 540,
+      forbiddenTowers: ["mortar"],
+      tagline: "No Mortar. The matriarch's brood floods the lane.",
+      waves: [
+        mixed({ raptor: 18, swarm: 14, para: 5, allosaur: 5, stego: 2 }),
+        rush(100, 20),
+        heavy({ armored: 9, stego: 6, allosaur: 5 }),
+        chaos({ raptor: 22, swarm: 28, para: 6, allosaur: 9, stego: 6, armored: 4 }),
+        {
+          archetype: "vanguard",
+          spacing: 0.5,
+          spawns: [
+            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ raptor: 20, allosaur: 7, stego: 4 }),
+          ],
+        },
+        {
+          archetype: "swarm",
+          spacing: 0.12,
+          spawns: [...toSpawns({ raptor: 34, swarm: 26 }, 0, { fierce: true })],
+        },
+        {
+          archetype: "heavy",
+          spacing: 0.85,
+          spawns: [
+            ...toSpawns({ armored: 3 }, 0, { elite: true }),
+            ...toSpawns({ stego: 6, allosaur: 7, titan: 1 }),
+          ],
+        },
+        heavy({ armored: 18, stego: 10, allosaur: 7, titan: 2 }),
+        {
+          archetype: "chaos",
+          spacing: 0.28,
+          spawns: [
+            ...toSpawns({ para: 4 }, 0, { shielded: true, healAura: true }),
+            ...toSpawns({ raptor: 26, swarm: 32, allosaur: 11, stego: 7, armored: 5, titan: 1 }),
+          ],
+        },
+        // Heroic boss: same matriarch, denser entourage, faster child
+        // trickle. Without mortar splash the player needs chain bounce
+        // tuned for boss + escort focus, plus flame DoT to clip the
+        // shield-stripped paras coming out of her.
+        {
+          archetype: "convoy",
+          spacing: 0.5,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ armored: 3 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
+            ...toSpawns({ stego: 2 }, 0, { elite: true, regen: true }),
+            bossSpawn("para", 0),
+          ],
+          bossTrickle: [
+            trickleStream(0, ["swarm", "raptor", "allosaur"], 1.2, 1.8, 5),
+            trickleStream(0, ["raptor", "allosaur", "para"], 0.8, 1.3, 18, { fierce: true }),
+          ],
+        },
+      ],
+    },
+    // Iron: one life, locked to Chain + Cryo + Hive — no kinetic, no
+    // explosive, no flame. Pure crowd-control: cryo slows the para
+    // matriarch to a crawl while chain bounces clear her brood and
+    // hive drones extend chain coverage to the second corridor. Big
+    // gold pool because the whole defense must commit before wave 1
+    // and never sell.
+    iron: {
+      startGold: 1100,
+      lockedLoadout: ["chain", "cryo", "hive"],
+      singleLife: true,
+      noSelling: true,
+      tagline: "1 life. Chain · Cryo · Hive. Slow the matriarch.",
+      waves: [
+        mixed({ raptor: 18, swarm: 14, para: 5, allosaur: 5, stego: 2 }),
+        rush(95, 18),
+        heavy({ armored: 8, stego: 5, allosaur: 4 }),
+        chaos({ raptor: 22, swarm: 26, para: 6, allosaur: 8, stego: 5, armored: 3 }),
+        {
+          archetype: "swarm",
+          spacing: 0.13,
+          spawns: [...toSpawns({ raptor: 30, swarm: 24 }, 0, { fierce: true })],
+        },
+        heavy({ armored: 14, stego: 8, allosaur: 6, titan: 1 }),
+        {
+          archetype: "convoy",
+          spacing: 0.5,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ armored: 3 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
+            bossSpawn("para", 0),
+          ],
+          bossTrickle: [
+            trickleStream(0, ["swarm", "raptor", "allosaur"], 1.4, 2.0, 6),
+            trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 20, { fierce: true }),
+          ],
+        },
+      ],
+    },
   },
   {
     id: 16,
@@ -4234,6 +4412,177 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
     ],
+    // Heroic finale: no Hive. The drone-support meta that carries most
+    // L30 builds is denied; the player must spread coverage across all
+    // three lanes with the remaining five tower types. Bigger gold
+    // pool to compensate for the loss of fire-rate amplification, and
+    // a leaner 14-wave script that hits the apex finale faster.
+    heroic: {
+      startGold: 850,
+      forbiddenTowers: ["hive"],
+      tagline: "No Hive. Cover three lanes alone.",
+      waves: [
+        split(
+          "mixed",
+          0.45,
+          [0, { raptor: 18, swarm: 16, para: 5, allosaur: 6, stego: 3 }],
+          [1, { raptor: 18, swarm: 16, para: 5, allosaur: 6, stego: 3 }],
+          [2, { raptor: 18, swarm: 16, para: 5, allosaur: 6, stego: 3 }],
+        ),
+        split("swarm", 0.07, [0, { swarm: 110 }], [1, { swarm: 110 }], [2, { swarm: 110 }]),
+        split(
+          "heavy",
+          0.8,
+          [0, { armored: 10, stego: 5, titan: 1 }],
+          [1, { armored: 10, stego: 5, titan: 1 }],
+          [2, { armored: 10, stego: 5, titan: 1 }],
+        ),
+        split(
+          "chaos",
+          0.26,
+          [0, { raptor: 18, swarm: 26, allosaur: 8, stego: 6, armored: 4, titan: 2 }],
+          [1, { raptor: 18, swarm: 26, allosaur: 8, stego: 6, armored: 4, titan: 2 }],
+          [2, { raptor: 18, swarm: 26, allosaur: 8, stego: 6, armored: 4, titan: 2 }],
+        ),
+        flamebreakSplit(
+          0.06,
+          [0, { swarm: 170, raptor: 30, allosaur: 5 }],
+          [1, { swarm: 170, raptor: 30, allosaur: 5 }],
+          [2, { swarm: 170, raptor: 30, allosaur: 5 }],
+        ),
+        split(
+          "mixed",
+          0.38,
+          [0, { raptor: 22, swarm: 22, para: 8, allosaur: 14, stego: 8, armored: 3 }],
+          [1, { raptor: 22, swarm: 22, para: 8, allosaur: 14, stego: 8, armored: 3 }],
+          [2, { raptor: 22, swarm: 22, para: 8, allosaur: 14, stego: 8, armored: 3 }],
+        ),
+        split(
+          "heavy",
+          0.72,
+          [0, { armored: 18, stego: 10, titan: 3 }],
+          [1, { armored: 18, stego: 10, titan: 3 }],
+          [2, { armored: 18, stego: 10, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.22,
+          [0, { raptor: 22, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 5, titan: 2 }],
+          [1, { raptor: 22, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 5, titan: 2 }],
+          [2, { raptor: 22, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 5, titan: 2 }],
+        ),
+        split(
+          "heavy",
+          0.65,
+          [0, { armored: 22, stego: 12, titan: 5 }],
+          [1, { armored: 22, stego: 12, titan: 5 }],
+          [2, { armored: 22, stego: 12, titan: 5 }],
+        ),
+        split(
+          "chaos",
+          0.18,
+          [0, { raptor: 30, swarm: 38, para: 12, allosaur: 16, stego: 12, armored: 9, titan: 4 }],
+          [1, { raptor: 30, swarm: 38, para: 12, allosaur: 16, stego: 12, armored: 9, titan: 4 }],
+          [2, { raptor: 30, swarm: 38, para: 12, allosaur: 16, stego: 12, armored: 9, titan: 4 }],
+        ),
+        // Heroic finale matches the normal apex wave 1-for-1 — same
+        // three matriarchs, same trickle streams. The mode "challenge"
+        // already comes from denying Hive across the whole map; making
+        // the finale even harder on top would tip the run past the
+        // 2.0× feasibility wall.
+        {
+          archetype: "convoy",
+          spacing: 0.4,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 0),
+            ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 1),
+            ...toSpawns({ stego: 10, armored: 12, titan: 5 }, 2),
+            bossSpawn("apex", 0),
+            bossSpawn("apex", 1),
+            bossSpawn("apex", 2),
+          ],
+          bossTrickle: [
+            trickleStream(0, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 5),
+            trickleStream(1, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 6),
+            trickleStream(2, ["swarm", "raptor", "allosaur"], 1.1, 1.7, 7),
+            trickleStream(0, ["raptor", "allosaur", "para", "stego"], 0.7, 1.2, 16),
+            trickleStream(1, ["raptor", "allosaur", "para", "stego"], 0.7, 1.2, 17),
+            trickleStream(2, ["raptor", "allosaur", "para", "stego"], 0.7, 1.2, 18),
+          ],
+        },
+      ],
+    },
+    // Iron finale: one life, locked to the offensive trio — Pulse,
+    // Chain, Mortar. No DoT (flame), no slowdown (cryo), no support
+    // (hive). Pure damage management across three converging lanes
+    // with an apex finale. Huge gold pool because the entire defense
+    // commits at world creation and never sells.
+    iron: {
+      startGold: 2400,
+      lockedLoadout: ["pulse", "chain", "mortar"],
+      singleLife: true,
+      noSelling: true,
+      tagline: "1 life. Pulse · Chain · Mortar. Three apex queens.",
+      waves: [
+        split(
+          "mixed",
+          0.5,
+          [0, { raptor: 16, swarm: 14, para: 4, allosaur: 4 }],
+          [1, { raptor: 16, swarm: 14, para: 4, allosaur: 4 }],
+          [2, { raptor: 16, swarm: 14, para: 4, allosaur: 4 }],
+        ),
+        split("swarm", 0.08, [0, { swarm: 90 }], [1, { swarm: 90 }], [2, { swarm: 90 }]),
+        split(
+          "heavy",
+          0.85,
+          [0, { armored: 8, stego: 4, titan: 1 }],
+          [1, { armored: 8, stego: 4, titan: 1 }],
+          [2, { armored: 8, stego: 4, titan: 1 }],
+        ),
+        split(
+          "chaos",
+          0.24,
+          [0, { raptor: 18, swarm: 24, allosaur: 8, stego: 6, armored: 4 }],
+          [1, { raptor: 18, swarm: 24, allosaur: 8, stego: 6, armored: 4 }],
+          [2, { raptor: 18, swarm: 24, allosaur: 8, stego: 6, armored: 4 }],
+        ),
+        split(
+          "heavy",
+          0.7,
+          [0, { armored: 16, stego: 9, titan: 3 }],
+          [1, { armored: 16, stego: 9, titan: 3 }],
+          [2, { armored: 16, stego: 9, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.2,
+          [0, { raptor: 24, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 6, titan: 2 }],
+          [1, { raptor: 24, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 6, titan: 2 }],
+          [2, { raptor: 24, swarm: 30, para: 8, allosaur: 12, stego: 8, armored: 6, titan: 2 }],
+        ),
+        // Iron finale: only two apex queens (one less than normal) so
+        // the no-sell, single-life constraint stays survivable. Trickle
+        // streams trimmed to two passes per lane.
+        {
+          archetype: "convoy",
+          spacing: 0.45,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ stego: 8, armored: 10, titan: 4 }, 0),
+            ...toSpawns({ stego: 8, armored: 10, titan: 4 }, 1),
+            ...toSpawns({ stego: 8, armored: 10, titan: 4 }, 2),
+            bossSpawn("apex", 0),
+            bossSpawn("apex", 2),
+          ],
+          bossTrickle: [
+            trickleStream(0, ["swarm", "raptor", "allosaur"], 1.3, 1.9, 6),
+            trickleStream(2, ["swarm", "raptor", "allosaur"], 1.3, 1.9, 7),
+            trickleStream(1, ["raptor", "allosaur", "para"], 0.9, 1.4, 16),
+          ],
+        },
+      ],
+    },
   },
 ];
 
