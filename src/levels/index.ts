@@ -31,10 +31,10 @@ export type LevelConfig = {
   startGold: number;
   nodePos: { x: number; y: number };
   hpScale?: number;
-  // Biome is inferred from nodePos via biomeForPos() — there is no per-level
-  // override. See src/biomes.ts for zone definitions.
   heroic?: ModeConfig;
   iron?: ModeConfig;
+  // Biome is inferred from nodePos via biomeForPos() — there is no per-level
+  // override. See src/biomes.ts for zone definitions.
 };
 
 const p = (...coords: number[]): Vec2[] => {
