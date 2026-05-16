@@ -433,15 +433,14 @@ export const isLevelUnlocked = (levelId: number, p: ProgressData): boolean => {
 };
 
 // Mode availability gating on a level the player has already unlocked.
-//   normal → as soon as the level itself is unlocked
-//   heroic → requires 3-star normal on this level
-//   iron   → requires heroic cleared on this level
+//   normal         → as soon as the level itself is unlocked
+//   heroic + iron  → both unlock once normal is 3-starred on this level
+// Heroic + iron are siblings (not a chain) so the player picks whichever
+// challenge fits the mood, not whichever they grind to first.
 export const isModeUnlocked = (p: ProgressData, levelId: number, mode: LevelMode): boolean => {
   if (!isLevelUnlocked(levelId, p)) return false;
   if (mode === "normal") return true;
-  const m = getModeStars(p, levelId);
-  if (mode === "heroic") return m.normal >= 3;
-  return m.heroic >= 1;
+  return getModeStars(p, levelId).normal >= 3;
 };
 
 export const recordLevelResult = (

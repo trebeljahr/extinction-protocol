@@ -125,9 +125,7 @@ export const ModePicker = () => {
                 {!defined && <div className="text-[10px] text-fg-dim italic">Coming soon</div>}
                 {defined && !unlocked && (
                   <div className="text-[10px] text-fg-dim italic">
-                    {mode === "heroic"
-                      ? "Earn 3 stars on Standard to unlock"
-                      : "Clear Heroic to unlock"}
+                    Earn 3 stars on Standard to unlock
                   </div>
                 )}
               </button>
