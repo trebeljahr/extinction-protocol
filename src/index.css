@@ -2531,14 +2531,6 @@
     z-index: 26;
   }
 
-  .menu-panel-scroll {
-    max-height: 75vh;
-    overflow-y: auto;
-    min-height: 0;
-    padding-right: 4px;
-    margin-right: -4px;
-  }
-
   .menu-panel-actions {
     display: flex;
     flex-direction: column;
@@ -2949,16 +2941,7 @@
       border-left: 0;
       border-right: 0;
       padding: calc(18px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)) !important;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
       background: #121a24;
-    }
-    .menu-panel-scroll {
-      max-height: none;
-      flex: 1;
-      padding-right: 2px;
-      margin-right: -2px;
     }
     .overlay-card:not(.menu-overlay-card) {
       min-width: 0 !important;
