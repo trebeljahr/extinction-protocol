@@ -66,6 +66,116 @@ longer ours.
    prefer. We are the invasive species now. L30: the final Matriarch
    at the core of the new biome. The Protocol was always for her.
 
+## Why the fall-back keeps happening
+
+The player wins every emplacement they play. The world still falls.
+That has to make sense, not feel like a cheat. Four reinforcing
+reasons, all stated in-fiction:
+
+1. **The player holds outposts; the war is geographic.** Each level
+   is a rear-guard action at one outpost. The herd doesn't have to
+   beat that outpost — it has to spread *around* it. The civilian
+   evacuation columns the operator is covering are themselves falling
+   back. Holding a ridge for a wave is not the same as advancing past
+   the ridge. The world map's biome bands moving north-to-south /
+   coast-to-interior is the visualisation of this: each band is a
+   line that gave way somewhere off-screen while the player was
+   busy holding theirs.
+
+2. **The herd reproduces faster than emplacements attrit it.** The
+   revival programme was designed to grow specimens at industrial
+   scale; the rigs are still running inside the reserve, and the
+   apex specimens are themselves capable of triggering revival-grade
+   reproduction in the field. Killing 200 specimens during a wave
+   does not net-decrease the population — it removes 200 from a
+   curve that is producing more.
+
+3. **The conditioning network selects against every round fired.**
+   This is the most important one. Each kill is data. The
+   integration hardware in the herd shares that data across the
+   network. The next wave brings specimens selected against the
+   damage type and tactics the player used last wave. Mechanically
+   this lines up with the in-game roster: shielded specimens debut
+   at L11 because the player has been firing kinetic rounds for ten
+   levels; healing debuts at L13 because the player has been
+   delivering sustained damage; regen debuts at L14 because heal
+   alone wasn't enough; multi-lane coordination at L19 because the
+   network has been processing the player's lane behaviour for
+   eighteen levels. The player is, in fiction, training the herd.
+   Winning the engagement is the *mechanism* of the difficulty
+   escalation.
+
+4. **No one can shut off the rigs.** The cloning vats, neural
+   scaffolding rigs, and conditioning network inside the reserve
+   wall require a corporate signature to shut down. By L20 the
+   people authorised to provide that signature are dead, missing,
+   or unreachable. The revival programme keeps producing specimens
+   long after Ricos Labs as an institution has ceased to function.
+
+The player feels successful and the world keeps ending. That is the
+intended emotional shape: tactical mastery, strategic horror.
+
+## Between the beats
+
+Things that happen off-screen between the playable levels, kept
+consistent so the briefings and SITREPs make sense.
+
+- **Before L1.** Reserve perimeter goes down. Cloning vats and
+  conditioning rigs inside the wall keep running. Ricos Labs
+  corporate command is on the coast, several hundred kilometres
+  east, issuing directives over a comm net the operator does not
+  yet know is compromised.
+- **L1–L5.** The line is a series of forward outposts covering an
+  evacuation east of the river. Civilians are still alive in large
+  numbers. Some of them still believe the wall will be repaired.
+  The first Matriarch is sighted at L5; this is when corporate
+  command privately stops believing the wall will be repaired.
+- **L5–L6.** The coastal cordon falls in a single night.
+  Civilians divert north into terrain that was not prepared for
+  them. The convoy is now refugees with operator escort, not an
+  organised evacuation.
+- **L6–L10.** Six weeks of attrition. Specimens north of the
+  treeline. By L10 the corporate command structure has lost its
+  middle layer — regional directors out of contact, station chiefs
+  acting on their own authority. Recovered tissue samples confirm
+  scaffolding alloy in dermal layers; the laboratory result is
+  classified but the operators see the fragments themselves.
+- **L10–L11.** Mountain passage fails. Convoy diverts south through
+  high desert. The first internal report saying *the revival
+  hardware is still iterating in the field* circulates. Nobody
+  acts on it; there is nobody left to act.
+- **L11–L15.** Three biomes of operators see the same pattern:
+  every new mechanic that lands in their lane is something the
+  herd was not doing the previous month. The conditioning-network
+  hypothesis becomes the working consensus on station. The third
+  Matriarch at L15 confirms it — she leads, the herd does not run.
+- **L15–L16.** Coastal cordon overrun. Cities not on the coast
+  also gone, because the herd is no longer migrating along
+  coastlines. The operator network is now isolated outposts on
+  isolated emplacements. The Extinction Protocol — which had been
+  a contingency document — becomes the standing order because no
+  other order is being issued.
+- **L16–L20.** Four to six months. Civilian comms dark for nine
+  days at L20 reflects the moment the herd's use of the comm net
+  outpaces the operators' use of it. The decision not to shut the
+  net down is made by station chiefs individually; there is no
+  longer a corporate decision-maker.
+- **L20–L21.** The continent begins to vent. Geothermal corridors
+  open along herd migration paths. Operators understand it as the
+  herd's hardware metabolism catalysing the crust. Surveyors stop
+  filing damage reports and start filing terrain reclassifications.
+- **L21–L25.** The herd is reshaping the planet faster than any
+  emplacement can attrit it. By L25 the line is at the basin of the
+  new biome — the last position from which the operator can engage
+  the original revival site.
+- **L25–L26.** The new biome closes around the basin. From this
+  point the player is fighting *inside* the herd's terraform output.
+- **L26–L30.** Final approach to the dig site / original reserve
+  centre, now the apex of the new biome. The final Matriarch is
+  the most heavily integrated specimen the programme produced;
+  the L30 engagement is the only ground action that can still
+  meaningfully reduce her.
+
 ## Factions
 
 ### Ricos Labs (the player)
@@ -151,12 +261,19 @@ silhouettes. Shown, not told.
 ## What changes in the code
 
 1. **`docs/STORY.md`** (this file) — the bible.
-2. **`src/levels/briefings.ts`** — full 30-line pass. Re-author every
-   briefing against the rules above. Keep the existing tracker —
-   biome fall-back at the band boundary, mechanic debut at L11/L13/
-   L14/L15, Matriarch at L5/L10/L15/L30. Add hardware-integration
-   thread starting subtle (L1) and resolving at L30.
-3. **`src/sim/heroVariants.ts`** — no changes.
+2. **`src/levels/briefings.ts`** — full 30-line pass of
+   `LEVEL_BRIEFING` against the voice rules above. Plus a new
+   `LEVEL_INTERSTITIAL` export holding one longer SITREP per biome
+   opener (L1, L6, L11, L16, L21, L26) — 4–6 sentences each,
+   command-memo voice, explaining the macro picture.
+3. **`src/ui/LevelIntro.tsx`** — render the SITREP block below the
+   per-level briefing when one is defined. `seenIntros` in progress
+   already gates the whole overlay to first-play, so each SITREP is
+   read once per save slot.
+4. **`src/index.css`** — `.level-intro-sitrep` styling (monospace
+   block, muted, divider rules) so the SITREP reads as a different
+   document type than the operator field report above it.
+5. **`src/sim/heroVariants.ts`** — no changes.
 
 ## What does not change
 

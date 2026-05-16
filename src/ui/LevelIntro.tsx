@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LEVEL_BRIEFING } from "../levels/briefings";
+import { LEVEL_BRIEFING, LEVEL_INTERSTITIAL } from "../levels/briefings";
 import { useGame } from "../store";
 import { useInputMode } from "./useInputMode";
 
@@ -12,6 +12,7 @@ export const LevelIntro = () => {
   const input = useInputMode();
 
   const briefing = levelId !== null ? LEVEL_BRIEFING[levelId] : undefined;
+  const sitrep = levelId !== null ? LEVEL_INTERSTITIAL[levelId] : undefined;
   const hint =
     input.mode === "gamepad"
       ? "press a button to continue"
@@ -59,6 +60,12 @@ export const LevelIntro = () => {
       <div className="level-intro-card">
         <div className="level-intro-eyebrow">Field Report · Outpost {levelId}</div>
         <p className="level-intro-text">{briefing}</p>
+        {sitrep && (
+          <div className="level-intro-sitrep">
+            <div className="level-intro-sitrep-eyebrow">Command SITREP</div>
+            <p className="level-intro-sitrep-text">{sitrep}</p>
+          </div>
+        )}
         <div className="level-intro-hint">{hint}</div>
       </div>
     </div>
