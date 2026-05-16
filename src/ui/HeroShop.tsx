@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { totalStars } from "../progress";
 import {
   HERO_SKILL_MAX_RANK,
@@ -97,16 +98,72 @@ const SkillRow = ({
   );
 };
 
-const HeroCard = ({
+const RosterCard = ({
+  variant,
+  activeHero,
+  unlocked,
+  onSelect,
+}: {
+  variant: HeroVariant;
+  activeHero: HeroVariant;
+  unlocked: boolean;
+  onSelect: (v: HeroVariant) => void;
+}) => {
+  const spec = HERO_SPECS[variant];
+  const progress = useGame((s) => s.progress);
+  const xp = progress.heroXp[variant] ?? 0;
+  const level = levelForXp(xp);
+  const active = activeHero === variant;
+  return (
+    <button
+      type="button"
+      className={`hero-roster-card ${active ? "active" : ""} ${unlocked ? "" : "locked"}`}
+      data-variant={variant}
+      onClick={() => onSelect(variant)}
+      aria-label={`View ${spec.label}`}
+    >
+      <div className="hero-roster-portrait">
+        <HeroPreview variant={variant} />
+        {active && <span className="hero-roster-active-tag">Active</span>}
+        {!unlocked && (
+          <span className="hero-roster-lock">
+            <span className="hero-roster-lock-cost">★ {spec.unlockStars}</span>
+            <span className="hero-roster-lock-label">LOCKED</span>
+          </span>
+        )}
+      </div>
+      <div className="hero-roster-meta">
+        <div className="hero-roster-name">{spec.label}</div>
+        <div className="hero-roster-callsign">{spec.callsign}</div>
+        <div className="hero-roster-row">
+          <span
+            className="dmg-tag inline-flex items-center gap-1 text-[10px]"
+            style={{
+              color: DAMAGE_TYPE_COLOR[spec.damageType],
+              borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
+            }}
+          >
+            {DAMAGE_TYPE_LABEL[spec.damageType]}
+          </span>
+          {unlocked && <span className="hero-roster-level">Lv {level}</span>}
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const HeroDetail = ({
   variant,
   availableStars,
   activeHero,
   unlocked,
+  onBack,
 }: {
   variant: HeroVariant;
   availableStars: number;
   activeHero: HeroVariant;
   unlocked: boolean;
+  onBack: () => void;
 }) => {
   const spec = HERO_SPECS[variant];
   const progress = useGame((s) => s.progress);
@@ -125,140 +182,141 @@ const HeroCard = ({
   const investedTotal = pts.spent;
 
   return (
-    <div
-      className={`bg-surface-1 border ${active ? "border-blue" : "border-border"} rounded-lg p-3 flex flex-col gap-2`}
-      style={active ? { boxShadow: "0 0 18px rgba(159,216,255,0.18)" } : undefined}
-    >
-      <div className="flex items-start gap-3">
-        <div className="w-20 h-20 shrink-0">
-          <HeroPreview variant={variant} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[15px] font-bold text-fg leading-tight">{spec.label}</span>
-            <span className="text-[11px] text-fg-muted uppercase tracking-wide">
-              {spec.callsign}
-            </span>
-            {active && (
-              <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-blue">
-                Active
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className="dmg-tag inline-flex items-center gap-1 text-[10px]"
-              style={{
-                color: DAMAGE_TYPE_COLOR[spec.damageType],
-                borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
-              }}
-            >
-              {DAMAGE_TYPE_LABEL[spec.damageType]}
-            </span>
-            <span className="text-[10px] text-fg-muted">Lv {level}</span>
-          </div>
-          <div className="text-[11px] text-fg-muted leading-snug mt-1">{spec.blurb}</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-1 text-[10px] tabular-nums text-fg-muted">
-        <div>
-          <span className="block text-fg-dim">HP</span>
-          <span className="text-fg">{spec.maxHp}</span>
-        </div>
-        <div>
-          <span className="block text-fg-dim">SPD</span>
-          <span className="text-fg">{spec.speed}</span>
-        </div>
-        <div>
-          <span className="block text-fg-dim">DMG</span>
-          <span className="text-fg">{spec.damage}</span>
-        </div>
-        <div>
-          <span className="block text-fg-dim">RNG</span>
-          <span className="text-fg">{spec.range}</span>
-        </div>
-      </div>
-
-      <div className="text-[10px] text-fg-muted flex flex-wrap gap-1.5">
-        {spec.abilityLabels.map((lbl, i) => (
-          <span key={lbl} className="px-1.5 py-0.5 rounded bg-surface-0 border border-border-faint">
-            {spec.abilityGlyphs[i]} {lbl}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-1">
-        <div className="hero-card-diorama">
+    <div className="hero-detail">
+      <button
+        type="button"
+        className="hero-detail-back"
+        onClick={onBack}
+        aria-label="Back to roster"
+      >
+        ← Roster
+      </button>
+      <div className="hero-detail-grid">
+        <div className="hero-detail-preview">
           <HeroDiorama variant={variant} />
         </div>
-      </div>
-
-      {unlocked ? (
-        <>
-          <div className="hero-card-xp-row">
-            <span className="text-[10px] text-fg-muted uppercase tracking-wide">Lv {level}</span>
-            <div className="hero-card-xp-bar">
-              <div className="hero-card-xp-fill" style={{ width: `${xpPct * 100}%` }} />
+        <div className="hero-detail-info">
+          <div className="hero-detail-head">
+            <div className="hero-detail-name-row">
+              <span className="hero-detail-name">{spec.label}</span>
+              <span className="hero-detail-callsign">{spec.callsign}</span>
+              {active && <span className="hero-detail-active">Active</span>}
             </div>
-            <span className="text-[10px] tabular-nums text-fg-muted">
-              {into}/{need}
-            </span>
+            <div className="hero-detail-tag-row">
+              <span
+                className="dmg-tag inline-flex items-center gap-1 text-[11px]"
+                style={{
+                  color: DAMAGE_TYPE_COLOR[spec.damageType],
+                  borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
+                }}
+              >
+                {DAMAGE_TYPE_LABEL[spec.damageType]}
+              </span>
+              {unlocked && (
+                <span className="text-[11px] text-fg-muted uppercase tracking-wide">
+                  Lv {level}
+                </span>
+              )}
+            </div>
+            <p className="hero-detail-blurb">{spec.blurb}</p>
           </div>
 
-          <div className="border-t border-border-faint pt-1">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wide mb-1">
-              <span className="text-fg-muted">Tech Tree</span>
-              <span className="text-blue tabular-nums">
-                {pts.available} pt{pts.available === 1 ? "" : "s"}
-              </span>
+          <div className="hero-detail-stats">
+            <div>
+              <span>HP</span> {spec.maxHp}
             </div>
-            {HERO_SKILL_TREE.map((node) => (
-              <SkillRow
-                key={node.id}
-                variant={variant}
-                node={node as HeroSkillNode}
-                rank={(ranks?.[node.id as HeroSkillId] ?? 0) as number}
-                available={pts.available}
-              />
+            <div>
+              <span>SPD</span> {spec.speed}
+            </div>
+            <div>
+              <span>DMG</span> {spec.damage}
+            </div>
+            <div>
+              <span>RNG</span> {spec.range}
+            </div>
+          </div>
+
+          <div className="hero-detail-abilities">
+            {spec.abilityLabels.map((lbl, i) => (
+              <span key={lbl} className="hero-detail-ability">
+                <span aria-hidden>{spec.abilityGlyphs[i]}</span> {lbl}
+              </span>
             ))}
-            {investedTotal > 0 && (
+          </div>
+
+          {unlocked ? (
+            <>
+              <div className="hero-card-xp-row">
+                <span className="text-[10px] text-fg-muted uppercase tracking-wide">
+                  Lv {level}
+                </span>
+                <div className="hero-card-xp-bar">
+                  <div className="hero-card-xp-fill" style={{ width: `${xpPct * 100}%` }} />
+                </div>
+                <span className="text-[10px] tabular-nums text-fg-muted">
+                  {into}/{need}
+                </span>
+              </div>
+
+              <div className="border-t border-border-faint pt-2">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-wide mb-1">
+                  <span className="text-fg-muted">Tech Tree</span>
+                  <span className="text-blue tabular-nums">
+                    {pts.available} pt{pts.available === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {HERO_SKILL_TREE.map((node) => (
+                  <SkillRow
+                    key={node.id}
+                    variant={variant}
+                    node={node as HeroSkillNode}
+                    rank={(ranks?.[node.id as HeroSkillId] ?? 0) as number}
+                    available={pts.available}
+                  />
+                ))}
+                {investedTotal > 0 && (
+                  <button
+                    type="button"
+                    className="text-[10px] text-fg-muted hover:text-red px-2 py-1 rounded border border-border-faint hover:border-red mt-1"
+                    onClick={() => resetSkills(variant)}
+                    title={`Refund all ${investedTotal} pt${investedTotal === 1 ? "" : "s"}`}
+                  >
+                    ↺ Refund {investedTotal}
+                  </button>
+                )}
+              </div>
+
+              {!active && (
+                <button
+                  type="button"
+                  className="btn btn-blue text-sm py-2"
+                  onClick={() => setActiveHero(variant)}
+                >
+                  Set Active
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="border-t border-border-faint pt-3 flex items-center gap-3">
+              <span className="text-[12px] text-fg-muted">Unlock cost</span>
+              <span className="text-blue text-base font-bold tabular-nums">
+                ★ {spec.unlockStars}
+              </span>
               <button
                 type="button"
-                className="text-[10px] text-fg-muted hover:text-red px-2 py-1 rounded border border-border-faint hover:border-red mt-1"
-                onClick={() => resetSkills(variant)}
-                title={`Refund all ${investedTotal} pt${investedTotal === 1 ? "" : "s"}`}
+                className={`ml-auto btn ${canUnlock ? "btn-blue" : "btn-ghost"} text-sm py-2 px-4`}
+                disabled={!canUnlock}
+                onClick={() => unlockHero(variant)}
+                title={
+                  canUnlock ? "Unlock" : `Need ${spec.unlockStars - availableStars} more stars`
+                }
               >
-                ↺ Refund {investedTotal}
+                {canUnlock ? "Unlock" : "Locked"}
               </button>
-            )}
-          </div>
-
-          {!active && (
-            <button
-              type="button"
-              className="btn btn-blue text-sm py-1.5"
-              onClick={() => setActiveHero(variant)}
-            >
-              Set Active
-            </button>
+            </div>
           )}
-        </>
-      ) : (
-        <div className="border-t border-border-faint pt-2 flex items-center gap-2">
-          <span className="text-[11px] text-fg-muted">Unlock cost</span>
-          <span className="text-blue text-sm font-bold tabular-nums">★ {spec.unlockStars}</span>
-          <button
-            type="button"
-            className={`ml-auto btn ${canUnlock ? "btn-blue" : "btn-ghost"} text-sm py-1.5 px-3`}
-            disabled={!canUnlock}
-            onClick={() => unlockHero(variant)}
-            title={canUnlock ? "Unlock" : `Need ${spec.unlockStars - availableStars} more stars`}
-          >
-            {canUnlock ? "Unlock" : "Locked"}
-          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -268,6 +326,7 @@ export const HeroShop = () => {
   const setOpen = useGame((s) => s.setHeroShopOpen);
   const progress = useGame((s) => s.progress);
   const resetAll = useGame((s) => s.resetAllHeroSkills);
+  const [selected, setSelected] = useState<HeroVariant | null>(null);
   if (!open) return null;
   const earned = totalStars(progress);
   const metaSpent = spentMetaStars(progress.metaSkills);
@@ -280,40 +339,61 @@ export const HeroShop = () => {
     (r) => r && Object.keys(r).length > 0,
   );
 
+  const handleClose = () => {
+    setSelected(null);
+    setOpen(false);
+  };
+
   return (
     <MenuOverlay
-      title="Pilot Roster"
-      subtitle={`${availableStars} stars available · ${heroSpent} invested in pilots`}
-      onClose={() => setOpen(false)}
-      cardClassName="!w-[min(1200px,calc(100vw-48px))] !max-w-none"
+      title={selected ? HERO_SPECS[selected].label : "Pilot Roster"}
+      subtitle={
+        selected
+          ? HERO_SPECS[selected].callsign
+          : `${availableStars} stars available · ${heroSpent} invested in pilots`
+      }
+      onClose={handleClose}
+      cardClassName="!w-[min(1100px,calc(100vw-24px))] !max-w-none !min-w-0 !px-4 sm:!px-6 md:!px-8"
     >
       <div className="hero-shop-panel w-full">
-        <div className="flex items-center justify-between gap-3 px-1 mb-3">
-          <p className="text-[11px] text-fg-muted leading-snug flex-1 min-w-0">
-            Recruit pilots with earned stars. Each kill drips XP into the active pilot — level up to
-            spend skill points in their tech tree. Swap pilots between runs or mid-game from here.
-          </p>
-          {anyInvested && (
-            <button
-              type="button"
-              className="btn btn-ghost text-xs py-1.5 px-3 shrink-0 whitespace-nowrap"
-              onClick={resetAll}
-            >
-              Refund all
-            </button>
-          )}
-        </div>
-        <div className="hero-shop-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3">
-          {ROSTER.map((variant) => (
-            <HeroCard
-              key={variant}
-              variant={variant}
-              availableStars={availableStars}
-              activeHero={progress.activeHero}
-              unlocked={!!progress.heroUnlocks[variant]}
-            />
-          ))}
-        </div>
+        {selected ? (
+          <HeroDetail
+            variant={selected}
+            availableStars={availableStars}
+            activeHero={progress.activeHero}
+            unlocked={!!progress.heroUnlocks[selected]}
+            onBack={() => setSelected(null)}
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-3 px-1 mb-3">
+              <p className="text-[11px] text-fg-muted leading-snug flex-1 min-w-0">
+                Recruit pilots with earned stars. Each kill drips XP into the active pilot — level
+                up to spend skill points in their tech tree.
+              </p>
+              {anyInvested && (
+                <button
+                  type="button"
+                  className="btn btn-ghost text-xs py-1.5 px-3 shrink-0 whitespace-nowrap"
+                  onClick={resetAll}
+                >
+                  Refund all
+                </button>
+              )}
+            </div>
+            <div className="hero-roster-grid">
+              {ROSTER.map((variant) => (
+                <RosterCard
+                  key={variant}
+                  variant={variant}
+                  activeHero={progress.activeHero}
+                  unlocked={!!progress.heroUnlocks[variant]}
+                  onSelect={setSelected}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </MenuOverlay>
   );

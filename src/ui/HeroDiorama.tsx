@@ -13,7 +13,7 @@ const HERO_URL: Record<HeroVariant, string> = {
   stan: "/models/heroes/Stan.glb",
 };
 
-const TARGET_SIZE = 2;
+const TARGET_SIZE = 1.5;
 
 const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
   const url = HERO_URL[variant];
@@ -44,7 +44,7 @@ const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
     obj.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
-        m.castShadow = false;
+        m.castShadow = true;
         m.receiveShadow = false;
       }
     });
@@ -64,30 +64,68 @@ const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
   useFrame((_, dt) => {
     mixerRef.current?.update(dt);
     if (groupRef.current) {
-      groupRef.current.rotation.y += dt * 0.5;
+      groupRef.current.rotation.y += dt * 0.35;
     }
   });
 
   return <group ref={groupRef} />;
 };
 
-// Compact 3D viewer used inside hero shop cards + the compendium hero
-// page. Auto-rotates with the idle clip. Pointer events fall through
-// so the surrounding modal scroll still works.
+// Circular platform under the hero — gives the diorama a "stage"
+// floor so the hero isn't floating in negative space. Subtle gradient
+// + radial fade matches the dark cockpit-room aesthetic of the modals.
+const Platform = () => {
+  return (
+    <group position={[0, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <circleGeometry args={[1.6, 64]} />
+        <meshStandardMaterial color="#1a2638" roughness={0.85} metalness={0.15} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
+        <ringGeometry args={[1.5, 1.6, 64]} />
+        <meshBasicMaterial color="#5ad6ff" transparent opacity={0.45} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]}>
+        <ringGeometry args={[1.15, 1.18, 64]} />
+        <meshBasicMaterial color="#5ad6ff" transparent opacity={0.22} />
+      </mesh>
+    </group>
+  );
+};
+
+// Full-sized 3D viewer for the hero detail page. Square aspect with a
+// circular platform, soft fog, and a fitted camera that frames the
+// entire pilot. Auto-rotates so the player can see all sides.
 export const HeroDiorama = ({ variant }: { variant: HeroVariant }) => {
   return (
     <Canvas
       className="hero-diorama-canvas"
-      shadows={false}
-      camera={{ position: [2.6, 1.6, 2.6], fov: 30 }}
+      shadows
+      camera={{ position: [3.0, 1.9, 3.0], fov: 34 }}
+      onCreated={({ camera }) => {
+        camera.lookAt(0, 0.75, 0);
+        camera.updateProjectionMatrix();
+      }}
       gl={{ antialias: true, alpha: true }}
       style={{ pointerEvents: "none" }}
     >
-      <ambientLight intensity={0.7} color="#eaf2ff" />
-      <directionalLight position={[3, 4, 3]} intensity={1.2} color="#fff4dc" />
-      <directionalLight position={[-3, 2, -2]} intensity={0.5} color="#9fd8ff" />
+      <fog attach="fog" args={["#0a1220", 6, 14]} />
+      <ambientLight intensity={0.55} color="#eaf2ff" />
+      <directionalLight
+        position={[3.5, 5, 3]}
+        intensity={1.4}
+        color="#fff4dc"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <directionalLight position={[-3, 2, -2]} intensity={0.55} color="#9fd8ff" />
+      <pointLight position={[0, 0.6, 0]} intensity={0.4} color="#5ad6ff" distance={4} />
       <Suspense fallback={null}>
-        <HeroPilotMesh variant={variant} />
+        <Platform />
+        <group position={[0, 0.01, 0]}>
+          <HeroPilotMesh variant={variant} />
+        </group>
       </Suspense>
     </Canvas>
   );
