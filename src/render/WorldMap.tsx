@@ -199,7 +199,11 @@ export const WorldMapScene = () => {
       />
       <MapFocusTarget focus={focus} />
 
-      <Environment preset="park" background={false} environmentIntensity={0.6} />
+      <Environment
+        files="/hdri/rooitou_park_1k.hdr"
+        background={false}
+        environmentIntensity={0.6}
+      />
 
       <ambientLight intensity={0.55} color="#eaf2ff" />
       <directionalLight

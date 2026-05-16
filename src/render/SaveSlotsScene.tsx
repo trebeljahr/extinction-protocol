@@ -155,7 +155,7 @@ export const SaveSlotsScene = () => (
     <color attach="background" args={[BG]} />
     <fog attach="fog" args={[FOG, 18, 44]} />
 
-    <Environment preset="park" background={false} environmentIntensity={0.55} />
+    <Environment files="/hdri/rooitou_park_1k.hdr" background={false} environmentIntensity={0.55} />
 
     <ambientLight intensity={0.6} color="#eaf2ff" />
     <directionalLight

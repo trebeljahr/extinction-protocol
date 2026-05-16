@@ -232,7 +232,11 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
         <color attach="background" args={["#3a4858"]} />
 
         {/* Matches PlayScene lighting so creatures don't look flat or dark. */}
-        <Environment preset="park" background={false} environmentIntensity={0.6} />
+        <Environment
+          files="/hdri/rooitou_park_1k.hdr"
+          background={false}
+          environmentIntensity={0.6}
+        />
         <ambientLight intensity={0.55} color="#eaf2ff" />
         <directionalLight
           position={[span * 1.6, span * 2.6, span * 1.2]}
