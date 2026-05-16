@@ -36,29 +36,35 @@ type PropRoleBucket = {
   maxRadius: number;
 };
 
-// Hero building per biome. Each URL appears once per weight-slot: repeating
-// a URL makes it more likely when the random picker chooses one of the
-// `urls[]` entries, so the rare sci-fi landmark appears ~1-in-4 desert nodes
-// (one crashed craft across the full map in expectation) while Tent remains
-// the common read. Wasteland has no building — Ruins read as "half platforms"
-// and didn't fit, so that biome is just trees + rocks at the cluster level.
-// Non-nature biomes prefer sci-fi tech (hangars, structures, rockets) over
-// wooden cabins/sawmills; tents stay — they read as modern camp gear, not wood.
+// Hero structure per biome — modular sci-fi research outposts. Every level
+// node anchors on a substantial building (hangar / structure / rocket) so
+// the world map reads as a network of high-tech bases on a hostile planet,
+// not a string of pirate camps. Wooden landmarks (Tent / House / Cabin /
+// Sawmill) are intentionally excluded across all biomes; they still appear
+// inside levels as set-dressing, but at the world map's tilt + zoom they
+// fought the sci-fi theme.
 const BIOME_LANDMARKS: Record<Biome, string[]> = {
-  forest: ["/models/landmarks/forest/House.glb", "/models/scifi/structure_detailed.glb"],
-  desert: [
-    "/models/landmarks/desert/Tent.glb",
-    "/models/landmarks/desert/Tent.glb",
-    "/models/landmarks/desert/Tent.glb",
-    "/models/scifi/rocket_baseA.glb", // sparingly — reads as a crashed rocket
-  ],
-  snow: ["/models/scifi/hangar_smallA.glb", "/models/landmarks/snow/Tent.glb"],
-  wasteland: [],
-  // Lava and alien biomes lean on sci-fi hero props — the skull plains of
-  // a dying planet and the crystal spires of an alien world both read as
-  // post-human frontiers, not rustic camps.
+  forest: ["/models/scifi/structure_detailed.glb", "/models/scifi/hangar_smallA.glb"],
+  desert: ["/models/scifi/hangar_smallA.glb", "/models/scifi/hangar_largeA.glb"],
+  snow: ["/models/scifi/hangar_smallA.glb", "/models/scifi/hangar_largeA.glb"],
+  wasteland: ["/models/scifi/structure_diagonal.glb", "/models/scifi/structure_closed.glb"],
   lava: ["/models/scifi/structure_detailed.glb", "/models/scifi/rocket_baseA.glb"],
-  alien: ["/models/scifi/hangar_smallB.glb", "/models/scifi/structure_closed.glb"],
+  alien: ["/models/scifi/hangar_roundA.glb", "/models/scifi/hangar_smallB.glb"],
+};
+
+// Modular accent — a smaller secondary sci-fi piece dropped next to each
+// landmark so each node reads as a small base (anchor + outbuilding) rather
+// than a single isolated building. Picked so the silhouette differs from
+// the anchor at a glance — closed structures, large dishes, chimneys, or
+// crashed craft. Models picked from the building-role set so they
+// normalize to the same hero scale as the anchor.
+const BIOME_MODULES: Record<Biome, string[]> = {
+  forest: ["/models/scifi/structure_closed.glb", "/models/scifi/satelliteDish_large.glb"],
+  desert: ["/models/scifi/craft_speederA.glb", "/models/scifi/satelliteDish_detailed.glb"],
+  snow: ["/models/scifi/satelliteDish_large.glb", "/models/scifi/chimney_detailed.glb"],
+  wasteland: ["/models/scifi/craft_speederA.glb", "/models/scifi/structure_closed.glb"],
+  lava: ["/models/scifi/chimney_detailed.glb", "/models/scifi/satelliteDish_large.glb"],
+  alien: ["/models/scifi/satelliteDish_large.glb", "/models/scifi/structure_closed.glb"],
 };
 
 // Pick rocks only out of each biome's layer list — no bushes/grass on
@@ -68,26 +74,42 @@ const rockUrls = (biome: Biome): string[] =>
     .flatMap((l) => l.urls)
     .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
 
-// Tents are handled by the landmark bucket as hero objects on the world
-// map. Filter them out of the secondary story slot so a single node
-// doesn't end up with two tents stacked next to each other.
+// Wooden / camp props (tent, house, cabin, sawmill, barrel, chest, torch)
+// are excluded from the world map. They still render inside levels as
+// HQ-area dressing via BiomeCosmetics, but at the world map's tilt + zoom
+// they undermined the sci-fi theme — every node should look like a base,
+// not a pirate camp.
+const WOODEN_RX = /tent|house|cabin|sawmill|barrel\.glb|chest|torch/i;
 const storyUrls = (biome: Biome): string[] =>
-  BIOME_STORY_PROPS[biome].filter((u) => !/tent/i.test(u));
+  BIOME_STORY_PROPS[biome].filter((u) => !WOODEN_RX.test(u));
 
 // Per-level cluster geometry. Props land on composition slots outside
 // the clean node bubble so each node reads as a deliberate vignette
 // rather than a noisy pile around the marker.
-const CLUSTER_R = 6.8;
-const NODE_CLEAR = 4.2; // inner hole — keep hero props off the node
+const CLUSTER_R = 7.2;
+// Visible node footprint — hit cylinder (1.95) + stars/labels slack.
+// Used edge-of-prop → edge-of-node so a wide hangar can't poke into the
+// bubble even when its center clears NODE_CLEAR. Previously a center-only
+// distance check let asymmetric landmarks graze the bubble.
+const NODE_VISIBLE_R = 2.4;
 // Center-to-center spacing slack between props on top of summed radii.
 // Was applied as `MIN_GAP * 0.25` (≈0.3u), which let trees and rocks
 // silhouettes nearly touch on the world map. The full slack reads as
 // deliberately spaced.
 const MIN_GAP = 1.45;
+// Extra gap between a prop's edge and the node's visible footprint. Smaller
+// than MIN_GAP because the bubble already reads as a hard target and props
+// adjacent to it look like part of the base composition. Combined with
+// NODE_VISIBLE_R this guarantees a prop edge sits at least this far past
+// the bubble for every node, not just the one this prop belongs to.
+const NODE_PROP_GAP = 0.55;
 // Was 14 — too low when the disc is 90% full after the landmark drops.
 // 28 retries gives the rock placements a real chance to land cleanly.
-const MAX_RETRIES = 28;
-const COMPOSITION_SLOTS = [0, 2.25, -2.25, Math.PI];
+const MAX_RETRIES = 32;
+// Five evenly-spaced angular slots around the node — anchor + module sit
+// on opposite sides (slot 0 / slot Math.PI) so they read as one base, the
+// remaining slots fan trees / rocks / story away from the bubble.
+const COMPOSITION_SLOTS = [0, Math.PI, 1.95, -1.95, Math.PI * 0.5];
 
 const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map((l) => ({
   x: l.nodePos.x,
@@ -115,10 +137,19 @@ const buildPropPlan = () => {
       const radius = bucket.clearance * scale;
 
       let bad = false;
+      // Edge-of-prop → edge-of-node check. `radius` is the prop's
+      // half-footprint at its sampled scale; node visible radius is the
+      // bubble + label slack. Sum + NODE_PROP_GAP ensures the rendered
+      // silhouette never overlaps a level bubble for ANY node, not just
+      // this one. (The MIN_GAP slack used for prop↔prop spacing would be
+      // too aggressive here — base modules deliberately read as adjacent
+      // to the bubble.)
+      const minNodeDist = radius + NODE_VISIBLE_R + NODE_PROP_GAP;
+      const minNodeDistSq = minNodeDist * minNodeDist;
       for (const n of NODE_POSITIONS) {
         const dx = x - n.x;
         const dz = z - n.z;
-        if (dx * dx + dz * dz < NODE_CLEAR * NODE_CLEAR) {
+        if (dx * dx + dz * dz < minNodeDistSq) {
           bad = true;
           break;
         }
@@ -154,6 +185,7 @@ const buildPropPlan = () => {
     const rand = mulberry32(lvl.id * 9973 + 17);
     const center = { x: lvl.nodePos.x, z: -lvl.nodePos.y };
     const landmarkUrls = BIOME_LANDMARKS[biome] ?? [];
+    const moduleUrls = BIOME_MODULES[biome] ?? [];
     const traceUrls = storyUrls(biome);
     const baseAngle = rand() * Math.PI * 2;
     const hasLandmark = landmarkUrls.length > 0;
@@ -167,7 +199,22 @@ const buildPropPlan = () => {
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 1.9,
-      minRadius: 4.7,
+      // Inner edge accounts for radius (1.9*1.1=2.09) + NODE_VISIBLE_R
+      // (2.4) + NODE_PROP_GAP (0.55) = 5.04 minimum. 5.2 gives some
+      // slack so most attempts land cleanly without exhausting retries.
+      minRadius: 5.2,
+      maxRadius: 6.0,
+    };
+    // Modular accent — small sci-fi outbuilding placed on the opposite side
+    // of the node from the anchor. Smaller radius range so it nestles up
+    // next to the bubble like a sibling structure of the main base.
+    const moduleBucket: PropRoleBucket = {
+      urls: moduleUrls,
+      count: hasLandmark ? 1 : 0,
+      minScale: 0.85,
+      maxScale: 1.0,
+      clearance: 1.4,
+      minRadius: 4.9,
       maxRadius: 5.7,
     };
     const treeBucket: PropRoleBucket = {
@@ -176,7 +223,7 @@ const buildPropPlan = () => {
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 1.2,
-      minRadius: 5.0,
+      minRadius: 5.2,
       maxRadius: CLUSTER_R,
     };
     const storyBucket: PropRoleBucket = {
@@ -185,8 +232,8 @@ const buildPropPlan = () => {
       minScale: 0.85,
       maxScale: 1.1,
       clearance: 0.85,
-      minRadius: 4.7,
-      maxRadius: 5.8,
+      minRadius: 5.0,
+      maxRadius: 6.0,
     };
     const rockBucket: PropRoleBucket = {
       urls: rockUrls(biome),
@@ -194,12 +241,12 @@ const buildPropPlan = () => {
       minScale: 0.95,
       maxScale: 1.1,
       clearance: 0.6,
-      minRadius: 4.8,
+      minRadius: 5.0,
       maxRadius: CLUSTER_R,
     };
 
     let slotIndex = 0;
-    for (const bucket of [landmarkBucket, storyBucket, treeBucket, rockBucket]) {
+    for (const bucket of [landmarkBucket, moduleBucket, storyBucket, treeBucket, rockBucket]) {
       if (bucket.urls.length === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand, baseAngle, slotIndex++);
@@ -284,5 +331,6 @@ for (const lvl of LEVELS) {
   for (const u of storyUrls(biome)) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
   for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);
+  for (const u of BIOME_MODULES[biome] ?? []) allUrls.add(u);
 }
 for (const u of allUrls) useGLTF.preload(u);

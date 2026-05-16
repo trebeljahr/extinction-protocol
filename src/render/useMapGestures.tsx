@@ -13,6 +13,19 @@ export type MapGestureConfig = {
   zoomSpeed?: number;
   reserveLeftClick?: boolean;
   reserveTouchPlacement?: boolean;
+  // Orbit-around-target controls. Off by default so in-level usage keeps
+  // the locked top-down view; the world map opts in to let players tilt /
+  // rotate the camera and see the map is actually 3D.
+  enableRotate?: boolean;
+  // Polar angle clamps (radians from world +Y). 0 = straight down,
+  // π/2 = horizon. Defaults keep the camera above the ground plane.
+  minPolarAngle?: number;
+  maxPolarAngle?: number;
+  rotateSpeed?: number;
+  // Right-mouse default in OrbitControls is ROTATE; the touchTwo override
+  // lets the world map pick DOLLY_ROTATE (pinch-zoom + twist rotates) so
+  // mobile keeps pinch zoom AND gets orbit via two-finger twist/drag.
+  touchTwo?: THREE.TOUCH;
 };
 
 export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureConfig>(
@@ -26,6 +39,11 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       zoomSpeed = 0.9,
       reserveLeftClick = false,
       reserveTouchPlacement = false,
+      enableRotate = false,
+      minPolarAngle = 0,
+      maxPolarAngle = Math.PI,
+      rotateSpeed = 0.7,
+      touchTwo,
     },
     ref,
   ) {
@@ -63,28 +81,40 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
     // is a no-op here because enableRotate is false — so the drag
     // doesn't simultaneously pan the camera. Two-finger DOLLY_PAN
     // still works for camera adjustment mid-placement.
+    //
+    // World map opts into rotate; the touchTwo override picks
+    // DOLLY_ROTATE there so two-finger pinch still zooms while a
+    // two-finger twist orbits the camera. In-level usage keeps the
+    // default DOLLY_PAN since the locked top-down view never rotates.
     const touches = useMemo(
       () => ({
         ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
-        TWO: THREE.TOUCH.DOLLY_PAN,
+        TWO: touchTwo ?? THREE.TOUCH.DOLLY_PAN,
       }),
-      [reserveTouchPlacement],
+      [reserveTouchPlacement, touchTwo],
     );
 
     return (
       <OrbitControls
         ref={controlsRef}
         makeDefault
-        enableRotate={false}
+        enableRotate={enableRotate}
         enablePan
         enableZoom
         mouseButtons={{
+          // Right-mouse on desktop is the orbit gesture when rotate is
+          // enabled (OrbitControls default mapping); explicitly listed so
+          // the role is obvious here. Off when enableRotate=false.
           LEFT: THREE.MOUSE.PAN,
           MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.ROTATE,
         }}
         touches={touches}
         panSpeed={panSpeed}
         zoomSpeed={zoomSpeed}
+        rotateSpeed={rotateSpeed}
+        minPolarAngle={minPolarAngle}
+        maxPolarAngle={maxPolarAngle}
         minZoom={minZoom}
         maxZoom={maxZoom}
         screenSpacePanning={false}

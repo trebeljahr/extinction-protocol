@@ -54,13 +54,64 @@ export const createWorleyField = (
   featureCount: number,
   featureRadius: number,
 ): WorleyField => {
+  return worleyFieldFromFeatures(
+    sampleStratifiedFeatures(seed, bounds, featureCount),
+    featureRadius,
+  );
+};
+
+// Stratified (jittered-grid) feature placement. Pure-random sampling of
+// small N reliably produces eye-catching clumps and bare patches — the
+// "clustery / artificial" feel the player flagged on the world map and
+// in-level terrain. A jittered grid places ~one feature per cell with a
+// small random offset inside the cell, so cluster centres spread evenly
+// across the bounds while still varying enough to avoid grid-pattern
+// readability. JITTER_FRAC (0.65) keeps feature offsets inside each
+// cell's centred 65% so adjacent cells don't trade neighbours and
+// re-introduce gaps. Used by createWorleyField (in-level) and exported
+// for OuterScenery to apply the same fix to the outer band rim.
+const JITTER_FRAC = 0.65;
+export const sampleStratifiedFeatures = (
+  seed: number,
+  bounds: WorleyBounds,
+  featureCount: number,
+): Array<{ x: number; y: number }> => {
+  if (featureCount <= 0) return [];
   const rng = mulberry32(seed);
+  const w = bounds.maxX - bounds.minX;
+  const h = bounds.maxY - bounds.minY;
+  const aspect = w / Math.max(0.001, h);
+  // Choose grid dimensions so cells stay ~square regardless of how
+  // rectangular the bounds are. Otherwise a wide rect picks too few
+  // columns and re-introduces clumping along the long axis.
+  const cols = Math.max(1, Math.round(Math.sqrt(featureCount * aspect)));
+  const rows = Math.max(1, Math.ceil(featureCount / cols));
+  const cellW = w / cols;
+  const cellH = h / rows;
   const features: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < featureCount; i++) {
+  // Shuffle which cells get a feature so a featureCount lower than
+  // rows*cols doesn't always drop the same trailing cells (which would
+  // bias the bare strip to one corner across re-renders).
+  const cellOrder: number[] = [];
+  const cellTotal = rows * cols;
+  for (let i = 0; i < cellTotal; i++) cellOrder.push(i);
+  for (let i = cellTotal - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = cellOrder[i];
+    cellOrder[i] = cellOrder[j];
+    cellOrder[j] = tmp;
+  }
+  const limit = Math.min(featureCount, cellTotal);
+  for (let i = 0; i < limit; i++) {
+    const idx = cellOrder[i];
+    const c = idx % cols;
+    const r = Math.floor(idx / cols);
+    const jx = (rng() - 0.5) * cellW * JITTER_FRAC;
+    const jy = (rng() - 0.5) * cellH * JITTER_FRAC;
     features.push({
-      x: bounds.minX + rng() * (bounds.maxX - bounds.minX),
-      y: bounds.minY + rng() * (bounds.maxY - bounds.minY),
+      x: bounds.minX + (c + 0.5) * cellW + jx,
+      y: bounds.minY + (r + 0.5) * cellH + jy,
     });
   }
-  return worleyFieldFromFeatures(features, featureRadius);
+  return features;
 };

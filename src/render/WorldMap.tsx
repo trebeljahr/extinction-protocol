@@ -196,6 +196,17 @@ export const WorldMapScene = () => {
         maxZoom={maxZoom}
         panSpeed={1.6}
         zoomSpeed={0.8}
+        // Tilt + orbit advertises that the TD is 3D. Polar clamp keeps the
+        // camera above the ground plane (no looking up through the floor)
+        // and never quite straight-down (so the angle hint reads as a
+        // tilt, not a flip to top-down). Desktop uses right-mouse drag
+        // (OrbitControls default). Mobile uses two-finger DOLLY_ROTATE so
+        // pinch-zoom keeps working and a two-finger twist orbits.
+        enableRotate
+        minPolarAngle={0.18}
+        maxPolarAngle={1.25}
+        rotateSpeed={0.7}
+        touchTwo={THREE.TOUCH.DOLLY_ROTATE}
       />
       <MapFocusTarget focus={focus} />
 

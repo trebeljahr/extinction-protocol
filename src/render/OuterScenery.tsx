@@ -13,7 +13,7 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
-import { worleyFieldFromFeatures } from "../sim/worley";
+import { sampleStratifiedFeatures, worleyFieldFromFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
@@ -119,10 +119,54 @@ const insideInner = (x: number, y: number): boolean =>
 
 // Pick K Worley features in the band so the resulting density field
 // only invests in band area (features in the inner exclusion would
-// waste falloff on the playable rect).
-const pickBandFeatures = (rng: () => number, count: number): Vec2[] => {
+// waste falloff on the playable rect). Each side of the band gets a
+// proportional share, stratified inside that side's rect — pure random
+// rim sampling reliably stacked features on one side of the map and
+// left the other bare.
+const BAND_SIDES = (() => {
+  const top = {
+    minX: -OUTER_HALF_W,
+    maxX: OUTER_HALF_W,
+    minY: INNER_HALF_H,
+    maxY: OUTER_HALF_H,
+  };
+  const bottom = {
+    minX: -OUTER_HALF_W,
+    maxX: OUTER_HALF_W,
+    minY: -OUTER_HALF_H,
+    maxY: -INNER_HALF_H,
+  };
+  const left = {
+    minX: -OUTER_HALF_W,
+    maxX: -INNER_HALF_W,
+    minY: -INNER_HALF_H,
+    maxY: INNER_HALF_H,
+  };
+  const right = {
+    minX: INNER_HALF_W,
+    maxX: OUTER_HALF_W,
+    minY: -INNER_HALF_H,
+    maxY: INNER_HALF_H,
+  };
+  const area = (b: typeof top) => (b.maxX - b.minX) * (b.maxY - b.minY);
+  return [top, bottom, left, right].map((bounds) => ({ bounds, area: area(bounds) }));
+})();
+
+const pickBandFeatures = (seed: number, count: number): Vec2[] => {
+  if (count <= 0) return [];
+  const totalArea = BAND_SIDES.reduce((s, side) => s + side.area, 0);
   const features: Vec2[] = [];
-  for (let i = 0; i < count; i++) features.push(sampleBandPoint(rng));
+  let placed = 0;
+  for (let i = 0; i < BAND_SIDES.length; i++) {
+    const side = BAND_SIDES[i];
+    const isLast = i === BAND_SIDES.length - 1;
+    const share = isLast
+      ? Math.max(0, count - placed)
+      : Math.round((count * side.area) / totalArea);
+    if (share <= 0) continue;
+    features.push(...sampleStratifiedFeatures(seed + i * 7919, side.bounds, share));
+    placed += share;
+  }
   return features;
 };
 
@@ -152,11 +196,10 @@ const placeLayerInBand = (
   if (targetCount === 0) return;
 
   const seedBase = layer.seed * 17 + levelId * 4451 + layerIndex * 991;
-  const featureRng = mulberry32(seedBase);
   const sigma = layer.cluster?.sigma ?? 2.0;
   const featureRadius = sigma * 2.0;
   const featureCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
-  const features = pickBandFeatures(featureRng, featureCount);
+  const features = pickBandFeatures(seedBase, featureCount);
   const worley = worleyFieldFromFeatures(features, featureRadius);
 
   const rMin = layerMinSpacing(layer);
