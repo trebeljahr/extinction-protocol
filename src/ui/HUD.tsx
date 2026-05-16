@@ -164,19 +164,24 @@ export const HUD = () => {
         (document.activeElement as HTMLElement | null)?.blur();
         return;
       }
-      if (e.code === "KeyZ") {
+      if (e.code === "KeyQ") {
         e.preventDefault();
         useGame.getState().triggerHeroAbility(0);
         return;
       }
-      if (e.code === "KeyX") {
+      if (e.code === "KeyW") {
         e.preventDefault();
         useGame.getState().triggerHeroAbility(1);
         return;
       }
-      if (e.code === "KeyC") {
+      if (e.code === "KeyE") {
         e.preventDefault();
         useGame.getState().triggerHeroAbility(2);
+        return;
+      }
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        useGame.getState().triggerHeroAbility(3);
         return;
       }
       const digit = e.key;

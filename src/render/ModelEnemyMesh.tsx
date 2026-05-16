@@ -342,10 +342,23 @@ export const ModelEnemyMesh = ({
       const motionLenSq = motionX * motionX + motionZ * motionZ;
       const pathWorldX = dir.x;
       const pathWorldZ = -dir.y;
-      const targetYaw =
-        motionLenSq > 1e-6 && motionX * pathWorldX + motionZ * pathWorldZ > 0
-          ? Math.atan2(motionX, motionZ)
-          : pathYaw;
+      // Engaged with hero — swivel toward the hero while still marching
+      // along the path. Sim doesn't redirect movement (no chase), only
+      // the model's facing is overridden so the skirmish reads.
+      let targetYaw: number;
+      if (e.engagedWithHero) {
+        const heroDX = world.hero.pos.x - targetX;
+        const heroDZ = -world.hero.pos.y - targetZ;
+        if (heroDX * heroDX + heroDZ * heroDZ > 1e-6) {
+          targetYaw = Math.atan2(heroDX, heroDZ);
+        } else {
+          targetYaw = pathYaw;
+        }
+      } else if (motionLenSq > 1e-6 && motionX * pathWorldX + motionZ * pathWorldZ > 0) {
+        targetYaw = Math.atan2(motionX, motionZ);
+      } else {
+        targetYaw = pathYaw;
+      }
       if (!item.visInit) {
         item.visX = targetX;
         item.visZ = targetZ;
@@ -544,6 +557,13 @@ export const ModelEnemyMesh = ({
       const sel = state.world.towerById.get(selId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
+    // Hero control outranks dino inspection. When the hero is selected,
+    // left-click on a dino must NOT pop the enemy panel and must NOT
+    // de-select the hero — instead, let the click bubble through to the
+    // placement plane so it becomes an orderHeroMove (treats the dino's
+    // ground spot as a waypoint). Right-click on a dino is the dedicated
+    // inspect channel below.
+    if (state.world.hero.selected) return;
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
@@ -556,7 +576,27 @@ export const ModelEnemyMesh = ({
     );
   };
 
-  return <group ref={groupRef} onClick={handleClick} />;
+  // Right-click on a dino always opens its info panel, regardless of
+  // hero selection. Stop propagation so the placement plane's
+  // contextmenu (which would normally issue an orderHeroMove) doesn't
+  // also fire — the player asked for info, not a move order.
+  const handleContextMenu = (e: ThreeEvent<MouseEvent>) => {
+    const state = useGame.getState();
+    if (state.selectedKind !== null) return;
+    let obj: THREE.Object3D | null = e.object;
+    while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
+    if (!obj) return;
+    e.nativeEvent.preventDefault();
+    e.stopPropagation();
+    state.inspectEnemy(
+      obj.userData.enemyId as number,
+      kind,
+      obj.userData.enemyMaxHp as number,
+      bossVariant ?? null,
+    );
+  };
+
+  return <group ref={groupRef} onClick={handleClick} onContextMenu={handleContextMenu} />;
 };
 
 useGLTF.preload("/models/Velociraptor.glb");

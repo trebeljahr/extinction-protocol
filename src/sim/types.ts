@@ -121,6 +121,11 @@ export type Enemy = {
     startPos: Vec2;
     attackPos: Vec2;
   };
+  // True while the hero is inside this enemy's engage radius. Doesn't
+  // change path progression — the enemy keeps marching forward — but the
+  // render layer reads it to swivel the model toward the hero so the
+  // skirmish reads visually. Cleared each tick before the engage check.
+  engagedWithHero?: boolean;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -232,10 +237,11 @@ export type Rock = {
 
 export type HeroVariant = "george" | "leela" | "mike" | "stan";
 
-// Slot index used by the HUD + key bindings. The semantic ability per
-// slot is per-variant (see heroVariants.HERO_SPECS) — slot 0 is always
-// a dash, slot 1 a radial burst, slot 2 the variant's ultimate.
-export type HeroAbilitySlot = 0 | 1 | 2;
+// Slot index used by the HUD + key bindings (Q/W/E/R). Semantic ability
+// per slot is per-variant (see heroVariants.HERO_SPECS):
+//   slot 0 (Q) = dash, slot 1 (W) = radial burst,
+//   slot 2 (E) = self-buff (variant-flavoured), slot 3 (R) = ultimate.
+export type HeroAbilitySlot = 0 | 1 | 2 | 3;
 
 // Multi-shot payload (Stan's saturation, George's barrage) — one row
 // per missile, each fires at world.time >= when. Carries its own damage
@@ -248,7 +254,7 @@ export type HeroPendingShot = {
   damageType: DamageType;
 };
 
-// Ongoing slot-2 effect that ticks per frame. Mark (Leela) buffs the
+// Ongoing slot-3 effect that ticks per frame. Mark (Leela) buffs the
 // hero's own outgoing damage for the duration; incinerate (Mike) burns
 // a single locked enemy until the timer ends or the target dies.
 export type HeroPayloadState =
@@ -261,6 +267,18 @@ export type HeroPayloadState =
       tickDamage: number;
       damageType: DamageType;
     };
+
+// Slot-2 active self-buff — variant-flavoured stat multiplier window.
+// Distinct from `payload` so a hero can stack the buff with their R
+// ultimate without one clobbering the other.
+export type HeroSelfBuff = {
+  endAt: number;
+  damageMul: number;
+  fireRateMul: number;
+  speedMul: number;
+  // 0..1 fraction of incoming damage absorbed. 0.5 = take half damage.
+  damageResist: number;
+};
 
 export type Hero = {
   id: EntityId;
@@ -283,24 +301,43 @@ export type Hero = {
   damageType: DamageType;
   // Cooldown clock on the auto-attack (renamed from `cooldown`).
   attackCooldown: number;
-  // Cooldown ready-times for each ability slot — slot 0 dash, 1 burst,
-  // 2 ultimate. All gated by hero.abilityCooldownMul from the skill tree.
-  abilityReadyAt: [number, number, number];
+  // Cooldown ready-times for each ability slot — Q/W/E/R = dash, burst,
+  // buff, ultimate. All gated by hero.abilityCooldownMul from the skill tree.
+  abilityReadyAt: [number, number, number, number];
   // Per-slot active-until window. Slot 0 doubles as dash i-frames; the
   // other slots don't currently consult this, but it's kept symmetric
   // so future variants can layer in slot-1 buffs without another field.
-  abilityActiveUntil: [number, number, number];
+  abilityActiveUntil: [number, number, number, number];
   // Multiplier applied to every ability cooldown at trigger time. 1.0 =
   // raw spec, 0.65 = T3 Power Core fully ranked.
   abilityCooldownMul: number;
-  // Per-tick outgoing damage multiplier — driven by the mark payload.
+  // Per-tick outgoing damage multiplier — driven by the mark payload
+  // and the slot-2 self-buff. Refreshed each frame in tickPayload/tickBuff.
   damageMul: number;
-  // Slot-2 ongoing effect — mark buff or incinerate burn. Null when no
+  // Per-tick fire-rate multiplier — driven by the slot-2 self-buff. 1
+  // when no buff is active.
+  fireRateMul: number;
+  // Per-tick movement-speed multiplier — driven by the slot-2 self-buff.
+  speedMul: number;
+  // 0..1 fraction of incoming damage absorbed (1 = invuln). Driven by
+  // the slot-2 self-buff; 0 when no buff is active.
+  damageResist: number;
+  // Slot-3 ongoing effect — mark buff or incinerate burn. Null when no
   // ultimate is currently in flight.
   payload: HeroPayloadState | null;
+  // Slot-2 self-buff window. Active while world.time < selfBuff.endAt.
+  selfBuff: HeroSelfBuff | null;
   pendingShots: HeroPendingShot[];
   targetId: EntityId | null;
   moveTarget: Vec2 | null;
+  // Player-controlled lateral offset along the path — how far off the
+  // centerline the hero stands. Clamped to ±PATH_LANE_HALF. Derived
+  // from the move-order click position relative to the snapped path
+  // point so clicking near the edge of the lane parks the hero there.
+  lateralOffset: number;
+  // Path index the hero is currently bound to. Multi-path levels pick
+  // the nearest lane on each move order.
+  pathIndex: number;
   alive: boolean;
   flashUntil: number;
   shootFlashUntil: number;

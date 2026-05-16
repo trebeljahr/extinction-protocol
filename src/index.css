@@ -4095,6 +4095,11 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    /* Sits in the hud-top flex row but the click target is the menu
+       opener — push it down a notch so it reads as a distinct banner
+       with breathing room from the top edge. */
+    margin-top: 14px;
+    align-self: flex-start;
     background: rgba(10, 16, 24, 0.72);
     border: 1px solid rgba(120, 160, 200, 0.18);
     border-radius: 6px;

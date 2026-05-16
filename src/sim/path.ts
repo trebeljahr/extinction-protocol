@@ -127,6 +127,83 @@ export type PathAdvance = {
   finished: boolean;
 };
 
+// Closest point on a polyline to `p` plus a signed lateral offset
+// (right-hand normal convention — positive = right side of forward
+// travel). Drives hero path-bound movement so the move-order click
+// derives both target progress and which side of the lane to stand on.
+export const projectOnPath = (
+  path: Vec2[],
+  p: Vec2,
+): { segment: number; segmentT: number; pos: Vec2; lateralOffset: number } => {
+  let bestSeg = 0;
+  let bestT = 0;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  let bestX = p.x;
+  let bestY = p.y;
+  let bestLat = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const lenSq = abx * abx + aby * aby;
+    if (lenSq === 0) continue;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq));
+    const cx = a.x + t * abx;
+    const cy = a.y + t * aby;
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      bestSeg = i;
+      bestT = t;
+      bestX = cx;
+      bestY = cy;
+      const len = Math.sqrt(lenSq);
+      // Right-hand normal of (abx, aby) is (-aby, abx)/len, matching the
+      // sign convention used by `enemy.lateralOffset` so the swarm lanes
+      // and hero positioning share the same axis.
+      const nx = -aby / len;
+      const ny = abx / len;
+      bestLat = dx * nx + dy * ny;
+    }
+  }
+  return { segment: bestSeg, segmentT: bestT, pos: { x: bestX, y: bestY }, lateralOffset: bestLat };
+};
+
+// Picks the closest path lane in a multi-path level and projects `p`
+// onto it. Used so the hero binds to whichever path the player clicked
+// nearest, not always path[0].
+export const pickNearestPathProjection = (
+  paths: Vec2[][],
+  p: Vec2,
+): { pathIndex: number; segment: number; segmentT: number; pos: Vec2; lateralOffset: number } => {
+  let bestIdx = 0;
+  let best = projectOnPath(paths[0], p);
+  let bestD2 = (best.pos.x - p.x) ** 2 + (best.pos.y - p.y) ** 2;
+  for (let i = 1; i < paths.length; i++) {
+    const proj = projectOnPath(paths[i], p);
+    const d2 = (proj.pos.x - p.x) ** 2 + (proj.pos.y - p.y) ** 2;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      bestIdx = i;
+      best = proj;
+    }
+  }
+  return { pathIndex: bestIdx, ...best };
+};
+
+// Cumulative arc length from the start of the polyline to (segment, t).
+// Cheap O(n) recompute — paths are short (<200 segments) and only the
+// hero calls this per tick.
+export const pathProgress = (path: Vec2[], segment: number, segmentT: number): number => {
+  let acc = 0;
+  for (let i = 0; i < segment; i++) acc += segmentLength(path, i);
+  acc += segmentLength(path, segment) * segmentT;
+  return acc;
+};
+
 export const advanceAlongPath = (
   path: Vec2[],
   segment: number,

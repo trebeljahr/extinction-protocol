@@ -26,7 +26,22 @@ export type BurstSpec = {
   damageType: DamageType;
 };
 
-// Slot 2 — ultimate payload. Discriminated union so the trigger
+// Slot 2 — variant-flavoured self-buff. Multiplies the hero's own stats
+// for a window so each pilot has an identity-fitting "third gear" between
+// dash + burst + ultimate. Damage type isn't carried — the buff just
+// modulates outgoing damage / fire rate / move speed / damage resist.
+export type BuffSpec = {
+  type: "buff";
+  cooldown: number;
+  duration: number;
+  damageMul: number;
+  fireRateMul: number;
+  speedMul: number;
+  // 0..1 fraction of incoming damage absorbed (1 = invuln).
+  damageResist: number;
+};
+
+// Slot 3 — ultimate payload. Discriminated union so the trigger
 // dispatcher can fan out to barrage / mark / incinerate without
 // extra control flags on Hero.
 export type PayloadSpec =
@@ -54,7 +69,7 @@ export type PayloadSpec =
       damageType: DamageType;
     };
 
-export type HeroAbilitySpec = DashSpec | BurstSpec | PayloadSpec;
+export type HeroAbilitySpec = DashSpec | BurstSpec | BuffSpec | PayloadSpec;
 
 export type HeroVariantSpec = {
   variant: HeroVariant;
@@ -76,12 +91,12 @@ export type HeroVariantSpec = {
   // >0 turns each shot into a tight splash hit.
   attackSplashRadius: number;
   unlockStars: number;
-  abilities: [DashSpec, BurstSpec, PayloadSpec];
+  abilities: [DashSpec, BurstSpec, BuffSpec, PayloadSpec];
   tint: string;
-  // HUD labels per slot — short ASCII glyph picks up from the existing
-  // hero panel without bringing in icon assets.
-  abilityLabels: [string, string, string];
-  abilityGlyphs: [string, string, string];
+  // HUD labels per slot (Q/W/E/R). Short ASCII glyph picks up from the
+  // existing hero panel without bringing in icon assets.
+  abilityLabels: [string, string, string, string];
+  abilityGlyphs: [string, string, string, string];
 };
 
 export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
@@ -103,6 +118,17 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilities: [
       { type: "dash", cooldown: 5.5, duration: 0.35, speed: 11.0 },
       { type: "burst", cooldown: 10.0, radius: 3.6, damage: 110, damageType: "kinetic" },
+      // Focus Fire — sniper "scope-in". Hardened stance: bigger shots at a
+      // slower cadence, brace shrugs off half of incoming damage.
+      {
+        type: "buff",
+        cooldown: 12.0,
+        duration: 5.0,
+        damageMul: 1.8,
+        fireRateMul: 0.85,
+        speedMul: 0.6,
+        damageResist: 0.5,
+      },
       {
         type: "barrage",
         cooldown: 14.0,
@@ -114,8 +140,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
       },
     ],
     tint: "#9fd8ff",
-    abilityLabels: ["Combat Dash", "Shockwave", "Barrage"],
-    abilityGlyphs: ["»", "✺", "❖"],
+    abilityLabels: ["Combat Dash", "Shockwave", "Focus Fire", "Barrage"],
+    abilityGlyphs: ["»", "✺", "◎", "❖"],
   },
   leela: {
     variant: "leela",
@@ -135,11 +161,23 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilities: [
       { type: "dash", cooldown: 4.0, duration: 0.45, speed: 13.0 },
       { type: "burst", cooldown: 9.0, radius: 4.0, damage: 70, damageType: "electric" },
+      // Phase Veil — speed skirmisher disappears for a beat. Massive
+      // speed + fire-rate spike, near-invuln window, leans into Leela's
+      // hit-and-run identity.
+      {
+        type: "buff",
+        cooldown: 13.0,
+        duration: 3.0,
+        damageMul: 1.15,
+        fireRateMul: 1.6,
+        speedMul: 1.7,
+        damageResist: 0.8,
+      },
       { type: "mark", cooldown: 14.0, duration: 4.0, dmgMul: 1.7 },
     ],
     tint: "#5ad6ff",
-    abilityLabels: ["Phase Step", "Static Burst", "Overclock"],
-    abilityGlyphs: ["»", "⚡", "◎"],
+    abilityLabels: ["Phase Step", "Static Burst", "Phase Veil", "Overclock"],
+    abilityGlyphs: ["»", "⚡", "◈", "◎"],
   },
   mike: {
     variant: "mike",
@@ -159,6 +197,18 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilities: [
       { type: "dash", cooldown: 5.0, duration: 0.4, speed: 11.0 },
       { type: "burst", cooldown: 11.0, radius: 4.5, damage: 95, damageType: "flame" },
+      // Ignition — flame mech overdrives the burners. Doubled fire rate
+      // turns the splash auto-attack into a wall of flames, light damage
+      // bonus, brief plating against retaliation.
+      {
+        type: "buff",
+        cooldown: 14.0,
+        duration: 4.0,
+        damageMul: 1.3,
+        fireRateMul: 2.0,
+        speedMul: 1.0,
+        damageResist: 0.35,
+      },
       {
         type: "incinerate",
         cooldown: 16.0,
@@ -169,8 +219,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
       },
     ],
     tint: "#ff8a3a",
-    abilityLabels: ["Thruster Burst", "Flame Nova", "Incinerate"],
-    abilityGlyphs: ["»", "🔥", "✷"],
+    abilityLabels: ["Thruster Burst", "Flame Nova", "Ignition", "Incinerate"],
+    abilityGlyphs: ["»", "🔥", "✱", "✷"],
   },
   stan: {
     variant: "stan",
@@ -190,6 +240,17 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilities: [
       { type: "dash", cooldown: 7.0, duration: 0.3, speed: 9.5 },
       { type: "burst", cooldown: 9.0, radius: 5.0, damage: 160, damageType: "explosive" },
+      // Bulwark — heavy lays down. Roots him with a major damage bump
+      // and 75% damage resist for a brace window. Pure tank fantasy.
+      {
+        type: "buff",
+        cooldown: 13.0,
+        duration: 5.0,
+        damageMul: 1.4,
+        fireRateMul: 1.0,
+        speedMul: 0.5,
+        damageResist: 0.75,
+      },
       {
         type: "barrage",
         cooldown: 14.0,
@@ -201,8 +262,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
       },
     ],
     tint: "#ffd24a",
-    abilityLabels: ["Ground Pound", "Quake", "Saturation"],
-    abilityGlyphs: ["»", "✺", "❖"],
+    abilityLabels: ["Ground Pound", "Quake", "Bulwark", "Saturation"],
+    abilityGlyphs: ["»", "✺", "▣", "❖"],
   },
 };
 

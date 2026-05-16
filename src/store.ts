@@ -166,12 +166,12 @@ type UiSnapshot = {
   heroXp: number;
   heroXpInto: number;
   heroXpNeed: number;
-  // Cooldowns per ability slot (0/1/2). Rounded to 0.1s so the HUD
-  // doesn't thrash on every frame for the same on-screen text.
-  heroAbilityCooldowns: [number, number, number];
-  heroAbilityMaxCooldowns: [number, number, number];
-  heroAbilityLabels: [string, string, string];
-  heroAbilityGlyphs: [string, string, string];
+  // Cooldowns per ability slot (Q/W/E/R = 0..3). Rounded to 0.1s so the
+  // HUD doesn't thrash on every frame for the same on-screen text.
+  heroAbilityCooldowns: [number, number, number, number];
+  heroAbilityMaxCooldowns: [number, number, number, number];
+  heroAbilityLabels: [string, string, string, string];
+  heroAbilityGlyphs: [string, string, string, string];
 };
 
 const snapshot = (
@@ -252,11 +252,13 @@ const snapshot = (
       Math.max(0, Math.round((w.hero.abilityReadyAt[0] - w.time) * 10) / 10),
       Math.max(0, Math.round((w.hero.abilityReadyAt[1] - w.time) * 10) / 10),
       Math.max(0, Math.round((w.hero.abilityReadyAt[2] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.hero.abilityReadyAt[3] - w.time) * 10) / 10),
     ],
     heroAbilityMaxCooldowns: [
       HERO_SPECS[w.hero.variant].abilities[0].cooldown * w.hero.abilityCooldownMul,
       HERO_SPECS[w.hero.variant].abilities[1].cooldown * w.hero.abilityCooldownMul,
       HERO_SPECS[w.hero.variant].abilities[2].cooldown * w.hero.abilityCooldownMul,
+      HERO_SPECS[w.hero.variant].abilities[3].cooldown * w.hero.abilityCooldownMul,
     ],
     heroAbilityLabels: HERO_SPECS[w.hero.variant].abilityLabels,
     heroAbilityGlyphs: HERO_SPECS[w.hero.variant].abilityGlyphs,
@@ -300,7 +302,8 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.heroXp === b.heroXp &&
   a.heroAbilityCooldowns[0] === b.heroAbilityCooldowns[0] &&
   a.heroAbilityCooldowns[1] === b.heroAbilityCooldowns[1] &&
-  a.heroAbilityCooldowns[2] === b.heroAbilityCooldowns[2];
+  a.heroAbilityCooldowns[2] === b.heroAbilityCooldowns[2] &&
+  a.heroAbilityCooldowns[3] === b.heroAbilityCooldowns[3];
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
@@ -325,32 +328,6 @@ const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
     }
   }
   return false;
-};
-
-const nearestPathPoint = (world: World, p: Vec2): Vec2 => {
-  let best = p;
-  let bestD2 = Number.POSITIVE_INFINITY;
-  for (const path of world.paths) {
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = path[i];
-      const b = path[i + 1];
-      const abx = b.x - a.x;
-      const aby = b.y - a.y;
-      const lenSq = abx * abx + aby * aby;
-      if (lenSq === 0) continue;
-      const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq));
-      const cx = a.x + t * abx;
-      const cy = a.y + t * aby;
-      const dx = p.x - cx;
-      const dy = p.y - cy;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) {
-        bestD2 = d2;
-        best = { x: cx, y: cy };
-      }
-    }
-  }
-  return best;
 };
 
 const canPlaceAt = (world: World, pos: Vec2): boolean => {
@@ -1207,9 +1184,10 @@ export const useGame = create<GameStore>((set, get) => ({
   orderHeroMove: (pos) => {
     const s = get();
     if (s.world.status !== "running") return;
-    // Snap to the nearest path so the hero never strays into open terrain.
-    const target = nearestPathPoint(s.world, pos);
-    simOrderHeroMove(s.world, target);
+    // Forward the raw click — simOrderHeroMove projects to the path
+    // each tick and derives a lane-clamped lateral offset, so clicking
+    // near the edge of the painted lane parks the hero on that side.
+    simOrderHeroMove(s.world, pos);
   },
 
   triggerHeroAbility: (slot) => {
@@ -1299,11 +1277,15 @@ export const useGame = create<GameStore>((set, get) => ({
       w.hero.damageType = spec.damageType;
       w.hero.abilityCooldownMul = 1;
       w.hero.payload = null;
+      w.hero.selfBuff = null;
       w.hero.pendingShots.length = 0;
-      w.hero.abilityReadyAt = [0, 0, 0];
-      w.hero.abilityActiveUntil = [0, 0, 0];
+      w.hero.abilityReadyAt = [0, 0, 0, 0];
+      w.hero.abilityActiveUntil = [0, 0, 0, 0];
       w.hero.attackCooldown = 0;
       w.hero.damageMul = 1;
+      w.hero.fireRateMul = 1;
+      w.hero.speedMul = 1;
+      w.hero.damageResist = 0;
       w.hero.xp = progress.heroXp[variant] ?? 0;
       applyHeroSkillsToHero(w.hero, progress.heroSkills);
       w.hero.hp = w.hero.maxHp;
@@ -1382,7 +1364,9 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     world.selectedBase = false;
-    if (world.hero.selected) world.hero.selected = false;
+    // Intentionally preserve hero.selected — hero control outranks
+    // dino-info inspection so the player can keep issuing move orders
+    // while reading a passing dino's stats.
     const inspect: InspectState = { id, kind, maxHp, bossVariant };
     set({
       selectedKind: null,
@@ -1775,6 +1759,11 @@ export const useGame = create<GameStore>((set, get) => ({
     placed.totalSpent = cost;
     autoAssignDroneToNewTower(w, placed);
     emit(w, { type: "tower-placed", towerKind: s.selectedKind });
+    // Placing a tower is a deliberate "I'm not driving the hero right
+    // now" action — mirror the tower-select branch above and de-select
+    // the hero so the next click drops a tower or selects, not a move
+    // order for the hero.
+    if (w.hero.selected) w.hero.selected = false;
     // Keep the currently-picked tower kind selected (so the player can
     // keep placing more of the same) and *don't* auto-select the tower
     // we just dropped — being thrown into the upgrade panel after every

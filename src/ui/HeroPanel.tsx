@@ -1,14 +1,20 @@
 import type { HeroAbilitySlot } from "../sim/types";
 import { useGame } from "../store";
 
-const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Z" | "X" | "C" }> = [
-  { slot: 0, key: "Z" },
-  { slot: 1, key: "X" },
-  { slot: 2, key: "C" },
+// QWER hotkey map. Slot 3 (R) is always the ultimate so the climactic
+// move sits on the same key across pilots — League-style muscle memory.
+const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
+  { slot: 0, key: "Q" },
+  { slot: 1, key: "W" },
+  { slot: 2, key: "E" },
+  { slot: 3, key: "R" },
 ];
 
+// In-game HUD strip: HP/XP bar plus the four ability buttons. The hero
+// menu (HeroShop) is opened from the top-left banner only — not from
+// this panel, not from the hero name. Clicking an ability triggers it
+// the same way the hotkey would.
 export const HeroPanel = () => {
-  const variant = useGame((s) => s.ui.heroVariant);
   const label = useGame((s) => s.ui.heroLabel);
   const hp = useGame((s) => s.ui.heroHp);
   const maxHp = useGame((s) => s.ui.heroMaxHp);
@@ -22,7 +28,6 @@ export const HeroPanel = () => {
   const labels = useGame((s) => s.ui.heroAbilityLabels);
   const glyphs = useGame((s) => s.ui.heroAbilityGlyphs);
   const trigger = useGame((s) => s.triggerHeroAbility);
-  const openShop = useGame((s) => s.setHeroShopOpen);
 
   const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const xpPct = xpNeed > 0 ? Math.max(0, Math.min(1, xpInto / xpNeed)) : 0;
@@ -30,15 +35,10 @@ export const HeroPanel = () => {
   return (
     <div className="hero-panel">
       <div className="hero-portrait">
-        <button
-          type="button"
-          className="hero-name hero-name-btn"
-          onClick={() => openShop(true)}
-          title="Open hero shop"
-        >
+        <div className="hero-name">
           MECHA · {label.toUpperCase()}
           <span className="hero-level">Lv {level}</span>
-        </button>
+        </div>
         <div className="hero-xp-row">
           <div className="hero-xp-bar">
             <div className="hero-xp-fill" style={{ width: `${xpPct * 100}%` }} />
@@ -80,15 +80,6 @@ export const HeroPanel = () => {
           );
         })}
       </div>
-      <button
-        type="button"
-        className="hero-swap-btn"
-        onClick={() => openShop(true)}
-        data-hero-variant={variant}
-        title="Swap hero / spend skill points"
-      >
-        Roster ›
-      </button>
     </div>
   );
 };

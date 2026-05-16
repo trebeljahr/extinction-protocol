@@ -15,6 +15,11 @@ const LEAK_POSE_SECONDS = 0.34;
 const LEAK_ATTACK_STANDOFF = 0.18;
 const LEAK_TRIGGER_MIN_DISTANCE = 0.28;
 const LEAK_TRIGGER_MAX_DISTANCE = 0.75;
+// Range within which a passing enemy turns to face the hero. Hero-hurt
+// melee chip uses 1.1u; matching the engage radius to 1.6 gives a small
+// visual lead-in so the model swivels just before it starts gnawing.
+const HERO_ENGAGE_RADIUS = 1.6;
+const HERO_ENGAGE_R2 = HERO_ENGAGE_RADIUS * HERO_ENGAGE_RADIUS;
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
@@ -141,11 +146,26 @@ export const updateEnemies = (world: World, dt: number) => {
   };
   const childSpawns: DeferredChild[] = [];
 
+  const hero = world.hero;
+  const heroAlive = hero.alive;
+  const heroX = hero.pos.x;
+  const heroY = hero.pos.y;
+
   for (const e of world.enemies) {
     if (!e.alive) continue;
+    // Refresh hero-engage status before the early-out for leak enemies —
+    // leakers never engage, so flip it off explicitly.
     if (e.leak) {
+      e.engagedWithHero = false;
       updateLeakAttack(world, e);
       continue;
+    }
+    if (heroAlive) {
+      const dx = heroX - e.pos.x;
+      const dy = heroY - e.pos.y;
+      e.engagedWithHero = dx * dx + dy * dy <= HERO_ENGAGE_R2;
+    } else {
+      e.engagedWithHero = false;
     }
 
     // Pyre Combustion meta — ignited enemies tick damage on a fixed

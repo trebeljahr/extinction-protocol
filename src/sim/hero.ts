@@ -2,6 +2,7 @@ import { isOnLavaSurface } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { isEnemyTargetable } from "./enemyState";
 import { HERO_SPECS, type HeroVariantSpec } from "./heroVariants";
+import { pathProgress, projectOnPath, smoothDirection } from "./path";
 import type { DamageType, Enemy, Hero, HeroAbilitySlot, HeroVariant, Vec2, World } from "./types";
 import { distSq } from "./vec2";
 import {
@@ -29,13 +30,21 @@ const HERO_REGEN_PER_SEC = 22;
 // Look-ahead steering — distance the hero "sees" ahead of their motion
 // for trees/rocks/towers. Anything inside the lateral clearance band
 // applies a sideways nudge so the hero arcs around it instead of
-// hitting + sliding off via resolveOverlap.
+// hitting + sliding off via resolveOverlap. Mostly redundant now that
+// move orders are path-bound, but kept as a safety net for dash
+// overshoot and forced re-pathing.
 const HERO_AVOID_LOOKAHEAD = 2.6;
 const HERO_AVOID_CLEARANCE = 0.25;
 const HERO_AVOID_STRENGTH = 2.4;
 // Visual hover offset (world units) while over a liquid surface.
 const HERO_HOVER_HEIGHT = 0.55;
 const HERO_HOVER_HALFLIFE = 0.12;
+// How far off the path centerline the player can park the hero. Roughly
+// half of the painted lane so the hero never visually drifts off-road.
+export const HERO_LANE_HALF = 0.7;
+// Lateral offset eases toward the target value at this rate (units/sec)
+// so swapping sides feels smooth, not snappy.
+const HERO_LATERAL_LERP_PER_SEC = 2.2;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -200,7 +209,10 @@ export const damageHero = (world: World, amount: number) => {
   const hero = world.hero;
   if (!hero.alive) return;
   if (world.time < hero.abilityActiveUntil[0]) return; // dash i-frames
-  hero.hp -= amount;
+  // Slot-2 self-buff damage resist absorbs a fraction of every hit.
+  // Clamped to <1 so a max-resist buff still leaks a sliver of damage.
+  const resist = Math.min(0.95, Math.max(0, hero.damageResist));
+  hero.hp -= amount * (1 - resist);
   hero.flashUntil = world.time + 0.12;
   hero.lastDamagedAt = world.time;
   if (hero.hp <= 0) {
@@ -279,30 +291,23 @@ const dashDir = (hero: Hero): Vec2 => {
   return { x: Math.sin(hero.facing), y: -Math.cos(hero.facing) };
 };
 
-// Mid-tick payload servicing for slot 2 ongoing effects. Mark drives a
-// damage multiplier on the hero's outgoing damage; incinerate ticks
-// flame damage on a locked target until either ends.
+// Mid-tick payload servicing for slot 3 ongoing effects (ultimate).
+// Mark drives a damage multiplier; incinerate ticks flame damage on a
+// locked target until either ends. The slot-2 self-buff is its own tick
+// pass (tickBuff) — they stack rather than overwrite.
 const tickPayload = (world: World, hero: Hero) => {
   const p = hero.payload;
-  if (!p) {
-    hero.damageMul = 1;
-    return;
-  }
+  if (!p) return 1;
   if (world.time >= p.endAt) {
     hero.payload = null;
-    hero.damageMul = 1;
-    return;
+    return 1;
   }
-  if (p.kind === "mark") {
-    hero.damageMul = p.dmgMul;
-    return;
-  }
+  if (p.kind === "mark") return p.dmgMul;
   if (p.kind === "incinerate") {
-    hero.damageMul = 1;
     const target = world.enemyById.get(p.targetId);
     if (!target || !isEnemyTargetable(target)) {
       hero.payload = null;
-      return;
+      return 1;
     }
     if (world.time >= p.nextTickAt) {
       applyDamage(world, target, p.tickDamage, p.damageType, "#ffb054", 4);
@@ -311,6 +316,28 @@ const tickPayload = (world: World, hero: Hero) => {
       p.nextTickAt = world.time + 0.5;
     }
   }
+  return 1;
+};
+
+// Slot-2 self-buff servicing. Stacks multiplicatively with payload muls
+// (mark) so a buff + mark combo lands the planned burst damage. Cleared
+// when the window expires.
+const tickBuff = (
+  world: World,
+  hero: Hero,
+): { damageMul: number; fireRateMul: number; speedMul: number; damageResist: number } => {
+  const b = hero.selfBuff;
+  if (!b) return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0 };
+  if (world.time >= b.endAt) {
+    hero.selfBuff = null;
+    return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0 };
+  }
+  return {
+    damageMul: b.damageMul,
+    fireRateMul: b.fireRateMul,
+    speedMul: b.speedMul,
+    damageResist: b.damageResist,
+  };
 };
 
 // Each tick: order → desired velocity → obstacle resolve → facing →
@@ -327,7 +354,15 @@ export const updateHero = (world: World, dt: number) => {
   }
 
   hero.attackCooldown = Math.max(0, hero.attackCooldown - dt);
-  tickPayload(world, hero);
+  // Ultimate (slot 3) and self-buff (slot 2) refresh the hero's per-tick
+  // multipliers. Damage stacks multiplicatively; the other muls come from
+  // the buff alone. damageResist clamped <1 inside damageHero.
+  const payloadDmgMul = tickPayload(world, hero);
+  const buff = tickBuff(world, hero);
+  hero.damageMul = payloadDmgMul * buff.damageMul;
+  hero.fireRateMul = buff.fireRateMul;
+  hero.speedMul = buff.speedMul;
+  hero.damageResist = buff.damageResist;
 
   // Drain queued multi-shot payload entries (barrage / saturation). Each
   // entry self-describes its damage so a re-spec mid-flight still lands
@@ -348,27 +383,81 @@ export const updateHero = (world: World, dt: number) => {
   // (shouldn't happen — heroDefaults builds it).
   const variant = HERO_SPECS[hero.variant];
   const dashSpec = variant.abilities[0];
-  const speed = dashing ? dashSpec.speed : hero.speed;
+  const baseSpeed = hero.speed * hero.speedMul;
+  const speed = dashing ? dashSpec.speed : baseSpeed;
 
   let desiredX = 0;
   let desiredY = 0;
   let walking = false;
+  // Path-bound move follow. The straight-line direct-aim used to slide
+  // the hero into trees/rocks/towers because they sit alongside the
+  // painted lane; instead, decompose desired velocity into a tangent
+  // component (walk along the path toward the target's progress) plus a
+  // lateral correction (slide across the lane width toward the target
+  // side). Hero never leaves the lane that way so the existing
+  // resolveOverlap is mostly a safety net for dash overshoot.
   if (hero.moveTarget) {
-    const dx = hero.moveTarget.x - hero.pos.x;
-    const dy = hero.moveTarget.y - hero.pos.y;
-    const d = Math.hypot(dx, dy);
-    if (d <= HERO_ARRIVE_RADIUS) {
+    const dxStraight = hero.moveTarget.x - hero.pos.x;
+    const dyStraight = hero.moveTarget.y - hero.pos.y;
+    const dStraight = Math.hypot(dxStraight, dyStraight);
+    if (dStraight <= HERO_ARRIVE_RADIUS) {
       hero.moveTarget = null;
     } else {
-      const slow = d < 1.2 ? d / 1.2 : 1;
-      const v = speed * slow;
-      desiredX = (dx / d) * v;
-      desiredY = (dy / d) * v;
-      walking = true;
-      // Steer around trees/rocks/towers in the look-ahead cone.
-      const steered = avoidObstacles(world, hero, desiredX, desiredY);
-      desiredX = steered.x;
-      desiredY = steered.y;
+      const paths = world.paths;
+      const pi = Math.max(0, Math.min(paths.length - 1, hero.pathIndex));
+      const path = paths[pi];
+      const heroProj = projectOnPath(path, hero.pos);
+      const targetProj = projectOnPath(path, hero.moveTarget);
+      const heroProgress = pathProgress(path, heroProj.segment, heroProj.segmentT);
+      const targetProgress = pathProgress(path, targetProj.segment, targetProj.segmentT);
+      const progressDelta = targetProgress - heroProgress;
+      // Clamp the desired-lateral to the lane half-width so the hero
+      // can't stand on top of a tree even if the click landed off-road.
+      const targetLateral = Math.max(
+        -HERO_LANE_HALF,
+        Math.min(HERO_LANE_HALF, targetProj.lateralOffset),
+      );
+      const dir = smoothDirection(path, heroProj.segment, heroProj.segmentT);
+      const tangentLen = Math.hypot(dir.x, dir.y);
+      if (tangentLen > 1e-6) {
+        const tx = dir.x / tangentLen;
+        const ty = dir.y / tangentLen;
+        // Right-hand normal — matches projectOnPath's lateral sign.
+        const nx = -ty;
+        const ny = tx;
+        const forwardSign = Math.sign(progressDelta);
+        const distAlong = Math.abs(progressDelta);
+        // Slow into the target so the hero doesn't oscillate around the
+        // arrive point. Same shape as the old straight-line slow-down.
+        const slowAlong = distAlong < 1.2 ? distAlong / 1.2 : 1;
+        // Lateral correction: drag hero across the lane toward the
+        // clicked side over HERO_LATERAL_LERP_PER_SEC seconds.
+        const lateralDelta = targetLateral - heroProj.lateralOffset;
+        const lateralVel =
+          Math.sign(lateralDelta) *
+          Math.min(Math.abs(lateralDelta) * HERO_LATERAL_LERP_PER_SEC, speed * 0.8);
+        const forwardVel = forwardSign * speed * slowAlong;
+        desiredX = tx * forwardVel + nx * lateralVel;
+        desiredY = ty * forwardVel + ny * lateralVel;
+        walking = distAlong > 0.04 || Math.abs(lateralDelta) > 0.05;
+        hero.pathIndex = pi;
+        hero.lateralOffset = heroProj.lateralOffset;
+      } else {
+        // Degenerate path segment — fall back to straight-line aim so
+        // we don't freeze the hero.
+        desiredX = (dxStraight / dStraight) * speed;
+        desiredY = (dyStraight / dStraight) * speed;
+        walking = true;
+      }
+      // Safety net: nudge desired velocity sideways if a tree/rock/tower
+      // sits in the immediate look-ahead cone. Path-bound walking should
+      // already avoid them, but dash overshoot or a click off-lane can
+      // still drop the hero into one.
+      if (walking) {
+        const steered = avoidObstacles(world, hero, desiredX, desiredY);
+        desiredX = steered.x;
+        desiredY = steered.y;
+      }
     }
   }
 
@@ -472,7 +561,10 @@ export const updateHero = (world: World, dt: number) => {
   hero.targetId = target?.id ?? null;
   if (target && hero.attackCooldown === 0) {
     fireHeroShot(world, hero, target);
-    hero.attackCooldown = 1 / hero.fireRate;
+    // Slot-2 buffs can boost cadence (Mike's Ignition doubles it); the
+    // floor of 1ms keeps the divide safe if a buff somehow zeros the mul.
+    const effectiveRate = Math.max(0.001, hero.fireRate * hero.fireRateMul);
+    hero.attackCooldown = 1 / effectiveRate;
   }
 
   if (!hero.alive) hero.motionState = "dead";
@@ -488,6 +580,19 @@ export const orderHeroMove = (world: World, pos: Vec2) => {
   const hero = world.hero;
   if (!hero.alive) return;
   hero.moveTarget = { x: pos.x, y: pos.y };
+  // Re-bind to whichever path lane the click landed nearest. Single-path
+  // levels are a no-op; multi-path levels swap lanes on the move order.
+  let bestIdx = hero.pathIndex;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < world.paths.length; i++) {
+    const proj = projectOnPath(world.paths[i], pos);
+    const d2 = (proj.pos.x - pos.x) ** 2 + (proj.pos.y - pos.y) ** 2;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      bestIdx = i;
+    }
+  }
+  hero.pathIndex = bestIdx;
 };
 
 export const selectHero = (world: World, on: boolean) => {
@@ -530,6 +635,18 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
     spawnParticles(world, hero.pos, 14, "#ff8a3a", [4, 9], 0.4);
     addShake(world, 0.4, 5);
     emit(world, { type: "impact", pos: hero.pos });
+    return true;
+  }
+
+  if (spec.type === "buff") {
+    hero.selfBuff = {
+      endAt: world.time + spec.duration,
+      damageMul: spec.damageMul,
+      fireRateMul: spec.fireRateMul,
+      speedMul: spec.speedMul,
+      damageResist: spec.damageResist,
+    };
+    spawnParticles(world, hero.pos, 18, variant.tint, [2, 5], 0.5);
     return true;
   }
 

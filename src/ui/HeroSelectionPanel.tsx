@@ -5,10 +5,11 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { HeroPreview } from "./HeroPreview";
 
-const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Z" | "X" | "C" }> = [
-  { slot: 0, key: "Z" },
-  { slot: 1, key: "X" },
-  { slot: 2, key: "C" },
+const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
+  { slot: 0, key: "Q" },
+  { slot: 1, key: "W" },
+  { slot: 2, key: "E" },
+  { slot: 3, key: "R" },
 ];
 
 export const HeroSelectionPanel = () => {
