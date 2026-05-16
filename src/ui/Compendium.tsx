@@ -100,7 +100,7 @@ const SECTION_LABEL: Record<Section, string> = {
   enemy: "Enemies",
   tower: "Towers",
   mechanic: "Mechanics",
-  hero: "Pilots",
+  hero: "Heroes",
 };
 
 export const Compendium = () => {
@@ -148,22 +148,12 @@ export const Compendium = () => {
     if (frame.buttonPressed("rb")) cycle(1);
   });
 
-  const encounteredCount = ENEMY_ENTRIES.filter((e) => entrySeen(e, progress)).length;
-
-  const subtitle =
-    section === "enemy"
-      ? `${encounteredCount} / ${ENEMY_ENTRIES.length} species catalogued`
-      : section === "tower"
-        ? `${TOWER_ORDER.length} towers · ${DAMAGE_TYPES.length} damage types`
-        : `${MECHANIC_ORDER.length} mechanics`;
-
   return (
     <div className="overlay compendium-overlay">
       <div className="compendium-card">
         <header className="compendium-header">
           <div>
             <h1>Compendium</h1>
-            <div className="compendium-subtitle">{subtitle}</div>
           </div>
           <button
             type="button"
@@ -590,7 +580,13 @@ const MechanicSectionView = ({
               aria-pressed={selected === id}
               title={locked ? "Locked" : MECHANIC_LABEL[id]}
             >
-              <span className="compendium-tab-index">{MECHANIC_ORDER.indexOf(id) + 1}</span>
+              <span className="compendium-tab-icon" aria-hidden>
+                {locked ? (
+                  <span className="compendium-tab-locked-glyph">?</span>
+                ) : (
+                  <MechanicIcon id={id} />
+                )}
+              </span>
               <span className="compendium-tab-name">{locked ? "???" : MECHANIC_LABEL[id]}</span>
             </button>
           );

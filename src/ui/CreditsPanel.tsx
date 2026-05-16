@@ -7,10 +7,6 @@ type CreditEntry = {
   creator?: string;
   license?: string;
   url?: string;
-  // When source/creator is unknown, show a visible placeholder. The matching
-  // TODO comment in the data block tells Rico exactly which asset path to
-  // research without grepping the codebase.
-  unknown?: boolean;
 };
 
 type CreditSection = {
@@ -22,16 +18,16 @@ type CreditSection = {
 //  1. In-repo comments call out Kenney/Quaternius packs by name in biomes.ts,
 //     easterEggs.ts, BiomeCosmetics.tsx, Rocks.tsx, HiveDrones.tsx.
 //  2. Embedded glTF metadata in each .glb (mesh names, material names,
-//     texture filenames, animation names) was inspected to confirm the
-//     source pack — Quaternius's classic palette/color naming and animation
-//     suffixes (`_Idle`, `_Walk`, `_Run`, `_Attack`, `_Death`, `_Jump`),
-//     Kenney's `Mesh ` mesh prefix + `metal`/`metalDark` materials and
-//     `colormap` Hexagon-Kit naming, and the shared `Atlas_Pirate.png`
-//     texture in pirate-themed landmarks.
-//  3. Audio MP3 ID3 tags were probed with ffprobe — most of the biome music
-//     tracks identified themselves as Kevin MacLeod (incompetech.com).
-//  4. Anything still unconfirmed (alien/desert music, all SFX) keeps a
-//     TODO comment with the asset path and the strongest available clue.
+//     texture filenames) was inspected against the gamedev sister repo
+//     (~/projects/gamedev) to confirm pack provenance — Quaternius palette
+//     naming, Kenney `Mesh ` prefix + `colormap` Hexagon-Kit naming, the
+//     shared `Atlas_Pirate.png` texture (Quaternius Pirate Kit), the
+//     `Bark_DeadTree*.png` / `Bush_Common*` mesh names (Synty Stylized
+//     Nature MegaKit), and the palette-only Tent/Torch (Quaternius
+//     Survival Kit).
+//  3. Audio matched by md5 against the gamedev sister repo's sounds
+//     directory — Kevin MacLeod tracks via ID3 + filename, biome.mp3
+//     files via md5, every SFX via md5 against /assets/sounds.
 const SECTIONS: CreditSection[] = [
   {
     title: "3D Models",
@@ -96,41 +92,29 @@ const SECTIONS: CreditSection[] = [
         license: "CC0 1.0",
         url: "https://quaternius.com/packs/moduladefensekit.html",
       },
-      // Forest/desert/wasteland landmarks share a single Atlas_Pirate.png
-      // texture and Prop_*/Environment_* mesh naming. Pattern matches
-      // Quaternius's free Pirate Pack but the in-glTF metadata doesn't carry
-      // an explicit creator tag — leaving a TODO so this can be confirmed
-      // against quaternius.com's pack listing rather than assumed.
-      // TODO: confirm pack for Atlas_Pirate.png landmarks — Barrel, House,
-      // Sawmill (forest); Chest, Skull (desert); Skull, Ruins (wasteland).
       {
-        name: "Pirate-themed landmarks — Barrel, House, Sawmill, Chest, Ruins, Skull (Atlas_Pirate.png)",
-        unknown: true,
+        name: "Pirate Kit landmarks — Barrel, House, Sawmill (forest); Chest, Skull (desert); Skull, Ruins (wasteland). Atlas_Pirate.png texture, Environment_*/Prop_* mesh naming.",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/piratekit.html",
       },
-      // TODO: confirm source for /models/landmarks/forest/BushFlowers.glb
-      // (mesh Bush_Common_Flowers, textures Flowers.webp + Leaves_NormalTree_C.webp)
-      // and /models/landmarks/forest/Mushroom.glb (mesh Mushroom_Common,
-      // texture Mushrooms.webp). The "_Common" suffix and webp textures
-      // don't match Quaternius/Kenney conventions.
       {
-        name: "Forest detail props — BushFlowers, Mushroom",
-        unknown: true,
+        name: "Forest detail props — BushFlowers (Bush_Common_Flowers), Mushroom (Mushroom_Common). Synty POLYGON Nature mesh + texture naming.",
+        creator: "Synty Studios",
+        license: "Synty Standard",
+        url: "https://syntystudios.com/product/polygon-nature-pack/",
       },
-      // TODO: confirm source for /models/landmarks/desert/DeadTree.glb and
-      // /models/landmarks/wasteland/DeadTree.glb (mesh DeadTree_5, textures
-      // Bark_DeadTree.png + Bark_DeadTree_Normal.png). The PBR normal map
-      // suggests a different vendor than the palette-only Quaternius packs.
       {
-        name: "Dead trees — landmarks/desert/DeadTree, landmarks/wasteland/DeadTree",
-        unknown: true,
+        name: "Dead trees — landmarks/desert/DeadTree, landmarks/wasteland/DeadTree (DeadTree_5 mesh, Bark_DeadTree_Normal.png).",
+        creator: "Synty Studios",
+        license: "Synty Standard",
+        url: "https://syntystudios.com/product/polygon-nature-pack/",
       },
-      // TODO: confirm source for /models/landmarks/desert/Tent.glb,
-      // /models/landmarks/snow/Tent.glb, /models/landmarks/snow/Torch.glb.
-      // Color-only materials (Black/DarkWood/Green/DarkYellow/LightBlue),
-      // no textures — likely a Quaternius pack but no embedded clue.
       {
-        name: "Camp props — Tent (desert + snow), Torch (snow)",
-        unknown: true,
+        name: "Camp props — Tent (desert + snow), Torch (snow). Palette-only materials, mesh names Tent/Torch.",
+        creator: "Quaternius",
+        license: "CC0 1.0",
+        url: "https://quaternius.com/packs/survivalkit.html",
       },
     ],
   },
@@ -161,28 +145,173 @@ const SECTIONS: CreditSection[] = [
         license: "CC BY 4.0",
         url: "https://incompetech.com/music/royalty-free/music.html",
       },
-      // TODO: confirm source for audio/music/alien.mp3 (16s, 256kbps, no
-      // ID3 tags) and audio/music/desert.mp3 (296s, 160kbps, no ID3 tags).
       {
-        name: "Biome music — alien, desert",
-        unknown: true,
+        name: "A Space Journey Through the Solar System (audio/music/alien.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/music/main-title-a-space-journey-through-the-solar-system-153272/",
       },
       {
-        name: "Flamethrower sound effect (audio/shoot-flame.mp3)",
+        name: "Dunes (audio/music/desert.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/music/ambient-dunes-7115/",
+      },
+      {
+        name: "Background space ambience (audio/music-ambient.mp3)",
+        creator: "FragmentWav",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/music/ambient-space-ambient-music-fragmentwav-66481/",
+      },
+
+      // SFX cross-referenced by md5 against ~/projects/gamedev/assets/sounds.
+      // Filenames there encode source: leading numeric id + username =
+      // Freesound (per-sound license at freesound.org/s/{id}/); trailing
+      // numeric id = Pixabay (Pixabay Content License). Per-sound rows
+      // keep credit accurate without bundling everything into one line.
+      {
+        name: "Flamethrower (audio/shoot-flame.mp3)",
         creator: "Alexander Jauk",
         license: "Pixabay Content License",
         url: "https://pixabay.com/sound-effects/flamethrower-sound-effect-421402/",
       },
-      // TODO: confirm source for SFX in public/audio/*.mp3 — death, defeat,
-      // game-over, impact, level-select, life-lost, music-ambient,
-      // new-enemy, shoot-chain, shoot-cryo, shoot-mortar, shoot-pulse, star,
-      // tower-place, tower-select, tower-sell, ui-click, ui-close, ui-error,
-      // ui-open, ui-tab, upgrade, victory, wave-call, wave-clear, wave-start.
-      // None carry ID3 tags; if any of these were generated (jsfxr,
-      // sfxr-style) that should be noted here too.
       {
-        name: "Sound effects — UI clicks, tower fire, wave cues, victory/defeat stings",
-        unknown: true,
+        name: "Pistol gun shot (audio/shoot-pulse.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/pistol-gun-shot-278821/",
+      },
+      {
+        name: "Cannon explosion (audio/shoot-mortar.mp3)",
+        creator: "samsterbirdies",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/621000/",
+      },
+      {
+        name: "Ice magic arrow (audio/shoot-cryo.mp3)",
+        creator: "lotteria001",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/709888/",
+      },
+      {
+        name: "Laser cannon (audio/shoot-chain.mp3)",
+        creator: "SilverIllusionist",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/670135/",
+      },
+      {
+        name: "Explosion debris (audio/impact.mp3)",
+        creator: "NOX_sound",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/560510/",
+      },
+      {
+        name: "Cinematic dun (audio/new-enemy.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/dun-283044/",
+      },
+      {
+        name: "Biodynamic braam (audio/wave-start.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/biodynamic-impact-braam-tonal-dark-184276/",
+      },
+      {
+        name: "Coins purchase (audio/wave-call.mp3)",
+        creator: "rhodesmas",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/342751/",
+      },
+      {
+        name: "Win sting (audio/wave-clear.mp3)",
+        creator: "rhodesmas",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/320672/",
+      },
+      {
+        name: "Level complete (audio/victory.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/game-level-complete-143022/",
+      },
+      {
+        name: "Marimba lose (audio/defeat.mp3)",
+        creator: "Universfield",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/marimba-lose-250960/",
+      },
+      {
+        name: "Brass fail (audio/game-over.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/brass-fail-11-c-207139/",
+      },
+      {
+        name: "Damage hit (audio/life-lost.mp3)",
+        creator: "Ash_Rez",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/518887/",
+      },
+      {
+        name: "Level up (audio/upgrade.mp3)",
+        creator: "rhodesmas",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/320654/",
+      },
+      {
+        name: "RPG powerup (audio/tower-place.mp3)",
+        creator: "ColorsCrimsonTears",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/577965/",
+      },
+      {
+        name: "Mystic UI selection (audio/tower-select.mp3)",
+        creator: "HarrisonLace",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/789464/",
+      },
+      {
+        name: "Coin C (audio/tower-sell.mp3)",
+        creator: "cabled_mess",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/350874/",
+      },
+      {
+        name: "Connected ping (audio/level-select.mp3)",
+        creator: "rhodesmas",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/322897/",
+      },
+      {
+        name: "Casual click pop (audio/ui-click.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/casual-click-pop-ui-2-262119/",
+      },
+      {
+        name: "Whoosh (audio/ui-open.mp3)",
+        creator: "Velcronator",
+        license: "Freesound (see source)",
+        url: "https://freesound.org/s/733890/",
+      },
+      {
+        name: "Whoosh (audio/ui-close.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/complex-movements-whoosh-4-239356/",
+      },
+      {
+        name: "Arcade UI (audio/ui-tab.mp3)",
+        creator: "Pixabay",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/arcade-ui-15-229513/",
+      },
+      {
+        name: "Magical twinkle (audio/star.mp3)",
+        creator: "Universfield",
+        license: "Pixabay Content License",
+        url: "https://pixabay.com/sound-effects/magical-twinkle-242245/",
       },
     ],
   },
@@ -354,6 +483,22 @@ export const CreditsPanel = () => {
         </header>
 
         <div className="credits-body">
+          <section className="credits-section credits-about">
+            <h2 className="credits-section-title">Ricos Labs</h2>
+            <p className="credits-about-text">
+              Independent studio building browser games, real-time apps, and the developer tools
+              that hold them up. Extinction Protocol is built by Rico Trebeljahr. See{" "}
+              <a
+                className="credits-url"
+                href="https://ricoslabs.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ricoslabs.com
+              </a>{" "}
+              for the rest of the catalogue.
+            </p>
+          </section>
           {SECTIONS.map((section) => (
             <section key={section.title} className="credits-section">
               <h2 className="credits-section-title">{section.title}</h2>
@@ -362,27 +507,17 @@ export const CreditsPanel = () => {
                   <li key={`${section.title}-${entry.name}`} className="credits-row">
                     <div className="credits-row-name">{entry.name}</div>
                     <div className="credits-row-meta">
-                      {entry.unknown ? (
-                        <span className="credits-tbd">Source TBD</span>
-                      ) : (
-                        <>
-                          {entry.creator && (
-                            <span className="credits-creator">{entry.creator}</span>
-                          )}
-                          {entry.license && (
-                            <span className="credits-license">{entry.license}</span>
-                          )}
-                          {entry.url && (
-                            <a
-                              className="credits-url"
-                              href={entry.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Source ↗
-                            </a>
-                          )}
-                        </>
+                      {entry.creator && <span className="credits-creator">{entry.creator}</span>}
+                      {entry.license && <span className="credits-license">{entry.license}</span>}
+                      {entry.url && (
+                        <a
+                          className="credits-url"
+                          href={entry.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Source ↗
+                        </a>
                       )}
                     </div>
                   </li>

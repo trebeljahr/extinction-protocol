@@ -1097,14 +1097,6 @@
     font-weight: 700;
     letter-spacing: 0.04em;
   }
-  .compendium-subtitle {
-    margin-top: 4px;
-    font-size: var(--fs-md);
-    letter-spacing: 0.16em;
-    color: var(--color-fg-dim);
-    text-transform: uppercase;
-  }
-
   .compendium-selector {
     display: flex;
     flex-shrink: 0;
@@ -1197,6 +1189,15 @@
     border: 0;
     border-radius: 0;
   }
+  /* Mechanic tab icon — MechanicIcon inlines a fixed width/height on its
+     wrapper; override so it fills the compendium-tab-icon frame instead
+     of overflowing it. */
+  .compendium-tab-icon > .mechanic-icon {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+  }
   .compendium-tab-locked-glyph {
     position: absolute;
     inset: 0;
@@ -1213,21 +1214,6 @@
     font-weight: 700;
     letter-spacing: 0.04em;
   }
-  .compendium-tab-index {
-    display: inline-grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: 1px solid rgba(159, 216, 255, 0.22);
-    background: rgba(159, 216, 255, 0.08);
-    color: var(--color-blue);
-    font-family: var(--font-display);
-    font-size: var(--fs-base);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-
   .compendium-detail {
     display: grid;
     grid-template-columns: 360px 1fr;
@@ -2507,10 +2493,15 @@
     text-decoration: underline;
   }
 
-  .credits-tbd {
-    color: var(--color-fg-faint);
-    font-style: italic;
-    font-size: var(--fs-sm);
+  .credits-about {
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border-faint);
+  }
+  .credits-about-text {
+    margin: 0;
+    font-size: var(--fs-md);
+    line-height: 1.55;
+    color: var(--color-fg-secondary);
   }
 
   /* ── Tower-picker handle (mobile only) ─────────────────────────
@@ -2964,12 +2955,6 @@
       height: 42px;
       flex: 0 0 auto;
     }
-    .compendium-tab-index {
-      flex: 0 0 auto;
-      width: 26px;
-      height: 26px;
-      font-size: var(--fs-xs);
-    }
     .compendium-tab-name {
       font-size: var(--fs-xs);
       line-height: 1.25;
@@ -3307,13 +3292,6 @@
       width: 32px;
       height: 32px;
       flex: 0 0 auto;
-    }
-    .compendium-tab-index {
-      flex: 0 0 auto;
-      width: 24px;
-      height: 24px;
-      font-size: var(--fs-xs);
-      border-radius: 5px;
     }
     .compendium-tab-name {
       font-size: var(--fs-xs);
@@ -4951,32 +4929,48 @@
     }
   }
 
-  /* Compendium hero pilot grid. */
+  /* Compendium hero roster. The outer scroll wrapper makes the section
+     behave like the enemy/tower/mechanic browsers — fill the card's
+     remaining height, scroll internally so the header + tab strip stay
+     pinned. */
+  .hero-compendium-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .hero-compendium-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    padding: 16px;
+    gap: 14px;
+    padding: 18px 22px 22px;
   }
-  @media (max-width: 720px) {
+  @media (max-width: 820px) {
     .hero-compendium-grid {
       grid-template-columns: 1fr;
+      padding: 14px;
+      gap: 12px;
     }
   }
   .hero-compendium-card {
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    transition: border-color var(--t-base);
+  }
+  .hero-compendium-card:hover {
+    border-color: rgba(180, 220, 255, 0.4);
   }
   .hero-compendium-card[data-locked="true"] {
-    opacity: 0.7;
+    opacity: 0.6;
   }
   .hero-compendium-diorama {
-    height: 160px;
+    height: 180px;
     background: rgba(4, 8, 12, 0.55);
+    border-bottom: 1px solid var(--color-border-faint);
     position: relative;
   }
   .hero-compendium-locked {
@@ -4990,72 +4984,142 @@
     font-weight: 700;
   }
   .hero-compendium-locked-label {
-    font-size: 10px;
-    letter-spacing: 0.12em;
+    font-size: var(--fs-xs);
+    letter-spacing: 0.16em;
   }
   .hero-compendium-body {
-    padding: 12px 14px 14px;
+    padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
+    min-width: 0;
   }
   .hero-compendium-title {
     display: flex;
     align-items: baseline;
+    flex-wrap: wrap;
     gap: 8px;
   }
   .hero-compendium-name {
-    font-size: 16px;
+    font-family: var(--font-display);
+    font-size: var(--fs-h2);
     font-weight: 700;
     color: var(--color-fg);
+    letter-spacing: 0.02em;
   }
   .hero-compendium-callsign {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     color: var(--color-fg-muted);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.16em;
   }
   .hero-compendium-dmg {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .hero-compendium-xp {
+    margin-left: auto;
+    font-size: var(--fs-xs);
+    color: var(--color-fg-dim);
+    font-variant-numeric: tabular-nums;
     letter-spacing: 0.08em;
   }
   .hero-compendium-blurb {
-    font-size: 12px;
-    color: var(--color-fg-muted);
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--color-fg-soft);
+    line-height: 1.45;
+  }
+  .hero-compendium-report {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hero-compendium-report-row {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: rgba(8, 12, 18, 0.4);
+  }
+  .hero-compendium-report-row dt {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  .hero-compendium-report-row dd {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--color-fg);
+    line-height: 1.4;
+  }
+  .hero-compendium-strength {
+    border-color: rgba(61, 255, 138, 0.22);
+    background: rgba(61, 255, 138, 0.06);
+  }
+  .hero-compendium-strength dt {
+    color: var(--color-green);
+  }
+  .hero-compendium-weakness {
+    border-color: rgba(255, 90, 122, 0.22);
+    background: rgba(255, 90, 122, 0.06);
+  }
+  .hero-compendium-weakness dt {
+    color: var(--color-pink);
   }
   .hero-compendium-stats {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--fs-sm);
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
   .hero-compendium-stats > div {
-    background: rgba(8, 12, 18, 0.5);
+    background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
-    border-radius: 4px;
-    padding: 4px 6px;
+    border-radius: 5px;
+    padding: 5px 6px;
+    text-align: center;
+    min-width: 0;
   }
   .hero-compendium-stats > div > span {
     display: block;
-    font-size: 9px;
+    font-size: var(--fs-xs);
     color: var(--color-fg-dim);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  @media (max-width: 480px) {
+    .hero-compendium-report-row {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+    .hero-compendium-stats {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
   .hero-compendium-abilities {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
   }
   .hero-compendium-ability {
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(8, 12, 18, 0.5);
+    font-size: var(--fs-xs);
+    padding: 4px 8px;
+    border-radius: 5px;
+    background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
     color: var(--color-fg-soft);
+    letter-spacing: 0.04em;
   }
 }

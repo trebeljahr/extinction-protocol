@@ -61,6 +61,11 @@ export type HeroVariantSpec = {
   label: string;
   callsign: string;
   blurb: string;
+  // Field-report assessment. One line each, terse. Rendered in the
+  // compendium under the hero blurb so the player can read a tactical
+  // matchup at a glance.
+  strengths: string;
+  weakness: string;
   maxHp: number;
   speed: number;
   range: number;
@@ -85,6 +90,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     label: "George",
     callsign: "Vanguard",
     blurb: "Balanced sniper mech. Reliable kinetic suppression at midrange.",
+    strengths: "Steady midrange kinetic fire. Balanced HP and speed. Barrage clears packs.",
+    weakness: "Kinetic-resistant chassis (armored, titan, stego matriarch) shrug off body shots.",
     maxHp: 220,
     speed: 4.5,
     range: 7.0,
@@ -115,6 +122,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     label: "Leela",
     callsign: "Strider",
     blurb: "Fast electric skirmisher. Strips shields, marks targets for bonus damage.",
+    strengths: "Highest mobility. Shreds shielded targets. Mark amps follow-up damage 1.7×.",
+    weakness: "Thin armor — eats hits at midrange. Electric-resistant titans absorb the kit.",
     maxHp: 170,
     speed: 6.0,
     range: 5.5,
@@ -137,6 +146,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     label: "Mike",
     callsign: "Pyre",
     blurb: "Close-range flame mech. Splash burn per shot, area-clear ultimate.",
+    strengths: "Per-shot splash clears packs. Incinerate deletes whole waves at midrange.",
+    weakness: "Short engagement range. Para and armored matriarchs vent flame at ≤0.5×.",
     maxHp: 195,
     speed: 4.2,
     range: 5.5,
@@ -166,6 +177,8 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     label: "Stan",
     callsign: "Mauler",
     blurb: "Heavy artillery mech. Slow, tanky, every shell detonates on impact.",
+    strengths: "Longest range. Every shot splashes. Tankiest chassis (290 HP).",
+    weakness: "Slowest mobility — positioning drift hurts. Explosive resist on armored variants.",
     maxHp: 290,
     speed: 3.5,
     range: 8.5,

@@ -8,14 +8,14 @@ const ROSTER: HeroVariant[] = ["george", "leela", "mike", "stan"];
 
 export const HeroCompendiumSection = ({ progress }: { progress: ProgressData }) => {
   return (
-    <div className="compendium-body">
+    <div className="hero-compendium-scroll">
       <div className="hero-compendium-grid">
         {ROSTER.map((variant) => {
           const spec = HERO_SPECS[variant];
           const unlocked = !!progress.heroUnlocks[variant];
           const xp = progress.heroXp[variant] ?? 0;
           return (
-            <div
+            <article
               key={variant}
               className="hero-compendium-card"
               data-variant={variant}
@@ -32,17 +32,31 @@ export const HeroCompendiumSection = ({ progress }: { progress: ProgressData }) 
                 )}
               </div>
               <div className="hero-compendium-body">
-                <div className="hero-compendium-title">
+                <header className="hero-compendium-title">
                   <span className="hero-compendium-name">{spec.label}</span>
                   <span className="hero-compendium-callsign">{spec.callsign}</span>
-                </div>
-                <div
-                  className="hero-compendium-dmg"
-                  style={{ color: DAMAGE_TYPE_COLOR[spec.damageType] }}
-                >
-                  {DAMAGE_TYPE_LABEL[spec.damageType]} · {xp} XP
-                </div>
-                <div className="hero-compendium-blurb">{spec.blurb}</div>
+                  <span
+                    className="hero-compendium-dmg"
+                    style={{ color: DAMAGE_TYPE_COLOR[spec.damageType] }}
+                  >
+                    {DAMAGE_TYPE_LABEL[spec.damageType]}
+                  </span>
+                  <span className="hero-compendium-xp">{xp} XP</span>
+                </header>
+
+                <p className="hero-compendium-blurb">{spec.blurb}</p>
+
+                <dl className="hero-compendium-report">
+                  <div className="hero-compendium-report-row hero-compendium-strength">
+                    <dt>Strengths</dt>
+                    <dd>{spec.strengths}</dd>
+                  </div>
+                  <div className="hero-compendium-report-row hero-compendium-weakness">
+                    <dt>Weakness</dt>
+                    <dd>{spec.weakness}</dd>
+                  </div>
+                </dl>
+
                 <div className="hero-compendium-stats">
                   <div>
                     <span>HP</span> {spec.maxHp}
@@ -60,6 +74,7 @@ export const HeroCompendiumSection = ({ progress }: { progress: ProgressData }) 
                     <span>ROF</span> {spec.fireRate}/s
                   </div>
                 </div>
+
                 <div className="hero-compendium-abilities">
                   {spec.abilityLabels.map((lbl, i) => (
                     <span key={lbl} className="hero-compendium-ability">
@@ -68,7 +83,7 @@ export const HeroCompendiumSection = ({ progress }: { progress: ProgressData }) 
                   ))}
                 </div>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
