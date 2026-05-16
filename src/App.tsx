@@ -41,6 +41,7 @@ const DifficultyPicker = lazy(() =>
 const SkillTreePanel = lazy(() =>
   import("./ui/SkillTreePanel").then((m) => ({ default: m.SkillTreePanel })),
 );
+const HeroShop = lazy(() => import("./ui/HeroShop").then((m) => ({ default: m.HeroShop })));
 
 const SceneRoot = () => {
   const screen = useGame((s) => s.screen);
@@ -86,11 +87,17 @@ export const App = () => {
   const creditsOpen = useGame((s) => s.creditsOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const skillTreeOpen = useGame((s) => s.skillTreeOpen);
+  const heroShopOpen = useGame((s) => s.heroShopOpen);
   const selectedKind = useGame((s) => s.selectedKind);
   const paused = useGame((s) => s.ui.status === "paused");
   const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
   const modalOpen =
-    compendiumOpen || achievementsOpen || creditsOpen || difficultyPickerOpen || skillTreeOpen;
+    compendiumOpen ||
+    achievementsOpen ||
+    creditsOpen ||
+    difficultyPickerOpen ||
+    skillTreeOpen ||
+    heroShopOpen;
   const isMobile = useIsMobile();
   useInputModeSignal();
   useAudioBridge();
@@ -209,6 +216,11 @@ export const App = () => {
       {skillTreeOpen && (
         <Suspense fallback={null}>
           <SkillTreePanel />
+        </Suspense>
+      )}
+      {heroShopOpen && (
+        <Suspense fallback={null}>
+          <HeroShop />
         </Suspense>
       )}
       {screen === "playing" && levelIntroVisible && <LevelIntro />}

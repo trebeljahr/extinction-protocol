@@ -14,11 +14,13 @@ export const HeroHud = () => {
   const ringGeom = useMemo(() => new THREE.RingGeometry(0.95, 1.08, 48), []);
   const footGeom = useMemo(() => new THREE.CircleGeometry(0.85, 36), []);
   const moveGeom = useMemo(() => new THREE.RingGeometry(0.4, 0.55, 32), []);
+  const selGeom = useMemo(() => new THREE.RingGeometry(1.1, 1.32, 48), []);
+  const selRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
     const { world } = useGame.getState();
     const hero = world.hero;
-    if (!ringRef.current || !footRef.current || !moveRef.current) return;
+    if (!ringRef.current || !footRef.current || !moveRef.current || !selRef.current) return;
     const visible = hero.alive;
     ringRef.current.visible = visible;
     footRef.current.visible = visible;
@@ -36,6 +38,14 @@ export const HeroHud = () => {
     } else {
       moveRef.current.visible = false;
     }
+    if (hero.selected && hero.alive) {
+      selRef.current.visible = true;
+      selRef.current.position.set(hero.pos.x, 0.06, -hero.pos.y);
+      const pulse = 1 + Math.sin(world.time * 5.2) * 0.07;
+      selRef.current.scale.setScalar(pulse);
+    } else {
+      selRef.current.visible = false;
+    }
   });
 
   return (
@@ -48,6 +58,9 @@ export const HeroHud = () => {
       </mesh>
       <mesh ref={moveRef} geometry={moveGeom}>
         <meshBasicMaterial color="#9fd8ff" transparent opacity={0.85} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
+        <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );

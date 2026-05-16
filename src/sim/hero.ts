@@ -1,7 +1,8 @@
 import { isOnLavaSurface } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { isEnemyTargetable } from "./enemyState";
-import type { Enemy, Hero, Vec2, World } from "./types";
+import { HERO_SPECS, type HeroVariantSpec } from "./heroVariants";
+import type { DamageType, Enemy, Hero, HeroAbilitySlot, HeroVariant, Vec2, World } from "./types";
 import { distSq } from "./vec2";
 import {
   addShake,
@@ -9,27 +10,22 @@ import {
   createExplosion,
   createProjectile,
   emit,
-  HERO_BARRAGE_DAMAGE,
-  HERO_BARRAGE_RANGE,
-  HERO_BASE_SPEED,
-  HERO_DASH_DURATION,
-  HERO_DASH_SPEED,
-  HERO_MAX_HP,
   HERO_RADIUS,
   HERO_RESPAWN_DELAY,
-  HERO_SHOCKWAVE_DAMAGE,
-  HERO_SHOCKWAVE_RADIUS,
   ROCK_FOOTPRINT,
   spawnParticles,
   TOWER_FOOTPRINT,
   TREE_FOOTPRINT,
 } from "./world";
 
-const HERO_TURN_RATE = 9.5; // rad/s
+const HERO_TURN_RATE = 9.5;
 const HERO_ACCEL_HALFLIFE = 0.05;
 const HERO_ARRIVE_RADIUS = 0.25;
 const HERO_PUSH_ITERATIONS = 3;
 const HERO_PROJECTILE_SPEED = 26;
+// Seconds after the last damage tick before regen kicks back in.
+const HERO_REGEN_DELAY = 4.0;
+const HERO_REGEN_PER_SEC = 22;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -42,9 +38,9 @@ const shortAngleDelta = (from: number, to: number) => {
 
 // Push position out of any overlapping blocker by the smallest displacement
 // along the connecting normal. Trees / rocks / towers all treated as
-// disks; lava is sampled point-wise and gets a short fixed kick. Iterating
-// 2-3× lets the hero squeeze between paired blockers instead of jittering
-// against the first one we resolved.
+// disks; lava is sampled point-wise. Iterating 2-3× lets the hero squeeze
+// between paired blockers instead of jittering against the first one we
+// resolved.
 const resolveOverlap = (world: World, pos: Vec2, radius: number): Vec2 => {
   let x = pos.x;
   let y = pos.y;
@@ -120,16 +116,13 @@ const findHeroTarget = (world: World, hero: Hero): Enemy | null => {
   return best;
 };
 
-const findBarrageTarget = (world: World, hero: Hero): Enemy | null => {
-  const r2 = HERO_BARRAGE_RANGE * HERO_BARRAGE_RANGE;
-  // Pick the enemy with the most progress so missiles funnel toward the
-  // threats closest to HQ — feels like the hero is "covering" the lane.
+const findEnemyByProgress = (world: World, pos: Vec2, range: number): Enemy | null => {
+  const r2 = range * range;
   let best: Enemy | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const e of world.enemies) {
     if (!isEnemyTargetable(e)) continue;
-    const d2 = distSq(e.pos, hero.pos);
-    if (d2 > r2) continue;
+    if (distSq(e.pos, pos) > r2) continue;
     const score = e.segment + e.segmentT;
     if (score > bestScore) {
       best = e;
@@ -140,32 +133,51 @@ const findBarrageTarget = (world: World, hero: Hero): Enemy | null => {
 };
 
 const fireHeroShot = (world: World, hero: Hero, target: Enemy) => {
-  createProjectile(
-    world,
-    "direct",
-    "kinetic",
-    hero.pos,
-    target,
-    hero.damage,
-    0,
-    HERO_PROJECTILE_SPEED,
-    false,
-  );
+  const dmg = hero.damage * hero.damageMul;
+  if (hero.attackSplashRadius > 0) {
+    createProjectile(
+      world,
+      "splash",
+      hero.damageType,
+      hero.pos,
+      target.pos,
+      dmg,
+      hero.attackSplashRadius,
+      HERO_PROJECTILE_SPEED,
+      false,
+    );
+  } else {
+    createProjectile(
+      world,
+      "direct",
+      hero.damageType,
+      hero.pos,
+      target,
+      dmg,
+      0,
+      HERO_PROJECTILE_SPEED,
+      false,
+    );
+  }
   hero.shootFlashUntil = world.time + 0.18;
   emit(world, { type: "shoot", towerId: hero.id, towerKind: "pulse", pos: hero.pos });
 };
 
-const fireBarrageShot = (world: World, hero: Hero) => {
-  const target = findBarrageTarget(world, hero);
+const firePendingShot = (
+  world: World,
+  hero: Hero,
+  shot: { damage: number; range: number; splashRadius: number; damageType: DamageType },
+) => {
+  const target = findEnemyByProgress(world, hero.pos, shot.range);
   if (!target) return;
   createProjectile(
     world,
     "splash",
-    "explosive",
+    shot.damageType,
     hero.pos,
     target.pos,
-    HERO_BARRAGE_DAMAGE,
-    1.2,
+    shot.damage * hero.damageMul,
+    shot.splashRadius,
     18,
     false,
   );
@@ -177,17 +189,20 @@ const fireBarrageShot = (world: World, hero: Hero) => {
 export const damageHero = (world: World, amount: number) => {
   const hero = world.hero;
   if (!hero.alive) return;
-  if (world.time < hero.dashUntil) return; // dash i-frames
+  if (world.time < hero.abilityActiveUntil[0]) return; // dash i-frames
   hero.hp -= amount;
   hero.flashUntil = world.time + 0.12;
+  hero.lastDamagedAt = world.time;
   if (hero.hp <= 0) {
     hero.hp = 0;
     hero.alive = false;
+    hero.selected = false;
     hero.motionState = "dead";
     hero.respawnAt = world.time + HERO_RESPAWN_DELAY;
     hero.moveTarget = null;
     hero.vel = { x: 0, y: 0 };
-    hero.barrageQueue.length = 0;
+    hero.pendingShots.length = 0;
+    hero.payload = null;
     spawnParticles(world, hero.pos, 32, "#ffb04a", [3, 7], 0.6);
     spawnParticles(world, hero.pos, 16, "#ff5a3a", [4, 9], 0.4);
     addShake(world, 0.45, 4);
@@ -196,16 +211,57 @@ export const damageHero = (world: World, amount: number) => {
 };
 
 const respawnHero = (world: World, hero: Hero) => {
-  hero.hp = HERO_MAX_HP;
+  hero.hp = hero.maxHp;
   hero.alive = true;
   hero.respawnAt = null;
   hero.motionState = "idle";
-  hero.dashUntil = 0;
-  hero.cooldown = 0;
-  // Brief invincibility window via dashUntil so the player doesn't die
-  // again instantly if respawning into a packed lane.
-  hero.dashUntil = world.time + 0.8;
+  hero.abilityActiveUntil[0] = world.time + 0.8; // brief respawn i-frames
+  hero.attackCooldown = 0;
   spawnParticles(world, hero.pos, 24, "#9fd8ff", [2, 5], 0.5);
+};
+
+const dashDir = (hero: Hero): Vec2 => {
+  if (hero.moveTarget) {
+    const dx = hero.moveTarget.x - hero.pos.x;
+    const dy = hero.moveTarget.y - hero.pos.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 1e-3) return { x: dx / d, y: dy / d };
+  }
+  return { x: Math.sin(hero.facing), y: Math.cos(hero.facing) };
+};
+
+// Mid-tick payload servicing for slot 2 ongoing effects. Mark drives a
+// damage multiplier on the hero's outgoing damage; incinerate ticks
+// flame damage on a locked target until either ends.
+const tickPayload = (world: World, hero: Hero) => {
+  const p = hero.payload;
+  if (!p) {
+    hero.damageMul = 1;
+    return;
+  }
+  if (world.time >= p.endAt) {
+    hero.payload = null;
+    hero.damageMul = 1;
+    return;
+  }
+  if (p.kind === "mark") {
+    hero.damageMul = p.dmgMul;
+    return;
+  }
+  if (p.kind === "incinerate") {
+    hero.damageMul = 1;
+    const target = world.enemyById.get(p.targetId);
+    if (!target || !isEnemyTargetable(target)) {
+      hero.payload = null;
+      return;
+    }
+    if (world.time >= p.nextTickAt) {
+      applyDamage(world, target, p.tickDamage, p.damageType, "#ffb054", 4);
+      target.flashUntil = world.time + 0.1;
+      spawnParticles(world, target.pos, 4, "#ff8a3a", [2, 5], 0.3);
+      p.nextTickAt = world.time + 0.5;
+    }
+  }
 };
 
 // Each tick: order → desired velocity → obstacle resolve → facing →
@@ -221,28 +277,30 @@ export const updateHero = (world: World, dt: number) => {
     }
   }
 
-  hero.cooldown = Math.max(0, hero.cooldown - dt);
+  hero.attackCooldown = Math.max(0, hero.attackCooldown - dt);
+  tickPayload(world, hero);
 
-  // Process scheduled barrage missiles (one fires per queue entry whose
-  // time has come). Drains the queue in-place.
-  if (hero.barrageQueue.length > 0) {
+  // Drain queued multi-shot payload entries (barrage / saturation). Each
+  // entry self-describes its damage so a re-spec mid-flight still lands
+  // the planned hit. Iterates in-place via swap-and-pop.
+  if (hero.pendingShots.length > 0) {
     let kept = 0;
-    for (let i = 0; i < hero.barrageQueue.length; i++) {
-      const entry = hero.barrageQueue[i];
-      if (world.time >= entry.when) {
-        fireBarrageShot(world, hero);
-      } else {
-        hero.barrageQueue[kept++] = entry;
-      }
+    for (let i = 0; i < hero.pendingShots.length; i++) {
+      const s = hero.pendingShots[i];
+      if (world.time >= s.when) firePendingShot(world, hero, s);
+      else hero.pendingShots[kept++] = s;
     }
-    hero.barrageQueue.length = kept;
+    hero.pendingShots.length = kept;
   }
 
-  const dashing = world.time < hero.dashUntil;
-  const speed = dashing ? HERO_DASH_SPEED : HERO_BASE_SPEED;
+  const dashing = world.time < hero.abilityActiveUntil[0];
+  // Pull dash speed from the spec so per-variant dash potency carries
+  // through. Fallback to walk speed if the slot somehow lost the spec
+  // (shouldn't happen — heroDefaults builds it).
+  const variant = HERO_SPECS[hero.variant];
+  const dashSpec = variant.abilities[0];
+  const speed = dashing ? dashSpec.speed : hero.speed;
 
-  // Desired velocity: head toward moveTarget if set; otherwise idle to
-  // zero. Arrive smoothing avoids overshooting the click point.
   let desiredX = 0;
   let desiredY = 0;
   let walking = false;
@@ -262,21 +320,16 @@ export const updateHero = (world: World, dt: number) => {
   }
 
   if (dashing) {
-    // Dash overrides arrive smoothing — fixed-speed lunge along stored
-    // facing direction so the burst feels punchy. Facing was snapped to
-    // move-target (or last facing) at dash trigger time.
     const fx = Math.sin(hero.facing);
     const fy = Math.cos(hero.facing);
-    desiredX = fx * HERO_DASH_SPEED;
-    desiredY = fy * HERO_DASH_SPEED;
+    desiredX = fx * dashSpec.speed;
+    desiredY = fy * dashSpec.speed;
     walking = true;
   }
 
-  // Smooth velocity so direction changes look mechanical, not snappy.
   const k = dampFactor(dt, HERO_ACCEL_HALFLIFE);
   hero.vel.x += (desiredX - hero.vel.x) * k;
   hero.vel.y += (desiredY - hero.vel.y) * k;
-  // Snap micro-motion to zero so the idle state actually triggers.
   if (Math.abs(hero.vel.x) < 0.05 && Math.abs(hero.vel.y) < 0.05) {
     hero.vel.x = 0;
     hero.vel.y = 0;
@@ -291,12 +344,9 @@ export const updateHero = (world: World, dt: number) => {
   const resolved = resolveOverlap(world, candidate, HERO_RADIUS);
   hero.pos = resolved;
 
-  // Stuck detection — if we tried to move but the resolver clamped us
-  // back to almost the same spot, accumulate stuck time and abort the
-  // order after it crosses ~0.6s. Prevents wedging into a tree center.
   if (walking) {
     const moved2 = (hero.pos.x - prevX) ** 2 + (hero.pos.y - prevY) ** 2;
-    const expected = Math.max(HERO_BASE_SPEED * dt * 0.25, 0.01);
+    const expected = Math.max(hero.speed * dt * 0.25, 0.01);
     if (moved2 < expected * expected) {
       hero.stuckTimer += dt;
       if (hero.stuckTimer > 0.6) {
@@ -310,7 +360,6 @@ export const updateHero = (world: World, dt: number) => {
     hero.stuckTimer = 0;
   }
 
-  // Facing: lock to motion direction when moving, otherwise track target.
   const movingMagSq = hero.vel.x * hero.vel.x + hero.vel.y * hero.vel.y;
   let targetYaw = hero.facing;
   if (movingMagSq > 0.04) {
@@ -324,12 +373,12 @@ export const updateHero = (world: World, dt: number) => {
   const ky = 1 - Math.exp(-HERO_TURN_RATE * dt);
   hero.facing += shortAngleDelta(hero.facing, targetYaw) * ky;
 
-  // Continuous melee chip from enemies in skirmish range — hero takes
-  // pressure from being in a pack, but isn't insta-killed by a brush.
-  // Scaled by enemy damage so a titan stomp hurts and a swarm tickles.
+  // Continuous melee chip from enemies in skirmish range. Scales by
+  // enemy damage so a titan stomp hurts and a swarm tickles. Marks
+  // hero.lastDamagedAt → regen suppression.
   const HERO_HURT_RANGE = 1.1;
   const hurtR2 = HERO_HURT_RANGE * HERO_HURT_RANGE;
-  if (hero.alive && world.time >= hero.dashUntil) {
+  if (hero.alive && world.time >= hero.abilityActiveUntil[0]) {
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (e.leak) continue;
@@ -338,32 +387,31 @@ export const updateHero = (world: World, dt: number) => {
       if (!hero.alive) break;
     }
   }
-  // Lava-biome scorch damage: standing on the lava surface chips the
-  // hero so the player still treats it like terrain to respect, but
-  // can wade across briefly when needed. Forest rivers + alien goo
-  // share the lavaFeatures channel — only the lava biome actually
-  // hurts. Dash i-frames extend to lava too.
   if (
     hero.alive &&
     world.biome === "lava" &&
-    world.time >= hero.dashUntil &&
+    world.time >= hero.abilityActiveUntil[0] &&
     isOnLavaSurface(world.lavaFeatures, hero.pos.x, hero.pos.y, HERO_RADIUS)
   ) {
     damageHero(world, 14 * dt);
   }
   if (!hero.alive) return;
 
-  // Auto-targeting + shooting. Pick a new target every tick so the hero
-  // pivots fire from one enemy to another without delay. Doesn't shoot
-  // while dashing — the dash anim overrides the upper-body pose.
-  const target = !dashing ? findHeroTarget(world, hero) : null;
-  hero.targetId = target?.id ?? null;
-  if (target && hero.cooldown === 0) {
-    fireHeroShot(world, hero, target);
-    hero.cooldown = 1 / hero.fireRate;
+  // Out-of-combat HP regen. Suppressed for HERO_REGEN_DELAY seconds
+  // after any damage tick, so a grazing brush doesn't gate full regen.
+  if (hero.hp < hero.maxHp && world.time - hero.lastDamagedAt > HERO_REGEN_DELAY) {
+    hero.hp = Math.min(hero.maxHp, hero.hp + HERO_REGEN_PER_SEC * dt);
   }
 
-  // Motion state for the renderer.
+  // Auto-attack — pick the closest in-range enemy. Doesn't fire while
+  // dashing because the upper-body pose flips into the dash anim.
+  const target = !dashing ? findHeroTarget(world, hero) : null;
+  hero.targetId = target?.id ?? null;
+  if (target && hero.attackCooldown === 0) {
+    fireHeroShot(world, hero, target);
+    hero.attackCooldown = 1 / hero.fireRate;
+  }
+
   if (!hero.alive) hero.motionState = "dead";
   else if (dashing) hero.motionState = "dash";
   else if (world.time < hero.shootFlashUntil && !walking) hero.motionState = "shoot";
@@ -371,63 +419,97 @@ export const updateHero = (world: World, dt: number) => {
   else hero.motionState = "idle";
 };
 
-// Player-issued actions — invoked from store actions. All run against the
-// world.hero singleton and are no-ops while dead so spam doesn't queue
-// stale orders.
+// --- Player-issued actions ---------------------------------------------
+
 export const orderHeroMove = (world: World, pos: Vec2) => {
   const hero = world.hero;
   if (!hero.alive) return;
   hero.moveTarget = { x: pos.x, y: pos.y };
 };
 
-export const triggerHeroAbility = (
-  world: World,
-  ability: "dash" | "shockwave" | "barrage",
-): boolean => {
+export const selectHero = (world: World, on: boolean) => {
+  const hero = world.hero;
+  if (!hero.alive) return;
+  hero.selected = on;
+};
+
+// Variant-aware ability dispatch. Slot 0 always = dash, slot 1 = burst,
+// slot 2 = the variant's payload (barrage/mark/incinerate). The cooldown
+// stored on the spec is scaled by hero.abilityCooldownMul (from the
+// Power Core skill node) at trigger time so re-spec is one tick away.
+export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean => {
   const hero = world.hero;
   if (!hero.alive) return false;
+  if (world.time < hero.abilityReadyAt[slot]) return false;
 
-  if (ability === "dash") {
-    if (world.time < hero.dashReadyAt) return false;
-    if (hero.moveTarget) {
-      const dx = hero.moveTarget.x - hero.pos.x;
-      const dy = hero.moveTarget.y - hero.pos.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 1e-3) hero.facing = Math.atan2(dx, dy);
-    }
-    hero.dashUntil = world.time + HERO_DASH_DURATION;
-    hero.dashReadyAt = world.time + 5.5;
-    spawnParticles(world, hero.pos, 14, "#9fd8ff", [2, 5], 0.35);
+  const variant = HERO_SPECS[hero.variant];
+  const spec = variant.abilities[slot];
+  hero.abilityReadyAt[slot] = world.time + spec.cooldown * hero.abilityCooldownMul;
+
+  if (spec.type === "dash") {
+    const dir = dashDir(hero);
+    hero.facing = Math.atan2(dir.x, dir.y);
+    hero.abilityActiveUntil[0] = world.time + spec.duration;
+    spawnParticles(world, hero.pos, 14, variant.tint, [2, 5], 0.35);
     return true;
   }
 
-  if (ability === "shockwave") {
-    if (world.time < hero.shockwaveReadyAt) return false;
-    hero.shockwaveReadyAt = world.time + 10.0;
-    const r2 = HERO_SHOCKWAVE_RADIUS * HERO_SHOCKWAVE_RADIUS;
+  if (spec.type === "burst") {
+    const r2 = spec.radius * spec.radius;
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, hero.pos) > r2) continue;
-      applyDamage(world, e, HERO_SHOCKWAVE_DAMAGE, "explosive", "#ffb054", 10);
+      applyDamage(world, e, spec.damage, spec.damageType, "#ffb054", 10);
       e.flashUntil = world.time + 0.12;
     }
-    createExplosion(world, hero.pos, HERO_SHOCKWAVE_RADIUS, 0.45);
-    spawnParticles(world, hero.pos, 24, "#ffd6a0", [3, 7], 0.5);
+    createExplosion(world, hero.pos, spec.radius, 0.45);
+    spawnParticles(world, hero.pos, 24, variant.tint, [3, 7], 0.5);
     spawnParticles(world, hero.pos, 14, "#ff8a3a", [4, 9], 0.4);
     addShake(world, 0.4, 5);
     emit(world, { type: "impact", pos: hero.pos });
     return true;
   }
 
-  if (ability === "barrage") {
-    if (world.time < hero.barrageReadyAt) return false;
-    hero.barrageReadyAt = world.time + 14.0;
-    const count = 6;
-    for (let i = 0; i < count; i++) {
-      hero.barrageQueue.push({ when: world.time + 0.05 + i * 0.09 });
+  if (spec.type === "barrage") {
+    for (let i = 0; i < spec.count; i++) {
+      hero.pendingShots.push({
+        when: world.time + 0.05 + i * 0.09,
+        range: spec.range,
+        damage: spec.damage,
+        splashRadius: spec.splashRadius,
+        damageType: spec.damageType,
+      });
     }
+    return true;
+  }
+
+  if (spec.type === "mark") {
+    hero.payload = { kind: "mark", endAt: world.time + spec.duration, dmgMul: spec.dmgMul };
+    spawnParticles(world, hero.pos, 18, variant.tint, [2, 5], 0.5);
+    return true;
+  }
+
+  if (spec.type === "incinerate") {
+    const target = findEnemyByProgress(world, hero.pos, spec.range);
+    if (!target) return false;
+    const tickInterval = 0.5;
+    const ticks = Math.max(1, Math.floor(spec.duration / tickInterval));
+    hero.payload = {
+      kind: "incinerate",
+      targetId: target.id,
+      endAt: world.time + spec.duration,
+      nextTickAt: world.time + 0.05,
+      tickDamage: spec.totalDamage / ticks,
+      damageType: spec.damageType,
+    };
+    spawnParticles(world, target.pos, 24, "#ff8a3a", [3, 7], 0.5);
+    emit(world, { type: "impact", pos: target.pos });
     return true;
   }
 
   return false;
 };
+
+// Helpers exported for store glue. Variant lookup avoids importing the
+// spec table into hero consumers that just need stats for the HUD.
+export const heroVariantStats = (variant: HeroVariant): HeroVariantSpec => HERO_SPECS[variant];

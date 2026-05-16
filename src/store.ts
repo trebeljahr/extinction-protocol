@@ -29,8 +29,20 @@ import {
 } from "./progress";
 import {
   orderHeroMove as simOrderHeroMove,
+  selectHero as simSelectHero,
   triggerHeroAbility as simTriggerHeroAbility,
 } from "./sim/hero";
+import {
+  applyHeroSkillsToHero,
+  type HeroSkillId,
+  heroSkillPointsAvailable,
+  levelForXp,
+  resetAllHeroRanks,
+  resetHeroVariantRanks,
+  setHeroRank,
+  xpProgressInLevel,
+} from "./sim/heroSkills";
+import { HERO_SPECS } from "./sim/heroVariants";
 import { Engine } from "./sim/loop";
 import type { MechanicId } from "./sim/mechanicsText";
 import {
@@ -55,7 +67,8 @@ import type {
   DamageType,
   EnemyKind,
   GameEvent,
-  HeroAbility,
+  HeroAbilitySlot,
+  HeroVariant,
   NewSightingId,
   Rock,
   RunStatus,
@@ -132,15 +145,23 @@ type UiSnapshot = {
   // Resists chip — per-damage-type adaptation multipliers. Empty when
   // the inspected enemy has no resist chip applied.
   inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
+  heroVariant: HeroVariant;
+  heroLabel: string;
+  heroSelected: boolean;
   heroHp: number;
   heroMaxHp: number;
   heroAlive: boolean;
   heroRespawnRemaining: number;
-  // Ability cooldowns in seconds remaining (0 = ready). Rounded to 0.1s
-  // so the HUD doesn't thrash on every frame for the same on-screen text.
-  heroDashCooldown: number;
-  heroShockwaveCooldown: number;
-  heroBarrageCooldown: number;
+  heroLevel: number;
+  heroXp: number;
+  heroXpInto: number;
+  heroXpNeed: number;
+  // Cooldowns per ability slot (0/1/2). Rounded to 0.1s so the HUD
+  // doesn't thrash on every frame for the same on-screen text.
+  heroAbilityCooldowns: [number, number, number];
+  heroAbilityMaxCooldowns: [number, number, number];
+  heroAbilityLabels: [string, string, string];
+  heroAbilityGlyphs: [string, string, string];
 };
 
 const snapshot = (
@@ -205,14 +226,30 @@ const snapshot = (
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
     inspectedEnemyExtraResists: extraResists,
+    heroVariant: w.hero.variant,
+    heroLabel: HERO_SPECS[w.hero.variant].label,
+    heroSelected: w.hero.selected,
     heroHp: Math.max(0, Math.round(w.hero.hp)),
     heroMaxHp: w.hero.maxHp,
     heroAlive: w.hero.alive,
     heroRespawnRemaining:
       w.hero.respawnAt !== null ? Math.max(0, Math.ceil(w.hero.respawnAt - w.time)) : 0,
-    heroDashCooldown: Math.max(0, Math.round((w.hero.dashReadyAt - w.time) * 10) / 10),
-    heroShockwaveCooldown: Math.max(0, Math.round((w.hero.shockwaveReadyAt - w.time) * 10) / 10),
-    heroBarrageCooldown: Math.max(0, Math.round((w.hero.barrageReadyAt - w.time) * 10) / 10),
+    heroLevel: levelForXp(w.hero.xp),
+    heroXp: w.hero.xp,
+    heroXpInto: xpProgressInLevel(w.hero.xp).into,
+    heroXpNeed: xpProgressInLevel(w.hero.xp).need,
+    heroAbilityCooldowns: [
+      Math.max(0, Math.round((w.hero.abilityReadyAt[0] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.hero.abilityReadyAt[1] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.hero.abilityReadyAt[2] - w.time) * 10) / 10),
+    ],
+    heroAbilityMaxCooldowns: [
+      HERO_SPECS[w.hero.variant].abilities[0].cooldown * w.hero.abilityCooldownMul,
+      HERO_SPECS[w.hero.variant].abilities[1].cooldown * w.hero.abilityCooldownMul,
+      HERO_SPECS[w.hero.variant].abilities[2].cooldown * w.hero.abilityCooldownMul,
+    ],
+    heroAbilityLabels: HERO_SPECS[w.hero.variant].abilityLabels,
+    heroAbilityGlyphs: HERO_SPECS[w.hero.variant].abilityGlyphs,
   };
 };
 
@@ -243,13 +280,17 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
   a.inspectedEnemyElite === b.inspectedEnemyElite &&
   a.inspectedEnemyFierce === b.inspectedEnemyFierce &&
+  a.heroVariant === b.heroVariant &&
+  a.heroSelected === b.heroSelected &&
   a.heroHp === b.heroHp &&
   a.heroMaxHp === b.heroMaxHp &&
   a.heroAlive === b.heroAlive &&
   a.heroRespawnRemaining === b.heroRespawnRemaining &&
-  a.heroDashCooldown === b.heroDashCooldown &&
-  a.heroShockwaveCooldown === b.heroShockwaveCooldown &&
-  a.heroBarrageCooldown === b.heroBarrageCooldown;
+  a.heroLevel === b.heroLevel &&
+  a.heroXp === b.heroXp &&
+  a.heroAbilityCooldowns[0] === b.heroAbilityCooldowns[0] &&
+  a.heroAbilityCooldowns[1] === b.heroAbilityCooldowns[1] &&
+  a.heroAbilityCooldowns[2] === b.heroAbilityCooldowns[2];
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
@@ -419,7 +460,19 @@ type GameStore = {
   clearSelection: () => void;
 
   orderHeroMove: (pos: Vec2) => void;
-  triggerHeroAbility: (ability: HeroAbility) => void;
+  triggerHeroAbility: (slot: HeroAbilitySlot) => void;
+  selectHeroUnit: (on: boolean) => void;
+  // Hero shop modal.
+  heroShopOpen: boolean;
+  setHeroShopOpen: (open: boolean) => void;
+  // Persistent hero progression actions. Reads/writes ProgressData
+  // (heroUnlocks / activeHero / heroSkills). XP is mutated via the sim
+  // tick → progress sync inside `tick`.
+  unlockHero: (variant: HeroVariant) => void;
+  setActiveHero: (variant: HeroVariant) => void;
+  setHeroSkillRank: (variant: HeroVariant, id: HeroSkillId, rank: number) => void;
+  resetHeroSkills: (variant: HeroVariant) => void;
+  resetAllHeroSkills: () => void;
   setPendingTouchPlacement: (pos: Vec2 | null) => void;
   confirmTouchPlacement: () => void;
 
@@ -523,7 +576,11 @@ const tryUnlockEasterEgg = (
 
 const buildWorldForLevel = (level: LevelConfig, difficulty: Difficulty, progress: ProgressData) => {
   const unlockedAch = new Set(Object.keys(progress.unlocked));
-  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch);
+  const world = createWorld(level, DIFFICULTY_MULTIPLIERS[difficulty], unlockedAch, {
+    variant: progress.activeHero,
+    xp: progress.heroXp[progress.activeHero] ?? 0,
+    skills: progress.heroSkills,
+  });
   return {
     world,
     ui: snapshot(world, 0, 0, emptyInspect),
@@ -1002,6 +1059,20 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult = { ...lastResult, unlockedAchievements: unlockedThisRun };
     }
 
+    // Sync hero XP back into the persistent slot so kills count even
+    // mid-run. Mid-tick re-spec / variant swaps read off progress, so
+    // the latest XP must land here before the next tick can use it.
+    const variant = s.world.hero.variant;
+    const liveXp = s.world.hero.xp;
+    const storedXp = progress.heroXp[variant] ?? 0;
+    if (liveXp !== storedXp) {
+      progress = {
+        ...progress,
+        heroXp: { ...progress.heroXp, [variant]: liveXp },
+      };
+      s.world.hero.level = levelForXp(liveXp);
+    }
+
     if (progress !== s.progress) persistProgress(s.activeSlot, progress);
 
     const updates: Partial<GameStore> = {};
@@ -1048,22 +1119,141 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     if (s.world.status !== "running") return;
     simOrderHeroMove(s.world, pos);
+    // Click-move clears the in-world "selected" highlight so a second
+    // ground click doesn't re-select. Right-click flow never calls
+    // selectHeroUnit so it stays unset here too.
+    if (s.world.hero.selected) simSelectHero(s.world, false);
   },
 
-  triggerHeroAbility: (ability) => {
+  triggerHeroAbility: (slot) => {
     const s = get();
     if (s.world.status !== "running") return;
-    if (!simTriggerHeroAbility(s.world, ability)) return;
+    if (!simTriggerHeroAbility(s.world, slot)) return;
     // Snapshot so the HUD reflects the freshly-triggered cooldown
     // immediately, not on the next tick. Cheap because uiEqual culls
     // no-op renders.
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
+  selectHeroUnit: (on) => {
+    const s = get();
+    simSelectHero(s.world, on);
+    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  heroShopOpen: false,
+  setHeroShopOpen: (open) => {
+    const s = get();
+    const w = s.world;
+    // Open behaves like the difficulty picker — auto-pause running
+    // levels so the player can browse without a wave eating their HP.
+    if (open && w.status === "running") w.status = "paused";
+    set({
+      heroShopOpen: open,
+      ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
+
+  unlockHero: (variant) => {
+    const s = get();
+    if (s.progress.heroUnlocks[variant]) return;
+    const cost = HERO_SPECS[variant].unlockStars;
+    const earned = totalStars(s.progress);
+    const spent = spentMetaStars(s.progress.metaSkills);
+    const heroUnlockCost = Object.entries(HERO_SPECS)
+      .filter(([v]) => v !== "george" && s.progress.heroUnlocks[v as HeroVariant])
+      .reduce((acc, [, sp]) => acc + sp.unlockStars, 0);
+    if (earned - spent - heroUnlockCost < cost) return;
+    const progress: ProgressData = {
+      ...s.progress,
+      heroUnlocks: { ...s.progress.heroUnlocks, [variant]: true },
+    };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  setActiveHero: (variant) => {
+    const s = get();
+    if (!s.progress.heroUnlocks[variant] && variant !== "george") return;
+    if (s.progress.activeHero === variant) return;
+    const progress: ProgressData = { ...s.progress, activeHero: variant };
+    persistProgress(s.activeSlot, progress);
+    // If the player is mid-run, swap the live hero too so the change
+    // takes effect immediately (otherwise it'd wait until next level).
+    // Preserves position so the swap feels in-place.
+    const w = s.world;
+    if (s.screen === "playing") {
+      const old = w.hero;
+      const spec = HERO_SPECS[variant];
+      w.hero.variant = variant;
+      w.hero.maxHp = spec.maxHp;
+      w.hero.hp = spec.maxHp;
+      w.hero.damage = spec.damage;
+      w.hero.range = spec.range;
+      w.hero.fireRate = spec.fireRate;
+      w.hero.speed = spec.speed;
+      w.hero.attackSplashRadius = spec.attackSplashRadius;
+      w.hero.damageType = spec.damageType;
+      w.hero.abilityCooldownMul = 1;
+      w.hero.payload = null;
+      w.hero.pendingShots.length = 0;
+      w.hero.abilityReadyAt = [0, 0, 0];
+      w.hero.abilityActiveUntil = [0, 0, 0];
+      w.hero.attackCooldown = 0;
+      w.hero.damageMul = 1;
+      w.hero.xp = progress.heroXp[variant] ?? 0;
+      applyHeroSkillsToHero(w.hero, progress.heroSkills);
+      w.hero.hp = w.hero.maxHp;
+      // Preserve pos / facing / selected from old hero — feels like a
+      // pilot swap, not a teleport-respawn.
+      void old;
+    }
+    set({
+      progress,
+      ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy),
+    });
+  },
+
+  setHeroSkillRank: (variant, id, rank) => {
+    const s = get();
+    const xp = s.progress.heroXp[variant] ?? 0;
+    const ranks = s.progress.heroSkills[variant];
+    const next = setHeroRank(s.progress.heroSkills, variant, id, rank);
+    if (next === s.progress.heroSkills) return;
+    // Reject if spending more points than the hero's level grants. Use
+    // the next ranks' spent total against the available pool.
+    const nextRanks = next[variant];
+    let nextSpent = 0;
+    if (nextRanks) for (const k in nextRanks) nextSpent += nextRanks[k as HeroSkillId] ?? 0;
+    const { earned } = heroSkillPointsAvailable(xp, ranks);
+    if (nextSpent > earned) return;
+    const progress: ProgressData = { ...s.progress, heroSkills: next };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  resetHeroSkills: (variant) => {
+    const s = get();
+    const next = resetHeroVariantRanks(s.progress.heroSkills, variant);
+    if (next === s.progress.heroSkills) return;
+    const progress: ProgressData = { ...s.progress, heroSkills: next };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  resetAllHeroSkills: () => {
+    const s = get();
+    if (Object.keys(s.progress.heroSkills).length === 0) return;
+    const progress: ProgressData = { ...s.progress, heroSkills: resetAllHeroRanks() };
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
   clearSelection: () => {
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     world.selectedBase = false;
+    if (world.hero.selected) world.hero.selected = false;
     set({
       selectedKind: null,
       selectedTreeId: null,

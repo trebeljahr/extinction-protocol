@@ -60,6 +60,7 @@ export const WorldMapUI = () => {
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const setSkillTreeOpen = useGame((s) => s.setSkillTreeOpen);
+  const setHeroShopOpen = useGame((s) => s.setHeroShopOpen);
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   const difficulty = progress.difficulty;
@@ -172,6 +173,16 @@ export const WorldMapUI = () => {
         >
           <IconBook size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Compendium</span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setHeroShopOpen(true)}
+          aria-label="Open hero roster"
+          title="Pilot roster"
+        >
+          <IconCog size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Heroes</span>
         </button>
         <button
           type="button"

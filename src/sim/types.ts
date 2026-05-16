@@ -200,7 +200,35 @@ export type Rock = {
 
 export type HeroVariant = "george" | "leela" | "mike" | "stan";
 
-export type HeroAbility = "dash" | "shockwave" | "barrage";
+// Slot index used by the HUD + key bindings. The semantic ability per
+// slot is per-variant (see heroVariants.HERO_SPECS) — slot 0 is always
+// a dash, slot 1 a radial burst, slot 2 the variant's ultimate.
+export type HeroAbilitySlot = 0 | 1 | 2;
+
+// Multi-shot payload (Stan's saturation, George's barrage) — one row
+// per missile, each fires at world.time >= when. Carries its own damage
+// to outlive a re-spec or hero variant switch mid-tick.
+export type HeroPendingShot = {
+  when: number;
+  range: number;
+  damage: number;
+  splashRadius: number;
+  damageType: DamageType;
+};
+
+// Ongoing slot-2 effect that ticks per frame. Mark (Leela) buffs the
+// hero's own outgoing damage for the duration; incinerate (Mike) burns
+// a single locked enemy until the timer ends or the target dies.
+export type HeroPayloadState =
+  | { kind: "mark"; endAt: number; dmgMul: number }
+  | {
+      kind: "incinerate";
+      targetId: EntityId;
+      endAt: number;
+      nextTickAt: number;
+      tickDamage: number;
+      damageType: DamageType;
+    };
 
 export type Hero = {
   id: EntityId;
@@ -213,20 +241,49 @@ export type Hero = {
   damage: number;
   range: number;
   fireRate: number;
-  cooldown: number;
+  // Movement speed (world units / sec). Baseline pulled from
+  // HERO_SPECS[variant].speed and scaled by the mobility skill tree.
+  speed: number;
+  // Per-shot splash radius. 0 means single-target projectile, >0 turns
+  // each auto-attack into a splash hit so Mike's flames + Stan's shells
+  // chunk grouped enemies without an extra ability button.
+  attackSplashRadius: number;
+  damageType: DamageType;
+  // Cooldown clock on the auto-attack (renamed from `cooldown`).
+  attackCooldown: number;
+  // Cooldown ready-times for each ability slot — slot 0 dash, 1 burst,
+  // 2 ultimate. All gated by hero.abilityCooldownMul from the skill tree.
+  abilityReadyAt: [number, number, number];
+  // Per-slot active-until window. Slot 0 doubles as dash i-frames; the
+  // other slots don't currently consult this, but it's kept symmetric
+  // so future variants can layer in slot-1 buffs without another field.
+  abilityActiveUntil: [number, number, number];
+  // Multiplier applied to every ability cooldown at trigger time. 1.0 =
+  // raw spec, 0.65 = T3 Power Core fully ranked.
+  abilityCooldownMul: number;
+  // Per-tick outgoing damage multiplier — driven by the mark payload.
+  damageMul: number;
+  // Slot-2 ongoing effect — mark buff or incinerate burn. Null when no
+  // ultimate is currently in flight.
+  payload: HeroPayloadState | null;
+  pendingShots: HeroPendingShot[];
   targetId: EntityId | null;
   moveTarget: Vec2 | null;
   alive: boolean;
-  dashReadyAt: number;
-  shockwaveReadyAt: number;
-  barrageReadyAt: number;
-  dashUntil: number;
-  // Pending barrage shots: each entry fires at world.time >= when, picking
-  // the best in-range enemy at that moment. Cleared when emptied.
-  barrageQueue: { when: number }[];
   flashUntil: number;
   shootFlashUntil: number;
   respawnAt: number | null;
+  // world.time when this hero last took damage. Drives the
+  // out-of-combat HP regen (regen starts 4s after this stamp).
+  lastDamagedAt: number;
+  // Click-to-select state — when true, the next ground click issues a
+  // move order. Right-click bypasses selection (move directly).
+  selected: boolean;
+  // Run-scoped XP + level. XP accrues from kills; the level is derived
+  // by levelForXp(xp). Skill points spent in the tree consume earned
+  // points so respec is just rewriting ranks.
+  xp: number;
+  level: number;
   // Seconds the hero has been failing to make progress toward moveTarget.
   // Resets to 0 whenever forward progress is observed; once it crosses a
   // small threshold the order is dropped so an unreachable target

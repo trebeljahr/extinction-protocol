@@ -142,7 +142,8 @@ export const HUD = () => {
           s.world.selectedTowerId !== null ||
           s.inspectedEnemy.kind !== null ||
           s.selectedTreeId !== null ||
-          s.selectedRockId !== null
+          s.selectedRockId !== null ||
+          s.world.hero.selected
         ) {
           s.clearSelection();
           (document.activeElement as HTMLElement | null)?.blur();
@@ -154,17 +155,17 @@ export const HUD = () => {
       }
       if (e.code === "KeyZ") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility("dash");
+        useGame.getState().triggerHeroAbility(0);
         return;
       }
       if (e.code === "KeyX") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility("shockwave");
+        useGame.getState().triggerHeroAbility(1);
         return;
       }
       if (e.code === "KeyC") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility("barrage");
+        useGame.getState().triggerHeroAbility(2);
         return;
       }
       const digit = e.key;

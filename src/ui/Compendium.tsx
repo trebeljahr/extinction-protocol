@@ -45,11 +45,12 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { EnemyIcon } from "./EnemyIcon";
 import { EnemyPreview } from "./EnemyPreview";
+import { HeroCompendiumSection } from "./HeroCompendiumSection";
 import { MechanicIcon } from "./MechanicIcon";
 import { MechanicPreview } from "./MechanicPreview";
 import { TowerPreview } from "./TowerPreview";
 
-type Section = "enemy" | "tower" | "mechanic";
+type Section = "enemy" | "tower" | "mechanic" | "hero";
 
 // Compendium enemy entries — either a base species or a biome-themed
 // matriarch variant. The list is rendered in one row so the player
@@ -93,11 +94,12 @@ const entryDescription = (e: EnemyEntry): string =>
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
-const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic"];
+const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "hero"];
 const SECTION_LABEL: Record<Section, string> = {
   enemy: "Enemies",
   tower: "Towers",
   mechanic: "Mechanics",
+  hero: "Pilots",
 };
 
 export const Compendium = () => {
@@ -201,6 +203,7 @@ export const Compendium = () => {
         {section === "mechanic" && (
           <MechanicSectionView selected={selectedMech} setSelected={setSelectedMech} />
         )}
+        {section === "hero" && <HeroCompendiumSection progress={progress} />}
       </div>
     </div>
   );

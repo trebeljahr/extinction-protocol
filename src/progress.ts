@@ -1,5 +1,6 @@
+import type { AllHeroSkills } from "./sim/heroSkills";
 import type { AllMetaSkills } from "./sim/metaSkills";
-import type { BossVariant, EnemyKind } from "./sim/types";
+import type { BossVariant, EnemyKind, HeroVariant } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
 export type SlotId = 1 | 2 | 3;
@@ -81,6 +82,18 @@ export type ProgressData = {
   // applied at tower creation. Total invested stars + freed stars must
   // not exceed totalStars(progress) — enforced at the store layer.
   metaSkills: AllMetaSkills;
+  // Active hero variant — drives heroDefaults at every level start.
+  // Defaults to "george" so legacy saves run unchanged.
+  activeHero: HeroVariant;
+  // Permanent unlock map. George is implicitly unlocked even when
+  // missing from the map; the others must be purchased from the hero
+  // shop with stars.
+  heroUnlocks: Partial<Record<HeroVariant, boolean>>;
+  // Per-hero XP — accrues from kills, never decays. Level + available
+  // skill points derive from this.
+  heroXp: Partial<Record<HeroVariant, number>>;
+  // Per-hero skill tree ranks. Shape mirrors AllMetaSkills.
+  heroSkills: AllHeroSkills;
 };
 
 export type SlotMeta = {
@@ -116,6 +129,10 @@ export const emptyProgress = (): ProgressData => ({
   difficulty: DEFAULT_DIFFICULTY,
   seenIntros: {},
   metaSkills: {},
+  activeHero: "george",
+  heroUnlocks: { george: true },
+  heroXp: {},
+  heroSkills: {},
 });
 
 const defaultName = (id: SlotId) => `Save ${id}`;
@@ -164,6 +181,23 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
         : {},
     metaSkills:
       raw.metaSkills && typeof raw.metaSkills === "object" ? (raw.metaSkills as AllMetaSkills) : {},
+    activeHero:
+      raw.activeHero === "leela" ||
+      raw.activeHero === "mike" ||
+      raw.activeHero === "stan" ||
+      raw.activeHero === "george"
+        ? raw.activeHero
+        : "george",
+    heroUnlocks: {
+      george: true,
+      ...((raw.heroUnlocks as Partial<Record<HeroVariant, boolean>> | undefined) ?? {}),
+    },
+    heroXp:
+      raw.heroXp && typeof raw.heroXp === "object"
+        ? (raw.heroXp as Partial<Record<HeroVariant, number>>)
+        : {},
+    heroSkills:
+      raw.heroSkills && typeof raw.heroSkills === "object" ? (raw.heroSkills as AllHeroSkills) : {},
   };
 };
 

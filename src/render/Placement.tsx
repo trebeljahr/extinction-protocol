@@ -320,8 +320,16 @@ export const Placement = () => {
     e.stopPropagation();
     if (Date.now() < suppressClickUntilRef.current) return;
     const pos = eventPoint(e);
-    if (useGame.getState().towerAtPos(pos)) audio.ui("select");
-    useGame.getState().tryPlaceOrSelect(pos);
+    const state = useGame.getState();
+    // Click-after-select: when the hero unit is selected, a ground click
+    // is the move order. Selection clears inside orderHeroMove so the
+    // next click goes back to default placement / inspect behavior.
+    if (state.world.hero.selected && state.selectedKind === null) {
+      state.orderHeroMove(pos);
+      return;
+    }
+    if (state.towerAtPos(pos)) audio.ui("select");
+    state.tryPlaceOrSelect(pos);
   };
 
   // Right-click = move-order for the hero. Falls back to mouse-button

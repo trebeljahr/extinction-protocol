@@ -1,5 +1,5 @@
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -212,7 +212,49 @@ export const ModelHeroMesh = () => {
     }
   });
 
-  return <group ref={groupRef} />;
+  // Click target — invisible sphere above the hero so a single click
+  // is enough to "select" her (then the next ground click moves).
+  const proxyRadius = TARGET_SIZE * 0.6;
+  const proxyGeom = useMemo(() => new THREE.SphereGeometry(proxyRadius, 8, 6), [proxyRadius]);
+  const proxyMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      proxyGeom.dispose();
+      proxyMat.dispose();
+    },
+    [proxyGeom, proxyMat],
+  );
+  const proxyRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    const mesh = proxyRef.current;
+    if (!mesh) return;
+    const hero = useGame.getState().world.hero;
+    mesh.visible = hero.alive;
+    mesh.position.set(hero.pos.x, proxyRadius * 0.9, -hero.pos.y);
+  });
+
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    const state = useGame.getState();
+    // Tower placement / mortar spot mode wins over hero selection.
+    if (state.selectedKind !== null) return;
+    const selId = state.world.selectedTowerId;
+    if (selId !== null) {
+      const sel = state.world.towerById.get(selId);
+      if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
+    }
+    e.stopPropagation();
+    state.selectHeroUnit(true);
+  };
+
+  return (
+    <group ref={groupRef}>
+      <mesh ref={proxyRef} geometry={proxyGeom} material={proxyMat} onClick={onClick} />
+    </group>
+  );
 };
 
 useGLTF.preload("/models/heroes/George.glb");

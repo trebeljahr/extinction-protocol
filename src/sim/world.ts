@@ -9,6 +9,13 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import type { LevelConfig } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers } from "../progress";
+import {
+  type AllHeroSkills,
+  applyHeroSkillsToHero,
+  levelForXp,
+  xpForEnemyKill,
+} from "./heroSkills";
+import { HERO_SPECS } from "./heroVariants";
 import { samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
@@ -50,52 +57,49 @@ export const BASE_DAMAGE = 8;
 export const BASE_FIRE_RATE = 1.0;
 
 // Hero unit — single controllable mecha that walks the field, auto-shoots
-// dinos in range, and fires three activated abilities. Tuned to feel
-// supportive (towers still carry) rather than solo-carry.
-export const HERO_MAX_HP = 220;
+// dinos in range, and fires three activated abilities. Stats now ship
+// from heroVariants.HERO_SPECS so per-mech balance lives there; this
+// module keeps only platform constants (collision radius, respawn delay).
 export const HERO_RADIUS = 0.45;
-export const HERO_BASE_SPEED = 4.5;
-export const HERO_DASH_SPEED = 11.0;
-export const HERO_DASH_DURATION = 0.35;
-export const HERO_DASH_COOLDOWN = 5.5;
-export const HERO_SHOCKWAVE_RADIUS = 3.6;
-export const HERO_SHOCKWAVE_DAMAGE = 110;
-export const HERO_SHOCKWAVE_COOLDOWN = 10.0;
-export const HERO_BARRAGE_COUNT = 6;
-export const HERO_BARRAGE_DAMAGE = 26;
-export const HERO_BARRAGE_RANGE = 9.0;
-export const HERO_BARRAGE_COOLDOWN = 14.0;
-export const HERO_ATTACK_RANGE = 7.0;
-export const HERO_ATTACK_DAMAGE = 16;
-export const HERO_ATTACK_FIRE_RATE = 2.2;
 export const HERO_RESPAWN_DELAY = 6.0;
 
-const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId): Hero => ({
-  id,
-  variant,
-  pos: { x: pos.x, y: pos.y },
-  vel: { x: 0, y: 0 },
-  facing: 0,
-  hp: HERO_MAX_HP,
-  maxHp: HERO_MAX_HP,
-  damage: HERO_ATTACK_DAMAGE,
-  range: HERO_ATTACK_RANGE,
-  fireRate: HERO_ATTACK_FIRE_RATE,
-  cooldown: 0,
-  targetId: null,
-  moveTarget: null,
-  alive: true,
-  dashReadyAt: 0,
-  shockwaveReadyAt: 0,
-  barrageReadyAt: 0,
-  dashUntil: 0,
-  barrageQueue: [],
-  flashUntil: 0,
-  shootFlashUntil: 0,
-  respawnAt: null,
-  stuckTimer: 0,
-  motionState: "idle",
-});
+const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number): Hero => {
+  const spec = HERO_SPECS[variant];
+  return {
+    id,
+    variant,
+    pos: { x: pos.x, y: pos.y },
+    vel: { x: 0, y: 0 },
+    facing: 0,
+    hp: spec.maxHp,
+    maxHp: spec.maxHp,
+    damage: spec.damage,
+    range: spec.range,
+    fireRate: spec.fireRate,
+    speed: spec.speed,
+    attackSplashRadius: spec.attackSplashRadius,
+    damageType: spec.damageType,
+    attackCooldown: 0,
+    abilityReadyAt: [0, 0, 0],
+    abilityActiveUntil: [0, 0, 0],
+    abilityCooldownMul: 1,
+    damageMul: 1,
+    payload: null,
+    pendingShots: [],
+    targetId: null,
+    moveTarget: null,
+    alive: true,
+    flashUntil: 0,
+    shootFlashUntil: 0,
+    respawnAt: null,
+    lastDamagedAt: -1000,
+    selected: false,
+    xp,
+    level: levelForXp(xp),
+    stuckTimer: 0,
+    motionState: "idle",
+  };
+};
 
 export const TREE_COUNT = 22;
 // Trees clump into a handful of groves rather than evenly speckling the
@@ -396,10 +400,23 @@ const buildEasterEggSchedule = (
   return [{ defId: def.id, triggerTime: t }];
 };
 
+export type HeroContext = {
+  variant: HeroVariant;
+  xp: number;
+  skills: AllHeroSkills;
+};
+
+const DEFAULT_HERO_CONTEXT: HeroContext = {
+  variant: "george",
+  xp: 0,
+  skills: {},
+};
+
 export const createWorld = (
   level: LevelConfig,
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
   unlockedAchievements: ReadonlySet<string> = new Set(),
+  heroCtx: HeroContext = DEFAULT_HERO_CONTEXT,
 ): World => {
   const biome = biomeForPos(level.nodePos);
   // Smooth the authored corner waypoints into the dense polyline that
@@ -458,8 +475,12 @@ export const createWorld = (
     x: endPt.x - tdx * 2.6 + -tdy * 2.4,
     y: endPt.y - tdy * 2.6 + tdx * 2.4,
   };
-  const hero = heroDefaults("george", heroSpawn, nextId);
+  const hero = heroDefaults(heroCtx.variant, heroSpawn, nextId, heroCtx.xp);
   hero.facing = Math.atan2(-tdx, -tdy);
+  applyHeroSkillsToHero(hero, heroCtx.skills);
+  // Snap HP to maxHp post-skills so vitality ranks don't leave the hero
+  // partly damaged. Done after applyHeroSkillsToHero (which bumps both).
+  hero.hp = hero.maxHp;
   return {
     time: 0,
     tickCount: 0,
@@ -1034,6 +1055,11 @@ export const applyDamage = (
       const attacker = world.towerById.get(hitOpts.attackerTowerId);
       if (attacker) attacker.kills += 1;
     }
+    // Hero XP — every kill drips into the active hero. Persistent across
+    // runs via the store's tick → progress.heroXp merge. Tower kills
+    // count too: the player picks the hero loadout and the run, so the
+    // whole result rolls back into that hero's growth.
+    world.hero.xp += xpForEnemyKill(enemy.maxHp);
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
     emit(world, { type: "death", pos: enemy.pos });
     // Boss kill — extra payout on top of the normal bounty so the
