@@ -79,12 +79,13 @@ const FLOW_CONFIG: Partial<Record<Biome, FlowConfig>> = {
     palette: LAVA_PALETTE,
   },
   forest: {
-    // One meandering channel + small ponds — keeps the level breezy
-    // instead of carving the playfield in half.
+    // One meandering channel + 1–2 side arms + small ponds. The arms
+    // give the river system a more natural branched look instead of a
+    // lone canal across the map.
     riverCount: 1,
-    tributaries: false,
+    tributaries: true,
     riverWidth: 1.8,
-    tributaryWidth: 1.0,
+    tributaryWidth: 0.9,
     lakeCount: 2,
     lakeMin: 0.9,
     lakeRange: 1.0,
@@ -156,9 +157,9 @@ const perpAt = (
 const buildTributary = (rng: () => number, parent: Vec2[], parentIdx: number): Vec2[] => {
   const { ox, oy, tx, ty } = perpAt(parent, parentIdx, rng);
   const start = parent[parentIdx];
-  const N = 5 + Math.floor(rng() * 3); // 5–7 segments
-  const length = 4 + rng() * 3.5; // 4–7.5 world units
-  const amp = 0.6 + rng() * 0.5;
+  const N = 6 + Math.floor(rng() * 4); // 6–9 segments
+  const length = 5 + rng() * 5; // 5–10 world units
+  const amp = 0.8 + rng() * 0.8;
   const phase = rng() * Math.PI * 2;
   // 35° drift along the parent so tributaries don't always come in at right
   // angles — looks more like real branching channels.
@@ -230,39 +231,79 @@ const buildBestTributary = (
 // 10-segment polyline; a second sine gives the same organic variation
 // without the spikes, and we resample finely enough that adjacent
 // segments are shorter than the river is wide.
+// Catmull-Rom 1D interpolation between four control values. Used to smooth
+// the damped-random-walk control sequence into a continuous polyline.
+const catmullRom1D = (p0: number, p1: number, p2: number, p3: number, t: number): number => {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+  );
+};
+
+// Generate a river as a damped random walk in the cross-axis coord,
+// smoothed with Catmull-Rom interpolation. Real rivers don't oscillate
+// like a sine — they meander irregularly, sometimes tight, sometimes
+// loose, with occasional sharp bends and long lazy stretches. The walk
+// gives that: each control point's cross-coord is the previous one plus
+// a velocity that itself wanders (so curvature is correlated across
+// adjacent controls, like real meander wavelength), with a soft pull-back
+// toward the baseline so the river doesn't drift off the playfield.
+//
+// The candidate-picker still rejects layouts that overlap paths, so we
+// can afford generous excursions and let the picker filter.
+const RIVER_CONTROLS = 9;
+const RIVER_VEL_DECAY = 0.62;
+const RIVER_STEP_AMP = 2.4;
+const RIVER_PULL_BACK = 0.07;
+const RIVER_MAX_EXCURSION = 8;
 const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
   const N = 48;
-  const out: Vec2[] = [];
-  const phase = rng() * Math.PI * 2;
-  // Big-meander amplitude: was 2.4–4.4. Bumped to 3.5–6.5 for visibly
-  // windier rivers. The candidate-picker rejects layouts that overflow
-  // into paths, so even the upper end stays usable on busy maps.
-  const amp = 3.5 + rng() * 3;
-  const phase2 = rng() * Math.PI * 2;
-  // Higher-frequency wobble: was 0.3–0.7. Bumped to 0.5–1.1 so the bank
-  // has more secondary curl on top of the big meander.
-  const amp2 = 0.5 + rng() * 0.6;
   const margin = 16;
-  // Big-meander wavenumber bumped from 2.2π (~1.1 cycles across the map)
-  // to 3.4π (~1.7 cycles). Secondary wobble bumped from 5.1π to 7.0π.
-  const k1 = Math.PI * 3.4;
-  const k2 = Math.PI * 7;
-  if (axis === "h") {
-    const baseY = (rng() - 0.5) * MAP_HEIGHT * 0.4;
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const x = -MAP_WIDTH / 2 - margin + t * (MAP_WIDTH + 2 * margin);
-      const y = baseY + Math.sin(phase + t * k1) * amp + Math.sin(phase2 + t * k2) * amp2;
-      out.push({ x, y });
+  const axisLen = axis === "h" ? MAP_WIDTH : MAP_HEIGHT;
+  const crossSpan = axis === "h" ? MAP_HEIGHT : MAP_WIDTH;
+  const baseCross = (rng() - 0.5) * crossSpan * 0.35;
+  const axisStart = -axisLen / 2 - margin;
+  const axisFullSpan = axisLen + 2 * margin;
+
+  // Damped random walk in cross-axis coord. `vel` carries momentum so
+  // the curvature has a natural wavelength rather than per-step jitter.
+  const ctrl: number[] = [];
+  let val = (rng() - 0.5) * 3.0;
+  let vel = (rng() - 0.5) * 2.0;
+  for (let k = 0; k < RIVER_CONTROLS; k++) {
+    ctrl.push(val);
+    vel = vel * RIVER_VEL_DECAY + (rng() - 0.5) * RIVER_STEP_AMP;
+    val = val + vel - val * RIVER_PULL_BACK;
+    if (val > RIVER_MAX_EXCURSION) {
+      val = RIVER_MAX_EXCURSION;
+      vel = -Math.abs(vel) * 0.5;
+    } else if (val < -RIVER_MAX_EXCURSION) {
+      val = -RIVER_MAX_EXCURSION;
+      vel = Math.abs(vel) * 0.5;
     }
-  } else {
-    const baseX = (rng() - 0.5) * MAP_WIDTH * 0.4;
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const y = -MAP_HEIGHT / 2 - margin + t * (MAP_HEIGHT + 2 * margin);
-      const x = baseX + Math.sin(phase + t * k1) * amp + Math.sin(phase2 + t * k2) * amp2;
-      out.push({ x, y });
-    }
+  }
+
+  const out: Vec2[] = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const axisCoord = axisStart + t * axisFullSpan;
+    // Map t to a position in the control-point list; Catmull-Rom needs
+    // four samples (k-1, k, k+1, k+2) clamped at the ends.
+    const u = t * (RIVER_CONTROLS - 1);
+    const ki = Math.min(RIVER_CONTROLS - 2, Math.floor(u));
+    const tu = u - ki;
+    const p0 = ctrl[Math.max(0, ki - 1)];
+    const p1 = ctrl[ki];
+    const p2 = ctrl[Math.min(RIVER_CONTROLS - 1, ki + 1)];
+    const p3 = ctrl[Math.min(RIVER_CONTROLS - 1, ki + 2)];
+    const cross = baseCross + catmullRom1D(p0, p1, p2, p3, tu);
+    if (axis === "h") out.push({ x: axisCoord, y: cross });
+    else out.push({ x: cross, y: axisCoord });
   }
   return out;
 };
@@ -637,13 +678,13 @@ export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome
   const rivers: River[] = mainPoints.map((points) => ({ points, width: config.riverWidth }));
 
   if (config.tributaries) {
-    // 1–2 tributaries off each main river, branching from non-endpoint
+    // 1–3 tributaries off each main river, branching from non-endpoint
     // indices. Each branch tries several candidates and keeps the one
     // with the lowest path-overlap cost; skipped if all candidates land
-    // off-map. Only fired when the biome opts in (lava only today).
+    // off-map.
     let tribIdx = 0;
     for (const main of mainPoints) {
-      const branchCount = 1 + (rng() < 0.5 ? 1 : 0);
+      const branchCount = 1 + Math.floor(rng() * 2.4);
       for (let b = 0; b < branchCount; b++) {
         const candidateSeed = levelId * 7919 + 5003 + tribIdx * 137;
         tribIdx++;
