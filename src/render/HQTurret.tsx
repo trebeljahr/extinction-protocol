@@ -31,6 +31,30 @@ const HQ_TARGET_SIZE = 1.9;
 const FLASH_DURATION = 0.45;
 const EXPLOSION_DURATION = 0.7;
 const SHOCKWAVE_DURATION = 0.85;
+// How long the laser stays visible after each HQ shot. Short enough to
+// read as a snap-fire pulse rather than a sustained beam, long enough
+// to register at 60fps.
+const LASER_VISIBLE_DURATION = 0.11;
+// Half-life (seconds) for the smooth-rotation lerp that pivots the
+// turret to face its current target. Below 0.05 the rotation snaps and
+// reads as a teleport; above 0.15 the turret lags so far the beam
+// fires perpendicular to the target.
+const TURRET_YAW_HALFLIFE = 0.08;
+// Where each cannon barrel sits in the turret's local frame. The
+// Plasma Turret has dual cannons mounted slightly above and forward of
+// its center. Tuned to land the laser origin at the actual muzzles in
+// preview — adjust if the GLB ever changes.
+const BARREL_FORWARD = 0.85;
+const BARREL_HEIGHT = 1.05;
+const BARREL_SIDE = 0.34;
+const LASER_RADIUS = 0.055;
+const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
+const shortAngleDelta = (from: number, to: number) => {
+  let d = (to - from) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+};
 // Number of voronoi cells the turret shatters into. Kept modest because
 // fracture is N×N CSG (each cell intersects N-1 halfspaces and then the
 // source mesh) and is deferred to an idle callback so it must finish
@@ -60,6 +84,10 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   const flashRef = useRef<THREE.Mesh>(null);
   const coreFlashRef = useRef<THREE.Mesh>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
+  const leftLaserRef = useRef<THREE.Mesh>(null);
+  const rightLaserRef = useRef<THREE.Mesh>(null);
+  const muzzleLeftRef = useRef<THREE.Mesh>(null);
+  const muzzleRightRef = useRef<THREE.Mesh>(null);
   const status = useGame((s) => s.world.status);
   // Per-HQ death: only the endpoint that took the killing blow runs the
   // explosion + fracture. Other HQs see status === "lost" but should
@@ -68,6 +96,17 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   const isLost = status === "lost";
   const isKillingHQ = killingPathIndex === pose.pathIndex;
   const shouldExplode = isLost && isKillingHQ;
+  // Smooth-rotated yaw of the turret. Drives outer.rotation so the
+  // cannons pivot toward the live target before firing, then drift
+  // back to the path-aligned rest pose when nothing is in range.
+  const turretYawRef = useRef(pose.yaw);
+  // Edge-detect last cooldown to spot the moment a shot fires (cooldown
+  // resets from ~0 up to 1/fireRate). When detected, stash the world-
+  // time and target id so the laser visual stays attached to the actual
+  // enemy that was hit, not whichever target the base picks next.
+  const lastCooldownRef = useRef(0);
+  const firedAtRef = useRef(-1);
+  const firedTargetIdRef = useRef<number | null>(null);
 
   // Bind-pose-accurate baseline: same `measureVisibleBox` we use for every
   // other model so the HQ's feet sit on y=0 instead of floating where the
@@ -191,7 +230,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     return unsub;
   }, [pose.pathIndex]);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const outer = outerRef.current;
     const flash = flashRef.current;
     if (!outer) return;
@@ -207,7 +246,40 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     const lostAt = lostStartRef.current;
 
     outer.position.set(pose.position[0], baseY, -pose.position[1]);
-    outer.rotation.set(0, pose.yaw, 0);
+
+    // Turret yaw — chase the live target each frame so the cannons
+    // visibly pivot toward incoming enemies before firing. Falls back
+    // to the path-aligned pose when nothing is in range.
+    const { world } = useGame.getState();
+    const base = world.base;
+    const targetId = base.targetIds[pose.pathIndex] ?? null;
+    const targetEnemy = targetId !== null ? world.enemyById.get(targetId) : undefined;
+    let desiredYaw = pose.yaw;
+    if (targetEnemy && targetEnemy.alive) {
+      const dx = targetEnemy.pos.x - pose.position[0];
+      const dy = targetEnemy.pos.y - pose.position[1];
+      if (dx * dx + dy * dy > 1e-6) desiredYaw = Math.atan2(dx, -dy);
+    }
+    if (isLost) {
+      // Freeze rotation once the run is lost — the explosion takes over
+      // and chunks shouldn't inherit a chasing pivot.
+      outer.rotation.set(0, turretYawRef.current, 0);
+    } else {
+      const k = dampFactor(Math.max(delta, 0.0001), TURRET_YAW_HALFLIFE);
+      turretYawRef.current += shortAngleDelta(turretYawRef.current, desiredYaw) * k;
+      outer.rotation.set(0, turretYawRef.current, 0);
+    }
+
+    // Fire-edge detection: base.cooldowns[i] is decremented every sim
+    // tick; the instant it resets from ~0 up to its full period, a
+    // laser shot fired. Capture the moment + target so the visual
+    // doesn't drift between repeat shots at different enemies.
+    const cooldown = base.cooldowns[pose.pathIndex] ?? 0;
+    if (!isLost && cooldown > lastCooldownRef.current + 0.01) {
+      firedAtRef.current = now;
+      firedTargetIdRef.current = targetId;
+    }
+    lastCooldownRef.current = cooldown;
 
     // Layered death explosion: an inner white-hot core, an outer fireball,
     // and a flat ground shockwave ring radiating from the HQ base. Each
@@ -247,6 +319,82 @@ const HQOne = ({ pose }: { pose: Pose }) => {
         mat.opacity = (1 - t) ** 1.2 * 0.7;
       }
     }
+
+    // Laser visuals — render two parallel red beams from the cannon
+    // barrels to the enemy that was hit. Beam stays attached to the
+    // captured target id so a follow-up shot at a different enemy
+    // doesn't make the visible laser jitter to the new target mid-flash.
+    const placeLaser = (mesh: THREE.Mesh | null, sideSign: 1 | -1) => {
+      if (!mesh) return;
+      const elapsed = now - firedAtRef.current;
+      const laserTargetId = firedTargetIdRef.current;
+      const laserTarget = laserTargetId !== null ? world.enemyById.get(laserTargetId) : undefined;
+      if (
+        isLost ||
+        firedAtRef.current < 0 ||
+        elapsed > LASER_VISIBLE_DURATION ||
+        !laserTarget ||
+        !laserTarget.alive
+      ) {
+        mesh.visible = false;
+        return;
+      }
+      // Barrel origin = HQ position + (forward × sin yaw, side × cos yaw)
+      // worked in world space.
+      const c = Math.cos(turretYawRef.current);
+      const s = Math.sin(turretYawRef.current);
+      const localX = sideSign * BARREL_SIDE;
+      const localZ = -BARREL_FORWARD; // turret yaw 0 faces -z
+      const wx = pose.position[0] + localX * c + localZ * s;
+      const wz = -pose.position[1] + -localX * s + localZ * c;
+      const wy = baseY + BARREL_HEIGHT;
+      const tx = laserTarget.pos.x;
+      const ty = baseY + 0.55; // approximate enemy hit height
+      const tz = -laserTarget.pos.y;
+      const dx = tx - wx;
+      const dy = ty - wy;
+      const dz = tz - wz;
+      const len = Math.hypot(dx, dy, dz);
+      if (len < 1e-3) {
+        mesh.visible = false;
+        return;
+      }
+      // Position cylinder midpoint and align it to the dx/dy/dz vector.
+      // The default cylinder geometry points along +Y with height 1; we
+      // scale Y to the beam length and rotate via lookAt.
+      mesh.visible = true;
+      mesh.position.set(wx + dx * 0.5, wy + dy * 0.5, wz + dz * 0.5);
+      const up = new THREE.Vector3(0, 1, 0);
+      const dir = new THREE.Vector3(dx, dy, dz).normalize();
+      mesh.quaternion.setFromUnitVectors(up, dir);
+      mesh.scale.set(1, len, 1);
+      const fade = 1 - elapsed / LASER_VISIBLE_DURATION;
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.max(0, fade);
+    };
+    const placeMuzzle = (mesh: THREE.Mesh | null, sideSign: 1 | -1) => {
+      if (!mesh) return;
+      const elapsed = now - firedAtRef.current;
+      const visible = !isLost && firedAtRef.current >= 0 && elapsed < LASER_VISIBLE_DURATION * 1.6;
+      mesh.visible = visible;
+      if (!visible) return;
+      const c = Math.cos(turretYawRef.current);
+      const s = Math.sin(turretYawRef.current);
+      const localX = sideSign * BARREL_SIDE;
+      const localZ = -BARREL_FORWARD;
+      const wx = pose.position[0] + localX * c + localZ * s;
+      const wz = -pose.position[1] + -localX * s + localZ * c;
+      const wy = baseY + BARREL_HEIGHT;
+      mesh.position.set(wx, wy, wz);
+      const fade = 1 - elapsed / (LASER_VISIBLE_DURATION * 1.6);
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.max(0, fade) * 0.95;
+      mesh.scale.setScalar(0.18 + (1 - fade) * 0.12);
+    };
+    placeLaser(leftLaserRef.current, -1);
+    placeLaser(rightLaserRef.current, 1);
+    placeMuzzle(muzzleLeftRef.current, -1);
+    placeMuzzle(muzzleRightRef.current, 1);
 
     // Damage emissive flash on all materials. Skipped during death (on
     // the killing HQ only) so the chunks don't inherit a red emissive
@@ -330,6 +478,54 @@ const HQOne = ({ pose }: { pose: Pose }) => {
           baseY={baseY}
         />
       )}
+      {/* Laser beams + muzzle flares live in world space, not inside
+          the rotating outer group, so the per-frame placeLaser() math
+          can position them directly in world coordinates without
+          fighting the turret yaw transform. */}
+      <mesh ref={leftLaserRef} visible={false} renderOrder={3}>
+        <cylinderGeometry args={[LASER_RADIUS, LASER_RADIUS, 1, 8, 1]} />
+        <meshBasicMaterial
+          color="#ff3a2a"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      <mesh ref={rightLaserRef} visible={false} renderOrder={3}>
+        <cylinderGeometry args={[LASER_RADIUS, LASER_RADIUS, 1, 8, 1]} />
+        <meshBasicMaterial
+          color="#ff3a2a"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      <mesh ref={muzzleLeftRef} visible={false} renderOrder={3}>
+        <sphereGeometry args={[1, 12, 8]} />
+        <meshBasicMaterial
+          color="#ffd07a"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      <mesh ref={muzzleRightRef} visible={false} renderOrder={3}>
+        <sphereGeometry args={[1, 12, 8]} />
+        <meshBasicMaterial
+          color="#ffd07a"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
     </>
   );
 };

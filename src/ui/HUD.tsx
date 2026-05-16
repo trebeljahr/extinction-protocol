@@ -148,6 +148,10 @@ export const HUD = () => {
       if (e.code === "Escape") {
         e.preventDefault();
         const s = useGame.getState();
+        if (s.world.hero.dashAim) {
+          s.cancelHeroDashAim();
+          return;
+        }
         if (
           s.selectedKind !== null ||
           s.world.selectedTowerId !== null ||

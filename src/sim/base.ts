@@ -1,7 +1,7 @@
 import { isEnemyTargetable } from "./enemyState";
 import type { Enemy, Vec2, World } from "./types";
 import { distSq } from "./vec2";
-import { applyDamage, createBeam, ENEMY_RESIST, emit } from "./world";
+import { applyDamage, ENEMY_RESIST, emit } from "./world";
 
 // HQ base laser. One firing slot per path endpoint — multi-path levels
 // get parallel lasers from the same shared stats. Targets the enemy
@@ -10,12 +10,9 @@ import { applyDamage, createBeam, ENEMY_RESIST, emit } from "./world";
 // is about to leak first.
 //
 // Damage type is kinetic so it inherits the existing pulse resist
-// matrix — no new damage type axis to balance. The beam visual is red
-// (createBeam halo color) with the engine's standard white-hot core
-// so it reads clearly as "laser" against blue chain beams.
-
-const BASE_BEAM_LIFE = 0.09;
-const BASE_BEAM_COLOR = "#ff4a3a";
+// matrix. The laser visual is rendered locally in HQTurret.tsx — it
+// reads world.base.cooldowns[i] + world.base.targetIds[i] each frame
+// and draws a red glowing cylinder from each gun barrel to the target.
 
 const findBaseTarget = (world: World, pathIndex: number, origin: Vec2): Enemy | null => {
   const range = world.base.range;
@@ -85,7 +82,6 @@ export const updateBase = (world: World, dt: number) => {
     const shieldDelta = Math.max(0, prevShield - target.shield);
     base.damageDealt += Math.min(prevHp + prevShield, hpDelta + shieldDelta);
     if (wasAlive && !target.alive) base.kills += 1;
-    createBeam(world, [origin, target.pos], BASE_BEAM_COLOR, BASE_BEAM_LIFE);
     base.cooldowns[i] = 1 / base.fireRate;
     emit(world, { type: "impact", pos: target.pos });
   }

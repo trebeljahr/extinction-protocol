@@ -5,6 +5,7 @@ import { useGame } from "../store";
 import { BiomeAmbientVfx } from "./BiomeAmbientVfx";
 import { BiomeCosmetics } from "./BiomeCosmetics";
 import { CameraRig } from "./CameraRig";
+import { CoalTrail } from "./CoalTrail";
 import { EasterEggs } from "./EasterEggs";
 import { Effects } from "./Effects";
 import { FierceHalos } from "./FierceHalos";
@@ -139,6 +140,7 @@ export const PlayScene = () => {
 
       <ModelHeroMesh />
       <HeroHud />
+      <CoalTrail />
 
       <TowerVfx />
       <HealthBars />

@@ -31,8 +31,10 @@ import {
   triggeredEasterEggIdsForLevel,
 } from "./progress";
 import {
+  cancelHeroDashAim as simCancelHeroDashAim,
   orderHeroMove as simOrderHeroMove,
   selectHero as simSelectHero,
+  setHeroDashAimDir as simSetHeroDashAimDir,
   triggerHeroAbility as simTriggerHeroAbility,
 } from "./sim/hero";
 import {
@@ -90,6 +92,7 @@ import {
   createWorld,
   emit,
   HIVE_MAX_DRONES_PER_TOWER,
+  heroLevelHpBonus,
   isTowerKindAllowed,
   meshXZRadii,
   ROCK_FOOTPRINT,
@@ -485,6 +488,8 @@ type GameStore = {
   orderHeroMove: (pos: Vec2) => void;
   triggerHeroAbility: (slot: HeroAbilitySlot) => void;
   selectHeroUnit: (on: boolean) => void;
+  setHeroDashAimDir: (dir: Vec2) => void;
+  cancelHeroDashAim: () => void;
   // Hero shop modal.
   heroShopOpen: boolean;
   setHeroShopOpen: (open: boolean) => void;
@@ -1133,7 +1138,17 @@ export const useGame = create<GameStore>((set, get) => ({
         ...progress,
         heroXp: { ...progress.heroXp, [variant]: liveXp },
       };
-      s.world.hero.level = levelForXp(liveXp);
+      const prevLevel = s.world.hero.level;
+      const nextLevel = levelForXp(liveXp);
+      if (nextLevel > prevLevel) {
+        // Mid-run level-up: bump maxHp by the per-level inherent bonus
+        // and top off current HP by the same delta so leveling reads as
+        // a real reward, not just a number tick.
+        const bonus = heroLevelHpBonus(nextLevel) - heroLevelHpBonus(prevLevel);
+        s.world.hero.maxHp += bonus;
+        s.world.hero.hp = Math.min(s.world.hero.maxHp, s.world.hero.hp + bonus);
+      }
+      s.world.hero.level = nextLevel;
     }
 
     if (progress !== s.progress) persistProgress(s.activeSlot, progress);
@@ -1161,6 +1176,10 @@ export const useGame = create<GameStore>((set, get) => ({
     if (kind !== null) {
       world.selectedTowerId = null;
       world.selectedBase = false;
+      // Picking up a tower implicitly cancels a pending Mike dash aim
+      // so the next ground click places the tower instead of firing
+      // the dash. Cooldown wasn't consumed by the aim stage.
+      if (world.hero.dashAim) world.hero.dashAim = null;
     }
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = kind !== null ? null : s.selectedTreeId;
@@ -1197,6 +1216,18 @@ export const useGame = create<GameStore>((set, get) => ({
     // Snapshot so the HUD reflects the freshly-triggered cooldown
     // immediately, not on the next tick. Cheap because uiEqual culls
     // no-op renders.
+    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
+
+  setHeroDashAimDir: (dir) => {
+    const s = get();
+    simSetHeroDashAimDir(s.world, dir);
+  },
+
+  cancelHeroDashAim: () => {
+    const s = get();
+    if (!s.world.hero.dashAim) return;
+    simCancelHeroDashAim(s.world);
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 

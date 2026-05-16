@@ -234,6 +234,20 @@ export const updateEnemies = (world: World, dt: number) => {
       e.frost = Math.max(0, e.frost - dt * 0.35);
     }
 
+    // Skirmish lock: a dino engaged with the hero halts forward path
+    // movement so the fight stays put. The lock is owned by hero.ts —
+    // hero stepping out of HERO_ENGAGE_RANGE clears it before this
+    // tick runs. While engaged, ENEMY_HERO_DAMAGE (applied in hero.ts)
+    // drains hero HP; the render layer flips to the dino's Attack clip.
+    if (e.engagedHeroId !== null) {
+      const hero = world.hero;
+      if (!hero?.alive || hero.id !== e.engagedHeroId) {
+        e.engagedHeroId = null;
+      } else {
+        continue; // skip path advance + leak check this tick
+      }
+    }
+
     // Cryo Subzero meta — freeze pins effective speed to 0 for the
     // freeze window. Independent of the regular slowFactor so the
     // baseline slow still applies once the freeze elapses.

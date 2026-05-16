@@ -22,6 +22,7 @@ import { mulberry32 } from "./random";
 import type {
   Beam,
   BossVariant,
+  CoalEmber,
   CryoWave,
   DamageType,
   EasterEgg,
@@ -62,17 +63,28 @@ export const BASE_FIRE_RATE = 1.0;
 // module keeps only platform constants (collision radius, respawn delay).
 export const HERO_RADIUS = 0.45;
 export const HERO_RESPAWN_DELAY = 6.0;
+// Permanent max-HP bonus the hero earns at every level beyond 1. Level
+// 5 = +60 HP, level 10 = +135 HP. Stacks on top of the Vitality skill
+// node so leveling matters in its own right (the skill node is a
+// player-chosen upside, this is the inherent reward for surviving).
+export const HERO_HP_PER_LEVEL = 15;
+
+// Bonus max-HP the hero would have at this level (level 1 → 0).
+export const heroLevelHpBonus = (level: number): number =>
+  Math.max(0, (level - 1) * HERO_HP_PER_LEVEL);
 
 const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number): Hero => {
   const spec = HERO_SPECS[variant];
+  const level = levelForXp(xp);
+  const bonusHp = heroLevelHpBonus(level);
   return {
     id,
     variant,
     pos: { x: pos.x, y: pos.y },
     vel: { x: 0, y: 0 },
     facing: 0,
-    hp: spec.maxHp,
-    maxHp: spec.maxHp,
+    hp: spec.maxHp + bonusHp,
+    maxHp: spec.maxHp + bonusHp,
     damage: spec.damage,
     range: spec.range,
     fireRate: spec.fireRate,
@@ -101,11 +113,14 @@ const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number)
     lastDamagedAt: -1000,
     selected: false,
     xp,
-    level: levelForXp(xp),
+    level,
     stuckTimer: 0,
     hovering: false,
     hoverHeight: 0,
     motionState: "idle",
+    lastDeathAt: -1000,
+    dashAim: null,
+    mikeCoalDropAt: 0,
   };
 };
 
@@ -521,6 +536,7 @@ export const createWorld = (
     beams: [],
     explosions: [],
     cryoWaves: [],
+    coalEmbers: [],
     particles: [],
     spawnQueue: [],
     bossTrickleStreams: [],
@@ -671,6 +687,24 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   // along, hits hard. Per-kill bonus on top of bounty is paid out by
   // spawnerTick when a boss-flagged enemy dies.
   boss: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
+};
+
+// Per-tick melee damage a dino deals while engaged with the hero. NOT
+// the same as `damage` — that drives life-loss on HQ leak (kept tuned
+// to the leak economy). Hero combat needs its own dimension so a
+// titan/t-rex feels devastating in skirmish while swarm chip is a
+// tickle. Scale: ~10× the leak `damage` for big bruisers, much smaller
+// for chaff. Damage is applied per tick (60Hz), so multiply by ~0.0167
+// for a per-second feel: t-rex at 65 → ~1.08 HP/s in solo skirmish.
+export const ENEMY_HERO_DAMAGE: Record<EnemyKind, number> = {
+  swarm: 4,
+  raptor: 12,
+  para: 18,
+  allosaur: 65,
+  stego: 38,
+  armored: 30,
+  titan: 95,
+  boss: 140,
 };
 
 // Per-kind shield pool used when a spec marks an enemy as shielded.
@@ -1229,6 +1263,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     elite,
     fierce,
     regenPausedUntil: 0,
+    engagedHeroId: null,
     extraResists: resists ? { ...resists } : {},
     igniteUntil: 0,
     igniteDps: 0,
@@ -1463,6 +1498,55 @@ export const createBeam = (world: World, points: Vec2[], color: string, lifeSec 
   };
   world.beams.push(b);
   return b;
+};
+
+// Drop one burning-coal tile at `pos`. Owned by Mike's dash; the
+// updateCoalEmbers tick applies flame AoE damage per tickInterval until
+// the tile expires. Ember lifetime is per-tile so spaced drops along the
+// dash track each fade on their own clock.
+export const createCoalEmber = (
+  world: World,
+  pos: Vec2,
+  tickDamage: number,
+  radius: number,
+  lifeSec: number,
+): CoalEmber => {
+  const e: CoalEmber = {
+    id: world.nextEntityId++,
+    pos: { x: pos.x, y: pos.y },
+    expiresAt: world.time + lifeSec,
+    maxLife: lifeSec,
+    nextTickAt: world.time + 0.18,
+    tickDamage,
+    radius,
+  };
+  world.coalEmbers.push(e);
+  return e;
+};
+
+// Tick every ember: apply AoE flame damage on each interval, drop the
+// tile when it expires. O(embers × enemies in radius) — kept cheap by
+// the short lifetime + small radius.
+export const COAL_TICK_INTERVAL = 0.2;
+export const updateCoalEmbers = (world: World, _dt: number) => {
+  if (world.coalEmbers.length === 0) return;
+  const remaining: CoalEmber[] = [];
+  for (const e of world.coalEmbers) {
+    if (world.time >= e.expiresAt) continue;
+    if (world.time >= e.nextTickAt) {
+      const r2 = e.radius * e.radius;
+      for (const enemy of world.enemies) {
+        if (!enemy.alive || enemy.leak) continue;
+        const dx = enemy.pos.x - e.pos.x;
+        const dy = enemy.pos.y - e.pos.y;
+        if (dx * dx + dy * dy > r2) continue;
+        applyDamage(world, enemy, e.tickDamage, "flame", "#ff8a3a", 3);
+      }
+      e.nextTickAt = world.time + COAL_TICK_INTERVAL;
+    }
+    remaining.push(e);
+  }
+  world.coalEmbers = remaining;
 };
 
 export const createCryoWave = (

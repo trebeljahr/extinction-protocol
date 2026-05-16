@@ -208,6 +208,13 @@ export const Placement = () => {
     }
   });
 
+  const updateDashAim = (pos: Vec2) => {
+    const state = useGame.getState();
+    const hero = state.world.hero;
+    if (!hero.dashAim) return;
+    state.setHeroDashAimDir({ x: pos.x - hero.pos.x, y: pos.y - hero.pos.y });
+  };
+
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (isTouchEvent(e)) {
       lastTouchInputAtRef.current = Date.now();
@@ -217,11 +224,13 @@ export const Placement = () => {
       const pos = eventPoint(e);
       setControllerActiveState(false);
       setHoverState(pos);
+      updateDashAim(pos);
       return;
     }
     const pos = eventPoint(e);
     setControllerActiveState(false);
     setHoverState(pos);
+    updateDashAim(pos);
   };
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
@@ -321,6 +330,17 @@ export const Placement = () => {
     if (Date.now() < suppressClickUntilRef.current) return;
     const pos = eventPoint(e);
     const state = useGame.getState();
+    // Dash aim active (Mike): a ground click commits the dash in the
+    // current aim direction and swallows the click so we don't also
+    // re-order the hero to walk somewhere.
+    if (state.world.hero.dashAim) {
+      state.setHeroDashAimDir({
+        x: pos.x - state.world.hero.pos.x,
+        y: pos.y - state.world.hero.pos.y,
+      });
+      state.triggerHeroAbility(0);
+      return;
+    }
     // Click-after-select: while the hero is selected, every ground click
     // is a move order (snapped to the path inside orderHeroMove). Hero
     // stays selected — click the hero again to deselect.

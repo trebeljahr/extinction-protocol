@@ -82,6 +82,12 @@ export type Enemy = {
   // until world.time crosses this stamp — keeps sustained DPS effective
   // and prevents the "ticked-by-a-feather" stalemate.
   regenPausedUntil: number;
+  // Melee skirmish lock — when set, this dino is engaging the hero. It
+  // halts forward path movement, plays its attack clip, and ticks
+  // damage onto the hero. Cleared in enemies.ts when the hero leaves
+  // range, dies, or the dino dies. One dino per hero — hero.ts picks
+  // the closest in-range candidate each tick.
+  engagedHeroId: EntityId | null;
   // Damage-type adaptation layered via the `resists` chip on EnemySpec.
   // Per-spawn multiplier on top of the base ENEMY_RESIST table — value 0
   // = full immunity to that damage type, 0.4 = 60% reduction, 1.5 = +50%
@@ -369,6 +375,34 @@ export type Hero = {
   hoverHeight: number;
   // High-level animation state — render picks the clip based on this.
   motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
+  // world.time when this hero last died (alive transitioned true→false).
+  // Drives the death explosion shockwave/flash render window. -1000
+  // means never died this run.
+  lastDeathAt: number;
+  // Next world.time Mike's dash will drop a coal ember. Throttles the
+  // burning-trail spawn rate so a single dash leaves ~9 tiles instead
+  // of one per tick (60). Mike-only; ignored by other variants.
+  mikeCoalDropAt: number;
+  // Mike-only pre-dash aim. When set, the dash key has been pressed
+  // once; the UI renders an arrow that follows the cursor. A second
+  // dash press OR a ground click commits the dash in `dir`. Escape
+  // clears it. Auto-clears after world.time >= expiresAt.
+  dashAim: { dir: Vec2; expiresAt: number } | null;
+};
+
+// Lingering damage tile dropped behind Mike during his dash. Each tile
+// ticks AoE flame damage to nearby enemies until expiresAt. Composited
+// per-tile so the render layer can fade individual embers as they age.
+export type CoalEmber = {
+  id: EntityId;
+  pos: Vec2;
+  expiresAt: number;
+  maxLife: number;
+  // Next world.time the tile applies damage. Damage is per-tick so a
+  // single ember tagged by a parade of raptors doesn't drain instantly.
+  nextTickAt: number;
+  tickDamage: number;
+  radius: number;
 };
 
 // HQ base weapon — a last-ditch defensive laser that fires from every
@@ -584,6 +618,7 @@ export type World = {
   beams: Beam[];
   explosions: Explosion[];
   cryoWaves: CryoWave[];
+  coalEmbers: CoalEmber[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
   bossTrickleStreams: ActiveBossTrickle[];

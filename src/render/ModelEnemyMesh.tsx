@@ -318,7 +318,11 @@ export const ModelEnemyMesh = ({
       // HQ) skip the death anim — they already played the attack pose
       // and despawning them at the gate looks cleaner without a corpse.
       item.wasLeak = leak !== undefined;
-      const desiredClip = leak && attackClip ? attackClip : activeClip;
+      // Engaged dinos (skirmishing with the hero) also pick the attack
+      // clip — same animation, different driver. Falls back to the
+      // walk loop if the GLB has no Attack/Bite/Roar clip.
+      const engagingHero = !leak && e.engagedHeroId !== null;
+      const desiredClip = (leak || engagingHero) && attackClip ? attackClip : activeClip;
       if (item.clip !== desiredClip) {
         item.mixer.stopAllAction();
         if (desiredClip) item.mixer.clipAction(desiredClip).reset().play();
@@ -335,8 +339,18 @@ export const ModelEnemyMesh = ({
       const dir = smoothDirection(path, e.segment, e.segmentT);
       const targetX = e.pos.x;
       const targetZ = -e.pos.y;
-      const pathYaw =
-        dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
+      // Engaged dinos face the hero so the bite/roar reads as an
+      // attack on them, not at thin air. Falls back to path yaw when
+      // the hero is gone or hero pos coincides with the enemy.
+      let pathYaw = dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
+      if (engagingHero) {
+        const hero = world.hero;
+        if (hero) {
+          const hdx = hero.pos.x - e.pos.x;
+          const hdy = hero.pos.y - e.pos.y;
+          if (hdx * hdx + hdy * hdy > 1e-6) pathYaw = Math.atan2(hdx, -hdy);
+        }
+      }
       const motionX = targetX - item.visX;
       const motionZ = targetZ - item.visZ;
       const motionLenSq = motionX * motionX + motionZ * motionZ;

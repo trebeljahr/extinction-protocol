@@ -8,8 +8,10 @@ import { distSq } from "./vec2";
 import {
   addShake,
   applyDamage,
+  createCoalEmber,
   createExplosion,
   createProjectile,
+  ENEMY_HERO_DAMAGE,
   emit,
   HERO_RADIUS,
   HERO_RESPAWN_DELAY,
@@ -45,6 +47,17 @@ export const HERO_LANE_HALF = 0.7;
 // Lateral offset eases toward the target value at this rate (units/sec)
 // so swapping sides feels smooth, not snappy.
 const HERO_LATERAL_LERP_PER_SEC = 2.2;
+// Skirmish: how far the hero will reach to "engage" the closest dino
+// in melee. Engaged dinos halt forward path movement until the hero
+// either dies, dashes free, or walks out of this range.
+const HERO_ENGAGE_RANGE = 1.6;
+// Window in which a Mike pre-dash aim stays valid before auto-clearing.
+const DASH_AIM_LIFETIME = 4.0;
+// Mike dash coal-trail tuning.
+const COAL_DROP_INTERVAL = 0.045; // ~9 embers per default 0.4s dash
+const COAL_TICK_DAMAGE = 16;
+const COAL_RADIUS = 0.85;
+const COAL_LIFETIME = 2.6;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -204,7 +217,10 @@ const firePendingShot = (
 };
 
 // Applies hero damage path — leaks through invincibility while dashing
-// and during respawn grace. Negative HP triggers respawn timer.
+// and during respawn grace. Negative HP triggers respawn timer. Death
+// fires a multi-layer explosion (warm fireball, white-hot core, ground
+// shockwave) mirroring the HQ destruction sequence so a wipe feels
+// equally violent.
 export const damageHero = (world: World, amount: number) => {
   const hero = world.hero;
   if (!hero.alive) return;
@@ -219,17 +235,45 @@ export const damageHero = (world: World, amount: number) => {
     hero.hp = 0;
     hero.alive = false;
     hero.selected = false;
+    hero.dashAim = null;
     hero.motionState = "dead";
     hero.respawnAt = world.time + HERO_RESPAWN_DELAY;
+    hero.lastDeathAt = world.time;
     hero.moveTarget = null;
     hero.vel = { x: 0, y: 0 };
     hero.pendingShots.length = 0;
     hero.payload = null;
-    spawnParticles(world, hero.pos, 32, "#ffb04a", [3, 7], 0.6);
-    spawnParticles(world, hero.pos, 16, "#ff5a3a", [4, 9], 0.4);
-    addShake(world, 0.45, 4);
+    // Drop engagement on every dino that was locked onto this hero so
+    // they resume marching instead of attacking thin air.
+    for (const e of world.enemies) {
+      if (e.engagedHeroId === hero.id) e.engagedHeroId = null;
+    }
+    // HQ-style explosion: warm fireball + hot core + ground shockwave.
+    createExplosion(world, hero.pos, 2.4, 0.7);
+    spawnParticles(world, hero.pos, 48, "#ffb04a", [4, 9], 0.7);
+    spawnParticles(world, hero.pos, 28, "#ff5a3a", [5, 11], 0.55);
+    spawnParticles(world, hero.pos, 22, "#fff4d6", [2, 5], 0.35);
+    addShake(world, 0.7, 3.2);
     emit(world, { type: "death", pos: hero.pos });
   }
+};
+
+// Cursor-driven aim direction setter — UI calls this each pointermove
+// while hero.dashAim is active so the rendered arrow tracks the mouse.
+export const setHeroDashAimDir = (world: World, dir: Vec2) => {
+  const hero = world.hero;
+  if (!hero.alive || !hero.dashAim) return;
+  const d = Math.hypot(dir.x, dir.y);
+  if (d < 1e-3) return;
+  hero.dashAim.dir = { x: dir.x / d, y: dir.y / d };
+};
+
+// Cancels a pending Mike dash aim (Escape, deselect, variant swap).
+// Cooldown was never consumed, so the dash remains ready.
+export const cancelHeroDashAim = (world: World) => {
+  const hero = world.hero;
+  if (!hero.dashAim) return;
+  hero.dashAim = null;
 };
 
 const respawnHero = (world: World, hero: Hero) => {
@@ -386,6 +430,10 @@ export const updateHero = (world: World, dt: number) => {
   const baseSpeed = hero.speed * hero.speedMul;
   const speed = dashing ? dashSpec.speed : baseSpeed;
 
+  // Auto-clear an expired pre-dash aim — a Mike aim ignored for a few
+  // seconds shouldn't trap the cursor in commit-on-click mode.
+  if (hero.dashAim && world.time >= hero.dashAim.expiresAt) hero.dashAim = null;
+
   let desiredX = 0;
   let desiredY = 0;
   let walking = false;
@@ -467,6 +515,16 @@ export const updateHero = (world: World, dt: number) => {
     desiredX = fx * dashSpec.speed;
     desiredY = fy * dashSpec.speed;
     walking = true;
+    // Mike leaves a burning-coal trail behind him during the dash.
+    // Drops one ember per COAL_DROP_INTERVAL so the path is dense
+    // enough to read as a continuous burn lane without flooding the
+    // sim with embers on a single dash.
+    if (hero.variant === "mike") {
+      if (world.time >= hero.mikeCoalDropAt) {
+        createCoalEmber(world, hero.pos, COAL_TICK_DAMAGE, COAL_RADIUS, COAL_LIFETIME);
+        hero.mikeCoalDropAt = world.time + COAL_DROP_INTERVAL;
+      }
+    }
   }
 
   const k = dampFactor(dt, HERO_ACCEL_HALFLIFE);
@@ -515,18 +573,47 @@ export const updateHero = (world: World, dt: number) => {
   const ky = 1 - Math.exp(-HERO_TURN_RATE * dt);
   hero.facing += shortAngleDelta(hero.facing, targetYaw) * ky;
 
-  // Continuous melee chip from enemies in skirmish range. Scales by
-  // enemy damage so a titan stomp hurts and a swarm tickles. Marks
-  // hero.lastDamagedAt → regen suppression.
-  const HERO_HURT_RANGE = 1.1;
+  // Skirmish lock + continuous melee. One hero engages roughly one
+  // dino at a time: pick the closest in-range candidate, mark it as
+  // engaged, and tick its hero-damage onto the hero. Other dinos in
+  // range get their lock cleared so the lane keeps marching.
+  // ENEMY_HERO_DAMAGE is its own axis from `e.damage` (which is the
+  // leak/HQ damage), so a t-rex feels devastating in melee while
+  // swarm chip is a tickle.
+  const HERO_HURT_RANGE = HERO_ENGAGE_RANGE;
   const hurtR2 = HERO_HURT_RANGE * HERO_HURT_RANGE;
+  let closest: Enemy | null = null;
+  let closestD2 = Number.POSITIVE_INFINITY;
   if (hero.alive && world.time >= hero.abilityActiveUntil[0]) {
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (e.leak) continue;
-      if (distSq(e.pos, hero.pos) > hurtR2) continue;
-      damageHero(world, e.damage * dt * 2.4);
-      if (!hero.alive) break;
+      const d2 = distSq(e.pos, hero.pos);
+      if (d2 > hurtR2) {
+        if (e.engagedHeroId === hero.id) e.engagedHeroId = null;
+        continue;
+      }
+      if (d2 < closestD2) {
+        closestD2 = d2;
+        closest = e;
+      }
+    }
+    if (closest) {
+      // Lock the closest dino onto this hero; release everyone else
+      // currently locked so the engagement is genuinely 1:1.
+      for (const e of world.enemies) {
+        if (e === closest) continue;
+        if (e.engagedHeroId === hero.id) e.engagedHeroId = null;
+      }
+      closest.engagedHeroId = hero.id;
+      const perTick = ENEMY_HERO_DAMAGE[closest.kind] ?? closest.damage;
+      damageHero(world, perTick * dt);
+    }
+  } else {
+    // Hero is mid-dash (i-frames) or dead — drop every engagement so
+    // dinos resume their lane march instead of attacking thin air.
+    for (const e of world.enemies) {
+      if (e.engagedHeroId === hero.id) e.engagedHeroId = null;
     }
   }
   // Liquid surface check feeds both the jetpack hover state and the
@@ -608,10 +695,36 @@ export const selectHero = (world: World, on: boolean) => {
 export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean => {
   const hero = world.hero;
   if (!hero.alive) return false;
-  if (world.time < hero.abilityReadyAt[slot]) return false;
 
   const variant = HERO_SPECS[hero.variant];
   const spec = variant.abilities[slot];
+
+  // Mike's dash is the only 2-stage ability today: first press enters
+  // aim mode (cursor-driven arrow), second press / ground click commits
+  // in that direction. No cooldown is consumed by the aim stage itself,
+  // so the player can preview safely.
+  if (slot === 0 && spec.type === "dash" && hero.variant === "mike") {
+    if (hero.dashAim === null) {
+      if (world.time < hero.abilityReadyAt[slot]) return false;
+      const initial = dashDir(hero);
+      hero.dashAim = { dir: initial, expiresAt: world.time + DASH_AIM_LIFETIME };
+      return true;
+    }
+    if (world.time < hero.abilityReadyAt[slot]) {
+      hero.dashAim = null;
+      return false;
+    }
+    const dir = hero.dashAim.dir;
+    hero.dashAim = null;
+    hero.facing = Math.atan2(dir.x, -dir.y);
+    hero.abilityReadyAt[slot] = world.time + spec.cooldown * hero.abilityCooldownMul;
+    hero.abilityActiveUntil[0] = world.time + spec.duration;
+    hero.mikeCoalDropAt = world.time;
+    spawnParticles(world, hero.pos, 14, variant.tint, [2, 5], 0.35);
+    return true;
+  }
+
+  if (world.time < hero.abilityReadyAt[slot]) return false;
   hero.abilityReadyAt[slot] = world.time + spec.cooldown * hero.abilityCooldownMul;
 
   if (spec.type === "dash") {
