@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { measureVisibleBox } from "../render/measureModel";
 import { buildPlusTexture } from "../render/RegenBadges";
 import type { MechanicId } from "../sim/mechanicsText";
 import type { EnemyKind } from "../sim/types";
@@ -77,14 +78,15 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
   const eliteTint = useMemo(() => new THREE.Color(ELITE_TINT_BY_KIND[kind]), [kind]);
 
   const obj = useMemo(() => {
-    // Measure on the original gltf scene (not the clone). The clone
-    // returned by SkeletonUtils.clone() has bones whose world matrices
-    // haven't propagated yet, which makes Box3.setFromObject return a
-    // wildly inflated bbox (3000+ units instead of ~2 — the model
-    // ends up rendered ~1000× too small and effectively invisible).
-    // The play scene's ModelEnemyMesh deliberately measures `scene`
-    // for the same reason — so we mirror it here.
-    const measureBox = new THREE.Box3().setFromObject(gltf.scene);
+    // precise=true via measureVisibleBox so the bbox reflects the
+    // bind-pose visible skin, not raw POSITION attribute. The Kenney
+    // Triceratops in particular has POSITION vertices ~5.6 units below
+    // where its bind-pose mesh renders; without this, grounding by
+    // box.min.y * s lifts the body well above the floor and the dino
+    // floats inside its shield bubble. Measured on the original gltf
+    // scene because the SkeletonUtils clone hasn't had its world
+    // matrices propagated yet at this point.
+    const measureBox = measureVisibleBox(gltf.scene);
     const size = measureBox.getSize(new THREE.Vector3());
     const center = measureBox.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
