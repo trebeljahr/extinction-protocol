@@ -19,7 +19,7 @@ export const LandscapeNudge = () => {
         Rotate to landscape
       </div>
       <div className="text-[13px] text-fg-muted leading-[1.5] max-w-[280px]">
-        Extinction Protocol plays best with the screen turned sideways.
+        Mesozoic Protocol plays best with the screen turned sideways.
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# Extinction Protocol
+# Mesozoic Protocol
 
 Single-player roguelite tower defense: deploy sci-fi turrets, hold collapsing outposts, and survive waves of prehistoric and bio-mech threats in a top-down 3D battlefield.
 

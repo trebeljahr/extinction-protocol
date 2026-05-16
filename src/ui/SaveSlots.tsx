@@ -108,7 +108,7 @@ export const SaveSlots = () => {
       <SettingsMenu />
 
       <header className="save-slots-title">
-        <h1>Extinction Protocol</h1>
+        <h1>Mesozoic Protocol</h1>
         {!showMenu && <div className="save-slots-subtitle">Select a save</div>}
       </header>
 

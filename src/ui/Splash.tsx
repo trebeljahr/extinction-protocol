@@ -79,7 +79,7 @@ export const Splash = () => {
         <div className="splash-mark" aria-hidden>
           <img src="/icons/icon.png" alt="" />
         </div>
-        <h1 className="splash-title">Extinction Protocol</h1>
+        <h1 className="splash-title">Mesozoic Protocol</h1>
         <div className="splash-subtitle">Defense Network · Initializing</div>
         <div className="splash-bar" aria-hidden>
           <div className="splash-bar-fill" />

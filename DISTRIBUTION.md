@@ -1,6 +1,6 @@
 # Distribution
 
-How to ship Extinction Protocol to desktop (Tauri / Steam) and mobile (Capacitor / iOS / Android).
+How to ship Mesozoic Protocol to desktop (Tauri / Steam) and mobile (Capacitor / iOS / Android).
 
 The web build is a static Vite bundle in `dist/`. Both shells just wrap that bundle:
 
@@ -25,8 +25,8 @@ pnpm tauri build
 
 Outputs land in `src-tauri/target/release/bundle/`:
 
-- macOS: `bundle/macos/Extinction Protocol.app` and `bundle/dmg/Extinction Protocol_<version>_<arch>.dmg`
-- Windows: `bundle/msi/Extinction Protocol_<version>_x64_en-US.msi` and `bundle/nsis/Extinction Protocol_<version>_x64-setup.exe`
+- macOS: `bundle/macos/Mesozoic Protocol.app` and `bundle/dmg/Mesozoic Protocol_<version>_<arch>.dmg`
+- Windows: `bundle/msi/Mesozoic Protocol_<version>_x64_en-US.msi` and `bundle/nsis/Mesozoic Protocol_<version>_x64-setup.exe`
 - Linux: `bundle/appimage/extinction-protocol_<version>_amd64.AppImage` and `bundle/deb/extinction-protocol_<version>_amd64.deb`
 
 The bundle metadata (category=Game, copyright, publisher, descriptions, min system version) is in `src-tauri/tauri.conf.json` under `bundle.*`.
@@ -53,7 +53,7 @@ Steam distributes through its own DRM and doesn't require notarization, but unsi
 2. Install Steamworks SDK + `steamcmd`: <https://partner.steamgames.com/doc/sdk>.
 3. Configure a depot per platform (macOS / Windows / Linux).
 4. Build, then point your depot's `ContentRoot` at the platform-specific output:
-   - macOS depot → `src-tauri/target/release/bundle/macos/Extinction Protocol.app/`
+   - macOS depot → `src-tauri/target/release/bundle/macos/Mesozoic Protocol.app/`
    - Windows depot → directory containing `extinction-protocol.exe` and any sibling DLLs/resources Tauri produced
    - Linux depot → AppImage or extracted runtime
 5. Run `steamcmd +run_app_build <path-to-app_build_<appid>.vdf>` to upload.

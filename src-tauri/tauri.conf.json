@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Extinction Protocol",
+  "productName": "Mesozoic Protocol",
   "version": "0.1.0",
   "identifier": "com.extinctionprotocol.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Extinction Protocol",
+        "title": "Mesozoic Protocol",
         "width": 1280,
         "height": 800,
         "minWidth": 960,

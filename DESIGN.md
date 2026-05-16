@@ -1,6 +1,6 @@
-# Extinction Protocol — Design Document
+# Mesozoic Protocol — Design Document
 
-> **Working title.** Single-player roguelite tower defense. Top-down, 3D models under orthographic camera. Sci-fi turrets defend a collapsing research outpost against waves of reanimated prehistoric fauna and rogue bio-mech.
+> **Name locked.** Mesozoic Protocol — clean on Steam / iOS / Google Play / domain at decision time. Old working title was "Extinction Protocol" (Steam slot held by Drawblack app 1078210 since 2019). Single-player roguelite tower defense. Top-down, 3D models under orthographic camera. Sci-fi turrets defend a collapsing research outpost against waves of reanimated prehistoric fauna and rogue bio-mech.
 
 ---
 

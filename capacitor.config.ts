@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.extinctionprotocol.app",
-  appName: "Extinction Protocol",
+  appName: "Mesozoic Protocol",
   webDir: "dist",
   backgroundColor: "#0b1016",
   ios: {
