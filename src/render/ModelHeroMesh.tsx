@@ -16,6 +16,11 @@ const HERO_URL: Record<string, string> = {
 const TARGET_SIZE = 1.8;
 const POS_HALFLIFE = 0.04;
 const YAW_HALFLIFE = 0.08;
+// Reference hover lift used to normalize jet opacity. Stays in sync
+// with HERO_HOVER_HEIGHT in sim/hero.ts; render reads hero.hoverHeight
+// directly and divides by this to get a 0..1 intensity.
+const HOVER_HEIGHT_FULL = 0.55;
+const JET_COLOR = new THREE.Color("#9fd8ff");
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -63,6 +68,7 @@ export const ModelHeroMesh = () => {
     yaw: 0,
     init: false,
   });
+  const jetRef = useRef<THREE.Mesh>(null);
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = measureVisibleBox(scene);
@@ -198,9 +204,26 @@ export const ModelHeroMesh = () => {
       vis.yaw += shortAngleDelta(vis.yaw, hero.facing) * ky;
     }
 
-    obj.position.set(vis.x - centerXZ.x, -scaledMinY, vis.z - centerXZ.z);
+    obj.position.set(vis.x - centerXZ.x, -scaledMinY + hero.hoverHeight, vis.z - centerXZ.z);
     obj.rotation.set(0, vis.yaw, 0);
     obj.visible = hero.alive || hero.motionState === "dead";
+
+    // Jetpack jet visual — two downward thrust cones beneath the
+    // hero whose opacity tracks the hover engagement so they fade in
+    // as the hero lifts off and out as she touches dry ground.
+    const jet = jetRef.current;
+    if (jet) {
+      const lift = hero.hoverHeight;
+      const intensity = Math.max(0, Math.min(1, lift / HOVER_HEIGHT_FULL));
+      jet.visible = intensity > 0.02;
+      if (jet.visible) {
+        jet.position.set(vis.x, lift * 0.55, vis.z);
+        const flicker = 0.85 + Math.sin(world.time * 38) * 0.15;
+        jet.scale.set(0.55, 0.55 * flicker, 0.55);
+        const mat = jet.material as THREE.MeshBasicMaterial;
+        mat.opacity = intensity * 0.85;
+      }
+    }
 
     // Flash tint: hurt + muzzle flare share a warm emissive pop.
     const flashing = world.time < hero.flashUntil || world.time < hero.shootFlashUntil;
@@ -220,12 +243,33 @@ export const ModelHeroMesh = () => {
     () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     [],
   );
+  // Jetpack thrust cone — open end down, tapers toward the hero's feet.
+  // ConeGeometry's default orientation points +Y, so rotate it so the
+  // wide end faces the ground (-Y) for a plausible exhaust shape.
+  const jetGeom = useMemo(() => {
+    const g = new THREE.ConeGeometry(0.55, 1.1, 14, 1, true);
+    g.rotateX(Math.PI);
+    return g;
+  }, []);
+  const jetMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: JET_COLOR,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    [],
+  );
   useEffect(
     () => () => {
       proxyGeom.dispose();
       proxyMat.dispose();
+      jetGeom.dispose();
+      jetMat.dispose();
     },
-    [proxyGeom, proxyMat],
+    [proxyGeom, proxyMat, jetGeom, jetMat],
   );
   const proxyRef = useRef<THREE.Mesh>(null);
 
@@ -253,6 +297,7 @@ export const ModelHeroMesh = () => {
   return (
     <group ref={groupRef}>
       <mesh ref={proxyRef} geometry={proxyGeom} material={proxyMat} onClick={onClick} />
+      <mesh ref={jetRef} geometry={jetGeom} material={jetMat} visible={false} />
     </group>
   );
 };

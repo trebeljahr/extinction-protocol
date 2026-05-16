@@ -26,6 +26,16 @@ const HERO_PROJECTILE_SPEED = 26;
 // Seconds after the last damage tick before regen kicks back in.
 const HERO_REGEN_DELAY = 4.0;
 const HERO_REGEN_PER_SEC = 22;
+// Look-ahead steering — distance the hero "sees" ahead of their motion
+// for trees/rocks/towers. Anything inside the lateral clearance band
+// applies a sideways nudge so the hero arcs around it instead of
+// hitting + sliding off via resolveOverlap.
+const HERO_AVOID_LOOKAHEAD = 2.6;
+const HERO_AVOID_CLEARANCE = 0.25;
+const HERO_AVOID_STRENGTH = 2.4;
+// Visual hover offset (world units) while over a liquid surface.
+const HERO_HOVER_HEIGHT = 0.55;
+const HERO_HOVER_HALFLIFE = 0.12;
 
 const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
 
@@ -220,6 +230,45 @@ const respawnHero = (world: World, hero: Hero) => {
   spawnParticles(world, hero.pos, 24, "#9fd8ff", [2, 5], 0.5);
 };
 
+// Local steering: nudge desired velocity sideways around any blocker
+// the hero is heading at. Skips obstacles behind the hero or outside
+// the look-ahead cone. Multiple obstacles sum so a cluster (grove)
+// produces a clean arc rather than oscillation. Returns the steered
+// velocity; falls through unchanged when desired is near-zero.
+const avoidObstacles = (world: World, hero: Hero, dx: number, dy: number): Vec2 => {
+  const mag = Math.hypot(dx, dy);
+  if (mag < 0.1) return { x: dx, y: dy };
+  const fx = dx / mag;
+  const fy = dy / mag;
+  // Left-perpendicular (rotate forward 90° CCW in world XY).
+  const px = -fy;
+  const py = fx;
+  let pushX = 0;
+  let pushY = 0;
+  const consider = (bx: number, by: number, br: number) => {
+    const ox = bx - hero.pos.x;
+    const oy = by - hero.pos.y;
+    const forward = ox * fx + oy * fy;
+    if (forward <= 0 || forward > HERO_AVOID_LOOKAHEAD) return;
+    const lateral = ox * px + oy * py;
+    const band = br + HERO_RADIUS + HERO_AVOID_CLEARANCE;
+    const absLat = Math.abs(lateral);
+    if (absLat > band) return;
+    // Push to the opposite side of where the blocker sits. Urgency
+    // ramps as the obstacle approaches: full strength at touch range,
+    // ~0 at the lookahead horizon.
+    const urgency = 1 - forward / HERO_AVOID_LOOKAHEAD;
+    const sign = lateral >= 0 ? -1 : 1;
+    const strength = ((band - absLat) / band) * urgency * HERO_AVOID_STRENGTH * mag;
+    pushX += px * sign * strength;
+    pushY += py * sign * strength;
+  };
+  for (const t of world.trees) consider(t.pos.x, t.pos.y, TREE_FOOTPRINT * t.scale);
+  for (const r of world.rocks) consider(r.pos.x, r.pos.y, ROCK_FOOTPRINT * r.scale);
+  for (const t of world.towers) consider(t.pos.x, t.pos.y, TOWER_FOOTPRINT * 0.6);
+  return { x: dx + pushX, y: dy + pushY };
+};
+
 const dashDir = (hero: Hero): Vec2 => {
   if (hero.moveTarget) {
     const dx = hero.moveTarget.x - hero.pos.x;
@@ -316,6 +365,10 @@ export const updateHero = (world: World, dt: number) => {
       desiredX = (dx / d) * v;
       desiredY = (dy / d) * v;
       walking = true;
+      // Steer around trees/rocks/towers in the look-ahead cone.
+      const steered = avoidObstacles(world, hero, desiredX, desiredY);
+      desiredX = steered.x;
+      desiredY = steered.y;
     }
   }
 
@@ -387,9 +440,19 @@ export const updateHero = (world: World, dt: number) => {
       if (!hero.alive) break;
     }
   }
+  // Liquid surface check feeds both the jetpack hover state and the
+  // lava DOT exemption. Auto-engage hover whenever the hero is over
+  // lava/water/goo so the visual lift + jet VFX read instantly; the
+  // lava DOT is suppressed for that exact span so the jetpack does
+  // what it looks like it does.
+  const onLiquid = isOnLavaSurface(world.lavaFeatures, hero.pos.x, hero.pos.y, HERO_RADIUS);
+  hero.hovering = onLiquid;
+  const hoverTarget = onLiquid ? HERO_HOVER_HEIGHT : 0;
+  hero.hoverHeight += (hoverTarget - hero.hoverHeight) * dampFactor(dt, HERO_HOVER_HALFLIFE);
   if (
     hero.alive &&
     world.biome === "lava" &&
+    !hero.hovering &&
     world.time >= hero.abilityActiveUntil[0] &&
     isOnLavaSurface(world.lavaFeatures, hero.pos.x, hero.pos.y, HERO_RADIUS)
   ) {

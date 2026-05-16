@@ -97,6 +97,8 @@ const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number)
     xp,
     level: levelForXp(xp),
     stuckTimer: 0,
+    hovering: false,
+    hoverHeight: 0,
     motionState: "idle",
   };
 };

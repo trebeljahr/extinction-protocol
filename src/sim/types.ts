@@ -290,6 +290,14 @@ export type Hero = {
   // (inside a tree, on the far side of a fully-blocked gap) doesn't pin
   // the hero into a useless oscillation against the obstacle.
   stuckTimer: number;
+  // True while the hero is over a liquid surface (lava river/lake,
+  // forest water, alien goo). Render lifts the mesh and spawns jet VFX;
+  // sim skips lava DOT. Recomputed each tick from world.lavaFeatures.
+  hovering: boolean;
+  // Smoothed visual hover height in world units. 0 on dry ground,
+  // ~0.5 over liquid. Damped on the sim side so render can read it
+  // without its own smoothing state.
+  hoverHeight: number;
   // High-level animation state — render picks the clip based on this.
   motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
 };
