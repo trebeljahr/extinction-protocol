@@ -753,6 +753,65 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 12, stego: 7, allosaur: 5 }),
       chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 7, titan: 2 }),
     ],
+    heroic: {
+      startGold: 450,
+      tagline: "No chain — pop shields the hard way",
+      // Chain trivializes shielded packs; deny it and force pulse focus
+      // or flame DoT to crack the bubbles.
+      forbiddenTowers: ["chain"],
+      waves: [
+        intro(20, 14),
+        mixed({ raptor: 20, swarm: 16, allosaur: 6, stego: 2 }),
+        // Heavier shielded raptor opener — without chain, this stings.
+        shielded({ raptor: 18 }, 0.5),
+        rush(100, 18),
+        // Shielded raptors blended with shielded swarm — twice the
+        // bubble-pop cost.
+        partShielded({ raptor: 12, swarm: 10 }, { raptor: 14, swarm: 12, allosaur: 6 }, 0.5),
+        heavy({ armored: 8, stego: 5, allosaur: 4 }),
+        rush(140, 28),
+        // Shielded armored + plain stego push — pulse focus + flame DoT
+        // is the answer.
+        {
+          archetype: "heavy",
+          spacing: 0.85,
+          spawns: [
+            ...toSpawns({ armored: 5 }, 0, { shielded: true }),
+            ...toSpawns({ stego: 5, allosaur: 4 }),
+          ],
+        },
+        heavy({ armored: 14, stego: 8, allosaur: 6 }),
+        // Finale: shielded chaos. Without chain, you're paying full
+        // bubble cost on every raptor.
+        {
+          archetype: "chaos",
+          spacing: 0.28,
+          spawns: [
+            ...toSpawns({ raptor: 18, swarm: 18 }, 0, { shielded: true }),
+            ...toSpawns({ allosaur: 12, stego: 7, armored: 6, titan: 2 }),
+          ],
+        },
+      ],
+    },
+    iron: {
+      startGold: 420,
+      tagline: "One life. Pulse, cryo, mortar, hive. No chain.",
+      // Force a focus-burst comp — pulse cracks shields, mortar splashes
+      // packs after bubbles drop, cryo controls tempo, hive buffs rate.
+      lockedLoadout: ["pulse", "cryo", "mortar", "hive"],
+      singleLife: true,
+      noSelling: true,
+      waves: [
+        mixed({ raptor: 16, swarm: 12, allosaur: 4 }),
+        shielded({ raptor: 12 }, 0.55),
+        rush(80, 14),
+        partShielded({ raptor: 8 }, { raptor: 14, swarm: 14, allosaur: 5 }, 0.5),
+        heavy({ armored: 7, stego: 4, allosaur: 3 }),
+        mixed({ raptor: 20, swarm: 16, allosaur: 8, stego: 4, armored: 2 }),
+        heavy({ armored: 12, stego: 7, allosaur: 5 }),
+        chaos({ raptor: 26, swarm: 32, allosaur: 12, stego: 7, armored: 6, titan: 2 }),
+      ],
+    },
   },
   {
     id: 12,
