@@ -4,10 +4,24 @@ import type {
   DamageType,
   EnemyKind,
   EnemySpec,
+  TowerKind,
   Vec2,
   WaveArchetype,
   WaveSpec,
 } from "../sim/types";
+
+// Challenge-mode override block — replaces a level's startGold/waves and
+// adds restrictions. Read by the mode selector + run setup; absent fields
+// fall back to the normal-mode level config.
+export type ModeConfig = {
+  startGold: number;
+  waves: WaveSpec[];
+  forbiddenTowers?: TowerKind[];
+  lockedLoadout?: TowerKind[];
+  singleLife?: boolean;
+  noSelling?: boolean;
+  tagline?: string;
+};
 
 export type LevelConfig = {
   id: number;
@@ -19,6 +33,8 @@ export type LevelConfig = {
   hpScale?: number;
   // Biome is inferred from nodePos via biomeForPos() — there is no per-level
   // override. See src/biomes.ts for zone definitions.
+  heroic?: ModeConfig;
+  iron?: ModeConfig;
 };
 
 const p = (...coords: number[]): Vec2[] => {
@@ -287,6 +303,39 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 16, swarm: 12, allosaur: 4, stego: 1 }),
       mixed({ raptor: 18, swarm: 12, allosaur: 4, stego: 2 }),
     ],
+    heroic: {
+      tagline: "No flame. Hatchlings come in waves.",
+      forbiddenTowers: ["flame"],
+      startGold: 320,
+      waves: [
+        intro(10, 6),
+        rush(40),
+        mixed({ raptor: 14, swarm: 10, allosaur: 2 }),
+        rush(55, 6),
+        mixed({ raptor: 16, swarm: 14, allosaur: 3, stego: 1 }),
+        rush(70, 10),
+        mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 1 }),
+        chaos({ raptor: 18, swarm: 22, allosaur: 4, stego: 2 }),
+        mixed({ raptor: 20, swarm: 16, allosaur: 5, stego: 2 }),
+        chaos({ raptor: 22, swarm: 26, allosaur: 5, stego: 2 }),
+      ],
+    },
+    iron: {
+      tagline: "Pulse and mortar only. One life.",
+      lockedLoadout: ["pulse", "mortar"],
+      singleLife: true,
+      noSelling: true,
+      startGold: 600,
+      waves: [
+        intro(10, 4),
+        mixed({ raptor: 14, swarm: 8, allosaur: 2 }),
+        rush(40, 4),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3, stego: 1 }),
+        rush(50, 8),
+        mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 1 }),
+        chaos({ raptor: 20, swarm: 18, allosaur: 4, stego: 2 }),
+      ],
+    },
   },
   {
     id: 3,
@@ -306,6 +355,39 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 2 }),
       chaos({ raptor: 16, swarm: 18, allosaur: 4, stego: 2 }),
     ],
+    heroic: {
+      tagline: "No mortar. The canyon fills with armor.",
+      forbiddenTowers: ["mortar"],
+      startGold: 350,
+      waves: [
+        intro(12, 8),
+        mixed({ raptor: 14, swarm: 10, allosaur: 3 }),
+        rush(50, 6),
+        heavy({ armored: 3, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 16, swarm: 14, allosaur: 4, stego: 2 }),
+        heavy({ armored: 5, stego: 2, allosaur: 3 }),
+        rush(70, 12),
+        mixed({ raptor: 18, swarm: 16, allosaur: 5, stego: 3, armored: 1 }),
+        heavy({ armored: 7, stego: 3, allosaur: 3 }),
+        chaos({ raptor: 22, swarm: 24, allosaur: 6, stego: 3, armored: 2 }),
+      ],
+    },
+    iron: {
+      tagline: "Chain and cryo only. No selling, one life.",
+      lockedLoadout: ["chain", "cryo"],
+      singleLife: true,
+      noSelling: true,
+      startGold: 500,
+      waves: [
+        intro(14, 8),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3 }),
+        rush(55, 8),
+        heavy({ armored: 3, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 2 }),
+        heavy({ armored: 5, stego: 3, allosaur: 2 }),
+        chaos({ raptor: 22, swarm: 26, allosaur: 5, stego: 2, armored: 1 }),
+      ],
+    },
   },
   {
     id: 4,
@@ -325,6 +407,39 @@ export const LEVELS: LevelConfig[] = [
       mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 2 }),
       chaos({ raptor: 18, swarm: 22, allosaur: 5, stego: 2 }),
     ],
+    heroic: {
+      tagline: "No chain. Swarms close in from both sides.",
+      forbiddenTowers: ["chain"],
+      startGold: 360,
+      waves: [
+        intro(14, 8),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3 }),
+        rush(55, 8),
+        heavy({ armored: 4, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 18, swarm: 14, allosaur: 4, stego: 2 }),
+        rush(70, 12),
+        heavy({ armored: 6, stego: 3, allosaur: 3 }),
+        mixed({ raptor: 20, swarm: 16, allosaur: 5, stego: 3 }),
+        chaos({ raptor: 20, swarm: 28, allosaur: 6, stego: 3, armored: 1 }),
+        chaos({ raptor: 24, swarm: 32, allosaur: 6, stego: 3, armored: 2 }),
+      ],
+    },
+    iron: {
+      tagline: "Cryo and flame only. No selling, one life.",
+      lockedLoadout: ["cryo", "flame"],
+      singleLife: true,
+      noSelling: true,
+      startGold: 550,
+      waves: [
+        intro(16, 10),
+        mixed({ raptor: 18, swarm: 14, allosaur: 3 }),
+        rush(70, 12),
+        heavy({ armored: 4, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 20, swarm: 16, allosaur: 4, stego: 2 }),
+        heavy({ armored: 6, stego: 3, allosaur: 3 }),
+        chaos({ raptor: 22, swarm: 30, allosaur: 5, stego: 2, armored: 2 }),
+      ],
+    },
   },
   {
     id: 5,
@@ -348,6 +463,59 @@ export const LEVELS: LevelConfig[] = [
       // the pack as coming from the queen, not from spawn zero.
       bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55),
     ],
+    heroic: {
+      tagline: "No pulse. The Matriarch brings her fierce kin.",
+      forbiddenTowers: ["pulse"],
+      startGold: 380,
+      waves: [
+        intro(16, 10),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3 }),
+        rush(65, 12),
+        heavy({ armored: 4, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 20, swarm: 16, para: 4, allosaur: 5, stego: 2 }),
+        rush(80, 16),
+        heavy({ armored: 6, stego: 3, allosaur: 3 }),
+        chaos({ raptor: 22, swarm: 24, para: 4, allosaur: 6, stego: 3 }),
+        {
+          archetype: "swarm",
+          spacing: 0.13,
+          spawns: [...toSpawns({ raptor: 24, swarm: 18 }, 0, { fierce: true })],
+        },
+        // Boss wave: same Raptor Matriarch debut, but flanked by a
+        // fierce raptor pack and an extra escort. No pulse means chain
+        // burst + flame DoT carry the kill.
+        {
+          archetype: "convoy",
+          spacing: 0.55,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ raptor: 8, allosaur: 3 }, 0),
+            ...toSpawns({ raptor: 6 }, 0, { fierce: true }),
+            bossSpawn("raptor", 0),
+          ],
+          bossTrickle: [trickleStream(0, ["swarm", "raptor"], 1.8, 2.6, 8)],
+        },
+      ],
+    },
+    iron: {
+      tagline: "Mortar and hive only. The Matriarch is the test.",
+      lockedLoadout: ["mortar", "hive"],
+      singleLife: true,
+      noSelling: true,
+      startGold: 750,
+      waves: [
+        intro(16, 10),
+        mixed({ raptor: 16, swarm: 12, allosaur: 3 }),
+        rush(60, 10),
+        heavy({ armored: 3, stego: 2, allosaur: 2 }),
+        mixed({ raptor: 18, swarm: 14, para: 3, allosaur: 4, stego: 2 }),
+        chaos({ raptor: 20, swarm: 22, allosaur: 5, stego: 2 }),
+        // Boss wave: hive-buffed mortar must crack the Matriarch's
+        // entourage and her child raptors. No selling means the player
+        // commits to spot mode on a chokepoint up front.
+        bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55),
+      ],
+    },
   },
   {
     id: 6,
