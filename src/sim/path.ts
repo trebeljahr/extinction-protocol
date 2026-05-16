@@ -1,6 +1,32 @@
 import type { Vec2 } from "./types";
 import { dist, lerp } from "./vec2";
 
+// Default smoothPath subdivision count. Exposed as a const so callers
+// that need to map a raw-waypoint index to its smoothed-output index
+// (e.g., the painted-ribbon start when a lead-in waypoint was prepended)
+// don't have to know the default magic number.
+export const SMOOTH_PATH_SUBDIVISIONS = 10;
+
+// Prepend a single off-map waypoint extending the path backwards from
+// its first authored point along the reverse of the first segment's
+// direction. After smoothing this becomes a straight lead-in that lets
+// enemies walk on-screen from outside the visible viewport instead of
+// popping into existence at the map border.
+export const prependLeadIn = (path: Vec2[], distance: number): Vec2[] => {
+  if (path.length < 2 || distance <= 0) return path.slice();
+  const p0 = path[0];
+  const p1 = path[1];
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy);
+  if (len <= 1e-6) return path.slice();
+  const pre: Vec2 = {
+    x: p0.x - (dx / len) * distance,
+    y: p0.y - (dy / len) * distance,
+  };
+  return [pre, ...path];
+};
+
 // Centripetal Catmull–Rom subdivision (alpha = 0.5). Endpoints are
 // reflected to give the first/last spans a tangent. Returns a denser
 // polyline that passes through every original waypoint but bends
@@ -14,7 +40,7 @@ import { dist, lerp } from "./vec2";
 // spline can loop back on itself when two original waypoints sit close
 // together at a tight bend, which renders as a folded ribbon ("dark
 // wedge" artefact) at the outside of the corner.
-export const smoothPath = (path: Vec2[], subdivisions = 10): Vec2[] => {
+export const smoothPath = (path: Vec2[], subdivisions = SMOOTH_PATH_SUBDIVISIONS): Vec2[] => {
   if (path.length < 2) return path.slice();
   const ext: Vec2[] = [];
   ext.push({ x: 2 * path[0].x - path[1].x, y: 2 * path[0].y - path[1].y });

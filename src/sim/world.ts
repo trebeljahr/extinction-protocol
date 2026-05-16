@@ -16,7 +16,7 @@ import {
   xpForEnemyKill,
 } from "./heroSkills";
 import { HERO_SPECS } from "./heroVariants";
-import { samplePath, smoothPath } from "./path";
+import { prependLeadIn, samplePath, SMOOTH_PATH_SUBDIVISIONS, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
 import type {
@@ -458,7 +458,25 @@ export const createWorld = (
   // once here is what keeps the painted lane and the enemy lane aligned —
   // if any consumer fell back to the raw waypoints they'd cut corners
   // that the others curved around.
-  const paths = level.paths.map((p) => smoothPath(p));
+  // Off-map lead-in: each authored path gets one extra waypoint prepended
+  // in the reverse of its first segment direction so enemies spawn past
+  // the playfield border and march on-screen, instead of popping into
+  // existence at the border. The painted ribbon still renders from the
+  // original first waypoint via `pathRibbonStart`. Distance is tuned so
+  // the spawn point sits past the camera's decor margin at fit zoom —
+  // see CameraRig.tsx DECOR_MARGIN_X (4) — leaving ~2 units of margin
+  // so enemies fade in by walking from off-screen rather than appearing
+  // at the visible edge. Higher zoom levels naturally extend this.
+  const PATH_LEAD_IN_DISTANCE = 6;
+  const extendedAuthored = level.paths.map((p) => prependLeadIn(p, PATH_LEAD_IN_DISTANCE));
+  const paths = extendedAuthored.map((p) => smoothPath(p));
+  // smoothPath emits `subdivisions` points per input segment (the final
+  // segment gets one extra). With a single prepended waypoint, smoothed
+  // index = SMOOTH_PATH_SUBDIVISIONS is exactly the original first
+  // waypoint (the playfield border) — ribbon starts there.
+  const pathRibbonStart = level.paths.map((p, i) =>
+    extendedAuthored[i].length > p.length ? SMOOTH_PATH_SUBDIVISIONS : 0,
+  );
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
@@ -525,6 +543,7 @@ export const createWorld = (
     levelId: level.id,
     biome,
     paths,
+    pathRibbonStart,
     plannedWaves,
     enemies: [],
     enemyById: new Map(),

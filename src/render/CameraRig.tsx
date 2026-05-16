@@ -50,9 +50,19 @@ const MAX_ZOOM_MULT = 2.5;
 // already be high.
 const ABS_MAX_ZOOM = 80;
 
-const computeMaxPathExtentZ = (paths: { x: number; y: number }[][]): number => {
+// Skip the off-map lead-in slice — its points sit past the playfield
+// border by design and shouldn't pull the fit zoom outward (that would
+// expose the lead-in on screen, defeating the purpose).
+const computeMaxPathExtentZ = (
+  paths: { x: number; y: number }[][],
+  ribbonStart: number[],
+): number => {
   let m = 0;
-  for (const p of paths) for (const v of p) m = Math.max(m, Math.abs(v.y));
+  for (let i = 0; i < paths.length; i++) {
+    const p = paths[i];
+    const start = ribbonStart[i] ?? 0;
+    for (let j = start; j < p.length; j++) m = Math.max(m, Math.abs(p[j].y));
+  }
   return m;
 };
 
@@ -78,6 +88,7 @@ export const CameraRig = () => {
   const cameraRef = useRef<OrthographicCameraImpl>(null);
 
   const paths = useGame((s) => s.world.paths);
+  const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const levelId = useGame((s) => s.world.levelId);
   const selectedKind = useGame((s) => s.selectedKind);
   const size = useThree((s) => s.size);
@@ -90,7 +101,10 @@ export const CameraRig = () => {
   const lossShakeStartRef = useRef<number | null>(null);
   const prevStatusRef = useRef(useGame.getState().world.status);
 
-  const pathHalfZ = useMemo(() => computeMaxPathExtentZ(paths), [paths]);
+  const pathHalfZ = useMemo(
+    () => computeMaxPathExtentZ(paths, pathRibbonStart),
+    [paths, pathRibbonStart],
+  );
   const fitZoom = useMemo(
     () => computeFitZoom(size.width, size.height, pathHalfZ),
     [size.width, size.height, pathHalfZ],

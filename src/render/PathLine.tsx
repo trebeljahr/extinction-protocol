@@ -8,10 +8,23 @@ import { useGame } from "../store";
 
 export const PathLine = () => {
   const paths = useGame((s) => s.world.paths);
+  const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const biome = useGame((s) => s.world.biome);
   const pathDebug = useGame((s) => s.pathDebug);
   const style = BIOME_STYLE[biome];
-  const pathsWithIds = useMemo(() => paths.map((path) => ({ id: nanoid(), path })), [paths]);
+  // Strip the off-map lead-in so the painted ribbon still begins at the
+  // playfield border even though the sim path extends past it for the
+  // dinosaur entry march. Enemies traverse the full `paths[i]`; only the
+  // rendered ribbon/start ring uses the trimmed slice.
+  const pathsWithIds = useMemo(
+    () =>
+      paths.map((path, i) => ({
+        id: nanoid(),
+        path,
+        renderPath: path.slice(pathRibbonStart[i] ?? 0),
+      })),
+    [paths, pathRibbonStart],
+  );
 
   // Outline color: the path color darkened so the rim reads as a sunken
   // border without clashing with the biome palette.
@@ -30,15 +43,15 @@ export const PathLine = () => {
   return (
     <group>
       <group>
-        {pathsWithIds.map(({ id, path }) => (
-          <PathOutline key={`out-${id}`} path={path} color={outlineColor} />
+        {pathsWithIds.map(({ id, renderPath }) => (
+          <PathOutline key={`out-${id}`} path={renderPath} color={outlineColor} />
         ))}
       </group>
       <group>
-        {pathsWithIds.map(({ id, path }) => (
+        {pathsWithIds.map(({ id, renderPath }) => (
           <PathInner
             key={`in-${id}`}
-            path={path}
+            path={renderPath}
             pathColor={style.pathColor}
             startColor={style.startRing}
           />
