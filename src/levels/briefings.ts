@@ -7,7 +7,7 @@
 //      first elite at L15, multi-lane coordination at L19, the
 //      matriarch's appearances at L5 / L10 / L15 / L30) the field
 //      report acknowledges it.
-//   3. The hardware-integration thread. Ricos Labs ran a de-extinction
+//   3. The hardware-integration thread. Kairos Corp ran a de-extinction
 //      revival programme; the specimens absorbed the revival hardware
 //      and are now reshaping the planet to suit them. References stay
 //      oblique — "scaffolding", "integument", "conditioning network",
@@ -84,7 +84,7 @@ export const LEVEL_BRIEFING: Record<number, string> = {
 export const LEVEL_INTERSTITIAL: Record<number, string> = {
   // Forest opener — establish the premise. Why we're here. Why we
   // can't just shut the revival rigs down. What "winning" looks like.
-  1: "SITREP, day one. Ricos Labs has been running the revival programme at industrial scale for nine years. Seventy-two hours ago the reserve perimeter failed — cause unclear, cloning vats inside the wall still active. Shutdown of the rigs requires a corporate signature nobody has produced. Operator role: hold the outpost ring while local population evacuates east. Every emplacement that holds is hours bought for the convoy. We are not retaking ground.",
+  1: "SITREP, day one. Kairos Corp has been running the revival programme at industrial scale for nine years. Seventy-two hours ago the reserve perimeter failed — cause unclear, cloning vats inside the wall still active. Shutdown of the rigs requires a corporate signature nobody has produced. Operator role: hold the outpost ring while local population evacuates east. Every emplacement that holds is hours bought for the convoy. We are not retaking ground.",
 
   // Snow opener — first biome fall-back. Why winning fights hasn't
   // helped: the line moves backward whether we hold the ridge or not.

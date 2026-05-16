@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGamepadInput } from "../input/gamepad";
-import { hasEncountered, hasMatriarchEncountered } from "../progress";
+import { LEVELS } from "../levels";
+import {
+  LORE_FRAGMENT_KIND_LABEL,
+  LORE_FRAGMENT_ORDER,
+  LORE_FRAGMENTS,
+} from "../levels/lore";
+import { getStars, hasEncountered, hasMatriarchEncountered } from "../progress";
 import {
   ENEMY_DESCRIPTION,
   ENEMY_SUBTITLE,
@@ -23,6 +29,7 @@ import {
 } from "../sim/towerText";
 import type { BossVariant, DamageType, EnemyKind, TowerKind } from "../sim/types";
 import { UPGRADES } from "../sim/upgrades";
+import type { CompendiumSection } from "../store";
 import {
   BOSS_VARIANT_LABEL,
   BOSS_VARIANT_RESIST,
@@ -51,7 +58,7 @@ import { MechanicPreview } from "./MechanicPreview";
 import { TowerDiorama } from "./TowerDiorama";
 import { TowerPreview } from "./TowerPreview";
 
-type Section = "enemy" | "tower" | "mechanic" | "hero";
+type Section = CompendiumSection;
 
 // Compendium enemy entries — either a base species or a biome-themed
 // matriarch variant. The list is rendered in one row so the player
@@ -95,19 +102,33 @@ const entryDescription = (e: EnemyEntry): string =>
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
-const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "hero"];
+const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "hero", "lore"];
 const SECTION_LABEL: Record<Section, string> = {
   enemy: "Enemies",
   tower: "Towers",
   mechanic: "Mechanics",
   hero: "Heroes",
+  lore: "Lore",
 };
 
 export const Compendium = () => {
   const progress = useGame((s) => s.progress);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
+  const initialSection = useGame((s) => s.compendiumInitialSection);
+  const clearInitialSection = useGame((s) => s.clearCompendiumInitialSection);
 
-  const [section, setSection] = useState<Section>("enemy");
+  const [section, setSection] = useState<Section>(initialSection ?? "enemy");
+
+  // The world-map "Lore" shortcut sets compendiumInitialSection so the
+  // panel opens directly to the lore tab. Consume it here on mount so
+  // subsequent opens (via the regular Compendium button) revert to the
+  // default enemy view.
+  useEffect(() => {
+    if (initialSection) clearInitialSection();
+    // Only on mount — re-firing on prop change would steal focus while
+    // the user is already navigating tabs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const firstEncountered = useMemo(
     () => ENEMY_ENTRIES.find((e) => entrySeen(e, progress)) ?? ENEMY_ENTRIES[0],
@@ -194,6 +215,7 @@ export const Compendium = () => {
           <MechanicSectionView selected={selectedMech} setSelected={setSelectedMech} />
         )}
         {section === "hero" && <HeroCompendiumSection progress={progress} />}
+        {section === "lore" && <LoreSectionView progress={progress} />}
       </div>
     </div>
   );
@@ -634,6 +656,98 @@ const MechanicSectionView = ({
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// --- Lore section ----------------------------------------------------------
+
+// Found-document fragments unlock as the player clears the corresponding
+// level on any mode. We treat normal-mode stars as the gate since the
+// fragment voice is the on-station operator's view of that outpost,
+// which the player only has after holding it once.
+const LoreSectionView = ({
+  progress,
+}: {
+  progress: ReturnType<typeof useGame.getState>["progress"];
+}) => {
+  // Default selection: the most recently unlocked fragment so the panel
+  // opens to "what the player just learned" rather than the very first
+  // memo every time. Falls back to id 1 if nothing's unlocked yet.
+  const unlockedIds = useMemo(
+    () => LORE_FRAGMENT_ORDER.filter((id) => getStars(progress, id) > 0),
+    [progress],
+  );
+  const initialId = unlockedIds.length > 0 ? unlockedIds[unlockedIds.length - 1] : 1;
+  const [selectedId, setSelectedId] = useState<number>(initialId);
+  const selected = LORE_FRAGMENTS[selectedId];
+  const selectedUnlocked = getStars(progress, selectedId) > 0;
+  const levelName = LEVELS.find((l) => l.id === selectedId)?.name;
+
+  return (
+    <div className="compendium-browser compendium-lore-browser">
+      <div className="compendium-selector compendium-lore-selector">
+        {LORE_FRAGMENT_ORDER.map((id) => {
+          const frag = LORE_FRAGMENTS[id];
+          const unlocked = getStars(progress, id) > 0;
+          return (
+            <button
+              type="button"
+              key={id}
+              className={`compendium-tab compendium-lore-tab ${selectedId === id ? "active" : ""} ${unlocked ? "" : "locked"}`}
+              onClick={() => setSelectedId(id)}
+              disabled={!unlocked}
+              aria-pressed={selectedId === id}
+              title={unlocked ? frag.title : `Outpost ${id} — not yet held`}
+            >
+              <span className="compendium-lore-tab-num">#{id}</span>
+              <span className="compendium-tab-name compendium-lore-tab-name">
+                {unlocked ? frag.title : "Sealed"}
+              </span>
+              <span className="compendium-lore-tab-kind">
+                {unlocked ? LORE_FRAGMENT_KIND_LABEL[frag.kind] : "—"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="compendium-detail compendium-lore-detail">
+        {selectedUnlocked ? (
+          <div className="compendium-lore-document">
+            <div className="compendium-lore-kind-chip">
+              {LORE_FRAGMENT_KIND_LABEL[selected.kind]}
+            </div>
+            <h2 className="compendium-lore-title">{selected.title}</h2>
+            <div className="compendium-lore-meta">
+              <div>
+                <span className="compendium-lore-meta-label">From</span>
+                <span className="compendium-lore-meta-value">{selected.author}</span>
+              </div>
+              <div>
+                <span className="compendium-lore-meta-label">Source</span>
+                <span className="compendium-lore-meta-value">{selected.source}</span>
+              </div>
+              {levelName && (
+                <div>
+                  <span className="compendium-lore-meta-label">Outpost</span>
+                  <span className="compendium-lore-meta-value">
+                    #{selected.id} · {levelName}
+                  </span>
+                </div>
+              )}
+            </div>
+            <p className="compendium-lore-body">{selected.body}</p>
+          </div>
+        ) : (
+          <div className="compendium-lore-document compendium-lore-document-locked">
+            <h2 className="compendium-lore-title">Sealed fragment</h2>
+            <p className="compendium-lore-body">
+              Hold Outpost {selected.id} to recover this document.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

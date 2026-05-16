@@ -10,7 +10,7 @@ humans left behind.
 
 ## Setting
 
-A remote field station run by **Ricos Labs**, a private biotech outfit
+A remote field station run by **Kairos Corp**, a private biotech outfit
 licensed to operate a **de-extinction revival programme** in an
 isolated reserve. Cloning vats, neural scaffolding rigs, growth tanks,
 behavioural-conditioning hardware. They bring extinct species back.
@@ -110,7 +110,7 @@ reasons, all stated in-fiction:
    wall require a corporate signature to shut down. By L20 the
    people authorised to provide that signature are dead, missing,
    or unreachable. The revival programme keeps producing specimens
-   long after Ricos Labs as an institution has ceased to function.
+   long after Kairos Corp as an institution has ceased to function.
 
 The player feels successful and the world keeps ending. That is the
 intended emotional shape: tactical mastery, strategic horror.
@@ -121,7 +121,7 @@ Things that happen off-screen between the playable levels, kept
 consistent so the briefings and SITREPs make sense.
 
 - **Before L1.** Reserve perimeter goes down. Cloning vats and
-  conditioning rigs inside the wall keep running. Ricos Labs
+  conditioning rigs inside the wall keep running. Kairos Corp
   corporate command is on the coast, several hundred kilometres
   east, issuing directives over a comm net the operator does not
   yet know is compromised.
@@ -178,7 +178,7 @@ consistent so the briefings and SITREPs make sense.
 
 ## Factions
 
-### Ricos Labs (the player)
+### Kairos Corp (the player)
 A revival biotech operator turned wartime defender. The hardware that
 caused this is the same hardware the operators understand best, so
 they're the ones still running emplacements. Field-report voice —

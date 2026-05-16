@@ -116,6 +116,16 @@ export const IconCore: FC<MenuIconProps> = (p) => (
   </Svg>
 );
 
+export const IconScroll: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Lore">
+    <path d="M6 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6" />
+    <path d="M6 4a2.5 2.5 0 0 0-2.5 2.5V8a2.5 2.5 0 0 0 2.5 2.5" />
+    <path d="M9 9h6" />
+    <path d="M9 12h6" />
+    <path d="M9 15h4" />
+  </Svg>
+);
+
 export const IconStar: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Star">
     <path

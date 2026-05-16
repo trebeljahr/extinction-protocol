@@ -1,0 +1,310 @@
+// Lore codex. One found-document fragment per level (1–30), unlocked
+// when the level is cleared on any mode. Voice rules follow the same
+// bible as briefings (docs/STORY.md): terse, after-action, no
+// anthropomorphizing, no exclamation marks. Each fragment is a found
+// document — a memo, log, letter, intercept, or recording transcript —
+// that fills in the off-screen story between the playable levels.
+//
+// The thread the codex carries:
+//   - Kairos Corp ran the revival programme for nine years before the
+//     breach. The wall, the rigs, and the conditioning lattice are theirs.
+//   - The specimens absorbed the lattice over those nine years. The
+//     hardware is not in them. They are made of it.
+//   - Corporate command refuses to shut down the rigs (Director Maren,
+//     L4). By L20 the people who could authorise shutdown are dead,
+//     missing, or unreachable.
+//   - Dr. Anya Vance designed the revival. Dr. Ilyas Kareem grew the
+//     scaffolding alloy. Dr. June Halvers built the conditioning lattice.
+//     They appear across the arc and close it: Vance's final recording
+//     is L30, addressed to the operator who reaches the basin.
+//
+// Diegetic copy uses "Kairos Corp" — never "Ricos Labs" (that is the
+// real studio, kept only in credits + tauri publisher).
+
+export type LoreFragmentKind =
+  | "memo"
+  | "letter"
+  | "log"
+  | "report"
+  | "transcript"
+  | "note"
+  | "directive"
+  | "intercept";
+
+export type LoreFragment = {
+  id: number;
+  title: string;
+  kind: LoreFragmentKind;
+  author: string;
+  source: string;
+  body: string;
+};
+
+export const LORE_FRAGMENT_KIND_LABEL: Record<LoreFragmentKind, string> = {
+  memo: "Memo",
+  letter: "Letter",
+  log: "Log",
+  report: "Report",
+  transcript: "Transcript",
+  note: "Note",
+  directive: "Directive",
+  intercept: "Intercept",
+};
+
+export const LORE_FRAGMENTS: Record<number, LoreFragment> = {
+  // Forest — the reserve perimeter. First contact. World still recognisable.
+  1: {
+    id: 1,
+    title: "Founding Memo",
+    kind: "memo",
+    author: "Dr. Anya Vance, Lead Bio-engineer",
+    source: "Kairos Corp internal · T-9 years",
+    body: "The reserve will be four thousand three hundred square kilometres. Boundary wall: composite-laminate, sensor-integrated, an autonomous patrol cell every six kilometres. The revival rigs go behind it. Cloning vats. Neural scaffolding. Conditioning lattice. We bring the species back to a place that looks like the place they left. The licensing review is the only meaningful obstacle, and the licensing review has signed. Begin construction at the dig site on the first of the month. — A. Vance",
+  },
+  2: {
+    id: 2,
+    title: "Behaviour Anomaly 04",
+    kind: "log",
+    author: "Operator 11-B",
+    source: "Outpost 2 · Day 3",
+    body: "Two probes coming back with the same flanking arc plotted. We tagged it as wind compensation, then ran the wind. Pattern persists with no wind. Filing as Behaviour Anomaly 04 and moving on. The biology team has asked us not to log this until they review the original conditioning curves. Will hold pending review.",
+  },
+  3: {
+    id: 3,
+    title: "Personal Log",
+    kind: "log",
+    author: "Sgt. D. Ortega, Reserve Security",
+    source: "Outpost 6 · Day 5",
+    body: "Outpost six and outpost seven gone overnight. No bodies on the perimeter — the bodies are inside. Things on the thermals last night taller than the watchtowers. The biologists kept telling us the cap was eight metres. I am writing this on paper because I do not want it in the network. If you are reading this, you found my locker. — Ortega",
+  },
+  4: {
+    id: 4,
+    title: "Memo to All Station Chiefs",
+    kind: "memo",
+    author: "Director K. Maren",
+    source: "Kairos Corp Operations · Day 8",
+    body: "Shutdown of the revival rigs requires a corporate signature. The corporate signature requires a review of the breach cause. The review is in progress. Until the review concludes, the rigs run. I will not be persuaded otherwise on this topic in this cycle. The line will hold; the convoy will move; the rigs will continue. — K. Maren",
+  },
+  5: {
+    id: 5,
+    title: "Sample S-014 Annotation",
+    kind: "note",
+    author: "Dr. J. Halvers",
+    source: "Conditioning Lab · Day 11",
+    body: "The animal we are calling the Matriarch came up the ridge through standing fire and did not slow. Frame-by-frame on the thermal: she is twenty-two metres at the shoulder. No tank ever ran a specimen past nine. The mass is not from the tank. The mass is from the field. She has been growing out here, away from us, on something that is not food. — Halvers",
+  },
+
+  // Snow — first fall-back. Climate is not a buffer.
+  6: {
+    id: 6,
+    title: "Letter Home",
+    kind: "letter",
+    author: "Dr. I. Kareem, Materials Lab",
+    source: "Snow Sector 1 · Week 4",
+    body: "We are north of the treeline now. The cold has not stopped them, which means the cold was never going to. I keep writing to you about work because the alternative is to write about the work and what it means. The materials team grew the laminate that grew them this far. It was supposed to be inert. I am sorry I will not be home for your birthday. I do not think the post will catch the convoy now. — Ilyas",
+  },
+  7: {
+    id: 7,
+    title: "Trail Survey, Sector 3",
+    kind: "report",
+    author: "Survey Team 2",
+    source: "Snow Pan · Day 28",
+    body: "Tracks across the pan in three parallel lines spaced exactly forty metres. No migrating species walks parallel. They are not migrating. They are advancing in a formation that mirrors the standard operator outpost array. We have measured the spacing twice. The spacing is correct to the centimetre. Filing this without speculation. The pattern is the pattern.",
+  },
+  8: {
+    id: 8,
+    title: "Band 217.4 Diagnostic",
+    kind: "report",
+    author: "Dr. J. Halvers",
+    source: "Lattice Forensics · Day 32",
+    body: "Captured a five-second pack-coordination signal on band 217.4 MHz. That band is ours. It is the conditioning lattice band. The lattice was installed inside the reserve. The signal is being broadcast from approximately forty kilometres north of the wall. Recommend immediate isolation of the lattice. Authorisation: pending. Pending whom is unclear. — Halvers",
+  },
+  9: {
+    id: 9,
+    title: "Tar Pit Recovery Manifest",
+    kind: "report",
+    author: "Field Bio Team 4",
+    source: "South Tar Field · Day 35",
+    body: "Specimens recovered from the south tar field: four normal-spec adult allosaur, two normal-spec parasaur, one specimen no team can classify. The unclassified specimen has lattice nodes grown into the parietal bone. The parietal bone is the wrong shape. We cannot determine whether the bone grew around the node or the node grew the bone. The specimen is decades old. Whatever started this did not start last quarter.",
+  },
+  10: {
+    id: 10,
+    title: "Outpost 10 Log",
+    kind: "log",
+    author: "Operator 27-C",
+    source: "Outpost 10 · Day 41",
+    body: "Second large specimen sighted at the ridge. Same size class as the one at Outpost 5 — possibly the same individual; possibly not. Pack behind her does not move until she moves. I have not seen anything alive that did that before today. We held the ridge. The ridge does not matter. She walked away on her own time.",
+  },
+
+  // Desert — integration. Hardware shows up in tissue.
+  11: {
+    id: 11,
+    title: "Materials Lab Bulletin",
+    kind: "report",
+    author: "Dr. I. Kareem",
+    source: "Forward Bio Station · Day 78",
+    body: "Dermal tissue cross-section from specimen K-119: scaffolding alloy threaded through three of the four integument layers. The alloy is the same lot we produced for revival batch 14. Mass-spec confirms the lot signature. The specimens are no longer carrying the alloy. They are made of it. The integument grew the metal. The metal did not grow the integument. I do not know which of those is worse. — Kareem",
+  },
+  12: {
+    id: 12,
+    title: "Triage Report, Outpost 12",
+    kind: "report",
+    author: "Triage 12",
+    source: "Desert Sector 2 · Day 84",
+    body: "Both lane entries breached within four minutes. Specimens on the leading edge plate-skinned, kinetic rounds glancing. Burn rounds work. Suggesting flame weapons up the chain. Suggesting we did not used to have to file equipment requisitions on this level of urgency. The medical bay overran at hour eight. We are out of the relevant blood types.",
+  },
+  13: {
+    id: 13,
+    title: "Bio Observation, Field",
+    kind: "note",
+    author: "Observer 8",
+    source: "Dune Approach · Day 89",
+    body: "Two small specimens stood adjacent to a wounded plate-skin for ninety seconds. The plate-skin's wound closed. The two small specimens did not appear to do anything physical. They were on the conditioning band. The wound closed on the band. This is the same loop the revival tanks ran on the lab benches. They learned it from us. They have it now. We do not.",
+  },
+  14: {
+    id: 14,
+    title: "Memo to Dr. A. Vance",
+    kind: "memo",
+    author: "Dr. J. Halvers",
+    source: "Conditioning Lab · Day 92",
+    body: "Anya — the regenerating specimens are running the same metabolic loop the revival tanks ran. The tanks did it under controlled conditions for hours per cycle. The specimens are doing it under field conditions in seconds. We taught them. We taught them inside the wall over nine years. We did it deliberately. The conditioning was the part you and I were most proud of. They learned it. I do not know how to ask you to read the rest of this report. — June",
+  },
+  15: {
+    id: 15,
+    title: "Dossier 14-A",
+    kind: "report",
+    author: "Bio Team 6",
+    source: "Mid-Desert Outpost · Day 97",
+    body: "Subject leads the pack on engagement. Subject does not retreat. The pack does not retreat while the subject is engaged. The subject is not a member of any catalogued species in the original revival manifest. Subject is descended from the manifest. We are calling this individual a Matriarch and writing the term in lowercase to avoid implying we coined a category. We did. The third one this season. The category exists.",
+  },
+
+  // Wasteland — civilisation past tense. Multi-lane coordination on captured frequencies.
+  16: {
+    id: 16,
+    title: "Coastal Relay 9 Intercept",
+    kind: "intercept",
+    author: "Unknown civilian operator",
+    source: "Band 121.5 · Day 184",
+    body: "...if anyone is on this band, the coast road is gone, the inland road is gone, we have walked seven days. The map says there should be a city. There is not a city. We are at the coordinates the map gives for the city. There is no city. There has not been a city for some time. Please respond. Please respond. Please respond... [signal terminates]",
+  },
+  17: {
+    id: 17,
+    title: "Operator Chief 17-A — All Stations",
+    kind: "memo",
+    author: "Operator Chief 17-A",
+    source: "Wasteland Sector 1 · Day 192",
+    body: "Count of specimens visible on the ridge tonight: approximately four thousand. Count of specimens killed by Outpost 17 since deployment: nineteen hundred. The difference between those numbers is the war. Stop reporting the kills as if they were the war. The kills are not the war. The kills are how we buy hours. — 17-A",
+  },
+  18: {
+    id: 18,
+    title: "Reef Specimen Classification",
+    kind: "note",
+    author: "Field Bio Team 9",
+    source: "Wasteland Sector 3 · Day 198",
+    body: "We are calling the largest fortified specimens reefs. They do not break under sustained fire. They stop. Each one that stops occupies one approach lane until ordnance moves it. They are not winning the lanes. They are filling them. The lane that holds a reef is a lane the herd does not need to enter that day. The reef is the herd's investment in geography.",
+  },
+  19: {
+    id: 19,
+    title: "Final Comm Net Bulletin",
+    kind: "report",
+    author: "Dr. J. Halvers",
+    source: "Lattice Forensics · Day 204",
+    body: "Three approach lanes coordinated on three of our directional bands at once. The lattice is no longer transmitting from the reserve. The lattice is transmitting from inside the pack. The pack is the lattice now. I do not know how to shut down a network that is its own infrastructure. I have filed this report with the addressees I have left. If you receive it, please return acknowledgement. — Halvers",
+  },
+  20: {
+    id: 20,
+    title: "Extinction Protocol — Standing",
+    kind: "directive",
+    author: "(no signatory)",
+    source: "Contingency Document § 7 · Day 209",
+    body: "In the event of total command-net failure and confirmed loss of containment authority, the Extinction Protocol becomes the standing directive for all remaining operator stations. The Extinction Protocol does not require authorisation to execute. The Extinction Protocol is the absence of any other authorisation. Tactical-yield ordnance is authorised. Civilian deconfliction is no longer a constraint. Hold the outposts. Reduce the apex specimens. End.",
+  },
+
+  // Lava — geothermal restructuring. They walk through magma.
+  21: {
+    id: 21,
+    title: "Geothermal Survey",
+    kind: "report",
+    author: "Survey Team 1",
+    source: "Continental Interior · Day 282",
+    body: "Continental venting follows herd migration corridors with a correlation of ninety-eight percent. The vents did not exist last quarter. The vents are opening where the densest herds have grazed longest. The herd is doing this. We do not know how. We can see that they are doing this. Surveyors are no longer describing the change as damage. The change is the herd's output.",
+  },
+  22: {
+    id: 22,
+    title: "Predation Note",
+    kind: "note",
+    author: "Field Bio Team 11",
+    source: "Lava Sector 2 · Day 289",
+    body: "Two scouts left the outpost on a sweep at oh-six-hundred. Their bodies returned to the perimeter at twelve-hundred — placed, not dragged. The placement was deliberate. The placement was at the angle from which the scouts had left. We were not the prey in any of the original conditioning studies. We are in this study now. We are not the species running it.",
+  },
+  23: {
+    id: 23,
+    title: "Ground Anomaly Note",
+    kind: "note",
+    author: "Observer 14",
+    source: "Lava Sector 4 · Day 295",
+    body: "The basalt is dented at the basin. Depth: one point eight metres. Diameter: nine metres. The dent is fresh. The dent is the kind a specimen of approximately matriarch class would make standing still for several hours. There is no specimen at the dent. There was one this morning. There will be one again. The dent is on every survey from here forward.",
+  },
+  24: {
+    id: 24,
+    title: "Evacuation Refusal — Outpost 24",
+    kind: "memo",
+    author: "Chief 24-B",
+    source: "Lava Sector 5 · Day 304",
+    body: "Request for evacuation of Outpost 24 denied. Justification: there is no rear line to evacuate to. Justification countered: we are aware. Request resubmitted as a record of refusal. The convoy is now stationary at the basin edge. The convoy has been stationary for nine days. We are holding because there is nowhere to go.",
+  },
+  25: {
+    id: 25,
+    title: "Last Ridge Memo",
+    kind: "memo",
+    author: "Operations 25",
+    source: "Basin Edge · Day 311",
+    body: "Outpost 25 is the final position from which the original revival site is engageable on standard ordnance. South of this position, the new biome closes around the basin. North of this position, there is no infrastructure remaining. We are at the edge of the map that means anything. Beyond this ridge the lattice's geography wins.",
+  },
+
+  // Alien biome — terraform output. Our world, rewritten by the herd.
+  26: {
+    id: 26,
+    title: "Biosphere Report",
+    kind: "report",
+    author: "Bio Team 14",
+    source: "Basin Interior · Day 341",
+    body: "Atmospheric oxygen inside the new zone: thirteen point eight percent. Outside the new zone: twenty point nine. Ground biology inside the new zone does not metabolise glucose. The zone is one hundred and thirty thousand square kilometres and growing at approximately nine kilometres a day. We do not have a word for what is on the ground. We are using the word biocrust because we have no other word. The word is wrong.",
+  },
+  27: {
+    id: 27,
+    title: "Specimen Bleed Composition",
+    kind: "note",
+    author: "Operator 27-D",
+    source: "Basin · Day 349",
+    body: "Specimen blood: viscous, near-black, mildly luminescent under UV. Not haemoglobin. Carries iron in a chelated form we have not catalogued. The casualty paperwork still requires the column for blood loss. We have left the column blank and let the form fail intake. The form has not been read by anyone in nine weeks. We file it anyway. It is the last thing we are still doing in the old format.",
+  },
+  28: {
+    id: 28,
+    title: "Phenotype Inventory, Final Entry",
+    kind: "note",
+    author: "Bio Team 14",
+    source: "Basin · Day 355",
+    body: "Wave 304 introduced specimens we cannot classify. Wave 305 introduced different ones. Wave 306 introduced different ones again. The inventory is no longer a useful operational tool. We are closing it. The catalogue ends here. The herd no longer needs to be catalogued. The catalogue assumed there was a list of species to be catalogued against. There is no list. There is only what the herd produces this hour.",
+  },
+  29: {
+    id: 29,
+    title: "Quiet Stretch",
+    kind: "log",
+    author: "Operator 29-A",
+    source: "Basin Approach · Day 361",
+    body: "Nine minutes of silence. The new biome is still spreading underneath us. Whatever is going to come next is being assembled. We will hold the line because there is no other order. We will hold the line because the line is the only thing we still know how to do. The silence is not peace. The silence is preparation. We have been here long enough to tell the difference.",
+  },
+  30: {
+    id: 30,
+    title: "Last Recording",
+    kind: "transcript",
+    author: "Dr. A. Vance",
+    source: "Original revival site · Day 367",
+    body: "It was supposed to bring them back to a place they would recognise. The place is now what they preferred. The hardware was the part of the design I was most proud of. The Matriarch at the basin is the hardware. She is at the centre of what I built. I am the last person who can name her, and I will not. The recording is for the operator who reaches the basin. There is nothing left to do but reduce her. I am sorry. — A. Vance · end of audio.",
+  },
+};
+
+export const LORE_FRAGMENT_ORDER: number[] = Object.keys(LORE_FRAGMENTS)
+  .map((k) => Number(k))
+  .sort((a, b) => a - b);

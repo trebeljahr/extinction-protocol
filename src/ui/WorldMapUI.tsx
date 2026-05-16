@@ -27,6 +27,7 @@ import {
   IconCoin,
   IconFloppy,
   IconLab,
+  IconScroll,
   IconSquad,
   IconStar,
   IconTrophy,
@@ -187,6 +188,16 @@ export const WorldMapUI = () => {
         >
           <IconBook size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Compendium</span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setCompendiumOpen(true, "lore")}
+          aria-label="Open lore codex"
+          title="Lore — recovered field documents"
+        >
+          <IconScroll size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
         </button>
         <button
           type="button"

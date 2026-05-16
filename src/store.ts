@@ -107,6 +107,8 @@ import {
 
 export type Screen = "splash" | "slots" | "worldMap" | "playing" | "results";
 
+export type CompendiumSection = "enemy" | "tower" | "mechanic" | "hero" | "lore";
+
 export type AchievementToast = { id: AchievementId; key: number };
 
 export type LastResult = {
@@ -426,6 +428,11 @@ type GameStore = {
   hoveredLevelId: number | null;
   lastResult: LastResult | null;
   compendiumOpen: boolean;
+  // When set, the Compendium opens directly to this section on mount.
+  // Consumed (cleared) once the Compendium reads it. Defaulting routes
+  // (Compendium button on the world map) leave this null and the panel
+  // opens to "enemy" as it always has.
+  compendiumInitialSection: CompendiumSection | null;
   achievementsOpen: boolean;
   creditsOpen: boolean;
   skillTreeOpen: boolean;
@@ -457,7 +464,8 @@ type GameStore = {
   retryCurrentLevel: () => void;
   goToWorldMap: () => void;
   setHoveredLevel: (id: number | null) => void;
-  setCompendiumOpen: (open: boolean) => void;
+  setCompendiumOpen: (open: boolean, initialSection?: CompendiumSection) => void;
+  clearCompendiumInitialSection: () => void;
   setAchievementsOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
   setSkillTreeOpen: (open: boolean) => void;
@@ -683,6 +691,7 @@ export const useGame = create<GameStore>((set, get) => ({
   hoveredLevelId: null,
   lastResult: null,
   compendiumOpen: false,
+  compendiumInitialSection: null,
   achievementsOpen: false,
   creditsOpen: false,
   skillTreeOpen: false,
@@ -826,7 +835,13 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setHoveredLevel: (id) => set({ hoveredLevelId: id }),
 
-  setCompendiumOpen: (open) => set({ compendiumOpen: open }),
+  setCompendiumOpen: (open, initialSection) =>
+    set({
+      compendiumOpen: open,
+      compendiumInitialSection: open ? (initialSection ?? null) : null,
+    }),
+
+  clearCompendiumInitialSection: () => set({ compendiumInitialSection: null }),
 
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
 
