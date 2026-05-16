@@ -550,13 +550,17 @@
   }
 
   /* The icon (an <img> baked once via the shared offscreen renderer)
-     fills the swatch. Absolute positioning matches the legacy r3f-Canvas
-     layout so existing card/picker styles still anchor properly. */
+     fills the swatch with a small inset so the model never kisses the
+     swatch border at the corners. Absolute positioning matches the
+     legacy r3f-Canvas layout so existing card/picker styles still
+     anchor properly. */
   .tower-swatch > .tower-icon {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    inset: 6%;
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+    display: block;
   }
 
   .tower-swatch.kind-pulse {

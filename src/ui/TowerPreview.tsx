@@ -39,13 +39,7 @@ export const TowerPreview = ({ kind }: { kind: TowerKind }) => {
   return (
     <div className={`tower-swatch kind-${kind}`}>
       {url ? (
-        <img
-          className="tower-icon"
-          src={url}
-          alt=""
-          aria-hidden
-          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-        />
+        <img className="tower-icon" src={url} alt="" aria-hidden />
       ) : (
         <div className="tower-icon tower-icon-pending" />
       )}
