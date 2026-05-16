@@ -75,64 +75,70 @@ export const NewEnemyAlert = () => {
   return (
     <div className="overlay new-enemy-overlay">
       <div className="new-enemy-card flex flex-col items-stretch gap-2 sm:gap-2.5 w-[360px] max-w-[calc(100vw-16px)] pt-3 px-4 pb-4 sm:pt-[22px] sm:px-[26px] sm:pb-6 rounded-2xl border border-[rgba(255,170,110,0.35)]">
-        <div className="self-center text-[10px] tracking-uber text-orange font-bold px-2.5 py-1 rounded-sm border border-[rgba(255,178,102,0.45)] bg-[rgba(255,178,102,0.08)] uppercase">
-          {isMatriarch ? "MATRIARCH DETECTED · DATABASE UPDATED" : "NEW HOSTILE · DATABASE UPDATED"}
+        <div className="new-enemy-body-top flex flex-col items-stretch gap-2 sm:gap-2.5">
+          <div className="self-center text-[10px] tracking-uber text-orange font-bold px-2.5 py-1 rounded-sm border border-[rgba(255,178,102,0.45)] bg-[rgba(255,178,102,0.08)] uppercase">
+            {isMatriarch
+              ? "MATRIARCH DETECTED · DATABASE UPDATED"
+              : "NEW HOSTILE · DATABASE UPDATED"}
+          </div>
+          <h1 className="mt-0.5 mb-0 text-center text-[20px] sm:text-[28px] font-bold tracking-[0.02em] text-white font-display leading-tight">
+            {label}
+          </h1>
+          <div className="text-center text-fg-muted text-[10px] sm:text-xs tracking-[0.18em] uppercase -mt-0.5">
+            {subtitle}
+          </div>
         </div>
-        <h1 className="mt-0.5 mb-0 text-center text-[20px] sm:text-[28px] font-bold tracking-[0.02em] text-white font-display leading-tight">
-          {label}
-        </h1>
-        <div className="text-center text-fg-muted text-[10px] sm:text-xs tracking-[0.18em] uppercase -mt-0.5">
-          {subtitle}
-        </div>
-        <div className="self-center shrink-0 w-[160px] h-[160px] sm:w-[260px] sm:h-[260px] rounded-xl overflow-hidden border border-border bg-[#1b2a22]">
+        <div className="new-enemy-image self-center shrink-0 w-[160px] h-[160px] sm:w-[260px] sm:h-[260px] rounded-xl overflow-hidden border border-border bg-[#1b2a22]">
           {isMatriarch ? (
             <EnemyIcon kind="boss" bossVariant={sighting.variant} />
           ) : (
             <EnemyIcon kind={sighting.species} />
           )}
         </div>
-        <p className="mt-0.5 mb-0 text-[12px] sm:text-[13px] leading-[1.45] sm:leading-[1.55] text-[#cfd8e3] text-center">
-          {description}
-        </p>
-        <div className="grid grid-cols-4 gap-1 sm:gap-1.5 p-1.5 sm:p-2 bg-[rgba(6,10,14,0.5)] border border-[rgba(120,160,200,0.14)] rounded-lg">
-          <NewEnemyStat label="HP" value={stats.hp} />
-          <NewEnemyStat label="Speed" value={stats.speed.toFixed(1)} />
-          <NewEnemyStat label="Damage" value={stats.damage} highlight={isMatriarch} />
-          <NewEnemyStat label="Bounty" value={`${stats.bounty}g`} />
-        </div>
-        {isMatriarch && (
-          <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
-            <div className="text-[10px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
-              Warning
-            </div>
-            <div className="ml-auto text-[#ffb39a] text-[12px] sm:text-[13px] font-semibold tabular-nums">
-              {stats.damage} lives on leak
-            </div>
+        <div className="new-enemy-body-bottom flex flex-col items-stretch gap-2 sm:gap-2.5">
+          <p className="mt-0.5 mb-0 text-[12px] sm:text-[13px] leading-[1.45] sm:leading-[1.55] text-[#cfd8e3] text-center">
+            {description}
+          </p>
+          <div className="grid grid-cols-4 gap-1 sm:gap-1.5 p-1.5 sm:p-2 bg-[rgba(6,10,14,0.5)] border border-[rgba(120,160,200,0.14)] rounded-lg">
+            <NewEnemyStat label="HP" value={stats.hp} />
+            <NewEnemyStat label="Speed" value={stats.speed.toFixed(1)} />
+            <NewEnemyStat label="Damage" value={stats.damage} highlight={isMatriarch} />
+            <NewEnemyStat label="Bounty" value={`${stats.bounty}g`} />
           </div>
-        )}
-        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[rgba(61,255,138,0.07)] border border-[rgba(61,255,138,0.28)]">
-          <div className="text-[10px] tracking-[0.16em] text-[#8ad9a5] uppercase font-bold">
-            Recommended
-          </div>
-          {weakestPct > 0 ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto text-green text-[12px] sm:text-[13px] font-semibold">
-              <DamageIcon type={weakest} size={16} />
-              <span>{DAMAGE_TYPE_LABEL[weakest]}</span>
-              <span className="text-green tabular-nums">+{weakestPct}%</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 ml-auto text-fg-muted text-[12px] sm:text-[13px] font-medium">
-              <span>Balanced</span>
+          {isMatriarch && (
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
+              <div className="text-[10px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
+                Warning
+              </div>
+              <div className="ml-auto text-[#ffb39a] text-[12px] sm:text-[13px] font-semibold tabular-nums">
+                {stats.damage} lives on leak
+              </div>
             </div>
           )}
+          <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[rgba(61,255,138,0.07)] border border-[rgba(61,255,138,0.28)]">
+            <div className="text-[10px] tracking-[0.16em] text-[#8ad9a5] uppercase font-bold">
+              Recommended
+            </div>
+            {weakestPct > 0 ? (
+              <div className="flex items-center gap-1.5 sm:gap-2 ml-auto text-green text-[12px] sm:text-[13px] font-semibold">
+                <DamageIcon type={weakest} size={16} />
+                <span>{DAMAGE_TYPE_LABEL[weakest]}</span>
+                <span className="text-green tabular-nums">+{weakestPct}%</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 ml-auto text-fg-muted text-[12px] sm:text-[13px] font-medium">
+                <span>Balanced</span>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn mt-0.5 sm:mt-1 w-full text-sm px-5 py-2.5 sm:py-3"
+            onClick={dismiss}
+          >
+            Continue {remaining > 0 ? `(${remaining} more)` : ""}
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn mt-0.5 sm:mt-1 w-full text-sm px-5 py-2.5 sm:py-3"
-          onClick={dismiss}
-        >
-          Continue {remaining > 0 ? `(${remaining} more)` : ""}
-        </button>
       </div>
     </div>
   );

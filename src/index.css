@@ -3024,11 +3024,65 @@
   }
 
   @media (max-height: 520px) and (max-width: 1024px) {
-    /* Landscape phones: drop the 260px dossier image to 160 so the card
-       fits without forcing the user to scroll on a 375-tall viewport. */
-    .new-enemy-card .sm\:w-\[260px\] {
-      width: 160px !important;
-      height: 160px !important;
+    /* Landscape phones: switch the dossier from a tall single column to a
+       two-column grid (portrait image on the left, text + stats stacked on
+       the right) so the card fits a 812x375 screen without scrolling. */
+    .new-enemy-card {
+      display: grid !important;
+      grid-template-columns: 140px minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      column-gap: 14px;
+      row-gap: 6px !important;
+      width: calc(100vw - 16px) !important;
+      max-width: 720px !important;
+      max-height: calc(100dvh - 12px) !important;
+      padding: 10px 14px !important;
+      align-content: start;
+    }
+    .new-enemy-card > .new-enemy-image {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      align-self: center;
+      justify-self: center;
+      width: 140px !important;
+      height: 140px !important;
+      margin: 0 !important;
+    }
+    .new-enemy-card > .new-enemy-body-top {
+      grid-column: 2;
+      grid-row: 1;
+      gap: 2px !important;
+    }
+    .new-enemy-card > .new-enemy-body-bottom {
+      grid-column: 2;
+      grid-row: 2;
+      gap: 5px !important;
+    }
+    .new-enemy-card h1 {
+      font-size: 20px !important;
+      line-height: 1.15 !important;
+      margin: 0 !important;
+    }
+    .new-enemy-card .new-enemy-body-top > div:first-child {
+      padding: 2px 8px !important;
+    }
+    .new-enemy-card p {
+      font-size: 11px !important;
+      line-height: 1.35 !important;
+      text-align: left !important;
+      margin: 0 !important;
+    }
+    .new-enemy-card .grid-cols-4 {
+      padding: 4px !important;
+      gap: 3px !important;
+    }
+    .new-enemy-card .grid-cols-4 .text-\[15px\] {
+      font-size: 13px !important;
+    }
+    .new-enemy-card button {
+      padding: 6px 12px !important;
+      font-size: 12px !important;
+      margin-top: 0 !important;
     }
     .compendium-overlay {
       padding: 0;
