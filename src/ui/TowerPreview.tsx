@@ -1,5 +1,5 @@
 import type { TowerKind } from "../sim/types";
-import { type BakeSpec, useBakedIcon } from "./bakedIcon";
+import { type BakeSpec, prewarmIcon, useBakedIcon } from "./bakedIcon";
 
 const TOWER_MODEL: Record<TowerKind, { url: string; rotY: number }> = {
   pulse: { url: "/models/tower_pulse.glb", rotY: 0 },
@@ -9,6 +9,8 @@ const TOWER_MODEL: Record<TowerKind, { url: string; rotY: number }> = {
   flame: { url: "/models/turrets/Flamethrower Turret.glb", rotY: 0 },
   hive: { url: "/models/turrets/Hive Turret.glb", rotY: 0 },
 };
+
+const TOWER_KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 
 const specFor = (kind: TowerKind): BakeSpec => ({
   cacheKey: `tower:${kind}`,
@@ -21,6 +23,16 @@ const specFor = (kind: TowerKind): BakeSpec => ({
   // just translated into the bakedIcon's grounded 1×1×1 model space.
   camera: { position: [2.3, 1.0, 0.75], target: [0, 0.5, 0], fov: 26 },
 });
+
+/**
+ * Kick off the bake for every tower kind. Call once when the HUD mounts
+ * so the mobile build menu has all six PNGs cached by the time the user
+ * taps the handle — otherwise the first open flashes empty placeholders
+ * while the offscreen renderer serializes through them.
+ */
+export const prewarmTowerIcons = (): void => {
+  for (const kind of TOWER_KINDS) prewarmIcon(specFor(kind));
+};
 
 export const TowerPreview = ({ kind }: { kind: TowerKind }) => {
   const url = useBakedIcon(specFor(kind));

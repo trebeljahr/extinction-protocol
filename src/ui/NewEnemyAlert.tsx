@@ -84,7 +84,7 @@ export const NewEnemyAlert = () => {
         <div className="text-center text-fg-muted text-[10px] sm:text-xs tracking-[0.18em] uppercase -mt-0.5">
           {subtitle}
         </div>
-        <div className="self-center w-[160px] h-[160px] sm:w-[260px] sm:h-[260px] rounded-xl overflow-hidden border border-border bg-[#1b2a22]">
+        <div className="self-center shrink-0 w-[160px] h-[160px] sm:w-[260px] sm:h-[260px] rounded-xl overflow-hidden border border-border bg-[#1b2a22]">
           {isMatriarch ? (
             <EnemyIcon kind="boss" bossVariant={sighting.variant} />
           ) : (

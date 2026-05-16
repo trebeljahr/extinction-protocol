@@ -232,6 +232,16 @@ const requestBake = (spec: BakeSpec) => {
 // === Public hook ============================================================
 
 /**
+ * Kick off (or no-op) the bake for `spec` without mounting a consumer.
+ * Used to prewarm icons that will appear in a lazy panel (e.g. the
+ * mobile build menu) so the first open doesn't flash empty placeholders
+ * while the offscreen renderer chews through six unique tower models.
+ */
+export const prewarmIcon = (spec: BakeSpec): void => {
+  requestBake(spec);
+};
+
+/**
  * Returns the cached PNG data URL for `spec`, kicking off a one-shot
  * offscreen render on first call. Returns null while the bake is in
  * flight; the component re-renders once the URL is ready.

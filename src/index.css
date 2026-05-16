@@ -2910,7 +2910,7 @@
     .new-enemy-card h1 {
       font-size: var(--fs-2xl) !important;
     }
-    .new-enemy-card .w-\[260px\] {
+    .new-enemy-card .sm\:w-\[260px\] {
       width: 160px !important;
       height: 160px !important;
     }
@@ -3031,6 +3031,12 @@
   }
 
   @media (max-height: 520px) and (max-width: 1024px) {
+    /* Landscape phones: drop the 260px dossier image to 160 so the card
+       fits without forcing the user to scroll on a 375-tall viewport. */
+    .new-enemy-card .sm\:w-\[260px\] {
+      width: 160px !important;
+      height: 160px !important;
+    }
     .compendium-overlay {
       padding: 0;
     }

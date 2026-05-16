@@ -13,7 +13,7 @@ import { IconCog } from "./MenuIcons";
 import { PauseMenu } from "./PauseMenu";
 import { QuickSettings } from "./QuickSettings";
 import { TowerPanel } from "./TowerPanel";
-import { TowerPreview } from "./TowerPreview";
+import { prewarmTowerIcons, TowerPreview } from "./TowerPreview";
 import { TreePanel } from "./TreePanel";
 import { useKeyboardHintsVisible } from "./useInputMode";
 import { useIsMobile } from "./useMediaQuery";
@@ -77,6 +77,15 @@ export const HUD = () => {
   useEffect(() => {
     if (selectedKind !== null) setPickerOpen(false);
   }, [selectedKind]);
+
+  // Bake all six tower thumbnails as soon as the HUD mounts so the
+  // mobile build drawer doesn't flash empty placeholders the first
+  // time the player taps the build handle. No-op on desktop too —
+  // bakes are idempotent, so this just warms a cache that the always-
+  // visible picker would have filled anyway.
+  useEffect(() => {
+    prewarmTowerIcons();
+  }, []);
 
   useEffect(() => {
     if (
