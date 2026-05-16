@@ -882,6 +882,133 @@ export const LEVELS: LevelConfig[] = [
         [1, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
       ),
     ],
+    heroic: {
+      startGold: 500,
+      tagline: "No pulse — crack shielded bricks the slow way",
+      // Pulse is the obvious shield-cracker. Take it away and the
+      // shielded armored bricks become a chain-chip + flame-DoT problem
+      // across two lanes.
+      forbiddenTowers: ["pulse"],
+      waves: [
+        split("intro", 0.85, [0, { raptor: 12 }], [1, { raptor: 12 }]),
+        split(
+          "mixed",
+          0.55,
+          [0, { raptor: 14, swarm: 10, allosaur: 4 }],
+          [1, { raptor: 14, swarm: 10, allosaur: 4 }],
+        ),
+        split("swarm", 0.1, [0, { swarm: 60 }], [1, { swarm: 60 }]),
+        // Heavier shielded armored opener — no pulse, so each brick
+        // takes serious flame ticks to crack.
+        {
+          archetype: "heavy",
+          spacing: 0.9,
+          spawns: [
+            ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
+            ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
+          ],
+        },
+        split(
+          "mixed",
+          0.5,
+          [0, { raptor: 16, swarm: 12, allosaur: 5, stego: 2 }],
+          [1, { raptor: 16, swarm: 12, allosaur: 5, stego: 2 }],
+        ),
+        split(
+          "chaos",
+          0.3,
+          [0, { raptor: 14, swarm: 16, allosaur: 5, stego: 3, armored: 2 }],
+          [1, { raptor: 14, swarm: 16, allosaur: 5, stego: 3, armored: 2 }],
+        ),
+        // Fierce swarm rush across both lanes — leaks bite hard.
+        {
+          archetype: "swarm",
+          spacing: 0.09,
+          spawns: [
+            ...toSpawns({ swarm: 55 }, 0, { fierce: true }),
+            ...toSpawns({ swarm: 55, raptor: 10 }, 1, { fierce: true }),
+          ],
+        },
+        // Shielded armored convoy on both lanes, fiercer escort.
+        {
+          archetype: "heavy",
+          spacing: 0.8,
+          spawns: [
+            ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
+            ...toSpawns({ allosaur: 4 }, 0, { fierce: true }),
+            ...toSpawns({ armored: 5, stego: 3 }, 1, { shielded: true }),
+            ...toSpawns({ allosaur: 4 }, 1, { fierce: true }),
+          ],
+        },
+        split(
+          "chaos",
+          0.28,
+          [0, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 3 }],
+          [1, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 3 }],
+        ),
+        // Finale: elite-armored on each lane, plain mass behind.
+        {
+          archetype: "chaos",
+          spacing: 0.25,
+          spawns: [
+            ...toSpawns({ armored: 2 }, 0, { elite: true }),
+            ...toSpawns({ raptor: 18, swarm: 22, allosaur: 8, stego: 5, titan: 1 }, 0),
+            ...toSpawns({ armored: 2 }, 1, { elite: true }),
+            ...toSpawns({ raptor: 18, swarm: 22, allosaur: 8, stego: 5, titan: 1 }, 1),
+          ],
+        },
+      ],
+    },
+    iron: {
+      startGold: 500,
+      tagline: "One life. Chain, cryo, mortar, hive across both lanes.",
+      // Two-path discipline: chain bounces between lanes when paths
+      // converge, cryo controls swarm tempo, mortar splashes packs
+      // after bubbles drop, hive amps it all. No pulse, no flame.
+      lockedLoadout: ["chain", "cryo", "mortar", "hive"],
+      singleLife: true,
+      noSelling: true,
+      waves: [
+        split(
+          "mixed",
+          0.55,
+          [0, { raptor: 12, swarm: 8, allosaur: 3 }],
+          [1, { raptor: 12, swarm: 8, allosaur: 3 }],
+        ),
+        split("swarm", 0.1, [0, { swarm: 50 }], [1, { swarm: 50 }]),
+        {
+          archetype: "heavy",
+          spacing: 0.9,
+          spawns: [
+            ...toSpawns({ armored: 3, stego: 2 }, 0, { shielded: true }),
+            ...toSpawns({ armored: 3, stego: 2 }, 1, { shielded: true }),
+          ],
+        },
+        split(
+          "mixed",
+          0.5,
+          [0, { raptor: 14, swarm: 10, allosaur: 4, stego: 2 }],
+          [1, { raptor: 14, swarm: 10, allosaur: 4, stego: 2 }],
+        ),
+        split("swarm", 0.09, [0, { swarm: 55 }], [1, { swarm: 55, raptor: 10 }]),
+        {
+          archetype: "heavy",
+          spacing: 0.85,
+          spawns: [
+            ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
+            ...toSpawns({ allosaur: 3 }, 0),
+            ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
+            ...toSpawns({ allosaur: 3 }, 1),
+          ],
+        },
+        split(
+          "chaos",
+          0.25,
+          [0, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
+          [1, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
+        ),
+      ],
+    },
   },
   {
     id: 13,
