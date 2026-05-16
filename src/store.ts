@@ -1222,6 +1222,22 @@ export const useGame = create<GameStore>((set, get) => ({
   selectHeroUnit: (on) => {
     const s = get();
     simSelectHero(s.world, on);
+    if (on) {
+      // Hero selection is mutually exclusive with the other detail panels —
+      // mirror tryPlaceOrSelect's invariant so only one panel renders at a
+      // time and clicking the hero implicitly dismisses the prior selection.
+      s.world.selectedTowerId = null;
+      s.world.selectedBase = false;
+      const inspectedEnemy = emptyInspect;
+      set({
+        selectedKind: null,
+        selectedTreeId: null,
+        selectedRockId: null,
+        inspectedEnemy,
+        ui: snapshot(s.world, s.towerVersion, s.treeVersion, inspectedEnemy),
+      });
+      return;
+    }
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
@@ -1363,6 +1379,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     world.selectedBase = false;
+    if (world.hero.selected) world.hero.selected = false;
     const inspect: InspectState = { id, kind, maxHp, bossVariant };
     set({
       selectedKind: null,
@@ -1423,6 +1440,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!tree) return;
     w.selectedTowerId = null;
     w.selectedBase = false;
+    if (w.hero.selected) w.hero.selected = false;
     const nextCount = (s.treeClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.treeClickCounts, [id]: nextCount };
     const unlock =
@@ -1482,6 +1500,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!rock) return;
     w.selectedTowerId = null;
     w.selectedBase = false;
+    if (w.hero.selected) w.hero.selected = false;
     const nextCount = (s.rockClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.rockClickCounts, [id]: nextCount };
     const unlock =
@@ -1633,6 +1652,7 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       w.selectedTowerId = hit.id;
       w.selectedBase = false;
+      if (w.hero.selected) w.hero.selected = false;
       set({
         selectedKind: null,
         selectedTreeId: null,
@@ -1650,6 +1670,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.selectedKind === null && !s.assigningDroneSlot && hqAt(w, pos)) {
       w.selectedTowerId = null;
       w.selectedBase = true;
+      if (w.hero.selected) w.hero.selected = false;
       set({
         selectedTreeId: null,
         selectedRockId: null,

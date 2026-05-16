@@ -3976,6 +3976,239 @@
     color: #fff;
   }
 
+  /* Hero mini icon — sits in the hud-top row alongside GOLD/LIVES/WAVE.
+     Clickable shortcut into the hero selection panel; doubles as an
+     always-visible HP readout. */
+  .hero-mini {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10, 16, 24, 0.72);
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 6px;
+    padding: 6px 10px 6px 6px;
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+    backdrop-filter: blur(6px);
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s,
+      transform 0.08s;
+  }
+  .hero-mini > .hero-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .hero-mini:hover {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.32);
+  }
+  .hero-mini.active {
+    border-color: var(--color-blue);
+    box-shadow:
+      0 0 0 1px rgba(159, 216, 255, 0.45),
+      0 0 18px rgba(159, 216, 255, 0.2);
+  }
+  .hero-mini.dead {
+    filter: grayscale(0.5) brightness(0.7);
+  }
+  .hero-mini-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 92px;
+    text-align: left;
+  }
+  .hero-mini-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  .hero-mini-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--color-blue);
+  }
+  .hero-mini-lvl {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg-soft);
+    background: rgba(159, 216, 255, 0.12);
+    padding: 1px 6px;
+    border-radius: 999px;
+  }
+  .hero-mini-bar {
+    height: 6px;
+    background: rgba(6, 10, 14, 0.7);
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .hero-mini-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff5a3a, #ffb054 70%, #ffe080);
+    transition: width 0.12s linear;
+  }
+  .hero-mini-hp {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hero selection panel — reuses .tower-panel base styling. Top-right
+     slot; mutually exclusive with the tower/tree/enemy panels via the
+     store's selection invariant. */
+  .hero-selection-panel {
+    right: 16px;
+    top: 16px;
+    background: rgba(14, 18, 26, 0.92);
+    border-color: rgba(120, 180, 220, 0.28);
+  }
+  .hero-selection-panel .hero-swatch {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .hero-sel-vitals {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    background: rgba(6, 10, 14, 0.45);
+    border: 1px solid rgba(120, 160, 200, 0.16);
+    border-radius: 6px;
+  }
+  .hero-sel-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-sel-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--color-fg-soft);
+    min-width: 24px;
+  }
+  .hero-sel-value {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--color-fg);
+    min-width: 96px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-sel-section-title {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--color-fg-soft);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .hero-sel-abilities {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .hero-sel-ability {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(14, 20, 28, 0.55);
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 6px;
+    color: var(--color-fg);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.12s,
+      transform 0.08s;
+  }
+  .hero-sel-ability:hover:not(:disabled) {
+    border-color: rgba(180, 220, 255, 0.55);
+  }
+  .hero-sel-ability.ready {
+    border-color: rgba(159, 216, 255, 0.55);
+  }
+  .hero-sel-ability.cooling {
+    filter: grayscale(0.4) brightness(0.78);
+    cursor: not-allowed;
+  }
+  .hero-sel-ability-glyph {
+    font-size: 22px;
+    line-height: 1;
+    color: var(--color-blue);
+    text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
+    align-self: center;
+    width: 28px;
+    text-align: center;
+  }
+  .hero-sel-ability-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .hero-sel-ability-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--color-fg);
+  }
+  .hero-sel-ability-key {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg-soft);
+    background: rgba(159, 216, 255, 0.12);
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+  .hero-sel-ability-meta {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .hero-sel-ability-bar {
+    height: 3px;
+    background: rgba(6, 10, 14, 0.7);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .hero-sel-ability-bar-fill {
+    height: 100%;
+    background: var(--color-blue);
+    transition: width 0.08s linear;
+  }
+  .hero-sel-blurb {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--color-fg-muted);
+    padding: 8px 10px;
+    background: rgba(6, 10, 14, 0.4);
+    border: 1px solid rgba(120, 160, 200, 0.12);
+    border-radius: 6px;
+  }
+
   /* Hero shop modal. */
   .hero-shop-panel {
     max-height: calc(100vh - 180px);

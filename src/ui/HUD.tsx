@@ -10,7 +10,9 @@ import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { EnemyPanel } from "./EnemyPanel";
+import { HeroMiniIcon } from "./HeroMiniIcon";
 import { HeroPanel } from "./HeroPanel";
+import { HeroSelectionPanel } from "./HeroSelectionPanel";
 import { IconCog } from "./MenuIcons";
 import { PauseMenu } from "./PauseMenu";
 import { QuickSettings } from "./QuickSettings";
@@ -183,6 +185,7 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
+        <HeroMiniIcon />
         <Stat label="GOLD" value={gold} accentClass="text-gold" />
         <Stat label="LIVES" value={lives} accentClass="text-red" />
         <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accentClass="text-blue" />
@@ -393,6 +396,7 @@ export const HUD = () => {
       <BasePanel />
       <EnemyPanel />
       <TreePanel />
+      <HeroSelectionPanel />
       <HeroPanel />
       <BossBanner />
 
