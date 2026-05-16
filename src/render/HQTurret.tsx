@@ -1,7 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useGame } from "../store";
 import { bakeObjectToGeometry, type FractureChunk, fractureGeometry } from "./fractureMesh";
@@ -31,10 +31,12 @@ const HQ_TARGET_SIZE = 1.9;
 const FLASH_DURATION = 0.45;
 const EXPLOSION_DURATION = 0.7;
 const SHOCKWAVE_DURATION = 0.85;
-// Number of voronoi cells the turret shatters into. ~14 is enough to read
-// as a real demolition without flooding Rapier with bodies — each cell is
-// already a closed convex hull so its collider is one shape.
-const FRACTURE_CHUNKS = 14;
+// Number of voronoi cells the turret shatters into. Kept modest because
+// fracture is N×N CSG (each cell intersects N-1 halfspaces and then the
+// source mesh) and is deferred to an idle callback so it must finish
+// within ~1s on mid-tier hardware. 10 cells reads as a real demolition
+// without flooding Rapier with bodies or starving the WebGL watchdog.
+const FRACTURE_CHUNKS = 10;
 
 type Pose = {
   position: [number, number];
@@ -64,7 +66,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   // Bind-pose-accurate baseline: same `measureVisibleBox` we use for every
   // other model so the HQ's feet sit on y=0 instead of floating where the
   // raw geometry bbox extends.
-  const { scaledClone, baseY, chunks, chunkMaterial, sourceCenter } = useMemo(() => {
+  const { scaledClone, baseY, chunkMaterial } = useMemo(() => {
     const s =
       HQ_TARGET_SIZE /
       Math.max(...measureVisibleBox(scene).getSize(new THREE.Vector3()).toArray(), 0.001);
@@ -86,15 +88,6 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     });
     const groundedBox = measureVisibleBox(c);
     const baseYLocal = -groundedBox.min.y;
-
-    // Bake into a single local-space geometry and voronoi-fracture once.
-    // Seeded per-path so each HQ gets a stable but distinct shatter pattern.
-    const baked = bakeObjectToGeometry(c);
-    const chunkList = fractureGeometry(baked, FRACTURE_CHUNKS, pose.pathIndex + 7);
-    const bakedBox = new THREE.Box3().setFromBufferAttribute(
-      baked.getAttribute("position") as THREE.BufferAttribute,
-    );
-    const center = bakedBox.getCenter(new THREE.Vector3());
 
     // Pick a representative material from the source meshes; falls back to
     // a neutral metallic if the GLB has nothing readable.
@@ -122,11 +115,56 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     return {
       scaledClone: c,
       baseY: baseYLocal,
-      chunks: chunkList,
       chunkMaterial: mat as THREE.Material,
-      sourceCenter: center,
     };
-  }, [scene, pose.pathIndex]);
+  }, [scene]);
+
+  // Voronoi fracture is N×N CSG and stalls the main thread long enough to
+  // trip the WebGL watchdog if run during the same task as mount. Defer it
+  // to an idle callback so the first paint of the scene happens uncontested,
+  // then the fracture runs in the background and is ready by the time the
+  // base ever dies.
+  const [fracture, setFracture] = useState<{
+    chunks: FractureChunk[];
+    center: THREE.Vector3;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // 1.2s delay so the first paint + GLTF load + biome init have all
+    // settled. Using setTimeout (not requestIdleCallback) because the
+    // game loop runs useFrame at 60fps and the browser may never report
+    // an "idle" period long enough for idle-callback to fire.
+    const handle = setTimeout(() => {
+      if (cancelled) return;
+      const baked = bakeObjectToGeometry(scaledClone);
+      const chunkList = fractureGeometry(baked, FRACTURE_CHUNKS, pose.pathIndex + 7);
+      const bakedBox = new THREE.Box3().setFromBufferAttribute(
+        baked.getAttribute("position") as THREE.BufferAttribute,
+      );
+      const center = bakedBox.getCenter(new THREE.Vector3());
+      if (cancelled) return;
+      setFracture({ chunks: chunkList, center });
+    }, 1200);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [scaledClone, pose.pathIndex]);
+
+  // Safety net: if the base dies before the idle fracture finishes, run
+  // it synchronously so the chunks still appear (at the cost of a brief
+  // stall on that frame). Better than the HQ silently failing to break.
+  useEffect(() => {
+    if (!isLost || fracture) return;
+    const baked = bakeObjectToGeometry(scaledClone);
+    const chunkList = fractureGeometry(baked, FRACTURE_CHUNKS, pose.pathIndex + 7);
+    const bakedBox = new THREE.Box3().setFromBufferAttribute(
+      baked.getAttribute("position") as THREE.BufferAttribute,
+    );
+    const center = bakedBox.getCenter(new THREE.Vector3());
+    setFracture({ chunks: chunkList, center });
+  }, [isLost, fracture, scaledClone, pose.pathIndex]);
 
   // Live event tracking — we read these inside useFrame rather than via
   // selectors so the component never re-mounts between waves.
@@ -228,7 +266,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   return (
     <>
       <group ref={outerRef}>
-        {!isLost && <primitive object={scaledClone} />}
+        {(!isLost || !fracture) && <primitive object={scaledClone} />}
         {/* Death explosion: warm outer fireball + white-hot inner core.
             Hidden during regular play; ref-driven scaling/opacity during the
             loss cinematic. Both depth-write off so they layer cleanly over
@@ -273,11 +311,11 @@ const HQOne = ({ pose }: { pose: Pose }) => {
           />
         </mesh>
       </group>
-      {isLost && chunks.length > 0 && (
+      {isLost && fracture && fracture.chunks.length > 0 && (
         <ChunkPhysics
-          chunks={chunks}
+          chunks={fracture.chunks}
           chunkMaterial={chunkMaterial}
-          sourceCenter={sourceCenter}
+          sourceCenter={fracture.center}
           pose={pose}
           baseY={baseY}
         />
