@@ -151,8 +151,8 @@ export type SlotInfo = {
 
 export const SLOT_IDS: readonly SlotId[] = [1, 2, 3] as const;
 
-const slotKey = (id: SlotId) => `extinction-protocol:slot:${id}:v1`;
-const LEGACY_KEY = "extinction-protocol:progress:v1";
+const slotKey = (id: SlotId) => `mesozoic-protocol:slot:${id}:v1`;
+const LEGACY_KEY = "mesozoic-protocol:progress:v1";
 const STARTING_LIVES = 20;
 const NAME_MAX_LEN = 24;
 

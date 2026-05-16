@@ -2,7 +2,7 @@
   "version": 1,
   "cliVersion": "0.1.22",
   "scaffoldedAt": "2026-04-30T08:02:14.872Z",
-  "name": "extinction-protocol",
+  "name": "mesozoic-protocol",
   "domain": "protocol.trebeljahr.com",
   "features": [],
   "mlServices": [],
@@ -14,6 +14,6 @@
   },
   "surfaces": "client-only",
   "localDev": {
-    "slug": "extinction-protocol"
+    "slug": "mesozoic-protocol"
   }
 }

@@ -19,7 +19,7 @@ import { type Browser, chromium, type Page } from "playwright";
 const URL = process.env.SCREENSHOT_URL ?? "http://localhost:55743";
 const OUT = resolve(
   process.env.SCREENSHOT_OUT ??
-    "/Users/rico/projects/ricos.site/src/content/Notes/assets/project-notes/extinction-protocol/screenshots",
+    "/Users/rico/projects/ricos.site/src/content/Notes/assets/project-notes/mesozoic-protocol/screenshots",
 );
 const W = 1920;
 const H = 1080;
@@ -72,7 +72,7 @@ const seedSaveJs = `
     heroSkills: {},
   };
   localStorage.setItem(
-    "extinction-protocol:slot:1:v1",
+    "mesozoic-protocol:slot:1:v1",
     JSON.stringify({ progress: data, meta: { name: "Save 1", lastPlayed: Date.now() } })
   );
 })();

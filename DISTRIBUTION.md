@@ -27,7 +27,7 @@ Outputs land in `src-tauri/target/release/bundle/`:
 
 - macOS: `bundle/macos/Mesozoic Protocol.app` and `bundle/dmg/Mesozoic Protocol_<version>_<arch>.dmg`
 - Windows: `bundle/msi/Mesozoic Protocol_<version>_x64_en-US.msi` and `bundle/nsis/Mesozoic Protocol_<version>_x64-setup.exe`
-- Linux: `bundle/appimage/extinction-protocol_<version>_amd64.AppImage` and `bundle/deb/extinction-protocol_<version>_amd64.deb`
+- Linux: `bundle/appimage/mesozoic-protocol_<version>_amd64.AppImage` and `bundle/deb/mesozoic-protocol_<version>_amd64.deb`
 
 The bundle metadata (category=Game, copyright, publisher, descriptions, min system version) is in `src-tauri/tauri.conf.json` under `bundle.*`.
 
@@ -54,7 +54,7 @@ Steam distributes through its own DRM and doesn't require notarization, but unsi
 3. Configure a depot per platform (macOS / Windows / Linux).
 4. Build, then point your depot's `ContentRoot` at the platform-specific output:
    - macOS depot → `src-tauri/target/release/bundle/macos/Mesozoic Protocol.app/`
-   - Windows depot → directory containing `extinction-protocol.exe` and any sibling DLLs/resources Tauri produced
+   - Windows depot → directory containing `mesozoic-protocol.exe` and any sibling DLLs/resources Tauri produced
    - Linux depot → AppImage or extracted runtime
 5. Run `steamcmd +run_app_build <path-to-app_build_<appid>.vdf>` to upload.
 6. Set the build live in the Steamworks dashboard.
@@ -108,7 +108,7 @@ Bundle ID is `com.extinctionprotocol.app` (matches the Tauri identifier — keep
 
 ### Android distribution
 
-1. Generate a signing keystore (one-time): `keytool -genkey -v -keystore extinction-protocol.keystore -alias upload -keyalg RSA -keysize 2048 -validity 10000`.
+1. Generate a signing keystore (one-time): `keytool -genkey -v -keystore mesozoic-protocol.keystore -alias upload -keyalg RSA -keysize 2048 -validity 10000`.
 2. In `android/app/build.gradle`, configure `signingConfigs.release` to point at the keystore (use `gradle.properties` or env vars; keystore + passwords must NOT be committed).
 3. `cd android && ./gradlew bundleRelease` produces `android/app/build/outputs/bundle/release/app-release.aab` for Play Console upload.
 4. For sideload-friendly APKs use `./gradlew assembleRelease` instead.

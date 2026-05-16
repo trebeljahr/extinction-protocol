@@ -1,5 +1,5 @@
 [package]
-name = "extinction-protocol"
+name = "mesozoic-protocol"
 version = "0.1.0"
 description = "Mesozoic Protocol — roguelite tower defense"
 authors = ["you"]

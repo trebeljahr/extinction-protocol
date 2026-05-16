@@ -1,11 +1,11 @@
-# Dev URL setup (`https://extinction-protocol.local.ricoslabs.com/`)
+# Dev URL setup (`https://mesozoic-protocol.local.ricoslabs.com/`)
 
 This project ships with the **hatchkit local-dev** integration: when you run
 `pnpm dev`, the dev server is reachable from any Tailscale peer (phone,
 tablet, other laptop) at:
 
 ```
-https://extinction-protocol.local.ricoslabs.com/
+https://mesozoic-protocol.local.ricoslabs.com/
 ```
 
 Caddy on your host terminates TLS with a real Cloudflare-issued wildcard
@@ -86,19 +86,19 @@ Look for the **Local-dev** rows. All six should be green:
 
 ## Per-project bits
 
-This project's slug is **`extinction-protocol`**, recorded in
+This project's slug is **`mesozoic-protocol`**, recorded in
 `.hatchkit.json` under `localDev.slug`. When `pnpm dev` starts, the
 hatchkit dev plugin:
 
 1. Reads the slug + the live dev port from the running server.
-2. Writes/updates `~/.config/dev/projects/extinction-protocol.caddy` pointing at
+2. Writes/updates `~/.config/dev/projects/mesozoic-protocol.caddy` pointing at
    that port. Caddy's `--watch` picks it up without a restart.
 3. Probes `tailscale serve status` for the TCP=443 bridge.
 4. Prints a banner:
 
 ```
 ➜  Local:     http://localhost:<port>/
-➜  Tailscale: https://extinction-protocol.local.ricoslabs.com/
+➜  Tailscale: https://mesozoic-protocol.local.ricoslabs.com/
 ```
 
 `HATCHKIT_LOCAL_DEV=0` in the environment disables the plugin entirely;
@@ -112,5 +112,5 @@ If you tear down this project:
 hatchkit destroy
 ```
 
-…also removes `~/.config/dev/projects/extinction-protocol.caddy`. Other projects'
+…also removes `~/.config/dev/projects/mesozoic-protocol.caddy`. Other projects'
 fragments stay put.

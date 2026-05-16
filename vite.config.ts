@@ -12,7 +12,7 @@ type HatchkitViteModule = {
 const loadHatchkitLocalDev = async (): Promise<PluginOption[]> => {
   try {
     const { localDev } = (await import(HATCHKIT_VITE_PLUGIN)) as HatchkitViteModule;
-    return typeof localDev === "function" ? [localDev({ slug: "extinction-protocol" })] : [];
+    return typeof localDev === "function" ? [localDev({ slug: "mesozoic-protocol" })] : [];
   } catch (error) {
     console.warn(
       `Skipping Hatchkit local-dev Vite plugin: ${
@@ -92,7 +92,7 @@ export default defineConfig(async ({ command, mode }) => {
         },
       },
       // Tailscale-served dev URL via host-wide Caddy + tailscale serve
-      // TCP=443. Writes ~/.config/dev/projects/extinction-protocol.caddy
+      // TCP=443. Writes ~/.config/dev/projects/mesozoic-protocol.caddy
       // on dev startup, replaces Vite's Local/Network banner with
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.

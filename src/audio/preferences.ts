@@ -1,9 +1,9 @@
 import { audio, type SfxBus } from "./AudioManager";
 
-const STORAGE_KEY_V2 = "extinction-protocol:audio:v2";
+const STORAGE_KEY_V2 = "mesozoic-protocol:audio:v2";
 // v1 stored a single "sfx" bus; on first run with v2 present, every
 // per-bus volume is seeded from v1.sfx so existing users keep their level.
-const STORAGE_KEY_V1 = "extinction-protocol:audio:v1";
+const STORAGE_KEY_V1 = "mesozoic-protocol:audio:v1";
 
 export type AudioPrefs = {
   master: number;

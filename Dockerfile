@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Static-site image for extinction-protocol.
+# Static-site image for mesozoic-protocol.
 # Built by .github/workflows/deploy.yml, pushed to GHCR, pulled by
 # Coolify via docker-compose.yml. nginx serves the built bundle —
 # no runtime Node, so dotenvx encryption isn't relevant here

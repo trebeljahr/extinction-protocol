@@ -71,7 +71,7 @@ export const useFullscreen = () => {
 // "auto" — undecided; the app picks based on device. Once the user
 // toggles fullscreen via the menu, we save explicit on/off and stop
 // auto-entering.
-const FS_PREF_KEY = "extinction-protocol:fullscreen:v1";
+const FS_PREF_KEY = "mesozoic-protocol:fullscreen:v1";
 type FsPref = "auto" | "on" | "off";
 
 export const loadFullscreenPref = (): FsPref => {

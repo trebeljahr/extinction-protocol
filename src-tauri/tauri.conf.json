@@ -45,7 +45,7 @@
     "longDescription": "Single-player roguelite tower defense: deploy sci-fi turrets, hold collapsing outposts, and survive waves of prehistoric and bio-mech threats in a top-down 3D battlefield.",
     "copyright": "© 2026 Ricos Labs LLC",
     "publisher": "Ricos Labs LLC",
-    "homepage": "https://github.com/RicoTrebeljahr/extinction-protocol",
+    "homepage": "https://github.com/RicoTrebeljahr/mesozoic-protocol",
     "macOS": {
       "minimumSystemVersion": "10.15",
       "exceptionDomain": ""
