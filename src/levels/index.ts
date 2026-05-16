@@ -3216,6 +3216,252 @@ export const LEVELS: LevelConfig[] = [
     startGold: 200,
     nodePos: { x: -1, y: 22 },
     hpScale: 3.5,
+    heroic: {
+      // Cryo + Hive banned: no slows to buy time, no drone uplinks to
+      // amplify chain. Pure DPS-vs-DPS race. Onslaught's chaos waves
+      // mean no archetype rest — every wave needs answers for armored,
+      // titans, swarm, and paras simultaneously.
+      startGold: 700,
+      forbiddenTowers: ["cryo", "hive"],
+      tagline: "No tempo. No support. Race the wave.",
+      waves: [
+        split(
+          "chaos",
+          0.38,
+          [0, { raptor: 18, swarm: 16, allosaur: 4 }],
+          [1, { raptor: 18, swarm: 16, allosaur: 4 }],
+        ),
+        split(
+          "chaos",
+          0.33,
+          [0, { raptor: 20, swarm: 20, allosaur: 5, stego: 2 }],
+          [1, { raptor: 20, swarm: 20, allosaur: 5, stego: 2 }],
+        ),
+        split(
+          "chaos",
+          0.3,
+          [0, { raptor: 18, swarm: 24, allosaur: 6, stego: 3, armored: 2 }],
+          [1, { raptor: 18, swarm: 24, allosaur: 6, stego: 3, armored: 2 }],
+        ),
+        split(
+          "chaos",
+          0.28,
+          [0, { raptor: 20, swarm: 26, allosaur: 7, stego: 4, armored: 3 }],
+          [1, { raptor: 20, swarm: 26, allosaur: 7, stego: 4, armored: 3 }],
+        ),
+        // Shielded vanguard kicks the chaos staircase up — every wave
+        // from here has at least one chip overlap.
+        {
+          archetype: "chaos",
+          spacing: 0.26,
+          spawns: [
+            ...toSpawns({ stego: 3, allosaur: 2 }, 0, { shielded: true }),
+            ...toSpawns({ raptor: 22, swarm: 28, allosaur: 6, armored: 3 }, 0),
+            ...toSpawns({ stego: 3, allosaur: 2 }, 1, { shielded: true }),
+            ...toSpawns({ raptor: 22, swarm: 28, allosaur: 6, armored: 3 }, 1),
+          ],
+        },
+        split(
+          "chaos",
+          0.24,
+          [0, { raptor: 20, swarm: 34, para: 6, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
+          [1, { raptor: 20, swarm: 34, para: 6, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
+        ),
+        split(
+          "chaos",
+          0.22,
+          [0, { raptor: 24, swarm: 36, para: 7, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
+          [1, { raptor: 24, swarm: 36, para: 7, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
+        ),
+        // Regen stegos + fierce raptor swarm — sustained burst vs
+        // regen, but you can't even slow them.
+        {
+          archetype: "chaos",
+          spacing: 0.2,
+          spawns: [
+            ...toSpawns({ stego: 4 }, 0, { regen: true }),
+            ...toSpawns({ raptor: 24 }, 0, { fierce: true }),
+            ...toSpawns({ swarm: 38, allosaur: 11, armored: 6, titan: 2 }, 0),
+            ...toSpawns({ stego: 4 }, 1, { regen: true }),
+            ...toSpawns({ raptor: 24 }, 1, { fierce: true }),
+            ...toSpawns({ swarm: 38, allosaur: 11, armored: 6, titan: 2 }, 1),
+          ],
+        },
+        split(
+          "chaos",
+          0.18,
+          [0, { raptor: 26, swarm: 42, para: 10, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
+          [1, { raptor: 26, swarm: 42, para: 10, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.17,
+          [0, { raptor: 28, swarm: 46, para: 11, allosaur: 14, stego: 10, armored: 8, titan: 3 }],
+          [1, { raptor: 28, swarm: 46, para: 11, allosaur: 14, stego: 10, armored: 8, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.16,
+          [0, { raptor: 26, swarm: 50, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
+          [1, { raptor: 26, swarm: 50, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
+        ),
+        // Elite-shielded armored vanguard — flatten resists + bubble.
+        {
+          archetype: "chaos",
+          spacing: 0.15,
+          spawns: [
+            ...toSpawns({ armored: 4, stego: 2 }, 0, { elite: true, shielded: true }),
+            ...toSpawns(
+              { raptor: 30, swarm: 50, para: 13, allosaur: 16, stego: 10, armored: 8, titan: 4 },
+              0,
+            ),
+            ...toSpawns({ armored: 4, stego: 2 }, 1, { elite: true, shielded: true }),
+            ...toSpawns(
+              { raptor: 30, swarm: 50, para: 13, allosaur: 16, stego: 10, armored: 8, titan: 4 },
+              1,
+            ),
+          ],
+        },
+        split(
+          "chaos",
+          0.14,
+          [0, { raptor: 32, swarm: 58, para: 15, allosaur: 20, stego: 14, armored: 12, titan: 5 }],
+          [1, { raptor: 32, swarm: 58, para: 15, allosaur: 20, stego: 14, armored: 12, titan: 5 }],
+        ),
+        split(
+          "chaos",
+          0.13,
+          [0, { raptor: 34, swarm: 62, para: 16, allosaur: 22, stego: 16, armored: 13, titan: 6 }],
+          [1, { raptor: 34, swarm: 62, para: 16, allosaur: 22, stego: 16, armored: 13, titan: 6 }],
+        ),
+        // Fierce-elite finale — every armored hits harder, every brute
+        // is flatter on resists.
+        {
+          archetype: "chaos",
+          spacing: 0.12,
+          spawns: [
+            ...toSpawns({ armored: 4, titan: 2 }, 0, { elite: true, fierce: true }),
+            ...toSpawns(
+              { raptor: 38, swarm: 68, para: 16, allosaur: 22, stego: 16, armored: 11, titan: 5 },
+              0,
+            ),
+            ...toSpawns({ armored: 4, titan: 2 }, 1, { elite: true, fierce: true }),
+            ...toSpawns(
+              { raptor: 38, swarm: 68, para: 16, allosaur: 22, stego: 16, armored: 11, titan: 5 },
+              1,
+            ),
+          ],
+        },
+      ],
+    },
+    iron: {
+      // Locked: pulse (high single-target precision), mortar (armored
+      // splash on chaos packs), chain (swarm + electric on para/swarm).
+      // No flame DoT, no cryo slow, no hive uplinks.
+      startGold: 600,
+      lockedLoadout: ["pulse", "mortar", "chain"],
+      singleLife: true,
+      noSelling: true,
+      tagline: "One life. Rifle, shell, coil.",
+      waves: [
+        split(
+          "chaos",
+          0.4,
+          [0, { raptor: 16, swarm: 12, allosaur: 3 }],
+          [1, { raptor: 16, swarm: 12, allosaur: 3 }],
+        ),
+        split(
+          "chaos",
+          0.35,
+          [0, { raptor: 18, swarm: 16, allosaur: 4, stego: 1 }],
+          [1, { raptor: 18, swarm: 16, allosaur: 4, stego: 1 }],
+        ),
+        split(
+          "chaos",
+          0.32,
+          [0, { raptor: 16, swarm: 20, allosaur: 5, stego: 2, armored: 1 }],
+          [1, { raptor: 16, swarm: 20, allosaur: 5, stego: 2, armored: 1 }],
+        ),
+        split(
+          "chaos",
+          0.3,
+          [0, { raptor: 18, swarm: 22, allosaur: 6, stego: 3, armored: 2 }],
+          [1, { raptor: 18, swarm: 22, allosaur: 6, stego: 3, armored: 2 }],
+        ),
+        split(
+          "chaos",
+          0.28,
+          [0, { raptor: 20, swarm: 26, allosaur: 7, stego: 4, armored: 3 }],
+          [1, { raptor: 20, swarm: 26, allosaur: 7, stego: 4, armored: 3 }],
+        ),
+        split(
+          "chaos",
+          0.26,
+          [0, { raptor: 18, swarm: 30, para: 5, allosaur: 8, stego: 5, armored: 3, titan: 1 }],
+          [1, { raptor: 18, swarm: 30, para: 5, allosaur: 8, stego: 5, armored: 3, titan: 1 }],
+        ),
+        split(
+          "chaos",
+          0.24,
+          [0, { raptor: 22, swarm: 32, para: 6, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
+          [1, { raptor: 22, swarm: 32, para: 6, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
+        ),
+        split(
+          "chaos",
+          0.22,
+          [0, { raptor: 20, swarm: 36, para: 8, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
+          [1, { raptor: 20, swarm: 36, para: 8, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
+        ),
+        split(
+          "chaos",
+          0.2,
+          [0, { raptor: 24, swarm: 38, para: 9, allosaur: 12, stego: 8, armored: 6, titan: 2 }],
+          [1, { raptor: 24, swarm: 38, para: 9, allosaur: 12, stego: 8, armored: 6, titan: 2 }],
+        ),
+        split(
+          "chaos",
+          0.19,
+          [0, { raptor: 22, swarm: 42, para: 10, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
+          [1, { raptor: 22, swarm: 42, para: 10, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.18,
+          [0, { raptor: 26, swarm: 44, para: 11, allosaur: 14, stego: 10, armored: 8, titan: 3 }],
+          [1, { raptor: 26, swarm: 44, para: 11, allosaur: 14, stego: 10, armored: 8, titan: 3 }],
+        ),
+        split(
+          "chaos",
+          0.17,
+          [0, { raptor: 24, swarm: 48, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
+          [1, { raptor: 24, swarm: 48, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
+        ),
+        split(
+          "chaos",
+          0.16,
+          [0, { raptor: 28, swarm: 50, para: 13, allosaur: 16, stego: 12, armored: 10, titan: 4 }],
+          [1, { raptor: 28, swarm: 50, para: 13, allosaur: 16, stego: 12, armored: 10, titan: 4 }],
+        ),
+        split(
+          "chaos",
+          0.15,
+          [0, { raptor: 30, swarm: 54, para: 14, allosaur: 18, stego: 13, armored: 11, titan: 5 }],
+          [1, { raptor: 30, swarm: 54, para: 14, allosaur: 18, stego: 13, armored: 11, titan: 5 }],
+        ),
+        split(
+          "chaos",
+          0.14,
+          [0, { raptor: 32, swarm: 58, para: 15, allosaur: 20, stego: 15, armored: 12, titan: 5 }],
+          [1, { raptor: 32, swarm: 58, para: 15, allosaur: 20, stego: 15, armored: 12, titan: 5 }],
+        ),
+        split(
+          "chaos",
+          0.13,
+          [0, { raptor: 36, swarm: 64, para: 16, allosaur: 22, stego: 17, armored: 14, titan: 6 }],
+          [1, { raptor: 36, swarm: 64, para: 16, allosaur: 22, stego: 17, armored: 14, titan: 6 }],
+        ),
+      ],
+    },
     waves: [
       split(
         "chaos",
