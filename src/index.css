@@ -2696,8 +2696,16 @@
      Single hard breakpoint at 720px — same threshold the React hook
      uses, so JSX branches and CSS overrides agree. Desktop styles
      above are untouched. The `.is-mobile` body class also kicks in
-     for narrow desktop windows that the hook flags via pointer:coarse. */
-  @media (max-width: 720px) {
+     for narrow desktop windows that the hook flags via pointer:coarse.
+
+     Three-arm media query mirrors useIsMobile() so JSX-side detection
+     and CSS-side breakpoints stay in lockstep: narrow widths, coarse
+     pointer up to 1024px (iPad portrait + most tablets), and any
+     short-height viewport (≤500px) up to 1024px wide (landscape phones
+     whose browser reports `pointer: fine`). */
+  @media (max-width: 720px),
+    (pointer: coarse) and (max-width: 1024px),
+    (max-height: 500px) and (max-width: 1024px) {
     /* Tighter HUD inset; honor the safe-area top so the notch doesn't
        eat the gold/lives stat block. */
     .hud-top {

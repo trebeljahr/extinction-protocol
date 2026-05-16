@@ -25,14 +25,21 @@ export const useMediaQuery = (query: string): boolean => {
   return matches;
 };
 
-// Phone-sized viewport — under ~720px wide OR a coarse pointer (covers
-// landscape phones up to ~720 logical px and large foldables in portrait).
+// Phone-sized viewport. Three arms match the CSS breakpoints in index.css:
+//   - narrow widths (portrait phones, narrow desktop windows)
+//   - coarse pointer up to 1024px (iPad portrait + most tablets)
+//   - short viewport (≤500px tall) up to 1024px wide — covers landscape
+//     phones whose browser reports `pointer: fine` (Chrome devtools
+//     emulation, some embedded webviews). Without this the TS hook and
+//     the CSS media-query disagree on landscape phones, so the JSX
+//     renders the 3-up slot grid while the CSS hides it.
 // Tablets in landscape with fine pointer fall through to the desktop
 // layout, which already works.
 export const useIsMobile = (): boolean => {
   const narrow = useMediaQuery("(max-width: 720px)");
   const coarse = useMediaQuery("(pointer: coarse) and (max-width: 1024px)");
-  return narrow || coarse;
+  const shortLandscape = useMediaQuery("(max-height: 500px) and (max-width: 1024px)");
+  return narrow || coarse || shortLandscape;
 };
 
 export const useIsPortrait = (): boolean => useMediaQuery("(orientation: portrait)");

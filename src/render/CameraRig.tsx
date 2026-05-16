@@ -32,6 +32,12 @@ const TILT_HALF_FACTOR = 0.577;
 const DECOR_MARGIN_X = 4;
 const DECOR_MARGIN_Z = 3;
 
+// Mobile gets a larger Z margin so the HUD bands (top wave banner,
+// bottom tower picker) don't crop the playable area. Without this the
+// fit zoom on landscape phones cuts off path endpoints behind the HUD.
+const MOBILE_VIEWPORT_PX = 720;
+const MOBILE_DECOR_MARGIN_Z = 6;
+
 // How far the player can manually zoom in past the fit-to-edge zoom.
 // 2.5× covers reading tower upgrade details up close. Zooming out
 // past the fit zoom is disallowed — that would re-expose background.
@@ -57,8 +63,10 @@ const computeMaxPathExtentZ = (paths: { x: number; y: number }[][]): number => {
 // because some levels have paths that meander outside the play
 // rectangle's vertical band; pulling them in too is friendlier.
 const computeFitZoom = (width: number, height: number, pathHalfZ: number): number => {
+  const mobile = width <= MOBILE_VIEWPORT_PX || height <= 500;
+  const marginZ = mobile ? MOBILE_DECOR_MARGIN_Z : DECOR_MARGIN_Z;
   const halfX = MAP_WIDTH / 2 + DECOR_MARGIN_X;
-  const halfZ = Math.max(MAP_HEIGHT / 2, pathHalfZ) + DECOR_MARGIN_Z;
+  const halfZ = Math.max(MAP_HEIGHT / 2, pathHalfZ) + marginZ;
   const fitZoomX = width / (2 * halfX);
   const fitZoomZ = (TILT_HALF_FACTOR * height) / halfZ;
   return Math.min(fitZoomX, fitZoomZ);

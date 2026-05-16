@@ -76,9 +76,10 @@ const bloomKernel = lowEnd ? KernelSize.SMALL : KernelSize.MEDIUM;
 const dprCap: [number, number] = lowEnd ? [1, 2] : [1, 2];
 // MSAA in the postprocessing composer. The Canvas-level antialias prop
 // is bypassed once EffectComposer renders into its own multisample-less
-// render target, so silhouettes go jagged. Cheaper sample count on
-// low-end devices; 4x is the standard sweet-spot on desktop.
-const composerMultisampling = lowEnd ? 2 : 4;
+// render target, so silhouettes go jagged. 4x is the sweet-spot —
+// 2x leaves thin animated silhouettes (dino legs, antennae) flickering
+// frame-to-frame on retina mobile.
+const composerMultisampling = 4;
 
 export const App = () => {
   const screen = useGame((s) => s.screen);
