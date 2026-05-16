@@ -1,5 +1,5 @@
 import type { AllHeroSkills } from "./sim/heroSkills";
-import type { AllMetaSkills } from "./sim/metaSkills";
+import { type AllMetaSkills, migrateLegacyMetaSkills } from "./sim/metaSkills";
 import type { BossVariant, EnemyKind, HeroVariant } from "./sim/types";
 
 export type Stars = 0 | 1 | 2 | 3;
@@ -247,8 +247,7 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
       raw.seenIntros && typeof raw.seenIntros === "object"
         ? (raw.seenIntros as Record<number, true>)
         : {},
-    metaSkills:
-      raw.metaSkills && typeof raw.metaSkills === "object" ? (raw.metaSkills as AllMetaSkills) : {},
+    metaSkills: migrateLegacyMetaSkills(raw.metaSkills),
     activeHero:
       raw.activeHero === "leela" ||
       raw.activeHero === "mike" ||

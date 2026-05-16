@@ -1,317 +1,542 @@
 // Meta-progression "skill tree". Stars earned from clearing waves get
-// invested between runs from the world map. Each tower kind has three
-// independent skill lines, each with three ranks. Ranks apply at tower
-// creation — they bake into the tower's base stats so the in-game
-// upgrade panel (UPGRADES) continues to scale multiplicatively on top.
+// invested between runs from the world map. Each tower kind owns three
+// independent branches; each branch is a linear ladder of four tiers
+// the player unlocks in order. Tier costs ramp [1, 1, 2, 3] = 7 stars
+// to max one branch, 21 to max one tower, 126 to max every tower —
+// the total exceeds the campaign's max-star ceiling on purpose so the
+// player commits to specialisation.
 //
-// Costs are uniform (1 star per rank). Refunds are free: stars aren't
-// "spent" in the sense of being consumed, only allocated, so the player
-// can re-spec freely from the panel.
+// Effects bake into the tower at placement time (see applyMetaSkillsToTower
+// below). In-game UPGRADES continue to scale on top — meta is the
+// permanent floor, upgrades are the per-run climb.
+//
+// Refunds are free: stars aren't consumed, only allocated, so re-spec
+// is one click in the panel.
 
 import type { Tower, TowerKind } from "./types";
 import { HIVE_MAX_DRONES, TOWER_COST } from "./world";
 
-export type MetaSkillId = string;
+export type BranchId = "a" | "b" | "c";
+export const BRANCH_IDS: readonly BranchId[] = ["a", "b", "c"];
 
-export type MetaSkillNode = {
-  id: MetaSkillId;
+// Tiers per branch (1..4). 0 = nothing invested.
+export const MAX_TIER = 4;
+
+// Per-tier star cost. Index 0 = unlock tier 1, index 3 = unlock tier 4.
+// Ramped so the capstone is the expensive node and entry into a branch
+// is cheap.
+export const TIER_COST: readonly number[] = [1, 1, 2, 3];
+
+export type MetaTier = {
+  // Short noun (3-4 words) for the tier card header.
   name: string;
-  // Short flavor line shown under the title in the panel.
-  blurb: string;
-  // Plain-text bullet shown for each rank. Reads as a stat line, not a
-  // sentence — pairs with the rank-pip strip in the UI.
-  rankDesc: [string, string, string];
-  // Mutates the tower in place to reflect this node at the given rank.
-  // Rank 0 = no-op (caller skips). Implementations write the cumulative
-  // value (not additive) so re-spec / preview is idempotent.
-  apply: (tower: Tower, rank: number) => void;
-  // Returns the gold-cost reduction this node contributes at the given
-  // rank. Most nodes return 0; the per-tower "Surplus" nodes return a
-  // flat discount applied to TOWER_COST at placement time.
-  costReduction?: (rank: number) => number;
+  // One-line description shown beneath the name. Reads as the effect
+  // delta, not a sentence: "+12% damage", "15% crit · 2× dmg".
+  desc: string;
+  // Cumulative cost to reach this tier (sum of TIER_COST up to and
+  // including this index). Precomputed in the runtime for the panel.
+  costThis: number;
+  // Mutates the tower in place to reflect this tier's effect. Branches
+  // bake left-to-right (tier 1 first) so each apply only needs to add
+  // its own delta; resets are handled by reapplying from base stats.
+  apply: (tower: Tower) => void;
 };
 
-export type MetaSkillTree = [MetaSkillNode, MetaSkillNode, MetaSkillNode];
+export type MetaBranch = {
+  // Short label for the column header in the panel.
+  label: string;
+  // One-line subtitle clarifying the branch theme. Shown smaller than
+  // the label.
+  blurb: string;
+  // Exactly four tiers per branch.
+  tiers: [MetaTier, MetaTier, MetaTier, MetaTier];
+};
 
-const dmgMul = (rank: number, scale: [number, number, number]) => (rank > 0 ? scale[rank - 1] : 1);
+export type MetaTowerTree = Record<BranchId, MetaBranch>;
+
+// Helper to compute cumulative tier cost ([1,2,4,7] for [1,1,2,3]).
+const cumCost = (tierIdx: number): number => {
+  let s = 0;
+  for (let i = 0; i <= tierIdx; i++) s += TIER_COST[i];
+  return s;
+};
+
+const tier = (name: string, desc: string, idx: number, apply: (t: Tower) => void): MetaTier => ({
+  name,
+  desc,
+  costThis: cumCost(idx),
+  apply,
+});
 
 // --- Pulse ---------------------------------------------------------------
 
-const PULSE_TREE: MetaSkillTree = [
-  {
-    id: "pulse.barrel",
-    name: "Reinforced Barrel",
-    blurb: "Permanent kinetic damage uplift.",
-    rankDesc: ["+5% damage", "+10% damage", "+18% damage"],
-    apply: (t, r) => {
-      t.damage *= dmgMul(r, [1.05, 1.1, 1.18]);
-    },
+const PULSE: MetaTowerTree = {
+  a: {
+    label: "Ballistics",
+    blurb: "Heavier rounds, then crits.",
+    tiers: [
+      tier("Bore Rifling", "+6% damage", 0, (t) => {
+        t.damage *= 1.06;
+      }),
+      tier("Sabot Round", "+12% damage", 1, (t) => {
+        t.damage *= 1.12;
+      }),
+      tier("Critical Hit", "15% crit · 2× damage", 2, (t) => {
+        t.critChance = Math.max(t.critChance, 0.15);
+        t.critMul = Math.max(t.critMul, 2);
+      }),
+      tier("Annihilator", "+18% damage, +15% crit", 3, (t) => {
+        t.damage *= 1.18;
+        t.critChance += 0.15;
+      }),
+    ],
   },
-  {
-    id: "pulse.spool",
-    name: "Quick Action",
-    blurb: "Cycles the bolt a touch faster.",
-    rankDesc: ["+4% fire rate", "+8% fire rate", "+15% fire rate"],
-    apply: (t, r) => {
-      t.fireRate *= dmgMul(r, [1.04, 1.08, 1.15]);
-    },
+  b: {
+    label: "Autoloader",
+    blurb: "Faster cycling, extra reach.",
+    tiers: [
+      tier("Quick Spool", "+6% fire rate", 0, (t) => {
+        t.fireRate *= 1.06;
+      }),
+      tier("Hot Receiver", "+12% fire rate", 1, (t) => {
+        t.fireRate *= 1.12;
+      }),
+      tier("Overclock", "+20% fire rate", 2, (t) => {
+        t.fireRate *= 1.2;
+      }),
+      tier("Hyperfire", "+15% fire rate, +0.5 range", 3, (t) => {
+        t.fireRate *= 1.15;
+        t.range += 0.5;
+      }),
+    ],
   },
-  {
-    id: "pulse.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Pulse rifles roll off the line cheaper.",
-    rankDesc: ["-3g build cost", "-6g build cost", "-10g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [3, 6, 10][r - 1]),
+  c: {
+    label: "Logistics",
+    blurb: "Cheaper rifles, longer scopes.",
+    tiers: [
+      tier("Surplus Stockpile", "-3g build cost", 0, () => {}),
+      tier("Bulk Order", "-4g build cost (-7g total)", 1, () => {}),
+      tier("Long Scope", "+0.6 range", 2, (t) => {
+        t.range += 0.6;
+      }),
+      tier("Munitions Depot", "-5g (-12g total), +0.4 range", 3, (t) => {
+        t.range += 0.4;
+      }),
+    ],
   },
-];
+};
 
 // --- Chain ---------------------------------------------------------------
 
-const CHAIN_TREE: MetaSkillTree = [
-  {
-    id: "chain.coils",
-    name: "Stepped Coils",
-    blurb: "Higher base voltage on every arc.",
-    rankDesc: ["+5% damage", "+10% damage", "+18% damage"],
-    apply: (t, r) => {
-      t.damage *= dmgMul(r, [1.05, 1.1, 1.18]);
-    },
+const CHAIN: MetaTowerTree = {
+  a: {
+    label: "Voltage",
+    blurb: "Higher base voltage per arc.",
+    tiers: [
+      tier("Stepped Coils", "+6% damage", 0, (t) => {
+        t.damage *= 1.06;
+      }),
+      tier("High Tension", "+12% damage", 1, (t) => {
+        t.damage *= 1.12;
+      }),
+      tier("Resonance", "+1 chain target", 2, (t) => {
+        t.chainCount += 1;
+      }),
+      tier("Arc Furnace", "+15% damage, +1 chain target", 3, (t) => {
+        t.damage *= 1.15;
+        t.chainCount += 1;
+      }),
+    ],
   },
-  {
-    id: "chain.arc",
-    name: "Wider Arc",
-    blurb: "Lightning reaches further targets per shot.",
-    rankDesc: ["+1 chain target", "+2 chain targets", "+3 chain targets"],
-    apply: (t, r) => {
-      if (r > 0) t.chainCount += [1, 2, 3][r - 1];
-    },
+  b: {
+    label: "Conductor",
+    blurb: "Wider arcs, shock slow.",
+    tiers: [
+      tier("Capacitor Bank", "+0.5 range", 0, (t) => {
+        t.range += 0.5;
+      }),
+      tier("Quick Discharge", "+8% fire rate", 1, (t) => {
+        t.fireRate *= 1.08;
+      }),
+      tier("Static Field", "Chain hits slow 20% · 0.5s", 2, (t) => {
+        t.chainSlowFactor = Math.min(t.chainSlowFactor, 0.8);
+        t.chainSlowDuration = Math.max(t.chainSlowDuration, 0.5);
+      }),
+      tier("Overcharge", "+12% rate, slow 30% · 0.7s", 3, (t) => {
+        t.fireRate *= 1.12;
+        t.chainSlowFactor = 0.7;
+        t.chainSlowDuration = 0.7;
+      }),
+    ],
   },
-  {
-    id: "chain.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Coil cores get cheaper to manufacture.",
-    rankDesc: ["-3g build cost", "-6g build cost", "-10g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [3, 6, 10][r - 1]),
+  c: {
+    label: "Coilworks",
+    blurb: "Cheaper coils, longer reach.",
+    tiers: [
+      tier("Surplus Coils", "-3g build cost", 0, () => {}),
+      tier("Bulk Order", "-4g build cost (-7g total)", 1, () => {}),
+      tier("Lensed Antenna", "+0.5 range", 2, (t) => {
+        t.range += 0.5;
+      }),
+      tier("Reclamation", "-5g (-12g total), +0.1 falloff", 3, (t) => {
+        t.chainFalloff = Math.min(1, t.chainFalloff + 0.1);
+      }),
+    ],
   },
-];
+};
 
 // --- Cryo ---------------------------------------------------------------
 
-const CRYO_TREE: MetaSkillTree = [
-  {
-    id: "cryo.subzero",
-    name: "Subzero Mix",
-    blurb: "Pushes the chill closer to a full stop.",
-    // slowFactor: lower = slower. Baseline 0.40.
-    rankDesc: ["Slow factor 0.37", "Slow factor 0.34", "Slow factor 0.30"],
-    apply: (t, r) => {
-      if (r > 0) t.slowFactor = [0.37, 0.34, 0.3][r - 1];
-    },
+const CRYO: MetaTowerTree = {
+  a: {
+    label: "Subzero",
+    blurb: "Pushes the chill to a full stop.",
+    tiers: [
+      tier("Cryogen Mix", "Slow factor 0.37", 0, (t) => {
+        t.slowFactor = Math.min(t.slowFactor, 0.37);
+      }),
+      tier("Deep Chill", "Slow factor 0.34", 1, (t) => {
+        t.slowFactor = Math.min(t.slowFactor, 0.34);
+      }),
+      tier("Flash Freeze", "12% freeze chance · 0.5s", 2, (t) => {
+        t.freezeChance = Math.max(t.freezeChance, 0.12);
+        t.freezeDuration = Math.max(t.freezeDuration, 0.5);
+      }),
+      tier("Absolute Zero", "Slow 0.30, +8% freeze (20%)", 3, (t) => {
+        t.slowFactor = Math.min(t.slowFactor, 0.3);
+        t.freezeChance += 0.08;
+      }),
+    ],
   },
-  {
-    id: "cryo.linger",
-    name: "Lingering Frost",
-    blurb: "Frost coats the enemy for longer after each pulse.",
-    rankDesc: ["+0.2s chill", "+0.4s chill", "+0.7s chill"],
-    apply: (t, r) => {
-      if (r > 0) t.slowDuration += [0.2, 0.4, 0.7][r - 1];
-    },
+  b: {
+    label: "Resonator",
+    blurb: "Longer reach, lingering frost.",
+    tiers: [
+      tier("Shard Array", "+0.4 range", 0, (t) => {
+        t.range += 0.4;
+      }),
+      tier("Crystal Lens", "+0.4 range (+0.8 total)", 1, (t) => {
+        t.range += 0.4;
+      }),
+      tier("Lingering Frost", "+0.7s chill duration", 2, (t) => {
+        t.slowDuration += 0.7;
+      }),
+      tier("Frost Cone", "+0.4 range, +0.5s chill", 3, (t) => {
+        t.range += 0.4;
+        t.slowDuration += 0.5;
+      }),
+    ],
   },
-  {
-    id: "cryo.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Cryo emitters take less coolant per build.",
-    rankDesc: ["-5g build cost", "-10g build cost", "-15g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [5, 10, 15][r - 1]),
+  c: {
+    label: "Cryoworks",
+    blurb: "Cheaper coolant, sharper chill.",
+    tiers: [
+      tier("Surplus Cryo", "-5g build cost", 0, () => {}),
+      tier("Bulk Coolant", "-5g build cost (-10g total)", 1, () => {}),
+      tier("Insulated Cores", "+0.3 range", 2, (t) => {
+        t.range += 0.3;
+      }),
+      tier("Industrial Chill", "-5g (-15g total), slow -0.02", 3, (t) => {
+        t.slowFactor = Math.max(0, t.slowFactor - 0.02);
+      }),
+    ],
   },
-];
-
-// --- Mortar ---------------------------------------------------------------
-
-const MORTAR_TREE: MetaSkillTree = [
-  {
-    id: "mortar.shells",
-    name: "Heavy Shells",
-    blurb: "Denser payload — bigger thump per round.",
-    rankDesc: ["+5% damage", "+10% damage", "+18% damage"],
-    apply: (t, r) => {
-      t.damage *= dmgMul(r, [1.05, 1.1, 1.18]);
-    },
-  },
-  {
-    id: "mortar.spread",
-    name: "Wide Arc",
-    blurb: "Tunes the powder load for a fatter splash.",
-    rankDesc: ["+5% splash radius", "+10% splash radius", "+18% splash radius"],
-    apply: (t, r) => {
-      t.splashRadius *= dmgMul(r, [1.05, 1.1, 1.18]);
-    },
-  },
-  {
-    id: "mortar.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Mortar tubes come straight from the depot.",
-    rankDesc: ["-8g build cost", "-15g build cost", "-25g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [8, 15, 25][r - 1]),
-  },
-];
-
-// --- Pyre (flame) ---------------------------------------------------------
-
-const FLAME_TREE: MetaSkillTree = [
-  {
-    id: "flame.fuel",
-    name: "Volatile Fuel",
-    blurb: "Hotter mix — every flame tick bites harder.",
-    rankDesc: ["+5% damage", "+10% damage", "+18% damage"],
-    apply: (t, r) => {
-      t.damage *= dmgMul(r, [1.05, 1.1, 1.18]);
-    },
-  },
-  {
-    id: "flame.reach",
-    name: "Long Burn",
-    blurb: "Pressurises the stream for longer reach.",
-    rankDesc: ["+0.3 range", "+0.6 range", "+1.0 range"],
-    apply: (t, r) => {
-      if (r > 0) t.range += [0.3, 0.6, 1.0][r - 1];
-    },
-  },
-  {
-    id: "flame.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Pyres run on whatever's at hand.",
-    rankDesc: ["-5g build cost", "-10g build cost", "-18g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [5, 10, 18][r - 1]),
-  },
-];
-
-// --- Hive (support) -------------------------------------------------------
-
-const HIVE_TREE: MetaSkillTree = [
-  {
-    id: "hive.tuned",
-    name: "Sturdy Drones",
-    blurb: "Drones run hotter without burning out.",
-    rankDesc: ["+2% buff per drone", "+4% buff per drone", "+7% buff per drone"],
-    apply: (t, r) => {
-      if (r > 0) t.serviceBuff += [0.02, 0.04, 0.07][r - 1];
-    },
-  },
-  {
-    id: "hive.bay",
-    name: "Extra Bay",
-    blurb: "Larger hangar — more drones rolling off the rack.",
-    rankDesc: ["+0 drone", "+1 drone (4 total)", "+2 drones (5 total)"],
-    apply: (t, r) => {
-      if (t.kind !== "hive") return;
-      const add = [0, 1, 2][r - 1] ?? 0;
-      if (add > 0) {
-        t.droneCount = Math.min(HIVE_MAX_DRONES, t.droneCount + add);
-      }
-    },
-  },
-  {
-    id: "hive.surplus",
-    name: "Surplus Stockpile",
-    blurb: "Cuts the hive's manufacturing overhead.",
-    rankDesc: ["-10g build cost", "-20g build cost", "-35g build cost"],
-    apply: () => {},
-    costReduction: (r) => (r === 0 ? 0 : [10, 20, 35][r - 1]),
-  },
-];
-
-export const META_SKILL_TREE: Record<TowerKind, MetaSkillTree> = {
-  pulse: PULSE_TREE,
-  chain: CHAIN_TREE,
-  cryo: CRYO_TREE,
-  mortar: MORTAR_TREE,
-  flame: FLAME_TREE,
-  hive: HIVE_TREE,
 };
 
-export const MAX_RANK = 3;
-export const RANK_COST = 1;
+// --- Mortar -------------------------------------------------------------
 
-export type MetaSkillRanks = Partial<Record<MetaSkillId, number>>;
-export type AllMetaSkills = Partial<Record<TowerKind, MetaSkillRanks>>;
-
-const normalizeRank = (r: unknown): number => {
-  if (typeof r !== "number") return 0;
-  if (r < 0) return 0;
-  if (r > MAX_RANK) return MAX_RANK;
-  return Math.floor(r);
+const MORTAR: MetaTowerTree = {
+  a: {
+    label: "Heavy Shells",
+    blurb: "Denser payloads, fatter splash.",
+    tiers: [
+      tier("Dense Packing", "+6% damage", 0, (t) => {
+        t.damage *= 1.06;
+      }),
+      tier("Thermobaric", "+12% damage", 1, (t) => {
+        t.damage *= 1.12;
+      }),
+      tier("Cluster Shells", "+20% splash radius", 2, (t) => {
+        t.splashRadius *= 1.2;
+      }),
+      tier("Annihilator", "+15% damage, +15% splash", 3, (t) => {
+        t.damage *= 1.15;
+        t.splashRadius *= 1.15;
+      }),
+    ],
+  },
+  b: {
+    label: "Targeting",
+    blurb: "Faster, smarter shells.",
+    tiers: [
+      tier("Spotter", "+0.4 range", 0, (t) => {
+        t.range += 0.4;
+      }),
+      tier("Fire Control", "+8% fire rate", 1, (t) => {
+        t.fireRate *= 1.08;
+      }),
+      tier("Smart Munitions", "+25% dmg vs clusters (3+)", 2, (t) => {
+        t.clusterDamageBonus = Math.max(t.clusterDamageBonus, 0.25);
+      }),
+      tier("Saturation", "+10% rate, cluster bonus → 40%", 3, (t) => {
+        t.fireRate *= 1.1;
+        t.clusterDamageBonus = 0.4;
+      }),
+    ],
+  },
+  c: {
+    label: "Depot",
+    blurb: "Cheaper shells, bigger boom.",
+    tiers: [
+      tier("Surplus Shells", "-8g build cost", 0, () => {}),
+      tier("Bulk Order", "-7g build cost (-15g total)", 1, () => {}),
+      tier("Spotting Rig", "+0.4 range", 2, (t) => {
+        t.range += 0.4;
+      }),
+      tier("Munitions Reserve", "-10g (-25g total), +6% splash", 3, (t) => {
+        t.splashRadius *= 1.06;
+      }),
+    ],
+  },
 };
 
-// Read a rank with safe defaulting. Always returns 0..MAX_RANK.
-export const getRank = (meta: AllMetaSkills, kind: TowerKind, nodeId: MetaSkillId): number =>
-  normalizeRank(meta[kind]?.[nodeId]);
+// --- Flame (Pyre) -------------------------------------------------------
 
-// Apply every active meta-skill to a freshly created tower. Called once
-// at placement time so the bonuses bake into base stats; in-game
-// upgrades then stack on top as usual.
+const FLAME: MetaTowerTree = {
+  a: {
+    label: "Combustion",
+    blurb: "Hotter mix, lingering burn.",
+    tiers: [
+      tier("Hot Mix", "+8% damage", 0, (t) => {
+        t.damage *= 1.08;
+      }),
+      tier("Accelerant", "+14% damage", 1, (t) => {
+        t.damage *= 1.14;
+      }),
+      tier("Ignite", "Burn 2s after range · 4 dps", 2, (t) => {
+        t.flameIgniteDuration = Math.max(t.flameIgniteDuration, 2);
+        t.flameIgniteDps = Math.max(t.flameIgniteDps, 4);
+      }),
+      tier("Napalm", "+15% damage, burn 3s · 7 dps", 3, (t) => {
+        t.damage *= 1.15;
+        t.flameIgniteDuration = 3;
+        t.flameIgniteDps = 7;
+      }),
+    ],
+  },
+  b: {
+    label: "Pressure",
+    blurb: "Longer nozzle, hotter stream.",
+    tiers: [
+      tier("Nozzle Tuning", "+0.3 range", 0, (t) => {
+        t.range += 0.3;
+      }),
+      tier("Twin Burner", "+10% fire rate", 1, (t) => {
+        t.fireRate *= 1.1;
+      }),
+      tier("Long Burn", "+0.4 range, +5% rate", 2, (t) => {
+        t.range += 0.4;
+        t.fireRate *= 1.05;
+      }),
+      tier("Sunflare", "+0.5 range, +10% rate", 3, (t) => {
+        t.range += 0.5;
+        t.fireRate *= 1.1;
+      }),
+    ],
+  },
+  c: {
+    label: "Refinery",
+    blurb: "Cheaper fuel, longer reach.",
+    tiers: [
+      tier("Surplus Fuel", "-5g build cost", 0, () => {}),
+      tier("Bulk Mix", "-5g build cost (-10g total)", 1, () => {}),
+      tier("Pre-Heater", "+0.3 range", 2, (t) => {
+        t.range += 0.3;
+      }),
+      tier("Pyrolytic Stills", "-8g (-18g total), +5% damage", 3, (t) => {
+        t.damage *= 1.05;
+      }),
+    ],
+  },
+};
+
+// --- Hive ---------------------------------------------------------------
+
+const HIVE: MetaTowerTree = {
+  a: {
+    label: "Drone Bay",
+    blurb: "More drones, sharper buffs.",
+    tiers: [
+      tier("Spare Drone", "+1 drone (4 total)", 0, (t) => {
+        if (t.kind === "hive") t.droneCount = Math.min(HIVE_MAX_DRONES, t.droneCount + 1);
+      }),
+      tier("Twin Bay", "+1 drone (5 total)", 1, (t) => {
+        if (t.kind === "hive") t.droneCount = Math.min(HIVE_MAX_DRONES, t.droneCount + 1);
+      }),
+      tier("Reinforced Drones", "Drones grant +5% damage", 2, (t) => {
+        if (t.kind === "hive") t.serviceDamageBonus = Math.max(t.serviceDamageBonus, 0.05);
+      }),
+      tier("Full Squadron", "+1 drone (6), +5% damage buff", 3, (t) => {
+        if (t.kind === "hive") {
+          t.droneCount = Math.min(HIVE_MAX_DRONES, t.droneCount + 1);
+          t.serviceDamageBonus += 0.05;
+        }
+      }),
+    ],
+  },
+  b: {
+    label: "Service Link",
+    blurb: "Stronger fire-rate buffs.",
+    tiers: [
+      tier("Tuned Coils", "+3% buff per drone", 0, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.03;
+      }),
+      tier("Boosted Link", "+5% buff per drone", 1, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.05;
+      }),
+      tier("Harmonic Resonance", "+8% buff per drone", 2, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.08;
+      }),
+      tier("Overdrive", "+10% buff per drone", 3, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.1;
+      }),
+    ],
+  },
+  c: {
+    label: "Workshop",
+    blurb: "Cheaper hives, extra polish.",
+    tiers: [
+      tier("Surplus", "-10g build cost", 0, () => {}),
+      tier("Bulk Order", "-10g build cost (-20g total)", 1, () => {}),
+      tier("Refit Crew", "+3% buff per drone", 2, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.03;
+      }),
+      tier("Industrial Hive", "-15g (-35g total), +5% buff", 3, (t) => {
+        if (t.kind === "hive") t.serviceBuff += 0.05;
+      }),
+    ],
+  },
+};
+
+// Per-branch cumulative discount for the c-line "Surplus" tiers. The
+// tier apply functions deliberately don't touch t.totalSpent — the
+// discount is reflected at placement time via effectiveTowerCost so
+// the player sees the cheaper price before clicking build.
+const COST_DISCOUNT: Record<TowerKind, readonly number[]> = {
+  pulse: [3, 7, 7, 12],
+  chain: [3, 7, 7, 12],
+  cryo: [5, 10, 10, 15],
+  mortar: [8, 15, 15, 25],
+  flame: [5, 10, 10, 18],
+  hive: [10, 20, 20, 35],
+};
+
+export const META_SKILL_TREE: Record<TowerKind, MetaTowerTree> = {
+  pulse: PULSE,
+  chain: CHAIN,
+  cryo: CRYO,
+  mortar: MORTAR,
+  flame: FLAME,
+  hive: HIVE,
+};
+
+// Save shape. Per-tower, per-branch tier index (0..MAX_TIER). Storing
+// the *tier* (not the cumulative star count) keeps the save compact and
+// the runtime free to retune TIER_COST without invalidating saves.
+export type MetaBranchTiers = Partial<Record<BranchId, number>>;
+export type AllMetaSkills = Partial<Record<TowerKind, MetaBranchTiers>>;
+
+const clampTier = (raw: unknown): number => {
+  if (typeof raw !== "number") return 0;
+  if (!Number.isFinite(raw)) return 0;
+  if (raw < 0) return 0;
+  if (raw > MAX_TIER) return MAX_TIER;
+  return Math.floor(raw);
+};
+
+export const getTier = (meta: AllMetaSkills, kind: TowerKind, branch: BranchId): number =>
+  clampTier(meta[kind]?.[branch]);
+
+// Star cost to unlock the next-up tier on this branch. Returns 0 when
+// the branch is fully maxed.
+export const nextTierCost = (currentTier: number): number => {
+  if (currentTier >= MAX_TIER) return 0;
+  return TIER_COST[currentTier];
+};
+
+// Cumulative stars currently invested in this branch (sum of TIER_COST
+// for unlocked tiers). Mirror in the panel for "X invested" badges.
+export const branchSpent = (currentTier: number): number => {
+  let s = 0;
+  for (let i = 0; i < currentTier && i < TIER_COST.length; i++) s += TIER_COST[i];
+  return s;
+};
+
+// Apply every unlocked tier on every branch to a freshly-created tower.
+// Order: branch-by-branch, tier 1 → tier 4. Branches don't interact, so
+// any traversal would work; we fix one for determinism / debugability.
 export const applyMetaSkillsToTower = (tower: Tower, meta: AllMetaSkills): void => {
   const tree = META_SKILL_TREE[tower.kind];
-  const ranks = meta[tower.kind];
-  if (!ranks) return;
-  for (const node of tree) {
-    const r = normalizeRank(ranks[node.id]);
-    if (r === 0) continue;
-    node.apply(tower, r);
+  const tiers = meta[tower.kind];
+  if (!tiers) return;
+  for (const branch of BRANCH_IDS) {
+    const t = clampTier(tiers[branch]);
+    if (t === 0) continue;
+    const tierList = tree[branch].tiers;
+    for (let i = 0; i < t; i++) tierList[i].apply(tower);
   }
 };
 
-// Effective placement cost for a tower kind after stockpile discounts.
-// Clamped at 1g floor so an over-invested player still pays something.
+// Effective placement cost after the c-branch Surplus discount. Clamped
+// at 1g so an over-invested player still pays a token amount.
 export const effectiveTowerCost = (kind: TowerKind, meta: AllMetaSkills): number => {
-  const tree = META_SKILL_TREE[kind];
-  const ranks = meta[kind] ?? {};
-  let discount = 0;
-  for (const node of tree) {
-    if (!node.costReduction) continue;
-    discount += node.costReduction(normalizeRank(ranks[node.id]));
-  }
+  const cTier = clampTier(meta[kind]?.c);
+  const discount = cTier > 0 ? COST_DISCOUNT[kind][cTier - 1] : 0;
   return Math.max(1, TOWER_COST[kind] - discount);
 };
 
-// Total stars currently allocated across the entire meta tree. Used for
-// the "X / max" indicator and to compute available stars vs. earned.
+// Total stars allocated across the whole tree. Used by the panel header
+// (X invested / Y earned) and to gate further investment.
 export const spentMetaStars = (meta: AllMetaSkills): number => {
   let total = 0;
   for (const kind in meta) {
-    const ranks = meta[kind as TowerKind];
-    if (!ranks) continue;
-    for (const id in ranks) {
-      total += normalizeRank(ranks[id]) * RANK_COST;
+    const tiers = meta[kind as TowerKind];
+    if (!tiers) continue;
+    for (const branch of BRANCH_IDS) {
+      total += branchSpent(clampTier(tiers[branch]));
     }
   }
   return total;
 };
 
-// Validates and merges an updated rank into the tree, clamped 0..MAX_RANK.
-// Returns a new AllMetaSkills object (immutable update) so the store /
-// React state machinery picks up the change.
-export const setRank = (
-  meta: AllMetaSkills,
-  kind: TowerKind,
-  nodeId: MetaSkillId,
-  rank: number,
-): AllMetaSkills => {
-  const clamped = normalizeRank(rank);
-  const prev = meta[kind] ?? {};
-  if (normalizeRank(prev[nodeId]) === clamped) return meta;
-  const nextRanks: MetaSkillRanks = { ...prev, [nodeId]: clamped };
-  if (clamped === 0) delete nextRanks[nodeId];
-  return { ...meta, [kind]: nextRanks };
+// Stars currently invested in one tower (sum across its three branches).
+// Powers the per-tower "↺ N★" refund button in the panel.
+export const spentForKind = (meta: AllMetaSkills, kind: TowerKind): number => {
+  const tiers = meta[kind];
+  if (!tiers) return 0;
+  let s = 0;
+  for (const branch of BRANCH_IDS) s += branchSpent(clampTier(tiers[branch]));
+  return s;
 };
 
-// Refunds every node for the given tower kind back to rank 0. Used by
-// the per-tower "reset" button in the panel.
+// Validate and write a new tier value for one branch. Clamps to [0, MAX_TIER]
+// and returns a new AllMetaSkills (immutable update so React/Zustand
+// picks up the change). The store layer is the place that verifies the
+// player has enough free stars before calling this — keep it pure.
+export const setTier = (
+  meta: AllMetaSkills,
+  kind: TowerKind,
+  branch: BranchId,
+  tierValue: number,
+): AllMetaSkills => {
+  const clamped = clampTier(tierValue);
+  const prev = meta[kind] ?? {};
+  if (clampTier(prev[branch]) === clamped) return meta;
+  const nextBranches: MetaBranchTiers = { ...prev, [branch]: clamped };
+  if (clamped === 0) delete nextBranches[branch];
+  return { ...meta, [kind]: nextBranches };
+};
+
 export const resetKindRanks = (meta: AllMetaSkills, kind: TowerKind): AllMetaSkills => {
   if (!meta[kind] || Object.keys(meta[kind] ?? {}).length === 0) return meta;
   const next = { ...meta };
@@ -319,16 +544,35 @@ export const resetKindRanks = (meta: AllMetaSkills, kind: TowerKind): AllMetaSki
   return next;
 };
 
-// Refunds every kind. Used by the panel's master reset.
 export const resetAllRanks = (): AllMetaSkills => ({});
 
 export const isMetaSkillsEmpty = (meta: AllMetaSkills): boolean => {
   for (const kind in meta) {
-    const ranks = meta[kind as TowerKind];
-    if (!ranks) continue;
-    for (const id in ranks) {
-      if (normalizeRank(ranks[id]) > 0) return false;
-    }
+    const tiers = meta[kind as TowerKind];
+    if (!tiers) continue;
+    for (const b of BRANCH_IDS) if (clampTier(tiers[b]) > 0) return false;
   }
   return true;
+};
+
+// Migration: pre-branch saves stored per-node-id ranks (keys like
+// "pulse.barrel"). Detect and drop those entries so the player gets all
+// their stars back to allocate fresh in the new system.
+export const migrateLegacyMetaSkills = (raw: unknown): AllMetaSkills => {
+  if (!raw || typeof raw !== "object") return {};
+  const out: AllMetaSkills = {};
+  for (const [kind, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(kind in META_SKILL_TREE)) continue;
+    if (!value || typeof value !== "object") continue;
+    const branches: MetaBranchTiers = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "a" || k === "b" || k === "c") {
+        const t = clampTier(v);
+        if (t > 0) branches[k] = t;
+      }
+      // Legacy keys like "pulse.barrel" silently dropped.
+    }
+    if (Object.keys(branches).length > 0) out[kind as TowerKind] = branches;
+  }
+  return out;
 };

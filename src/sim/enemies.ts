@@ -1,6 +1,14 @@
 import { advanceAlongPath, samplePath, segmentLength, smoothDirection } from "./path";
+import { IGNITE_TICK_INTERVAL } from "./towers";
 import type { Enemy, EnemyKind, Vec2, World } from "./types";
-import { addShake, BOSS_VARIANT_CHILD, BOSS_VARIANT_STATS, emit, spawnEnemy } from "./world";
+import {
+  addShake,
+  applyDamage,
+  BOSS_VARIANT_CHILD,
+  BOSS_VARIANT_STATS,
+  emit,
+  spawnEnemy,
+} from "./world";
 
 const LEAK_RUN_IN_SECONDS = 0.28;
 const LEAK_POSE_SECONDS = 0.34;
@@ -140,6 +148,24 @@ export const updateEnemies = (world: World, dt: number) => {
       continue;
     }
 
+    // Pyre Combustion meta — ignited enemies tick damage on a fixed
+    // cadence while world.time < igniteUntil. Damage routes through
+    // applyDamage so kill credit lands on the firing tower (id stamped
+    // when the ignite was applied) and the dot integrates with regen
+    // suppression / death cleanup like any other damage source.
+    if (e.igniteUntil > 0 && world.time < e.igniteUntil && world.time >= e.igniteTickAt) {
+      const tickDmg = e.igniteDps * IGNITE_TICK_INTERVAL;
+      const hitOpts =
+        e.igniteAttackerTowerId !== null ? { attackerTowerId: e.igniteAttackerTowerId } : undefined;
+      applyDamage(world, e, tickDmg, "flame", "#ffb54a", 2, false, hitOpts);
+      e.igniteTickAt = world.time + IGNITE_TICK_INTERVAL;
+      if (!e.alive) continue;
+    } else if (e.igniteUntil > 0 && world.time >= e.igniteUntil) {
+      e.igniteUntil = 0;
+      e.igniteDps = 0;
+      e.igniteAttackerTowerId = null;
+    }
+
     // Matriarch child-spawn — variant matriarchs drip their namesake
     // species behind them every BOSS_VARIANT_CHILD interval. Disabled
     // while she's slowed (cryo "freezes" her brood in place) so cold
@@ -149,7 +175,8 @@ export const updateEnemies = (world: World, dt: number) => {
       e.bossVariant !== undefined &&
       e.childSpawnAt !== undefined &&
       world.time >= e.childSpawnAt &&
-      world.time >= e.slowUntil
+      world.time >= e.slowUntil &&
+      world.time >= e.freezeUntil
     ) {
       const cfg = BOSS_VARIANT_CHILD[e.bossVariant];
       if (cfg) {
@@ -187,7 +214,11 @@ export const updateEnemies = (world: World, dt: number) => {
       e.frost = Math.max(0, e.frost - dt * 0.35);
     }
 
-    const effectiveSpeed = e.speed * e.slowFactor;
+    // Cryo Subzero meta — freeze pins effective speed to 0 for the
+    // freeze window. Independent of the regular slowFactor so the
+    // baseline slow still applies once the freeze elapses.
+    const frozen = e.freezeUntil > 0 && world.time < e.freezeUntil;
+    const effectiveSpeed = frozen ? 0 : e.speed * e.slowFactor;
     const path = world.paths[e.pathIndex];
     const adv = advanceAlongPath(path, e.segment, e.segmentT, effectiveSpeed * dt);
     e.segment = adv.segment;

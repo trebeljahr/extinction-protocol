@@ -1,11 +1,17 @@
 import { totalStars } from "../progress";
 import {
+  BRANCH_IDS,
+  type BranchId,
+  branchSpent,
   effectiveTowerCost,
-  getRank,
-  MAX_RANK,
+  getTier,
+  MAX_TIER,
   META_SKILL_TREE,
-  type MetaSkillNode,
+  type MetaBranch,
+  nextTierCost,
+  spentForKind,
   spentMetaStars,
+  TIER_COST,
 } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
@@ -16,87 +22,107 @@ import { TowerPreview } from "./TowerPreview";
 
 const KIND_ORDER: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
 
-// Inline pip strip — visually matches the rank ladder. Filled = invested,
-// outlined = next-up (affordable), faded = locked behind earlier ranks.
-const RankPips = ({
-  rank,
-  available,
-  onClick,
-}: {
-  rank: number;
-  available: number;
-  onClick: (target: number) => void;
-}) => {
-  return (
-    <div className="flex items-center gap-1.5">
-      {Array.from({ length: MAX_RANK }).map((_, i) => {
-        const tier = i + 1;
-        const filled = tier <= rank;
-        // Clicking a filled pip refunds back to that tier (so the click
-        // target acts as a slider: click rank 2 to be at rank 2). Clicking
-        // an unfilled pip raises rank to that tier — gated by the player's
-        // free-star budget.
-        const target = filled && tier === rank ? rank - 1 : tier;
-        const wouldSpend = Math.max(0, tier - rank);
-        const affordable = wouldSpend <= available;
-        const disabled = !filled && !affordable;
-        const cls = filled
-          ? "bg-gold border-gold"
-          : affordable
-            ? "bg-transparent border-gold/70 hover:bg-gold/30"
-            : "bg-transparent border-fg-faint";
-        return (
-          <button
-            key={`pip-${tier}`}
-            type="button"
-            className={`w-4 h-4 rounded-full border-2 transition-colors ${cls} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-            onClick={() => !disabled && onClick(target)}
-            disabled={disabled}
-            aria-label={filled ? `Rank ${tier} (click to refund)` : `Upgrade to rank ${tier}`}
-            title={filled ? `Rank ${tier} (click to refund)` : `Upgrade to rank ${tier}`}
-          />
-        );
-      })}
-    </div>
-  );
-};
-
-const SkillRow = ({
+// A vertical ladder of four tier cards for one branch. Earlier tiers
+// unlock to the right of "currentTier"; clicking an unlocked tile
+// refunds back to that step (so the topmost click un-invests one), and
+// clicking the next-up tile invests forward.
+const BranchLadder = ({
   kind,
-  node,
+  branchId,
+  branch,
+  currentTier,
   available,
 }: {
   kind: TowerKind;
-  node: MetaSkillNode;
+  branchId: BranchId;
+  branch: MetaBranch;
+  currentTier: number;
   available: number;
 }) => {
-  const rank = useGame((s) => getRank(s.progress.metaSkills, kind, node.id));
-  const setRank = useGame((s) => s.setMetaSkillRank);
-  const currentDesc = rank > 0 ? node.rankDesc[rank - 1] : "Not invested";
-  const nextDesc = rank < MAX_RANK ? node.rankDesc[rank] : null;
+  const setTier = useGame((s) => s.setMetaSkillTier);
+
   return (
-    <div className="border-t border-border-faint py-2.5 first:border-t-0">
-      <div className="flex items-start justify-between gap-3 mb-1.5">
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-fg leading-tight">{node.name}</div>
-          <div className="text-[11px] text-fg-muted leading-snug mt-0.5">{node.blurb}</div>
+    <div className="flex flex-col gap-1.5">
+      <div className="px-1 mb-0.5">
+        <div className="text-[12px] font-bold text-fg uppercase tracking-wide leading-tight">
+          {branch.label}
         </div>
-        <RankPips
-          rank={rank}
-          available={available}
-          onClick={(target) => setRank(kind, node.id, target)}
-        />
+        <div className="text-[10px] text-fg-muted leading-snug">{branch.blurb}</div>
       </div>
-      <div className="flex items-center gap-2 text-[11px] tabular-nums">
-        <span className={rank > 0 ? "text-mint" : "text-fg-dim"}>{currentDesc}</span>
-        {nextDesc && (
-          <>
-            <span className="text-fg-faint">→</span>
-            <span className="text-gold/80">{nextDesc}</span>
-            <span className="text-fg-faint ml-auto">1★</span>
-          </>
-        )}
-      </div>
+      {branch.tiers.map((tier, idx) => {
+        const tierNum = idx + 1;
+        const cost = TIER_COST[idx];
+        const unlocked = tierNum <= currentTier;
+        const nextUp = tierNum === currentTier + 1;
+        const affordable = nextUp && cost <= available;
+
+        // Click semantics:
+        // - unlocked + topmost: refund to (tierNum - 1), giving back `cost`
+        // - next-up: invest if affordable
+        // - locked deeper or refund mid-chain: disabled
+        const isTopmost = unlocked && tierNum === currentTier;
+        const onClick = () => {
+          if (isTopmost) {
+            setTier(kind, branchId, tierNum - 1);
+          } else if (nextUp && affordable) {
+            setTier(kind, branchId, tierNum);
+          }
+        };
+        const disabled = !isTopmost && !(nextUp && affordable);
+
+        const stateClass = unlocked
+          ? "border-gold/70 bg-gold/15"
+          : nextUp && affordable
+            ? "border-cyan/50 bg-surface-2 hover:border-cyan hover:bg-cyan/10"
+            : "border-border-faint bg-surface-2 opacity-50";
+
+        const titleText = unlocked
+          ? isTopmost
+            ? `Refund tier ${tierNum} (+${cost}★)`
+            : `Tier ${tierNum} — unlocked`
+          : nextUp
+            ? affordable
+              ? `Unlock tier ${tierNum} (-${cost}★)`
+              : `Need ${cost}★ to unlock`
+            : `Locked — unlock tier ${tierNum - 1} first`;
+
+        return (
+          <button
+            key={`${branchId}-t${tierNum}`}
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            title={titleText}
+            aria-label={titleText}
+            className={`text-left rounded-md border-2 px-2 py-1.5 transition-colors ${stateClass} ${
+              disabled ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
+          >
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className={`text-[10px] font-bold tabular-nums ${unlocked ? "text-gold" : "text-fg-muted"}`}
+              >
+                T{tierNum}
+              </span>
+              <span
+                className={`text-[12px] font-bold leading-tight truncate ${unlocked ? "text-fg" : "text-fg-secondary"}`}
+              >
+                {tier.name}
+              </span>
+              <span
+                className={`ml-auto text-[10px] tabular-nums shrink-0 ${unlocked ? "text-mint" : "text-gold/80"}`}
+              >
+                {unlocked ? "✓" : `${cost}★`}
+              </span>
+            </div>
+            <div
+              className={`text-[10.5px] leading-snug mt-0.5 ${unlocked ? "text-mint" : "text-fg-muted"}`}
+            >
+              {tier.desc}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -107,12 +133,8 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
   const cost = effectiveTowerCost(kind, metaSkills);
   const dmgType = TOWER_DAMAGE_TYPE[kind];
   const resetKind = useGame((s) => s.resetMetaSkillsForKind);
-  const investedCount = (() => {
-    const ranks = metaSkills[kind] ?? {};
-    let n = 0;
-    for (const id in ranks) n += ranks[id] ?? 0;
-    return n;
-  })();
+  const invested = spentForKind(metaSkills, kind);
+
   return (
     <div className="bg-surface-1 border border-border rounded-lg p-3 flex flex-col">
       <div className="flex items-center gap-3 pb-2.5 border-b border-border-faint">
@@ -132,21 +154,54 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
             <span className="text-[11px] text-gold tabular-nums">{cost}g</span>
           </div>
         </div>
-        {investedCount > 0 && (
+        {invested > 0 && (
           <button
             type="button"
             className="text-[10px] text-fg-muted hover:text-red transition-colors px-2 py-1 rounded border border-border-faint hover:border-red"
             onClick={() => resetKind(kind)}
-            title={`Refund all ${investedCount} star${investedCount === 1 ? "" : "s"}`}
+            title={`Refund all ${invested} star${invested === 1 ? "" : "s"}`}
           >
-            ↺ {investedCount}★
+            ↺ {invested}★
           </button>
         )}
       </div>
-      <div className="flex-1">
-        {tree.map((node) => (
-          <SkillRow key={node.id} kind={kind} node={node} available={available} />
-        ))}
+      <div className="grid grid-cols-3 gap-2 mt-2.5">
+        {BRANCH_IDS.map((branchId) => {
+          const branch = tree[branchId];
+          const t = getTier(metaSkills, kind, branchId);
+          return (
+            <BranchLadder
+              key={branchId}
+              kind={kind}
+              branchId={branchId}
+              branch={branch}
+              currentTier={t}
+              available={available}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 pt-2 border-t border-border-faint flex items-center gap-3 text-[10px] text-fg-muted">
+        {BRANCH_IDS.map((branchId) => {
+          const t = getTier(metaSkills, kind, branchId);
+          const spent = branchSpent(t);
+          const next = nextTierCost(t);
+          return (
+            <span key={`${branchId}-status`} className="flex-1 truncate">
+              <span className="text-fg-secondary">{tree[branchId].label}:</span>{" "}
+              {t > 0 ? (
+                <span className="text-gold tabular-nums">
+                  T{t}/{MAX_TIER}
+                </span>
+              ) : (
+                <span className="text-fg-faint">—</span>
+              )}{" "}
+              <span className="text-fg-faint tabular-nums">
+                ({spent}★{next > 0 ? ` · +${next}` : ""})
+              </span>
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -165,26 +220,27 @@ export const SkillTreePanel = () => {
       title="Operations · Lab"
       subtitle={`${available} stars available · ${spent} invested · ${earned} earned`}
       onClose={() => setOpen(false)}
-      cardClassName="!w-[min(1180px,calc(100vw-48px))] !max-w-none"
+      cardClassName="!w-[min(1280px,calc(100vw-48px))] !max-w-none"
     >
       <div className="skill-tree-panel w-full">
         <div className="flex items-center justify-between gap-3 px-1 mb-3">
           <p className="text-[11px] text-fg-muted leading-snug flex-1 min-w-0">
-            Permanent upgrades baked into every tower you build. Spend stars from cleared waves;
-            refund any node for free to re-spec between runs.
+            Permanent upgrades baked into every tower you build. Each tower has three branches with
+            four tiers; tiers unlock left-to-right. Refund any branch for free to re-spec between
+            runs.
           </p>
           {spent > 0 && (
             <button
               type="button"
               className="btn btn-ghost text-xs py-1.5 px-3 shrink-0 whitespace-nowrap"
               onClick={resetAll}
-              title="Refund every node across every tower"
+              title="Refund every tier across every tower"
             >
               Refund all
             </button>
           )}
         </div>
-        <div className="skill-tree-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="skill-tree-grid grid grid-cols-1 xl:grid-cols-2 gap-3">
           {KIND_ORDER.map((kind) => (
             <TowerCard key={kind} kind={kind} available={available} />
           ))}

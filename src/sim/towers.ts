@@ -23,6 +23,40 @@ import {
 // would just add a state field that has to stay in sync.
 export const effectiveFireRate = (t: Tower): number => t.fireRate * (1 + t.serviceFireRateBonus);
 
+// Mirror of effectiveFireRate for damage — Hive A's "Reinforced Drones"
+// meta lets each servicing drone add a damage bonus on top of the
+// usual fire-rate buff. Aggregated into serviceDamageBonusFrom each
+// tick alongside serviceFireRateBonus.
+export const effectiveDamage = (t: Tower): number => t.damage * (1 + t.serviceDamageBonusFrom);
+
+// Crit roll for pulse/chain. Returns the damage scaler to multiply
+// against tower.damage at fire time. 1 = no crit, critMul on a hit.
+const rollCritMul = (t: Tower): number =>
+  t.critChance > 0 && Math.random() < t.critChance ? t.critMul : 1;
+
+// How often ignite ticks while the burn is active. Half-second cadence
+// keeps the floating damage numbers readable without flooding the
+// damage-attribution pipe.
+export const IGNITE_TICK_INTERVAL = 0.5;
+
+// Cluster bonus threshold for the mortar meta. Splash impact applies
+// the bonus damage only when at least this many enemies sit inside the
+// splash radius — small groups don't get the bonus.
+export const CLUSTER_THRESHOLD = 3;
+
+// Stamp ignite state onto an enemy and (re)start its tick clock. Called
+// from the flame fire path; the per-tick tick loop in enemies.ts is
+// what actually applies the damage every IGNITE_TICK_INTERVAL.
+const applyIgnite = (world: World, t: Tower, e: Enemy) => {
+  if (t.flameIgniteDuration <= 0 || t.flameIgniteDps <= 0) return;
+  e.igniteUntil = world.time + t.flameIgniteDuration;
+  e.igniteDps = Math.max(e.igniteDps, t.flameIgniteDps);
+  e.igniteAttackerTowerId = t.id;
+  if (e.igniteTickAt <= world.time) {
+    e.igniteTickAt = world.time + IGNITE_TICK_INTERVAL;
+  }
+};
+
 const enemyProgress = (e: Enemy): number => e.segment + e.segmentT;
 
 const resistMulForTower = (tower: Tower, e: Enemy): number => {
@@ -177,39 +211,44 @@ const findTargetInRange = (world: World, tower: Tower): Enemy | null => {
 // applyDamage calls, plus the tower id for kill-credit attribution.
 // T3 fields default inert; attackerTowerId is always populated so kills
 // from chain ricochets / cryo / flame ticks land on the firing tower.
+// The clusterDamageBonus comes from the meta tree; carrying it on the
+// projectile lets the splash impact decide whether the bonus fires
+// based on how many enemies are actually inside the radius at impact.
 const towerHitOpts = (t: Tower) => ({
   shieldDamageMul: t.shieldDamageMul,
   armorPierce: t.armorPierce,
   resistStrip: t.resistStrip,
   regenSuppressOnHit: t.regenSuppressOnHit,
   attackerTowerId: t.id,
+  clusterDamageBonus: t.clusterDamageBonus,
 });
 
 const firePulse = (world: World, t: Tower, target: Enemy) => {
-  createProjectile(
-    world,
-    "direct",
-    "kinetic",
-    t.pos,
-    target,
-    t.damage,
-    0,
-    22,
-    false,
-    towerHitOpts(t),
-  );
+  // Crit is rolled at fire time and baked into the projectile damage.
+  // Resolving here keeps applyDamage agnostic of crit semantics so the
+  // chain ricochet / mortar splash paths re-use the same crit treatment
+  // by simply multiplying tower.damage before fire.
+  const dmg = effectiveDamage(t) * rollCritMul(t);
+  createProjectile(world, "direct", "kinetic", t.pos, target, dmg, 0, 22, false, towerHitOpts(t));
 };
 
 const fireChain = (world: World, t: Tower, primary: Enemy) => {
   const hit = collectChainTargets(world, primary, t.chainCount);
-  let damage = t.damage;
+  // Single crit roll per shot — the whole arc carries the same crit
+  // multiplier so high-value bounces still register as a "crit chain"
+  // visually and statistically.
+  let damage = effectiveDamage(t) * rollCritMul(t);
 
   const points = [t.pos, ...hit.map((e) => e.pos)];
   createBeam(world, points, "#9fd8ff", 0.1);
 
   const opts = towerHitOpts(t);
+  const applyChainSlow = t.chainSlowFactor < 1 && t.chainSlowDuration > 0;
   for (const e of hit) {
     applyDamage(world, e, damage, "electric", undefined, undefined, false, opts);
+    if (applyChainSlow && e.alive) {
+      applySlow(e, world, t.chainSlowFactor, t.chainSlowDuration);
+    }
     damage = Math.max(1, damage * t.chainFalloff);
   }
 };
@@ -220,18 +259,26 @@ const fireChain = (world: World, t: Tower, primary: Enemy) => {
 const applyCryoFreeze = (world: World, t: Tower): boolean => {
   const rangeSq = t.range * t.range;
   let hit = false;
+  const dmg = effectiveDamage(t);
+  const canFreeze = t.freezeChance > 0 && t.freezeDuration > 0;
   for (const e of world.enemies) {
     if (!isEnemyTargetable(e)) continue;
     if (distSq(e.pos, t.pos) > rangeSq) continue;
     hit = true;
     applySlow(e, world, t.slowFactor, t.slowDuration);
+    // Subzero meta roll — chance to fully freeze the enemy for the
+    // configured duration. Freeze pins effective speed to 0 in the
+    // enemy update; baseline slow still applies once freeze elapses.
+    if (canFreeze && Math.random() < t.freezeChance) {
+      e.freezeUntil = Math.max(e.freezeUntil, world.time + t.freezeDuration);
+    }
     // Cryo T3 (Cryo Lock) — push regen pause out to end-of-slow so the
     // enemy can't tick HP back up while frozen.
     if (t.freezeBlocksRegen && e.regen) {
       e.regenPausedUntil = Math.max(e.regenPausedUntil, e.slowUntil);
     }
     e.flashUntil = world.time + 0.06;
-    if (t.damage > 0) applyDamage(world, e, t.damage, "cold", "#bfe9ff", 6, false, towerHitOpts(t));
+    if (dmg > 0) applyDamage(world, e, dmg, "cold", "#bfe9ff", 6, false, towerHitOpts(t));
   }
   return hit;
 };
@@ -265,7 +312,7 @@ const fireMortar = (world: World, t: Tower, target: Enemy) => {
     "explosive",
     t.pos,
     target.pos,
-    t.damage,
+    effectiveDamage(t),
     t.splashRadius,
     14,
     false,
@@ -319,7 +366,7 @@ const flameRangeMul = (distance: number, range: number): number =>
   Math.max(FLAME_MIN_RANGE_MUL, 1 - (distance / Math.max(1e-6, range)) * FLAME_DISTANCE_FALLOFF);
 
 const flameTickDamage = (tower: Tower, index: number, distance: number): number =>
-  tower.damage * flameThroughputMul(index) * flameRangeMul(distance, tower.range);
+  effectiveDamage(tower) * flameThroughputMul(index) * flameRangeMul(distance, tower.range);
 
 const collectFlameHits = (world: World, t: Tower, target: Enemy): FlameHit[] => {
   const dx = target.pos.x - t.pos.x;
@@ -353,6 +400,7 @@ const collectFlameHits = (world: World, t: Tower, target: Enemy): FlameHit[] => 
 
 const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
   const hits = collectFlameHits(world, t, target);
+  const canIgnite = t.flameIgniteDuration > 0 && t.flameIgniteDps > 0;
   for (const hit of hits) {
     applyDamage(
       world,
@@ -364,6 +412,9 @@ const fireFlameDamage = (world: World, t: Tower, target: Enemy): boolean => {
       false,
       towerHitOpts(t),
     );
+    // Pyre Combustion meta — every flame contact refreshes the lingering
+    // burn so the enemy keeps taking damage after it walks out of range.
+    if (canIgnite && hit.enemy.alive) applyIgnite(world, t, hit.enemy);
   }
   return hits.length > 0;
 };
@@ -444,7 +495,7 @@ const fireMortarAtSpot = (world: World, t: Tower, pos: Vec2) => {
     "explosive",
     t.pos,
     { x: pos.x, y: pos.y },
-    t.damage,
+    effectiveDamage(t),
     t.splashRadius,
     14,
     false,
@@ -469,7 +520,10 @@ export const updateTowers = (world: World, dt: number) => {
   // currently points at it. Reset on every tick so a re-assignment or
   // sold tower drops the buff on the very next frame, not after a
   // delayed fade.
-  for (const t of world.towers) t.serviceFireRateBonus = 0;
+  for (const t of world.towers) {
+    t.serviceFireRateBonus = 0;
+    t.serviceDamageBonusFrom = 0;
+  }
   for (const h of world.towers) {
     if (h.kind !== "hive") continue;
     for (let d = 0; d < h.droneCount; d++) {
@@ -483,6 +537,10 @@ export const updateTowers = (world: World, dt: number) => {
         continue;
       }
       target.serviceFireRateBonus += h.serviceBuff;
+      // Hive A meta "Reinforced Drones" — each servicing drone also
+      // contributes a damage uplift on top of the fire-rate buff. Inert
+      // (0) on non-meta hives, so existing builds see no change.
+      target.serviceDamageBonusFrom += h.serviceDamageBonus;
     }
   }
 

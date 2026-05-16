@@ -89,6 +89,18 @@ export type Enemy = {
   // the `elite` chip (which flattens base resists toward 1.0); resists
   // is per-damage-type and per-spawn.
   extraResists: Partial<Record<DamageType, number>>;
+  // Flame meta-skill "ignite" — Pyre Combustion T3/T4 leaves enemies
+  // burning after they walk out of range. While world.time < igniteUntil
+  // they take igniteDps damage every IGNITE_TICK_INTERVAL seconds,
+  // credited to the tower that lit them. Set to 0/null when not burning.
+  igniteUntil: number;
+  igniteDps: number;
+  igniteTickAt: number;
+  igniteAttackerTowerId: EntityId | null;
+  // Cryo meta-skill "freeze" — Subzero T3/T4 rolls a freeze chance per
+  // tick. While world.time < freezeUntil, slowFactor pins to ~0 so the
+  // enemy is stopped cold. Freeze stacks on top of regular cryo slow.
+  freezeUntil: number;
   // Only meaningful when kind === "boss". Picks the biome-themed matriarch
   // variant (raptor / stego / para / allosaur / armored / apex). Controls
   // stats, resists, model, and the species spawned by the child-spawn
@@ -169,6 +181,20 @@ export type Tower = {
   resistStrip: number; // Chain T3: strips own-type resist toward 1 per hit
   regenSuppressOnHit: number; // Pyre T3: extends regenPausedUntil after hit
   freezeBlocksRegen: boolean; // Cryo T3: regen paused while slowed
+  // Meta-skill (skill tree) effects. All inert by default; populated by
+  // applyMetaSkillsToTower at placement time. Layered on top of base
+  // stats so the in-game upgrade tree continues to scale on top.
+  critChance: number; // Pulse Ballistics — 0..1 chance per shot
+  critMul: number; // Damage multiplier applied on a crit roll. Default 1.
+  freezeChance: number; // Cryo Subzero — 0..1 chance per freeze tick to lock
+  freezeDuration: number; // Seconds the lock holds. slowFactor pinned to 0.
+  chainSlowFactor: number; // Chain Conductor — slow applied to bounced enemies. Default 1 = no slow.
+  chainSlowDuration: number;
+  clusterDamageBonus: number; // Mortar Targeting — extra dmg when ≥3 enemies in splash
+  flameIgniteDuration: number; // Pyre Combustion — seconds enemies keep burning after leaving range
+  flameIgniteDps: number;
+  serviceDamageBonus: number; // Hive A — flat damage bonus given to each assigned tower
+  serviceDamageBonusFrom: number; // Non-hive aggregate: sum of bonuses currently incoming
   // Number of enemies this tower has personally killed this run.
   // Credited in applyDamage to whichever tower delivered the killing
   // blow — chain ricochets and cryo/flame ticks attribute to the
@@ -351,6 +377,9 @@ export type Projectile = {
   // applyDamage so kill credit lands on the firing tower even if it
   // was sold or upgraded between fire and impact.
   ownerTowerId: EntityId | null;
+  // Mortar Targeting meta — extra damage applied at splash impact when
+  // ≥CLUSTER_THRESHOLD enemies sit inside the splash radius. 0 = no bonus.
+  clusterDamageBonus: number;
 };
 
 export type Beam = {

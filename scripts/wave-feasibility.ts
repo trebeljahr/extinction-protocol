@@ -44,8 +44,12 @@ import { HERO_SPECS, type HeroVariantSpec } from "../src/sim/heroVariants";
 import {
   type AllMetaSkills,
   applyMetaSkillsToTower,
+  BRANCH_IDS,
+  type BranchId,
+  branchSpent,
   effectiveTowerCost,
-  META_SKILL_TREE,
+  getTier,
+  MAX_TIER,
 } from "../src/sim/metaSkills";
 import { pathLength } from "../src/sim/path";
 import { FLAME_ACTIVE_DUTY, flameThroughputCapacity } from "../src/sim/towers";
@@ -145,22 +149,26 @@ const buildConfig = (
 };
 
 /**
- * Enumerate every meta-skill rank allocation for one tower kind that fits
- * within `starBudget`. Each kind has 3 nodes × 4 ranks (0..3) = 64 combos
- * before budget filtering. With star budget < 9, fewer are valid.
+ * Enumerate every meta-skill tier allocation for one tower kind that fits
+ * within `starBudget`. Each kind has 3 branches × 5 tier states (0..4)
+ * = 125 combos before budget filtering. With star budget < 21, fewer
+ * survive the filter.
  */
 const enumerateMetaAllocations = (kind: TowerKind, starBudget: number): AllMetaSkills[] => {
-  const tree = META_SKILL_TREE[kind];
   const out: AllMetaSkills[] = [];
-  for (let a = 0; a <= 3; a++) {
-    for (let b = 0; b <= 3; b++) {
-      for (let c = 0; c <= 3; c++) {
-        if (a + b + c > starBudget) continue;
-        const ranks: Record<string, number> = {};
-        if (a > 0) ranks[tree[0].id] = a;
-        if (b > 0) ranks[tree[1].id] = b;
-        if (c > 0) ranks[tree[2].id] = c;
-        out.push({ [kind]: ranks });
+  for (let a = 0; a <= MAX_TIER; a++) {
+    const aCost = branchSpent(a);
+    if (aCost > starBudget) break;
+    for (let b = 0; b <= MAX_TIER; b++) {
+      const bCost = branchSpent(b);
+      if (aCost + bCost > starBudget) break;
+      for (let c = 0; c <= MAX_TIER; c++) {
+        if (aCost + bCost + branchSpent(c) > starBudget) break;
+        const tiers: Partial<Record<BranchId, number>> = {};
+        if (a > 0) tiers.a = a;
+        if (b > 0) tiers.b = b;
+        if (c > 0) tiers.c = c;
+        out.push({ [kind]: tiers });
       }
     }
   }
@@ -188,23 +196,21 @@ const buildAllConfigs = (starBudget: number): TowerConfig[] => {
 };
 
 const summarizeMeta = (meta: AllMetaSkills, kind: TowerKind): string => {
-  const ranks = meta[kind];
-  if (!ranks) return "—";
-  const tree = META_SKILL_TREE[kind];
-  const parts = tree
-    .map((node, i) => {
-      const r = ranks[node.id] ?? 0;
-      return r > 0 ? `${["a", "b", "c"][i]}${r}` : "";
-    })
-    .filter(Boolean);
+  const tiers = meta[kind];
+  if (!tiers) return "—";
+  const parts = BRANCH_IDS.map((b) => {
+    const t = getTier(meta, kind, b);
+    return t > 0 ? `${b}T${t}` : "";
+  }).filter(Boolean);
   return parts.length === 0 ? "—" : parts.join(",");
 };
 
-// Default star budget per kind for level N: one perfect 3-star clear of
-// every prior level fully maxes one tower line (3 nodes × 3 ranks = 9).
-// Capped at 9 since surplus stars would go to OTHER kinds, not this one.
+// Default star budget per kind for level N: assume the player has cleared
+// every prior level with all 5 stars (3 normal + heroic + iron). Capped
+// at 21 — the cost to fully max one tower's three-branch tree. Surplus
+// stars beyond 21 would be spent on OTHER kinds, not this one.
 const defaultTowerStarBudget = (levelId: number): number =>
-  Math.min(9, Math.max(0, 3 * (levelId - 1)));
+  Math.min(21, Math.max(0, 5 * (levelId - 1)));
 
 // Hero skill tree has 4 nodes × 3 ranks = 12 max. Player needs to LEVEL
 // the hero to spend these, which happens during run; between-run

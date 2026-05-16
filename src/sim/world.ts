@@ -984,6 +984,10 @@ export type HitOptions = {
   resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
   regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
   attackerTowerId?: EntityId | null;
+  // Mortar Targeting meta — projectile splash applies +bonus damage when
+  // ≥CLUSTER_THRESHOLD enemies are in the splash radius. Forwarded to
+  // the Projectile and consumed in projectiles.ts:applyHit.
+  clusterDamageBonus?: number;
 };
 
 export const applyDamage = (
@@ -1217,6 +1221,11 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     fierce,
     regenPausedUntil: 0,
     extraResists: resists ? { ...resists } : {},
+    igniteUntil: 0,
+    igniteDps: 0,
+    igniteTickAt: 0,
+    igniteAttackerTowerId: null,
+    freezeUntil: 0,
     bossVariant: effectiveVariant,
     childSpawnAt: childCfg ? world.time + childCfg.interval : undefined,
   };
@@ -1376,6 +1385,17 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     resistStrip: 0,
     regenSuppressOnHit: 0,
     freezeBlocksRegen: false,
+    critChance: 0,
+    critMul: 1,
+    freezeChance: 0,
+    freezeDuration: 0,
+    chainSlowFactor: 1,
+    chainSlowDuration: 0,
+    clusterDamageBonus: 0,
+    flameIgniteDuration: 0,
+    flameIgniteDps: 0,
+    serviceDamageBonus: 0,
+    serviceDamageBonusFrom: 0,
     kills: 0,
     damageDealt: 0,
     flameActive: false,
@@ -1419,6 +1439,7 @@ export const createProjectile = (
     resistStrip: hitOpts?.resistStrip ?? 0,
     regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
     ownerTowerId: hitOpts?.attackerTowerId ?? null,
+    clusterDamageBonus: hitOpts?.clusterDamageBonus ?? 0,
   };
   world.projectiles.push(p);
   return p;

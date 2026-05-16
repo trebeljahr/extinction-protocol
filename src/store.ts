@@ -51,9 +51,10 @@ import type { MechanicId } from "./sim/mechanicsText";
 import {
   applyMetaSkillsToTower,
   effectiveTowerCost,
+  type BranchId as MetaBranchId,
   resetAllRanks,
   resetKindRanks,
-  setRank as setMetaSkillRank,
+  setTier as setMetaSkillTier,
   spentMetaStars,
 } from "./sim/metaSkills";
 import { segmentLength } from "./sim/path";
@@ -480,7 +481,7 @@ type GameStore = {
   setAchievementsOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
   setSkillTreeOpen: (open: boolean) => void;
-  setMetaSkillRank: (kind: TowerKind, nodeId: string, rank: number) => void;
+  setMetaSkillTier: (kind: TowerKind, branch: MetaBranchId, tier: number) => void;
   resetMetaSkillsForKind: (kind: TowerKind) => void;
   resetAllMetaSkills: () => void;
   setDifficulty: (difficulty: Difficulty) => void;
@@ -851,14 +852,14 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setSkillTreeOpen: (open) => set({ skillTreeOpen: open }),
 
-  // Updates the chosen tower's skill rank, clamped 0..MAX_RANK by the
-  // metaSkills helper. Refuses the update if the player doesn't have
-  // enough free stars; treated as a silent no-op so the UI's affordable
-  // check stays the single source of truth for disabled state.
-  setMetaSkillRank: (kind, nodeId, rank) => {
+  // Updates the chosen branch's unlocked-tier index for one tower, clamped
+  // by the metaSkills helper. Refuses the update if the player doesn't
+  // have enough free stars; treated as a silent no-op so the UI's
+  // affordable check stays the single source of truth for disabled state.
+  setMetaSkillTier: (kind, branch, tier) => {
     const s = get();
     const earned = totalStars(s.progress);
-    const next = setMetaSkillRank(s.progress.metaSkills, kind, nodeId, rank);
+    const next = setMetaSkillTier(s.progress.metaSkills, kind, branch, tier);
     if (next === s.progress.metaSkills) return;
     if (spentMetaStars(next) > earned) return;
     const progress = { ...s.progress, metaSkills: next };

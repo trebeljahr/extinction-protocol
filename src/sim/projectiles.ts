@@ -25,10 +25,22 @@ const applyHit = (world: World, p: Projectile) => {
     spawnParticles(world, p.pos, 14, "#ffb266", [3, 7], 0.45);
     spawnParticles(world, p.pos, 8, "#fff2c8", [4, 9], 0.22);
     const rSq = p.splashRadius * p.splashRadius;
+    // Mortar Targeting meta — count enemies in range first so the
+    // cluster bonus applies uniformly to the whole splash, not just
+    // the targets after the threshold.
+    let inSplash = 0;
+    if (p.clusterDamageBonus > 0) {
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (distSq(e.pos, p.pos) <= rSq) inSplash++;
+      }
+    }
+    const clusterMul = inSplash >= 3 ? 1 + p.clusterDamageBonus : 1;
+    const finalDamage = p.damage * clusterMul;
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, p.pos) <= rSq) {
-        applyDamage(world, e, p.damage, p.damageType, "#c44848", 10, p.pierceShield, hitOpts);
+        applyDamage(world, e, finalDamage, p.damageType, "#c44848", 10, p.pierceShield, hitOpts);
         e.flashUntil = world.time + 0.1;
       }
     }
