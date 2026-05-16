@@ -19,11 +19,12 @@ export const useAudioBridge = () => {
     });
 
     type GameState = ReturnType<typeof useGame.getState>;
-    // Keep lobby music playing while the Field Report overlay is up so the
-    // biome track doesn't crossfade in behind the briefing or kick on mid-
-    // load. The crossfade fires when the player dismisses the intro.
+    // Start biome music the moment the level loads, even with Field Report
+    // up. Mobile loads the biome MP3 (5-13MB) in seconds; gating on intro
+    // dismiss meant the level ran with no music until tap-through. Music
+    // crossfades in behind the briefing as soon as the buffer is ready.
     const pickTrack = (s: GameState): MusicTrack => {
-      if (s.screen === "playing" && !s.levelIntroVisible) return biomeTrack(s.world.biome);
+      if (s.screen === "playing") return biomeTrack(s.world.biome);
       return "music";
     };
 
