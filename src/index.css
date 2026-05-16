@@ -3776,4 +3776,127 @@
   .gamepad-focus:focus:not(:focus-visible) {
     outline: 2px solid var(--color-blue);
   }
+
+  /* Hero panel — bottom-left, mecha HP + ability slots. Sits clear of
+     the centered tower picker by anchoring to the left edge. */
+  .hero-panel {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    background: rgba(10, 16, 24, 0.82);
+    border: 1px solid rgba(120, 160, 200, 0.22);
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    pointer-events: auto;
+    z-index: 26;
+    min-width: 232px;
+  }
+  .hero-name {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--color-blue);
+    text-transform: uppercase;
+  }
+  .hero-hp-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .hero-hp-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--color-red);
+  }
+  .hero-hp-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(6, 10, 14, 0.7);
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .hero-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff5a3a, #ffb054 70%, #ffe080);
+    transition: width 0.12s linear;
+  }
+  .hero-hp-value {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--color-fg);
+    min-width: 64px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-abilities {
+    display: flex;
+    gap: 6px;
+  }
+  .hero-ability {
+    position: relative;
+    width: 64px;
+    height: 50px;
+    background: rgba(14, 20, 28, 0.7);
+    border: 1px solid rgba(120, 160, 200, 0.22);
+    border-radius: 6px;
+    color: var(--color-fg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    overflow: hidden;
+    transition: border-color 0.12s, transform 0.08s;
+    font-family: inherit;
+  }
+  .hero-ability:hover:not(:disabled) {
+    border-color: rgba(180, 220, 255, 0.55);
+  }
+  .hero-ability.ready {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 12px rgba(159, 216, 255, 0.25);
+  }
+  .hero-ability.cooling {
+    filter: grayscale(0.4) brightness(0.75);
+    cursor: not-allowed;
+  }
+  .hero-ability-glyph {
+    font-size: 18px;
+    line-height: 1;
+    color: var(--color-blue);
+    text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
+  }
+  .hero-ability-key {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg-soft);
+    letter-spacing: 0.06em;
+  }
+  .hero-ability-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--color-blue);
+    transition: width 0.08s linear;
+  }
+  .hero-ability-cd {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-fg);
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+  }
 }

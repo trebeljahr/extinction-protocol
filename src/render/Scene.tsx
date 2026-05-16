@@ -11,11 +11,13 @@ import { FierceHalos } from "./FierceHalos";
 import { Ground } from "./Ground";
 import { HealAuras } from "./HealAuras";
 import { HealthBars } from "./HealthBars";
+import { HeroHud } from "./HeroHud";
 import { HiveDrones } from "./HiveDrones";
 import { HQBase } from "./HQBase";
 import { HQTurrets } from "./HQTurret";
 import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
+import { ModelHeroMesh } from "./ModelHeroMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { OuterScenery } from "./OuterScenery";
 import { PathLine } from "./PathLine";
@@ -134,6 +136,9 @@ export const PlayScene = () => {
       <HealAuras />
       <FierceHalos />
       <RegenBadges />
+
+      <ModelHeroMesh />
+      <HeroHud />
 
       <TowerVfx />
       <HealthBars />

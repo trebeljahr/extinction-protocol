@@ -81,7 +81,6 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
         mouseButtons={{
           LEFT: THREE.MOUSE.PAN,
           MIDDLE: THREE.MOUSE.DOLLY,
-          RIGHT: THREE.MOUSE.PAN,
         }}
         touches={touches}
         panSpeed={panSpeed}

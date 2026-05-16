@@ -198,6 +198,45 @@ export type Rock = {
   rot: number;
 };
 
+export type HeroVariant = "george" | "leela" | "mike" | "stan";
+
+export type HeroAbility = "dash" | "shockwave" | "barrage";
+
+export type Hero = {
+  id: EntityId;
+  variant: HeroVariant;
+  pos: Vec2;
+  vel: Vec2;
+  facing: number;
+  hp: number;
+  maxHp: number;
+  damage: number;
+  range: number;
+  fireRate: number;
+  cooldown: number;
+  targetId: EntityId | null;
+  moveTarget: Vec2 | null;
+  alive: boolean;
+  dashReadyAt: number;
+  shockwaveReadyAt: number;
+  barrageReadyAt: number;
+  dashUntil: number;
+  // Pending barrage shots: each entry fires at world.time >= when, picking
+  // the best in-range enemy at that moment. Cleared when emptied.
+  barrageQueue: { when: number }[];
+  flashUntil: number;
+  shootFlashUntil: number;
+  respawnAt: number | null;
+  // Seconds the hero has been failing to make progress toward moveTarget.
+  // Resets to 0 whenever forward progress is observed; once it crosses a
+  // small threshold the order is dropped so an unreachable target
+  // (inside a tree, on the far side of a fully-blocked gap) doesn't pin
+  // the hero into a useless oscillation against the obstacle.
+  stuckTimer: number;
+  // High-level animation state — render picks the clip based on this.
+  motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
+};
+
 export type ProjectileKind = "direct" | "splash";
 
 export type Projectile = {
@@ -425,6 +464,7 @@ export type World = {
   // toggle UI is gated by isDebug + dead-codes out).
   invincible: boolean;
   lavaFeatures: import("../lavaGeometry").LavaFeatures | null;
+  hero: Hero;
 };
 
 export type EasterEgg = {

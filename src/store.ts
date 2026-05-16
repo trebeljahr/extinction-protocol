@@ -27,6 +27,10 @@ import {
   starsForLives,
   totalStars,
 } from "./progress";
+import {
+  orderHeroMove as simOrderHeroMove,
+  triggerHeroAbility as simTriggerHeroAbility,
+} from "./sim/hero";
 import { Engine } from "./sim/loop";
 import type { MechanicId } from "./sim/mechanicsText";
 import {
@@ -51,6 +55,7 @@ import type {
   DamageType,
   EnemyKind,
   GameEvent,
+  HeroAbility,
   NewSightingId,
   Rock,
   RunStatus,
@@ -126,6 +131,15 @@ type UiSnapshot = {
   // Resists chip — per-damage-type adaptation multipliers. Empty when
   // the inspected enemy has no resist chip applied.
   inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
+  heroHp: number;
+  heroMaxHp: number;
+  heroAlive: boolean;
+  heroRespawnRemaining: number;
+  // Ability cooldowns in seconds remaining (0 = ready). Rounded to 0.1s
+  // so the HUD doesn't thrash on every frame for the same on-screen text.
+  heroDashCooldown: number;
+  heroShockwaveCooldown: number;
+  heroBarrageCooldown: number;
 };
 
 const snapshot = (
@@ -189,6 +203,14 @@ const snapshot = (
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
     inspectedEnemyExtraResists: extraResists,
+    heroHp: Math.max(0, Math.round(w.hero.hp)),
+    heroMaxHp: w.hero.maxHp,
+    heroAlive: w.hero.alive,
+    heroRespawnRemaining:
+      w.hero.respawnAt !== null ? Math.max(0, Math.ceil(w.hero.respawnAt - w.time)) : 0,
+    heroDashCooldown: Math.max(0, Math.round((w.hero.dashReadyAt - w.time) * 10) / 10),
+    heroShockwaveCooldown: Math.max(0, Math.round((w.hero.shockwaveReadyAt - w.time) * 10) / 10),
+    heroBarrageCooldown: Math.max(0, Math.round((w.hero.barrageReadyAt - w.time) * 10) / 10),
   };
 };
 
@@ -217,7 +239,14 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyHealAura === b.inspectedEnemyHealAura &&
   a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
   a.inspectedEnemyElite === b.inspectedEnemyElite &&
-  a.inspectedEnemyFierce === b.inspectedEnemyFierce;
+  a.inspectedEnemyFierce === b.inspectedEnemyFierce &&
+  a.heroHp === b.heroHp &&
+  a.heroMaxHp === b.heroMaxHp &&
+  a.heroAlive === b.heroAlive &&
+  a.heroRespawnRemaining === b.heroRespawnRemaining &&
+  a.heroDashCooldown === b.heroDashCooldown &&
+  a.heroShockwaveCooldown === b.heroShockwaveCooldown &&
+  a.heroBarrageCooldown === b.heroBarrageCooldown;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
@@ -369,6 +398,9 @@ type GameStore = {
   canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
+
+  orderHeroMove: (pos: Vec2) => void;
+  triggerHeroAbility: (ability: HeroAbility) => void;
   setPendingTouchPlacement: (pos: Vec2 | null) => void;
   confirmTouchPlacement: () => void;
 
@@ -987,6 +1019,22 @@ export const useGame = create<GameStore>((set, get) => ({
   canPlace: (pos) => canPlaceAt(get().world, pos),
 
   towerAtPos: (pos) => towerAt(get().world, pos),
+
+  orderHeroMove: (pos) => {
+    const s = get();
+    if (s.world.status !== "running") return;
+    simOrderHeroMove(s.world, pos);
+  },
+
+  triggerHeroAbility: (ability) => {
+    const s = get();
+    if (s.world.status !== "running") return;
+    if (!simTriggerHeroAbility(s.world, ability)) return;
+    // Snapshot so the HUD reflects the freshly-triggered cooldown
+    // immediately, not on the next tick. Cheap because uiEqual culls
+    // no-op renders.
+    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+  },
 
   clearSelection: () => {
     const { world, towerVersion, treeVersion } = get();

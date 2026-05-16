@@ -24,6 +24,8 @@ import type {
   EntityId,
   Explosion,
   GameEvent,
+  Hero,
+  HeroVariant,
   Projectile,
   ProjectileKind,
   Rock,
@@ -37,6 +39,54 @@ import { distPointToSegSq } from "./vec2";
 import { createWorleyField } from "./worley";
 
 export const STARTING_LIVES = 20;
+
+// Hero unit — single controllable mecha that walks the field, auto-shoots
+// dinos in range, and fires three activated abilities. Tuned to feel
+// supportive (towers still carry) rather than solo-carry.
+export const HERO_MAX_HP = 220;
+export const HERO_RADIUS = 0.45;
+export const HERO_BASE_SPEED = 4.5;
+export const HERO_DASH_SPEED = 11.0;
+export const HERO_DASH_DURATION = 0.35;
+export const HERO_DASH_COOLDOWN = 5.5;
+export const HERO_SHOCKWAVE_RADIUS = 3.6;
+export const HERO_SHOCKWAVE_DAMAGE = 110;
+export const HERO_SHOCKWAVE_COOLDOWN = 10.0;
+export const HERO_BARRAGE_COUNT = 6;
+export const HERO_BARRAGE_DAMAGE = 26;
+export const HERO_BARRAGE_RANGE = 9.0;
+export const HERO_BARRAGE_COOLDOWN = 14.0;
+export const HERO_ATTACK_RANGE = 7.0;
+export const HERO_ATTACK_DAMAGE = 16;
+export const HERO_ATTACK_FIRE_RATE = 2.2;
+export const HERO_RESPAWN_DELAY = 6.0;
+
+const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId): Hero => ({
+  id,
+  variant,
+  pos: { x: pos.x, y: pos.y },
+  vel: { x: 0, y: 0 },
+  facing: 0,
+  hp: HERO_MAX_HP,
+  maxHp: HERO_MAX_HP,
+  damage: HERO_ATTACK_DAMAGE,
+  range: HERO_ATTACK_RANGE,
+  fireRate: HERO_ATTACK_FIRE_RATE,
+  cooldown: 0,
+  targetId: null,
+  moveTarget: null,
+  alive: true,
+  dashReadyAt: 0,
+  shockwaveReadyAt: 0,
+  barrageReadyAt: 0,
+  dashUntil: 0,
+  barrageQueue: [],
+  flashUntil: 0,
+  shootFlashUntil: 0,
+  respawnAt: null,
+  stuckTimer: 0,
+  motionState: "idle",
+});
 
 export const TREE_COUNT = 22;
 // Trees clump into a handful of groves rather than evenly speckling the
@@ -380,6 +430,27 @@ export const createWorld = (
     baseHpScale === 1
       ? level.waves
       : level.waves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * baseHpScale }));
+  // Hero spawns a few units back from HQ along the first path's tangent,
+  // shifted off-center so she doesn't sit on the lane. Reuses the path
+  // end direction so the spawn lines up with whichever side faces HQ.
+  const firstPath = paths[0] ?? [
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+  ];
+  const endPt = firstPath[firstPath.length - 1] ?? { x: 0, y: 0 };
+  const prevPt = firstPath[firstPath.length - 2] ?? endPt;
+  const tx = endPt.x - prevPt.x;
+  const ty = endPt.y - prevPt.y;
+  const tl = Math.hypot(tx, ty) || 1;
+  const tdx = tx / tl;
+  const tdy = ty / tl;
+  // Perpendicular off-lane offset (left of travel direction).
+  const heroSpawn: Vec2 = {
+    x: endPt.x - tdx * 2.6 + -tdy * 2.4,
+    y: endPt.y - tdy * 2.6 + tdx * 2.4,
+  };
+  const hero = heroDefaults("george", heroSpawn, nextId);
+  hero.facing = Math.atan2(-tdx, -tdy);
   return {
     time: 0,
     tickCount: 0,
@@ -412,7 +483,8 @@ export const createWorld = (
     lives: STARTING_LIVES,
     startLives: STARTING_LIVES,
     status: "running",
-    nextEntityId: nextId,
+    nextEntityId: nextId + 1,
+    hero,
     events: [],
     shake: { magnitude: 0, decay: 0 },
     selectedTowerId: null,

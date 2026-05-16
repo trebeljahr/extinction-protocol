@@ -309,6 +309,24 @@ export const Placement = () => {
     useGame.getState().tryPlaceOrSelect(pos);
   };
 
+  // Right-click = move-order for the hero. Falls back to mouse-button
+  // detection on contextmenu because R3F surfaces it as a plain MouseEvent.
+  const onContextMenu = (e: ThreeEvent<MouseEvent>) => {
+    e.nativeEvent.preventDefault();
+    e.stopPropagation();
+    const pos = eventPoint(e);
+    useGame.getState().orderHeroMove(pos);
+  };
+
+  // Suppress browser's native context menu on the canvas so right-click
+  // never opens the OS menu when the player tries to issue a move-order.
+  useEffect(() => {
+    const el = gl.domElement;
+    const onNative = (e: MouseEvent) => e.preventDefault();
+    el.addEventListener("contextmenu", onNative);
+    return () => el.removeEventListener("contextmenu", onNative);
+  }, [gl]);
+
   const activeHover = controllerActive && controllerHover ? controllerHover : hover;
   const hoveredTower = activeHover !== null ? useGame.getState().towerAtPos(activeHover) : null;
 
@@ -341,6 +359,7 @@ export const Placement = () => {
         onPointerCancel={onPointerCancel}
         onPointerOut={onPointerOut}
         onClick={onClick}
+        onContextMenu={onContextMenu}
         visible={false}
       />
 

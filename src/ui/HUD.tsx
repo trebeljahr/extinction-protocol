@@ -9,6 +9,7 @@ import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { EnemyPanel } from "./EnemyPanel";
+import { HeroPanel } from "./HeroPanel";
 import { IconCog } from "./MenuIcons";
 import { PauseMenu } from "./PauseMenu";
 import { QuickSettings } from "./QuickSettings";
@@ -148,6 +149,21 @@ export const HUD = () => {
         }
         if (s.world.status === "running" || s.world.status === "paused") togglePause();
         (document.activeElement as HTMLElement | null)?.blur();
+        return;
+      }
+      if (e.code === "KeyZ") {
+        e.preventDefault();
+        useGame.getState().triggerHeroAbility("dash");
+        return;
+      }
+      if (e.code === "KeyX") {
+        e.preventDefault();
+        useGame.getState().triggerHeroAbility("shockwave");
+        return;
+      }
+      if (e.code === "KeyC") {
+        e.preventDefault();
+        useGame.getState().triggerHeroAbility("barrage");
         return;
       }
       const digit = e.key;
@@ -353,6 +369,7 @@ export const HUD = () => {
       <TowerPanel />
       <EnemyPanel />
       <TreePanel />
+      <HeroPanel />
       <BossBanner />
 
       {paused && !compendiumOpen && !levelIntroVisible && !newEnemyAlertVisible && (

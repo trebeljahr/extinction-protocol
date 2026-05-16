@@ -7,6 +7,7 @@ import {
   updateShake,
 } from "./effects";
 import { updateEnemies } from "./enemies";
+import { updateHero } from "./hero";
 import { updateProjectiles } from "./projectiles";
 import { checkRunEnd, spawnerTick } from "./spawner";
 import { updateTowers } from "./towers";
@@ -50,6 +51,7 @@ export class Engine {
     world.tickCount += 1;
     spawnerTick(world, TICK_DT);
     updateEnemies(world, TICK_DT);
+    updateHero(world, TICK_DT);
     updateDefensive(world, TICK_DT);
     updateTowers(world, TICK_DT);
     updateProjectiles(world, TICK_DT);
