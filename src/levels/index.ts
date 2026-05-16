@@ -2688,6 +2688,202 @@ export const LEVELS: LevelConfig[] = [
     startGold: 190,
     nodePos: { x: 21, y: 20 },
     hpScale: 3.1,
+    heroic: {
+      // Pulse + Cryo banned: no precision rifle for tanks, no slow to
+      // buy time. Forces chain/mortar/flame/hive to carry both halves
+      // of the split. Armored bodies become a DoT-and-splash problem.
+      startGold: 720,
+      forbiddenTowers: ["pulse", "cryo"],
+      tagline: "No rifle. No freeze. Bring fire.",
+      waves: [
+        split("intro", 0.75, [0, { raptor: 14, swarm: 6 }], [1, { raptor: 14, swarm: 6 }]),
+        split(
+          "mixed",
+          0.45,
+          [0, { raptor: 18, swarm: 14, allosaur: 5 }],
+          [1, { raptor: 18, swarm: 14, allosaur: 5 }],
+        ),
+        split("swarm", 0.08, [0, { swarm: 85 }], [1, { swarm: 85 }]),
+        split("heavy", 0.85, [0, { armored: 6, stego: 4 }], [1, { armored: 6, stego: 4 }]),
+        split(
+          "mixed",
+          0.42,
+          [0, { raptor: 20, swarm: 16, para: 5, allosaur: 7 }],
+          [1, { raptor: 20, swarm: 16, para: 5, allosaur: 7 }],
+        ),
+        // Shielded mixed — chain has to open before flame/mortar bite.
+        {
+          archetype: "chaos",
+          spacing: 0.26,
+          spawns: [
+            ...toSpawns({ allosaur: 4, stego: 2 }, 0, { shielded: true }),
+            ...toSpawns({ raptor: 16, swarm: 22, allosaur: 4, armored: 2 }, 0),
+            ...toSpawns({ allosaur: 4, stego: 2 }, 1, { shielded: true }),
+            ...toSpawns({ raptor: 16, swarm: 22, allosaur: 4, armored: 2 }, 1),
+          ],
+        },
+        split("swarm", 0.07, [0, { swarm: 110 }], [1, { swarm: 110 }]),
+        split(
+          "heavy",
+          0.8,
+          [0, { armored: 14, stego: 7, titan: 2 }],
+          [1, { armored: 14, stego: 7, titan: 2 }],
+        ),
+        split(
+          "mixed",
+          0.38,
+          [0, { raptor: 22, swarm: 18, para: 7, allosaur: 9, stego: 5 }],
+          [1, { raptor: 22, swarm: 18, para: 7, allosaur: 9, stego: 5 }],
+        ),
+        split(
+          "chaos",
+          0.22,
+          [0, { raptor: 20, swarm: 26, allosaur: 9, stego: 7, armored: 5, titan: 2 }],
+          [1, { raptor: 20, swarm: 26, allosaur: 9, stego: 7, armored: 5, titan: 2 }],
+        ),
+        // Regen armored — burst kills regen pause; chip damage hands HP
+        // back. Hard without pulse.
+        {
+          archetype: "heavy",
+          spacing: 0.7,
+          spawns: [
+            ...toSpawns({ armored: 5 }, 0, { regen: true }),
+            ...toSpawns({ stego: 8, titan: 3 }, 0),
+            ...toSpawns({ armored: 5 }, 1, { regen: true }),
+            ...toSpawns({ stego: 8, titan: 3 }, 1),
+          ],
+        },
+        split(
+          "swarm",
+          0.06,
+          [0, { swarm: 150, raptor: 28, allosaur: 6 }],
+          [1, { swarm: 150, raptor: 28, allosaur: 6 }],
+        ),
+        split(
+          "chaos",
+          0.2,
+          [0, { raptor: 26, swarm: 36, allosaur: 11, stego: 8, armored: 7, titan: 3 }],
+          [1, { raptor: 26, swarm: 36, allosaur: 11, stego: 8, armored: 7, titan: 3 }],
+        ),
+        split(
+          "heavy",
+          0.65,
+          [0, { armored: 22, stego: 14, titan: 5 }],
+          [1, { armored: 22, stego: 14, titan: 5 }],
+        ),
+        // Elite-fierce armored vanguard on the finale chaos.
+        {
+          archetype: "chaos",
+          spacing: 0.18,
+          spawns: [
+            ...toSpawns({ armored: 3, titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns(
+              { raptor: 30, swarm: 42, para: 12, allosaur: 16, stego: 10, armored: 8, titan: 4 },
+              0,
+            ),
+            ...toSpawns({ armored: 3, titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns(
+              { raptor: 30, swarm: 42, para: 12, allosaur: 16, stego: 10, armored: 8, titan: 4 },
+              1,
+            ),
+          ],
+        },
+        split(
+          "chaos",
+          0.16,
+          [0, { raptor: 34, swarm: 48, para: 14, allosaur: 18, stego: 13, armored: 11, titan: 6 }],
+          [1, { raptor: 34, swarm: 48, para: 14, allosaur: 18, stego: 13, armored: 11, titan: 6 }],
+        ),
+      ],
+    },
+    iron: {
+      // Locked: mortar (armored splash), chain (swarm + shields), hive
+      // (drone uplinks to amplify chain across the split). No cryo to
+      // buy time, no pulse precision — the map's edges are unforgiving.
+      startGold: 550,
+      lockedLoadout: ["mortar", "chain", "hive"],
+      singleLife: true,
+      noSelling: true,
+      tagline: "One life. Shell, coil, drone.",
+      waves: [
+        split("intro", 0.8, [0, { raptor: 12, swarm: 4 }], [1, { raptor: 12, swarm: 4 }]),
+        split(
+          "mixed",
+          0.5,
+          [0, { raptor: 16, swarm: 12, allosaur: 4 }],
+          [1, { raptor: 16, swarm: 12, allosaur: 4 }],
+        ),
+        split("swarm", 0.09, [0, { swarm: 70 }], [1, { swarm: 70 }]),
+        split("heavy", 0.9, [0, { armored: 5, stego: 3 }], [1, { armored: 5, stego: 3 }]),
+        split(
+          "mixed",
+          0.45,
+          [0, { raptor: 18, swarm: 14, para: 4, allosaur: 6 }],
+          [1, { raptor: 18, swarm: 14, para: 4, allosaur: 6 }],
+        ),
+        split(
+          "chaos",
+          0.28,
+          [0, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 2 }],
+          [1, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 2 }],
+        ),
+        split("swarm", 0.08, [0, { swarm: 90 }], [1, { swarm: 90 }]),
+        split(
+          "heavy",
+          0.85,
+          [0, { armored: 12, stego: 6, titan: 2 }],
+          [1, { armored: 12, stego: 6, titan: 2 }],
+        ),
+        split(
+          "mixed",
+          0.42,
+          [0, { raptor: 20, swarm: 16, para: 6, allosaur: 8, stego: 4 }],
+          [1, { raptor: 20, swarm: 16, para: 6, allosaur: 8, stego: 4 }],
+        ),
+        split(
+          "chaos",
+          0.24,
+          [0, { raptor: 18, swarm: 24, allosaur: 8, stego: 6, armored: 4, titan: 2 }],
+          [1, { raptor: 18, swarm: 24, allosaur: 8, stego: 6, armored: 4, titan: 2 }],
+        ),
+        split(
+          "heavy",
+          0.75,
+          [0, { armored: 16, stego: 9, titan: 3 }],
+          [1, { armored: 16, stego: 9, titan: 3 }],
+        ),
+        split(
+          "swarm",
+          0.07,
+          [0, { swarm: 120, raptor: 24, allosaur: 5 }],
+          [1, { swarm: 120, raptor: 24, allosaur: 5 }],
+        ),
+        split(
+          "chaos",
+          0.22,
+          [0, { raptor: 24, swarm: 32, allosaur: 10, stego: 7, armored: 6, titan: 3 }],
+          [1, { raptor: 24, swarm: 32, allosaur: 10, stego: 7, armored: 6, titan: 3 }],
+        ),
+        split(
+          "heavy",
+          0.7,
+          [0, { armored: 20, stego: 12, titan: 5 }],
+          [1, { armored: 20, stego: 12, titan: 5 }],
+        ),
+        split(
+          "chaos",
+          0.2,
+          [0, { raptor: 28, swarm: 38, para: 10, allosaur: 14, stego: 10, armored: 8, titan: 4 }],
+          [1, { raptor: 28, swarm: 38, para: 10, allosaur: 14, stego: 10, armored: 8, titan: 4 }],
+        ),
+        split(
+          "chaos",
+          0.18,
+          [0, { raptor: 32, swarm: 44, para: 12, allosaur: 16, stego: 12, armored: 10, titan: 5 }],
+          [1, { raptor: 32, swarm: 44, para: 12, allosaur: 16, stego: 12, armored: 10, titan: 5 }],
+        ),
+      ],
+    },
     waves: [
       split("intro", 0.8, [0, { raptor: 12, swarm: 4 }], [1, { raptor: 12, swarm: 4 }]),
       split(
