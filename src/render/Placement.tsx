@@ -211,6 +211,12 @@ export const Placement = () => {
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (isTouchEvent(e)) {
       lastTouchInputAtRef.current = Date.now();
+      // Multi-touch (pinch/zoom) belongs to camera — don't fight it
+      // with placement hover updates.
+      if (touchPointersRef.current.size > 1 || multiTouchRef.current) return;
+      const pos = eventPoint(e);
+      setControllerActiveState(false);
+      setHoverState(pos);
       return;
     }
     const pos = eventPoint(e);
@@ -225,6 +231,9 @@ export const Placement = () => {
       if (touchPointersRef.current.size > 1) {
         multiTouchRef.current = true;
         touchStartRef.current = null;
+        // Pinch started — hide the placement ghost while the camera
+        // gesture is in progress.
+        setHoverState(null);
         return;
       }
       // Starting a fresh single-finger interaction wipes any parked
@@ -234,6 +243,12 @@ export const Placement = () => {
         x: e.nativeEvent.clientX,
         y: e.nativeEvent.clientY,
       };
+      // Show the ghost under the finger immediately so the player gets
+      // visual feedback as soon as they touch the map. Subsequent
+      // pointermove events keep it locked to the finger.
+      const pos = eventPoint(e);
+      setControllerActiveState(false);
+      setHoverState(pos);
       return;
     }
     onPointerMove(e);
