@@ -99,6 +99,16 @@ const Creature = ({
       action.timeScale = clipTimeScale;
       action.play();
     }
+    // Pose-aware re-grounding. The useMemo above grounded `obj` against the
+    // bind-pose bbox, but several rigs (raptor, stego, triceratops) sit a
+    // hair below their animated rest pose at bind — the bbox grabs a foot
+    // splayed slightly lower than where the looping Idle/Run actually
+    // plants. After play(), advance the mixer once so bones snap to the
+    // active pose, then shift Y so the animated foot lands at world y=0.
+    mx.update(0);
+    obj.updateMatrixWorld(true);
+    const animBox = new THREE.Box3().setFromObject(obj, true);
+    if (Number.isFinite(animBox.min.y)) obj.position.y -= animBox.min.y;
     mixerRef.current = mx;
     return () => {
       mx.stopAllAction();
@@ -139,11 +149,24 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
   // Matriarch variants are typically much larger than their base species
   // — span has to scale from the variant model, not the species default,
   // or the camera framing crops the queen's silhouette.
-  const span =
-    (isMatriarch ? BOSS_VARIANT_MODEL[bossVariant].targetSize : ENEMY_MODEL[kind].targetSize) + 0.4;
+  // Linear pad on top of targetSize so long-bodied models (apatosaurus
+  // especially) keep their tail/neck inside the frame at every orbit
+  // angle. Multiplier > 1 also gives small models a touch more
+  // breathing room without changing decor proportions.
+  const baseTargetSize = isMatriarch
+    ? BOSS_VARIANT_MODEL[bossVariant].targetSize
+    : ENEMY_MODEL[kind].targetSize;
+  const span = baseTargetSize * 1.2 + 0.4;
+  // Approximate the camera's look-at height as a quarter of the dino's
+  // longest dim — most rigs are roughly 0.5× as tall as wide (apato,
+  // apex, stego), so targetSize * 0.25 lands near the model's vertical
+  // center. Diorama's default of `span * 0.35` over-shot on long-bodied
+  // bosses (apex matriarch ended up framed mostly above the model with
+  // the body crammed into the lower edge).
+  const targetY = baseTargetSize * 0.25;
   const isSwarm = kind === "swarm";
   return (
-    <Diorama span={span} size={size}>
+    <Diorama span={span} size={size} targetY={targetY} className="enemy-preview">
       {isSwarm ? (
         SWARM_PACK.map((p, i) => (
           <Creature

@@ -117,6 +117,14 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
       findClip(gltf.animations, "Walk") ??
       gltf.animations[0];
     if (clip) mx.clipAction(clip).play();
+    // Pose-aware re-grounding — bind-pose box.min.y can sit below the
+    // animated rest pose's foot on a few rigs (raptor/stego/triceratops),
+    // which left them visibly floaty inside the diorama. Re-measure after
+    // the first mixer tick and shift Y so feet plant at world y=0.
+    mx.update(0);
+    obj.updateMatrixWorld(true);
+    const animBox = new THREE.Box3().setFromObject(obj, true);
+    if (Number.isFinite(animBox.min.y)) obj.position.y -= animBox.min.y;
     mixerRef.current = mx;
     return () => {
       mx.stopAllAction();
@@ -380,7 +388,9 @@ type Props = {
 
 export const MechanicPreview = ({ id, size = 360 }: Props) => {
   const kind = PREVIEW_KIND[id];
-  const span = ENEMY_MODEL[kind].targetSize + 0.4;
+  // Match EnemyPreview's padding so long-bodied creatures (and the
+  // overlay effects sized off targetSize) frame cleanly at every orbit.
+  const span = ENEMY_MODEL[kind].targetSize * 1.2 + 0.4;
   const target: [number, number, number] = [0, span * 0.4, 0];
   return (
     <div className="mechanic-preview" style={{ width: size, height: size }}>
@@ -442,7 +452,9 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
           minDistance={span * 1.2}
           maxDistance={span * 4.5}
           minPolarAngle={Math.PI * 0.15}
-          maxPolarAngle={Math.PI * 0.55}
+          // Match EnemyPreview: clamp at horizontal so orbit can't look
+          // up through the floor at the creature.
+          maxPolarAngle={Math.PI * 0.5}
           autoRotate
           autoRotateSpeed={0.9}
           enableDamping

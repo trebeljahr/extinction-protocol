@@ -100,6 +100,12 @@ type DioramaProps = {
   // Focal model(s) — Creature, StaticModel, swarm pack, etc.
   children: ReactNode;
   className?: string;
+  // Camera look-at height. Defaults to `span * 0.35`, which works for
+  // roughly cube-shaped subjects (towers, raptor). Long-bodied dinos
+  // (apato, apex) sit much lower than the long axis suggests — pass an
+  // explicit height to keep the orbit centered on the body instead of
+  // the empty space above it.
+  targetY?: number;
 };
 
 // Shared compendium diorama: orbit camera with tilt-clamp, HDRI + 3-light
@@ -107,8 +113,14 @@ type DioramaProps = {
 // nature-prop frame around the subject. Use via EnemyPreview /
 // TowerDiorama / etc — anything that wants a "creature on a patch of
 // forest floor" feel.
-export const Diorama = ({ span, size = 360, children, className = "diorama" }: DioramaProps) => {
-  const target: [number, number, number] = [0, span * 0.35, 0];
+export const Diorama = ({
+  span,
+  size = 360,
+  children,
+  className = "diorama",
+  targetY,
+}: DioramaProps) => {
+  const target: [number, number, number] = [0, targetY ?? span * 0.35, 0];
   return (
     <div className={className} style={{ width: size, height: size }}>
       <Canvas
@@ -174,7 +186,10 @@ export const Diorama = ({ span, size = 360, children, className = "diorama" }: D
           minDistance={span * 1.2}
           maxDistance={span * 4.5}
           minPolarAngle={Math.PI * 0.15}
-          maxPolarAngle={Math.PI * 0.55}
+          // Clamp at the horizontal plane so the orbit can't dip the
+          // camera below ground and look up through the floor at the
+          // subject. Tilt UP (smaller polar) stays free.
+          maxPolarAngle={Math.PI * 0.5}
           autoRotate
           autoRotateSpeed={0.9}
           enableDamping
