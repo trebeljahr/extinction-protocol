@@ -1,5 +1,5 @@
 import type React from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "../input/gamepad";
@@ -19,6 +19,7 @@ import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
+import { prewarmEnemyIcons } from "./EnemyIcon";
 import { FullscreenToggle } from "./FullscreenToggle";
 import {
   IconBook,
@@ -70,6 +71,14 @@ export const WorldMapUI = () => {
   });
 
   const accent = DIFFICULTY_ACCENT[difficulty];
+
+  // Prewarm enemy thumbnails so opening the compendium from the world
+  // map doesn't show empty bordered boxes while six GLB models bake
+  // sequentially. The HUD does the same on the playing screen; this
+  // covers the more common "browse compendium between levels" path.
+  useEffect(() => {
+    prewarmEnemyIcons();
+  }, []);
 
   const hovered = LEVELS.find((l) => l.id === hoveredLevelId) ?? null;
   const hoveredUnlocked = hovered ? isLevelUnlocked(hovered.id, progress) : false;

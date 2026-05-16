@@ -5,7 +5,7 @@ import {
   BOSS_VARIANT_TINT,
   ENEMY_MODEL,
 } from "../sim/world";
-import { type BakeSpec, useBakedIcon } from "./bakedIcon";
+import { type BakeSpec, prewarmIcon, useBakedIcon } from "./bakedIcon";
 
 // Per-kind side-view framing. The shared baker normalizes every model
 // to a 1×1×1 box, so these numbers all live in the same coordinate
@@ -105,6 +105,28 @@ const specFor = (kind: EnemyKind, bossVariant?: BossVariant): BakeSpec => {
         }
       : {}),
   };
+};
+
+const ALL_ENEMY_KINDS: EnemyKind[] = [
+  "raptor",
+  "swarm",
+  "para",
+  "allosaur",
+  "stego",
+  "armored",
+  "titan",
+  "boss",
+];
+
+const ALL_BOSS_VARIANTS: BossVariant[] = ["raptor", "stego", "para", "allosaur", "armored", "apex"];
+
+// Kick off the bake for every base species + matriarch variant. The bake
+// queue is sequential, so call this early (HUD mount) to spread the cost
+// across idle time — otherwise the first compendium / new-enemy popup on
+// a slow phone shows an empty placeholder while six GLBs serialize.
+export const prewarmEnemyIcons = (): void => {
+  for (const kind of ALL_ENEMY_KINDS) prewarmIcon(specFor(kind));
+  for (const variant of ALL_BOSS_VARIANTS) prewarmIcon(specFor("boss", variant));
 };
 
 type Props = {

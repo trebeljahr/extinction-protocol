@@ -1129,6 +1129,13 @@
     position: relative;
     width: 56px;
     height: 56px;
+    /* aspect-ratio guards against flex-row contexts (mobile tabs) where a
+       row's cross-axis can collapse before the explicit height applies —
+       on slow phones the first-encounter bake renders an empty placeholder
+       and without this the icon used to flatten to 0 height with only the
+       border visible. */
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
     border-radius: 6px;
     overflow: hidden;
     background: rgba(8, 12, 18, 0.55);
@@ -1139,6 +1146,27 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+  /* Subtle pulse while the offscreen bake is in flight so an empty tab
+     reads as "loading" instead of "broken". Applies wherever EnemyIcon
+     is used pre-bake (compendium tab, new-enemy popup). */
+  .enemy-icon-pending {
+    background: linear-gradient(
+      130deg,
+      rgba(120, 160, 200, 0.04) 0%,
+      rgba(120, 160, 200, 0.12) 50%,
+      rgba(120, 160, 200, 0.04) 100%
+    );
+    animation: enemy-icon-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes enemy-icon-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
   }
   /* TowerPreview swatch is hardcoded 56x56 with its own border + gradient;
      when nested inside compendium-tab-icon (which already provides the

@@ -182,7 +182,6 @@ export const Compendium = () => {
               type="button"
               key={s}
               className={`compendium-section ${section === s ? "active" : ""}`}
-              data-ui-sound="tab"
               onClick={() => setSection(s)}
               aria-pressed={section === s}
             >
@@ -235,7 +234,6 @@ const EnemySectionView = ({
               type="button"
               key={key}
               className={`compendium-tab ${selectedKey === key ? "active" : ""} ${seen ? "" : "locked"} ${isMatriarch ? "matriarch" : ""}`}
-              data-ui-sound="tab"
               onClick={() => setSelected(entry)}
               disabled={!seen}
               aria-pressed={selectedKey === key}
@@ -412,7 +410,6 @@ const TowerSectionView = ({
               type="button"
               key={kind}
               className={`compendium-tab ${selected === kind ? "active" : ""} ${locked ? "locked" : ""}`}
-              data-ui-sound="tab"
               onClick={() => setSelected(kind)}
               disabled={locked}
               aria-pressed={selected === kind}
@@ -588,7 +585,6 @@ const MechanicSectionView = ({
               type="button"
               key={id}
               className={`compendium-tab ${selected === id ? "active" : ""} ${locked ? "locked" : ""}`}
-              data-ui-sound="tab"
               onClick={() => setSelected(id)}
               disabled={locked}
               aria-pressed={selected === id}

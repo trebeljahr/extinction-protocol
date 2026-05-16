@@ -9,6 +9,7 @@ import { BasePanel } from "./BasePanel";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
+import { prewarmEnemyIcons } from "./EnemyIcon";
 import { EnemyPanel } from "./EnemyPanel";
 import { HeroMiniIcon } from "./HeroMiniIcon";
 import { HeroPanel } from "./HeroPanel";
@@ -86,13 +87,14 @@ export const HUD = () => {
     if (selectedKind !== null) setPickerOpen(false);
   }, [selectedKind]);
 
-  // Bake all six tower thumbnails as soon as the HUD mounts so the
-  // mobile build drawer doesn't flash empty placeholders the first
-  // time the player taps the build handle. No-op on desktop too —
-  // bakes are idempotent, so this just warms a cache that the always-
-  // visible picker would have filled anyway.
+  // Bake every tower + enemy thumbnail as soon as the HUD mounts so
+  // the mobile build drawer, new-enemy popup, and compendium don't
+  // flash empty placeholders on the first open. On slow mobile data
+  // the GLB + DRACO fetch dominates the bake; warming the queue while
+  // the player is still on the world map hides that latency.
   useEffect(() => {
     prewarmTowerIcons();
+    prewarmEnemyIcons();
   }, []);
 
   useEffect(() => {
