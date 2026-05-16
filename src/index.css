@@ -3447,17 +3447,20 @@
     cursor: grabbing;
   }
 
-  /* Vertical gradient that darkens the bottom (where slot tiles sit) and
-     the very top (where the title sits) without obscuring the dinosaurs
-     in the middle band. Pure CSS — cheaper than a postprocessing pass. */
+  /* Vertical gradient that darkens the top band (so the title and
+     "Select a save" subtitle stay legible over the diorama) and the
+     bottom (where slot tiles sit), leaving a clear middle band so the
+     dinosaurs read through. Pure CSS — cheaper than a postprocessing pass. */
   .save-slots-vignette {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: linear-gradient(
       180deg,
-      rgba(6, 10, 16, 0.55) 0%,
-      rgba(6, 10, 16, 0.0) 18%,
+      rgba(6, 10, 16, 0.88) 0%,
+      rgba(6, 10, 16, 0.78) 12%,
+      rgba(6, 10, 16, 0.45) 22%,
+      rgba(6, 10, 16, 0.0) 34%,
       rgba(6, 10, 16, 0.0) 55%,
       rgba(6, 10, 16, 0.7) 92%,
       rgba(6, 10, 16, 0.92) 100%
