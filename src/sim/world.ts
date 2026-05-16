@@ -520,6 +520,7 @@ export const createWorld = (
     lives: startingLives,
     startLives: startingLives,
     status: "running",
+    killingPathIndex: null,
     nextEntityId: nextId + 1,
     hero,
     events: [],

@@ -65,8 +65,11 @@ export const HUD = () => {
   const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}/${levelOrdinal.total}` : "";
   const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
-  const waveStatus =
-    wave >= totalWaves ? `${wave} / ${totalWaves}` : waveActive ? "ACTIVE" : `${nextWaveIn}s`;
+  // On the final wave the label embeds the n/m count, so the value
+  // slot is free to show the wave state ("ACTIVE") rather than just
+  // re-stating the same count. The non-final path keeps the original
+  // ACTIVE/countdown semantics.
+  const waveStatus = waveActive ? "ACTIVE" : `${nextWaveIn}s`;
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
@@ -198,10 +201,10 @@ export const HUD = () => {
             onClick={callWaveEarly}
             title={showKeyboardHints ? "Start waves (Space)" : "Start waves"}
           >
-            <div className="stat-label text-mint">
-              START WAVES <span className="kbd-only">[Space]</span>
+            <div className="stat-label">
+              ▶ START WAVES <span className="kbd-only">[Space]</span>
             </div>
-            <div className="stat-value">Ready</div>
+            <div className="stat-value">Click to begin</div>
           </button>
         ) : canCallEarly ? (
           <button
@@ -210,8 +213,8 @@ export const HUD = () => {
             onClick={callWaveEarly}
             title={showKeyboardHints ? "Call next wave early (Space)" : "Call next wave early"}
           >
-            <div className="stat-label text-mint">
-              CALL NEXT WAVE <span className="kbd-only">[Space]</span>
+            <div className="stat-label">
+              ▶ CALL NEXT WAVE <span className="kbd-only">[Space]</span>
             </div>
             <div className="stat-value">
               +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
@@ -219,7 +222,9 @@ export const HUD = () => {
           </button>
         ) : (
           <Stat
-            label={wave >= totalWaves ? "FINAL WAVE" : waveActive ? "WAVE" : "NEXT"}
+            label={
+              wave >= totalWaves ? `FINAL · ${wave}/${totalWaves}` : waveActive ? "WAVE" : "NEXT"
+            }
             value={waveStatus}
             accentClass="text-mint"
           />

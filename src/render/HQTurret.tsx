@@ -61,7 +61,13 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   const coreFlashRef = useRef<THREE.Mesh>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
   const status = useGame((s) => s.world.status);
+  // Per-HQ death: only the endpoint that took the killing blow runs the
+  // explosion + fracture. Other HQs see status === "lost" but should
+  // stay intact so the player reads which lane actually fell.
+  const killingPathIndex = useGame((s) => s.world.killingPathIndex);
   const isLost = status === "lost";
+  const isKillingHQ = killingPathIndex === pose.pathIndex;
+  const shouldExplode = isLost && isKillingHQ;
 
   // Bind-pose-accurate baseline: same `measureVisibleBox` we use for every
   // other model so the HQ's feet sit on y=0 instead of floating where the
@@ -155,8 +161,9 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   // Safety net: if the base dies before the idle fracture finishes, run
   // it synchronously so the chunks still appear (at the cost of a brief
   // stall on that frame). Better than the HQ silently failing to break.
+  // Gated to the killing HQ so non-killing HQs don't pay the stall.
   useEffect(() => {
-    if (!isLost || fracture) return;
+    if (!shouldExplode || fracture) return;
     const baked = bakeObjectToGeometry(scaledClone);
     const chunkList = fractureGeometry(baked, FRACTURE_CHUNKS, pose.pathIndex + 7);
     const bakedBox = new THREE.Box3().setFromBufferAttribute(
@@ -164,7 +171,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     );
     const center = bakedBox.getCenter(new THREE.Vector3());
     setFracture({ chunks: chunkList, center });
-  }, [isLost, fracture, scaledClone, pose.pathIndex]);
+  }, [shouldExplode, fracture, scaledClone, pose.pathIndex]);
 
   // Live event tracking — we read these inside useFrame rather than via
   // selectors so the component never re-mounts between waves.
@@ -191,7 +198,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
 
     const now = performance.now() / 1000;
 
-    if (isLost) {
+    if (shouldExplode) {
       if (lostStartRef.current === null) lostStartRef.current = now;
     } else {
       lostStartRef.current = null;
@@ -241,9 +248,12 @@ const HQOne = ({ pose }: { pose: Pose }) => {
       }
     }
 
-    // Damage emissive flash on all materials. Skipped during death so the
-    // chunks don't inherit a red emissive that fights the explosion glow.
-    if (!isLost) {
+    // Damage emissive flash on all materials. Skipped during death (on
+    // the killing HQ only) so the chunks don't inherit a red emissive
+    // that fights the explosion glow. Non-killing HQs keep flashing
+    // normally even after status === "lost" — though no further leaks
+    // will arrive once the run ends, so flashUntilRef stays cold.
+    if (!shouldExplode) {
       const flashAge = flashUntilRef.current - now;
       const flashLevel = Math.max(0, Math.min(1, flashAge / FLASH_DURATION));
       const emissiveR = flashLevel * 1.1;
@@ -266,7 +276,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   return (
     <>
       <group ref={outerRef}>
-        {(!isLost || !fracture) && <primitive object={scaledClone} />}
+        {(!shouldExplode || !fracture) && <primitive object={scaledClone} />}
         {/* Death explosion: warm outer fireball + white-hot inner core.
             Hidden during regular play; ref-driven scaling/opacity during the
             loss cinematic. Both depth-write off so they layer cleanly over
@@ -311,7 +321,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
           />
         </mesh>
       </group>
-      {isLost && fracture && fracture.chunks.length > 0 && (
+      {shouldExplode && fracture && fracture.chunks.length > 0 && (
         <ChunkPhysics
           chunks={fracture.chunks}
           chunkMaterial={chunkMaterial}

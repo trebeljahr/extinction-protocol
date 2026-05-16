@@ -521,6 +521,10 @@ export type World = {
   lives: number;
   startLives: number;
   status: RunStatus;
+  // Path index of the HQ that took the killing blow. Used by HQTurret
+  // so only that endpoint plays the death explosion + fracture; other
+  // HQs on multi-path levels stay intact.
+  killingPathIndex: number | null;
   nextEntityId: number;
   events: GameEvent[];
   shake: Shake;

@@ -28,6 +28,12 @@ const pathEndDirection = (path: Vec2[]): Vec2 => {
 
 const applyLeakHit = (world: World, e: Enemy) => {
   if (!world.invincible) world.lives -= e.damage;
+  // Record which HQ took the killing leak. checkRunEnd reads this in the
+  // same tick to gate the death explosion to that endpoint only — without
+  // it, multi-path levels detonate every HQ in lockstep.
+  if (world.lives <= 0 && world.killingPathIndex === null) {
+    world.killingPathIndex = e.pathIndex;
+  }
   e.alive = false;
   emit(world, { type: "life-lost", pathIndex: e.pathIndex });
   // Slight jolt so the hit registers — previous 0.18 mag with decay 6

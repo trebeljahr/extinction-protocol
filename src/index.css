@@ -303,26 +303,41 @@
     color: var(--color-fg);
     font-family: inherit;
     text-align: left;
-    border-color: rgba(180, 255, 201, 0.45);
+    background: rgba(20, 40, 30, 0.78);
+    border-color: var(--color-mint);
     pointer-events: auto;
     transition:
       border-color 0.12s,
+      background 0.12s,
       box-shadow 0.12s,
       transform 0.08s;
-    animation: call-wave-pulse 1.8s ease-in-out infinite;
+    animation: call-wave-pulse 1.4s ease-in-out infinite;
   }
 
   .call-wave-btn:hover {
+    background: rgba(40, 80, 56, 0.82);
     border-color: var(--color-mint);
     box-shadow:
       0 0 0 1px var(--color-mint),
-      0 0 18px rgba(180, 255, 201, 0.3);
+      0 0 24px rgba(180, 255, 201, 0.55);
     transform: translateY(-1px);
     animation: none;
   }
 
   .call-wave-btn:active {
     transform: translateY(0);
+    box-shadow:
+      0 0 0 1px var(--color-mint),
+      0 0 10px rgba(180, 255, 201, 0.35);
+  }
+
+  .call-wave-btn .stat-label {
+    opacity: 1;
+    color: var(--color-mint);
+  }
+
+  .call-wave-btn .stat-value {
+    color: var(--color-mint);
   }
 
   .call-wave-sub {
@@ -347,10 +362,14 @@
   @keyframes call-wave-pulse {
     0%,
     100% {
-      box-shadow: 0 0 0 0 rgba(180, 255, 201, 0);
+      box-shadow:
+        0 0 0 0 rgba(180, 255, 201, 0.5),
+        0 0 0 0 rgba(180, 255, 201, 0);
     }
     50% {
-      box-shadow: 0 0 0 2px rgba(180, 255, 201, 0.22);
+      box-shadow:
+        0 0 0 2px rgba(180, 255, 201, 0.55),
+        0 0 22px rgba(180, 255, 201, 0.4);
     }
   }
 

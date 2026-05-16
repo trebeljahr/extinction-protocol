@@ -45,6 +45,13 @@ export const ModelTowerMesh = ({
         const m = obj as THREE.Mesh;
         m.castShadow = true;
         m.receiveShadow = true;
+        // Flamethrower's particle stream extends far beyond the turret's
+        // bounding box. When the player zooms in and pans so the nozzle
+        // sits off-screen, the model's per-mesh frustum test kills the
+        // draw — and visually the flame stream + emissive nozzle vanish
+        // with it. Disabling per-mesh culling on tower models is cheap
+        // (6 kinds, low instance counts) and prevents the pop.
+        m.frustumCulled = false;
       }
     });
   }, [scene]);
@@ -72,6 +79,13 @@ export const ModelTowerMesh = ({
       if (!item) {
         item = scene.clone(true);
         item.scale.setScalar(normalizedScale);
+        // The source-scene effect sets frustumCulled=false on every
+        // child mesh, but clones inherit the value at the moment of
+        // cloning — a tower placed on the very first frame can miss
+        // the effect pass. Re-apply per-clone so it's always set.
+        item.traverse((o) => {
+          if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).frustumCulled = false;
+        });
         parent.add(item);
         itemsRef.current.set(t.id, item);
       }

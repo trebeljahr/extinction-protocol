@@ -90,6 +90,8 @@ export const Trees = () => {
   const selectedRockId = useGame((s) => s.selectedRockId);
   const selectedKind = useGame((s) => s.selectedKind);
   const selectedTowerId = useGame((s) => s.world.selectedTowerId);
+  const selectedBase = useGame((s) => s.world.selectedBase);
+  const heroSelected = useGame((s) => s.world.hero.selected);
   const inspectedEnemyId = useGame((s) => s.inspectedEnemy.id);
   const sources = useVariantSources(BIOME_TREE_URLS[biome]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -113,10 +115,21 @@ export const Trees = () => {
       selectedKind !== null ||
       selectedTowerId !== null ||
       selectedRockId !== null ||
+      selectedBase ||
+      heroSelected ||
       inspectedEnemyId !== null ||
       (selectedTreeId !== null && selectedTreeId !== hoveredId);
     if (externalSelectionActive) setHoveredId(null);
-  }, [hoveredId, inspectedEnemyId, selectedKind, selectedRockId, selectedTowerId, selectedTreeId]);
+  }, [
+    hoveredId,
+    inspectedEnemyId,
+    selectedBase,
+    selectedKind,
+    selectedRockId,
+    selectedTowerId,
+    selectedTreeId,
+    heroSelected,
+  ]);
 
   const canAfford = gold >= TREE_REMOVE_COST;
   const running = status === "running";
