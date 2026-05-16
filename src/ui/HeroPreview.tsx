@@ -18,7 +18,7 @@ const specFor = (variant: HeroVariant): BakeSpec => ({
   // what bakedIcon should use.
   skinned: true,
   rotY: -0.35,
-  camera: { position: [2.0, 1.6, 1.6], target: [0, 0.85, 0], fov: 30 },
+  camera: { position: [2.3, 1.7, 1.9], target: [0, 0.5, 0], fov: 38 },
 });
 
 export const prewarmHeroIcons = (): void => {

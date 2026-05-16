@@ -13,7 +13,7 @@ const HERO_URL: Record<HeroVariant, string> = {
   stan: "/models/heroes/Stan.glb",
 };
 
-const TARGET_SIZE = 1.5;
+const TARGET_SIZE = 1.35;
 
 const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
   const url = HERO_URL[variant];
@@ -101,9 +101,9 @@ export const HeroDiorama = ({ variant }: { variant: HeroVariant }) => {
     <Canvas
       className="hero-diorama-canvas"
       shadows
-      camera={{ position: [3.0, 1.9, 3.0], fov: 34 }}
+      camera={{ position: [3.2, 2.1, 3.2], fov: 40 }}
       onCreated={({ camera }) => {
-        camera.lookAt(0, 0.75, 0);
+        camera.lookAt(0, 0.65, 0);
         camera.updateProjectionMatrix();
       }}
       gl={{ antialias: true, alpha: true }}

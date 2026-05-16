@@ -74,6 +74,48 @@ export const IconCog: FC<MenuIconProps> = (p) => (
   </Svg>
 );
 
+export const IconSquad: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Pilot roster">
+    <circle cx="12" cy="7.5" r="2.8" />
+    <path d="M6 19.5a6 6 0 0 1 12 0" />
+    <circle cx="5" cy="9.5" r="2" />
+    <path d="M2 18a4.5 4.5 0 0 1 3.5-4.4" />
+    <circle cx="19" cy="9.5" r="2" />
+    <path d="M22 18a4.5 4.5 0 0 0-3.5-4.4" />
+  </Svg>
+);
+
+export const IconShield: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Vitality">
+    <path d="M12 3 4.5 6v6.5c0 4.4 3.1 7.4 7.5 8.5 4.4-1.1 7.5-4.1 7.5-8.5V6L12 3Z" />
+    <path d="M9.2 12.5l2 2 3.6-4" />
+  </Svg>
+);
+
+export const IconCrosshair: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Firepower">
+    <circle cx="12" cy="12" r="7" />
+    <path d="M12 3v3.5" />
+    <path d="M12 17.5V21" />
+    <path d="M3 12h3.5" />
+    <path d="M17.5 12H21" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const IconBoot: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Mobility">
+    <path d="M5 13l5-9 3 1.5-1 5h4l3 4.5v3.5a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 18.5V13Z" />
+    <path d="M9 17h2M13 17h2" />
+  </Svg>
+);
+
+export const IconCore: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Ultimate">
+    <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" />
+  </Svg>
+);
+
 export const IconStar: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Star">
     <path

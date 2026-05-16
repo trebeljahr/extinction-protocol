@@ -27,6 +27,7 @@ import {
   IconCoin,
   IconFloppy,
   IconLab,
+  IconSquad,
   IconStar,
   IconTrophy,
 } from "./MenuIcons";
@@ -194,7 +195,7 @@ export const WorldMapUI = () => {
           aria-label="Open hero roster"
           title="Pilot roster"
         >
-          <IconCog size={16} className="shrink-0" />
+          <IconSquad size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Heroes</span>
         </button>
         <button
@@ -289,7 +290,7 @@ export const WorldMapUI = () => {
           />
           {hoveredUnlocked && (
             <div className="mt-2.5 pt-2.5 border-t border-[rgba(120,160,200,0.14)] text-[11px] text-cyan tracking-wide uppercase text-center">
-              Click to deploy
+              Deploy
             </div>
           )}
         </div>

@@ -12,6 +12,11 @@ import type { Hero, HeroVariant } from "./types";
 
 export const HERO_SKILL_MAX_RANK = 3;
 export const HERO_POINTS_PER_LEVEL = 1;
+// Level 1 starts at 0 points. Each level past 1 awards
+// HERO_POINTS_PER_LEVEL. The skill tree has 4 nodes × 3 ranks = 12
+// rank points total, so level 13 fully maxes a hero. Levels beyond
+// that grant nothing the player can spend.
+export const HERO_MAX_LEVEL = 13;
 
 export type HeroSkillId = "vitality" | "firepower" | "mobility" | "ultimate";
 
@@ -139,14 +144,21 @@ export const levelForXp = (xp: number): number => {
   //   n² - n - xp/50 <= 0
   //   n <= (1 + sqrt(1 + 4*xp/50)) / 2
   const n = Math.floor((1 + Math.sqrt(1 + (4 * xp) / 50)) / 2);
-  return Math.max(1, n);
+  return Math.max(1, Math.min(HERO_MAX_LEVEL, n));
 };
 
-export const xpProgressInLevel = (xp: number): { level: number; into: number; need: number } => {
+export const xpProgressInLevel = (
+  xp: number,
+): { level: number; into: number; need: number; maxed: boolean } => {
   const level = levelForXp(xp);
+  if (level >= HERO_MAX_LEVEL) {
+    const base = xpForLevel(HERO_MAX_LEVEL);
+    const into = Math.max(0, xp - base);
+    return { level: HERO_MAX_LEVEL, into, need: into || 1, maxed: true };
+  }
   const base = xpForLevel(level);
   const next = xpForLevel(level + 1);
-  return { level, into: xp - base, need: next - base };
+  return { level, into: xp - base, need: next - base, maxed: false };
 };
 
 // Earned skill points across the run for one variant. Spent points are

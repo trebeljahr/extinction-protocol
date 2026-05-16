@@ -4554,6 +4554,10 @@
     .hero-detail-grid {
       grid-template-columns: 1fr;
     }
+    .hero-detail-preview {
+      aspect-ratio: auto;
+      height: 220px;
+    }
   }
   .hero-detail-preview {
     width: 100%;
@@ -4642,37 +4646,309 @@
     text-transform: uppercase;
     margin-bottom: 2px;
   }
-  .hero-detail-abilities {
+  /* Hero ability cards (detail page). Each ability is a toggleable
+     summary row that expands to show stats + flavor when clicked. */
+  .hero-ability-list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 5px;
   }
-  .hero-detail-ability {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: rgba(8, 12, 18, 0.5);
+  .hero-ability-card {
+    background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
-    color: var(--color-fg-soft);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .hero-ability-card.expanded {
+    border-color: rgba(159, 216, 255, 0.45);
+    background: rgba(10, 16, 26, 0.7);
+  }
+  .hero-ability-summary {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .hero-ability-summary .hero-ability-glyph {
+    font-size: 14px;
+    line-height: 1;
+    color: var(--color-blue);
+    flex-shrink: 0;
+  }
+  .hero-ability-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-fg);
+    letter-spacing: 0.02em;
+    flex: 1;
+    min-width: 0;
+  }
+  .hero-ability-toggle {
+    font-size: 14px;
+    color: var(--color-fg-muted);
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .hero-ability-detail {
+    padding: 0 10px 8px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .hero-ability-blurb {
+    margin: 0;
+    font-size: 11px;
+    color: #b6c2cf;
+    line-height: 1.45;
+  }
+  .hero-ability-stats {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hero-ability-stats li {
+    font-size: 10px;
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
   }
 
-  .hero-card-xp-row {
+  /* Level + XP block. Single prominent bar with level and points-per-
+     -level callout. Sits above the tech tree. */
+  .hero-level-block {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: rgba(8, 12, 18, 0.55);
+    border: 1px solid var(--color-border-faint);
+  }
+  .hero-level-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .hero-level-lvl {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-fg);
+    letter-spacing: 0.04em;
+  }
+  .hero-level-max {
+    color: var(--color-fg-dim);
+    font-size: 11px;
+    margin-left: 3px;
+    font-weight: 600;
+  }
+  .hero-level-xp {
+    font-size: 11px;
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-level-bar {
+    height: 10px;
+    background: rgba(6, 10, 14, 0.85);
+    border: 1px solid rgba(120, 160, 200, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .hero-level-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #5ad6ff, #9fd8ff);
+    transition: width 0.2s linear;
+  }
+  .hero-level-fill.maxed {
+    background: linear-gradient(90deg, #ffd24a, #ff8a3a);
+  }
+  .hero-level-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--color-fg-muted);
+    letter-spacing: 0.04em;
+  }
+  .hero-level-points {
+    color: var(--color-blue);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tech tree skill rows. Bigger icon + bigger rank pips, less text. */
+  .hero-skill-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hero-skill-card {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(8, 12, 18, 0.45);
+    border: 1px solid var(--color-border-faint);
+    transition: border-color 0.12s;
+  }
+  .hero-skill-card.invested {
+    border-color: rgba(159, 216, 255, 0.35);
+  }
+  .hero-skill-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(20, 30, 46, 0.7);
+    border: 1px solid rgba(120, 160, 200, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-blue);
+    flex-shrink: 0;
+  }
+  .hero-skill-card.invested .hero-skill-icon {
+    color: #9fd8ff;
+    border-color: rgba(159, 216, 255, 0.5);
+    background: rgba(20, 36, 56, 0.85);
+  }
+  .hero-skill-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .hero-skill-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .hero-skill-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-fg);
+    letter-spacing: 0.02em;
+  }
+  .hero-skill-pips {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .hero-skill-pip {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid;
+    transition: background 0.12s, border-color 0.12s, transform 0.12s;
+    cursor: pointer;
+    padding: 0;
+  }
+  .hero-skill-pip.filled {
+    background: var(--color-blue);
+    border-color: var(--color-blue);
+    box-shadow: 0 0 6px rgba(159, 216, 255, 0.55);
+  }
+  .hero-skill-pip.affordable {
+    background: transparent;
+    border-color: rgba(159, 216, 255, 0.7);
+  }
+  .hero-skill-pip.affordable:hover {
+    background: rgba(159, 216, 255, 0.25);
+    transform: scale(1.08);
+  }
+  .hero-skill-pip.locked {
+    background: transparent;
+    border-color: rgba(120, 160, 200, 0.25);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .hero-skill-desc {
     display: flex;
     align-items: center;
     gap: 6px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    flex-wrap: wrap;
   }
-  .hero-card-xp-bar {
-    flex: 1;
-    height: 6px;
-    background: rgba(6, 10, 14, 0.7);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 4px;
-    overflow: hidden;
+  .hero-skill-current {
+    color: #b6e7c9;
   }
-  .hero-card-xp-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #5ad6ff, #9fd8ff);
-    transition: width 0.18s linear;
+  .hero-skill-current.dim {
+    color: var(--color-fg-dim);
+    font-style: italic;
+  }
+  .hero-skill-arrow {
+    color: var(--color-fg-faint);
+  }
+  .hero-skill-next {
+    color: rgba(159, 216, 255, 0.85);
+  }
+  .hero-skill-refund {
+    align-self: flex-start;
+    font-size: 10px;
+    color: var(--color-fg-muted);
+    background: transparent;
+    border: 1px solid var(--color-border-faint);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+    margin-top: 2px;
+  }
+  .hero-skill-refund:hover {
+    color: var(--color-red);
+    border-color: var(--color-red);
+  }
+
+  .hero-roster-level-max {
+    color: var(--color-fg-dim);
+    margin-left: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .hero-skill-card {
+      padding: 7px 8px;
+      gap: 8px;
+    }
+    .hero-skill-icon {
+      width: 30px;
+      height: 30px;
+    }
+    .hero-skill-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    .hero-skill-pip {
+      width: 22px;
+      height: 22px;
+    }
+    .hero-detail-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .hero-level-foot {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+    .hero-ability-detail {
+      padding: 0 10px 8px 14px;
+    }
   }
 
   /* Compendium hero pilot grid. */

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 import { totalStars } from "../progress";
 import {
+  HERO_MAX_LEVEL,
+  HERO_POINTS_PER_LEVEL,
   HERO_SKILL_MAX_RANK,
   HERO_SKILL_TREE,
   type HeroSkillId,
@@ -9,16 +11,24 @@ import {
   levelForXp,
   xpProgressInLevel,
 } from "../sim/heroSkills";
-import { HERO_SPECS } from "../sim/heroVariants";
+import { HERO_SPECS, type HeroVariantSpec } from "../sim/heroVariants";
 import { spentMetaStars } from "../sim/metaSkills";
 import type { HeroVariant } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { HeroDiorama } from "./HeroDiorama";
 import { HeroPreview } from "./HeroPreview";
+import { IconBoot, IconCore, IconCrosshair, IconShield, type MenuIconProps } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 
 const ROSTER: HeroVariant[] = ["george", "leela", "mike", "stan"];
+
+const SKILL_ICONS: Record<HeroSkillId, FC<MenuIconProps>> = {
+  vitality: IconShield,
+  firepower: IconCrosshair,
+  mobility: IconBoot,
+  ultimate: IconCore,
+};
 
 const RankPips = ({
   rank,
@@ -29,7 +39,7 @@ const RankPips = ({
   available: number;
   onClick: (target: number) => void;
 }) => (
-  <div className="flex items-center gap-1.5">
+  <div className="hero-skill-pips">
     {Array.from({ length: HERO_SKILL_MAX_RANK }).map((_, i) => {
       const tier = i + 1;
       const filled = tier <= rank;
@@ -37,16 +47,11 @@ const RankPips = ({
       const wouldSpend = Math.max(0, tier - rank);
       const affordable = wouldSpend <= available;
       const disabled = !filled && !affordable;
-      const cls = filled
-        ? "bg-blue border-blue"
-        : affordable
-          ? "bg-transparent border-blue/70 hover:bg-blue/30"
-          : "bg-transparent border-fg-faint";
       return (
         <button
           key={`pip-${tier}`}
           type="button"
-          className={`w-4 h-4 rounded-full border-2 transition-colors ${cls} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+          className={`hero-skill-pip ${filled ? "filled" : affordable ? "affordable" : "locked"}`}
           onClick={() => !disabled && onClick(target)}
           disabled={disabled}
           aria-label={filled ? `Rank ${tier} (click to refund)` : `Upgrade to rank ${tier}`}
@@ -69,30 +74,36 @@ const SkillRow = ({
   available: number;
 }) => {
   const setRank = useGame((s) => s.setHeroSkillRank);
-  const currentDesc = rank > 0 ? node.rankDesc[rank - 1] : "Not invested";
+  const Icon = SKILL_ICONS[node.id];
   const nextDesc = rank < HERO_SKILL_MAX_RANK ? node.rankDesc[rank] : null;
+  const currentDesc = rank > 0 ? node.rankDesc[rank - 1] : null;
   return (
-    <div className="border-t border-border-faint py-2 first:border-t-0">
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-fg leading-tight">{node.name}</div>
-          <div className="text-[11px] text-fg-muted leading-snug mt-0.5">{node.blurb}</div>
-        </div>
-        <RankPips
-          rank={rank}
-          available={available}
-          onClick={(target) => setRank(variant, node.id, target)}
-        />
+    <div className={`hero-skill-card ${rank > 0 ? "invested" : ""}`}>
+      <div className="hero-skill-icon">
+        <Icon size={22} />
       </div>
-      <div className="flex items-center gap-2 text-[11px] tabular-nums">
-        <span className={rank > 0 ? "text-mint" : "text-fg-dim"}>{currentDesc}</span>
-        {nextDesc && (
-          <>
-            <span className="text-fg-faint">→</span>
-            <span className="text-blue/80">{nextDesc}</span>
-            <span className="text-fg-faint ml-auto">1 pt</span>
-          </>
-        )}
+      <div className="hero-skill-body">
+        <div className="hero-skill-head">
+          <span className="hero-skill-name">{node.name}</span>
+          <RankPips
+            rank={rank}
+            available={available}
+            onClick={(target) => setRank(variant, node.id, target)}
+          />
+        </div>
+        <div className="hero-skill-desc">
+          {currentDesc ? (
+            <span className="hero-skill-current">{currentDesc}</span>
+          ) : (
+            <span className="hero-skill-current dim">{node.blurb}</span>
+          )}
+          {nextDesc && (
+            <>
+              <span className="hero-skill-arrow">→</span>
+              <span className="hero-skill-next">{nextDesc}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -145,10 +156,109 @@ const RosterCard = ({
           >
             {DAMAGE_TYPE_LABEL[spec.damageType]}
           </span>
-          {unlocked && <span className="hero-roster-level">Lv {level}</span>}
+          {unlocked && (
+            <span className="hero-roster-level">
+              Lv {level}
+              <span className="hero-roster-level-max">/{HERO_MAX_LEVEL}</span>
+            </span>
+          )}
         </div>
       </div>
     </button>
+  );
+};
+
+const formatAbilityStats = (spec: HeroVariantSpec, slot: 0 | 1 | 2): string[] => {
+  const a = spec.abilities[slot];
+  if (a.type === "dash") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Duration ${a.duration.toFixed(2)}s`,
+      `Speed ${a.speed.toFixed(1)}`,
+      "Grants i-frames during lunge",
+    ];
+  }
+  if (a.type === "burst") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Damage ${a.damage}`,
+      `Radius ${a.radius.toFixed(1)}`,
+      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+    ];
+  }
+  if (a.type === "barrage") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Shells ${a.count}`,
+      `Damage ${a.damage} × splash ${a.splashRadius.toFixed(1)}`,
+      `Range ${a.range.toFixed(1)} · ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+    ];
+  }
+  if (a.type === "mark") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Duration ${a.duration.toFixed(1)}s`,
+      `Marked targets take +${Math.round((a.dmgMul - 1) * 100)}% damage`,
+    ];
+  }
+  return [
+    `Cooldown ${a.cooldown.toFixed(1)}s`,
+    `Total damage ${a.totalDamage}`,
+    `Duration ${a.duration.toFixed(1)}s · Range ${a.range.toFixed(1)}`,
+    `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+  ];
+};
+
+const ABILITY_BLURB: Record<string, string> = {
+  dash: "Forward dash. Hero is invulnerable mid-lunge — use it to break grapple or close range.",
+  burst: "Instant radial blast centered on the hero. Best when ringed by enemies.",
+  barrage: "Calls a saturation strike of shells over a target area. Each shell splashes.",
+  mark: "Marks the nearest cluster of enemies; marked targets take bonus damage from all sources.",
+  incinerate:
+    "Sustained flame cone in front of the hero. Total damage spread evenly over the duration.",
+};
+
+const AbilityCard = ({
+  spec,
+  slot,
+  expanded,
+  onToggle,
+}: {
+  spec: HeroVariantSpec;
+  slot: 0 | 1 | 2;
+  expanded: boolean;
+  onToggle: () => void;
+}) => {
+  const label = spec.abilityLabels[slot];
+  const glyph = spec.abilityGlyphs[slot];
+  const a = spec.abilities[slot];
+  return (
+    <div className={`hero-ability-card ${expanded ? "expanded" : ""}`}>
+      <button
+        type="button"
+        className="hero-ability-summary"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <span className="hero-ability-glyph" aria-hidden>
+          {glyph}
+        </span>
+        <span className="hero-ability-name">{label}</span>
+        <span className="hero-ability-toggle" aria-hidden>
+          {expanded ? "−" : "+"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="hero-ability-detail">
+          <p className="hero-ability-blurb">{ABILITY_BLURB[a.type]}</p>
+          <ul className="hero-ability-stats">
+            {formatAbilityStats(spec, slot).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -170,15 +280,16 @@ const HeroDetail = ({
   const unlockHero = useGame((s) => s.unlockHero);
   const setActiveHero = useGame((s) => s.setActiveHero);
   const resetSkills = useGame((s) => s.resetHeroSkills);
+  const [openAbility, setOpenAbility] = useState<0 | 1 | 2 | null>(null);
 
   const xp = progress.heroXp[variant] ?? 0;
   const ranks = progress.heroSkills[variant];
   const level = levelForXp(xp);
-  const { into, need } = xpProgressInLevel(xp);
+  const { into, need, maxed } = xpProgressInLevel(xp);
   const pts = heroSkillPointsAvailable(xp, ranks);
   const active = activeHero === variant;
   const canUnlock = !unlocked && availableStars >= spec.unlockStars;
-  const xpPct = need > 0 ? into / need : 0;
+  const xpPct = maxed ? 1 : need > 0 ? into / need : 0;
   const investedTotal = pts.spent;
 
   return (
@@ -197,12 +308,8 @@ const HeroDetail = ({
         </div>
         <div className="hero-detail-info">
           <div className="hero-detail-head">
-            <div className="hero-detail-name-row">
-              <span className="hero-detail-name">{spec.label}</span>
-              <span className="hero-detail-callsign">{spec.callsign}</span>
-              {active && <span className="hero-detail-active">Active</span>}
-            </div>
             <div className="hero-detail-tag-row">
+              <span className="hero-detail-callsign">{spec.callsign}</span>
               <span
                 className="dmg-tag inline-flex items-center gap-1 text-[11px]"
                 style={{
@@ -212,11 +319,7 @@ const HeroDetail = ({
               >
                 {DAMAGE_TYPE_LABEL[spec.damageType]}
               </span>
-              {unlocked && (
-                <span className="text-[11px] text-fg-muted uppercase tracking-wide">
-                  Lv {level}
-                </span>
-              )}
+              {active && <span className="hero-detail-active">Active</span>}
             </div>
             <p className="hero-detail-blurb">{spec.blurb}</p>
           </div>
@@ -236,35 +339,45 @@ const HeroDetail = ({
             </div>
           </div>
 
-          <div className="hero-detail-abilities">
-            {spec.abilityLabels.map((lbl, i) => (
-              <span key={lbl} className="hero-detail-ability">
-                <span aria-hidden>{spec.abilityGlyphs[i]}</span> {lbl}
-              </span>
+          <div className="hero-ability-list">
+            {([0, 1, 2] as const).map((slot) => (
+              <AbilityCard
+                key={slot}
+                spec={spec}
+                slot={slot}
+                expanded={openAbility === slot}
+                onToggle={() => setOpenAbility(openAbility === slot ? null : slot)}
+              />
             ))}
           </div>
 
           {unlocked ? (
             <>
-              <div className="hero-card-xp-row">
-                <span className="text-[10px] text-fg-muted uppercase tracking-wide">
-                  Lv {level}
-                </span>
-                <div className="hero-card-xp-bar">
-                  <div className="hero-card-xp-fill" style={{ width: `${xpPct * 100}%` }} />
+              <div className="hero-level-block">
+                <div className="hero-level-head">
+                  <span className="hero-level-lvl">
+                    Lv {level}
+                    <span className="hero-level-max">/ {HERO_MAX_LEVEL}</span>
+                  </span>
+                  <span className="hero-level-xp">{maxed ? "MAX" : `${into} / ${need} XP`}</span>
                 </div>
-                <span className="text-[10px] tabular-nums text-fg-muted">
-                  {into}/{need}
-                </span>
-              </div>
-
-              <div className="border-t border-border-faint pt-2">
-                <div className="flex items-center justify-between text-[11px] uppercase tracking-wide mb-1">
-                  <span className="text-fg-muted">Tech Tree</span>
-                  <span className="text-blue tabular-nums">
-                    {pts.available} pt{pts.available === 1 ? "" : "s"}
+                <div className="hero-level-bar">
+                  <div
+                    className={`hero-level-fill ${maxed ? "maxed" : ""}`}
+                    style={{ width: `${xpPct * 100}%` }}
+                  />
+                </div>
+                <div className="hero-level-foot">
+                  <span>
+                    {HERO_POINTS_PER_LEVEL} skill point per level · earned {pts.earned}
+                  </span>
+                  <span className="hero-level-points">
+                    {pts.available} pt{pts.available === 1 ? "" : "s"} to spend
                   </span>
                 </div>
+              </div>
+
+              <div className="hero-skill-tree">
                 {HERO_SKILL_TREE.map((node) => (
                   <SkillRow
                     key={node.id}
@@ -277,7 +390,7 @@ const HeroDetail = ({
                 {investedTotal > 0 && (
                   <button
                     type="button"
-                    className="text-[10px] text-fg-muted hover:text-red px-2 py-1 rounded border border-border-faint hover:border-red mt-1"
+                    className="hero-skill-refund"
                     onClick={() => resetSkills(variant)}
                     title={`Refund all ${investedTotal} pt${investedTotal === 1 ? "" : "s"}`}
                   >
