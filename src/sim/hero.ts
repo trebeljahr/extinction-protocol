@@ -227,7 +227,7 @@ const dashDir = (hero: Hero): Vec2 => {
     const d = Math.hypot(dx, dy);
     if (d > 1e-3) return { x: dx / d, y: dy / d };
   }
-  return { x: Math.sin(hero.facing), y: Math.cos(hero.facing) };
+  return { x: Math.sin(hero.facing), y: -Math.cos(hero.facing) };
 };
 
 // Mid-tick payload servicing for slot 2 ongoing effects. Mark drives a
@@ -321,7 +321,7 @@ export const updateHero = (world: World, dt: number) => {
 
   if (dashing) {
     const fx = Math.sin(hero.facing);
-    const fy = Math.cos(hero.facing);
+    const fy = -Math.cos(hero.facing);
     desiredX = fx * dashSpec.speed;
     desiredY = fy * dashSpec.speed;
     walking = true;
@@ -363,11 +363,11 @@ export const updateHero = (world: World, dt: number) => {
   const movingMagSq = hero.vel.x * hero.vel.x + hero.vel.y * hero.vel.y;
   let targetYaw = hero.facing;
   if (movingMagSq > 0.04) {
-    targetYaw = Math.atan2(hero.vel.x, hero.vel.y);
+    targetYaw = Math.atan2(hero.vel.x, -hero.vel.y);
   } else {
     const target = findHeroTarget(world, hero);
     if (target) {
-      targetYaw = Math.atan2(target.pos.x - hero.pos.x, target.pos.y - hero.pos.y);
+      targetYaw = Math.atan2(target.pos.x - hero.pos.x, -(target.pos.y - hero.pos.y));
     }
   }
   const ky = 1 - Math.exp(-HERO_TURN_RATE * dt);
@@ -448,7 +448,7 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
 
   if (spec.type === "dash") {
     const dir = dashDir(hero);
-    hero.facing = Math.atan2(dir.x, dir.y);
+    hero.facing = Math.atan2(dir.x, -dir.y);
     hero.abilityActiveUntil[0] = world.time + spec.duration;
     spawnParticles(world, hero.pos, 14, variant.tint, [2, 5], 0.35);
     return true;

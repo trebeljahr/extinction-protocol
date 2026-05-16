@@ -247,7 +247,7 @@ export const ModelHeroMesh = () => {
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
     e.stopPropagation();
-    state.selectHeroUnit(true);
+    state.selectHeroUnit(!state.world.hero.selected);
   };
 
   return (

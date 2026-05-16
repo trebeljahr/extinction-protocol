@@ -321,9 +321,9 @@ export const Placement = () => {
     if (Date.now() < suppressClickUntilRef.current) return;
     const pos = eventPoint(e);
     const state = useGame.getState();
-    // Click-after-select: when the hero unit is selected, a ground click
-    // is the move order. Selection clears inside orderHeroMove so the
-    // next click goes back to default placement / inspect behavior.
+    // Click-after-select: while the hero is selected, every ground click
+    // is a move order (snapped to the path inside orderHeroMove). Hero
+    // stays selected — click the hero again to deselect.
     if (state.world.hero.selected && state.selectedKind === null) {
       state.orderHeroMove(pos);
       return;

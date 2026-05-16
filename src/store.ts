@@ -317,6 +317,32 @@ const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
   return false;
 };
 
+const nearestPathPoint = (world: World, p: Vec2): Vec2 => {
+  let best = p;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  for (const path of world.paths) {
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i];
+      const b = path[i + 1];
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const lenSq = abx * abx + aby * aby;
+      if (lenSq === 0) continue;
+      const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq));
+      const cx = a.x + t * abx;
+      const cy = a.y + t * aby;
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = { x: cx, y: cy };
+      }
+    }
+  }
+  return best;
+};
+
 const canPlaceAt = (world: World, pos: Vec2): boolean => {
   if (isOnPath(world, pos, PATH_WIDTH / 2 + 0.4)) return false;
   if (isOnLavaSurface(world.lavaFeatures, pos.x, pos.y, TOWER_FOOTPRINT * 0.5)) return false;
@@ -1118,11 +1144,9 @@ export const useGame = create<GameStore>((set, get) => ({
   orderHeroMove: (pos) => {
     const s = get();
     if (s.world.status !== "running") return;
-    simOrderHeroMove(s.world, pos);
-    // Click-move clears the in-world "selected" highlight so a second
-    // ground click doesn't re-select. Right-click flow never calls
-    // selectHeroUnit so it stays unset here too.
-    if (s.world.hero.selected) simSelectHero(s.world, false);
+    // Snap to the nearest path so the hero never strays into open terrain.
+    const target = nearestPathPoint(s.world, pos);
+    simOrderHeroMove(s.world, target);
   },
 
   triggerHeroAbility: (slot) => {

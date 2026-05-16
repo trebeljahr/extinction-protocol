@@ -476,7 +476,7 @@ export const createWorld = (
     y: endPt.y - tdy * 2.6 + tdx * 2.4,
   };
   const hero = heroDefaults(heroCtx.variant, heroSpawn, nextId, heroCtx.xp);
-  hero.facing = Math.atan2(-tdx, -tdy);
+  hero.facing = Math.atan2(-tdx, tdy);
   applyHeroSkillsToHero(hero, heroCtx.skills);
   // Snap HP to maxHp post-skills so vitality ranks don't leave the hero
   // partly damaged. Done after applyHeroSkillsToHero (which bumps both).
