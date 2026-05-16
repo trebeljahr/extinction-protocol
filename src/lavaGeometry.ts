@@ -17,14 +17,12 @@ export type FlowPalette = {
 // Per-biome flow shape: how many rivers, how many lakes, whether to bridge
 // path crossings, and the visual palette. Biomes without flow features
 // (desert, snow, wasteland) are represented as `null`.
-//   - lava   : two molten rivers (h + v) + tributaries + 5 lakes, bridges
+//   - lava   : two molten rivers (h + v) + 5 lakes, bridges
 //   - forest : one meandering water channel + 2 small ponds, bridges
 //   - alien  : no rivers — only static goo puddles (8 of them), no bridges
 export type FlowConfig = {
   riverCount: number;
-  tributaries: boolean;
   riverWidth: number;
-  tributaryWidth: number;
   lakeCount: number;
   // Lake half-axes are sampled in [lakeMin, lakeMin+lakeRange] world units.
   lakeMin: number;
@@ -69,9 +67,7 @@ const ALIEN_PALETTE: FlowPalette = {
 const FLOW_CONFIG: Partial<Record<Biome, FlowConfig>> = {
   lava: {
     riverCount: 2,
-    tributaries: true,
     riverWidth: 2.2,
-    tributaryWidth: 1.25,
     lakeCount: 5,
     lakeMin: 1.2,
     lakeRange: 1.6,
@@ -79,13 +75,12 @@ const FLOW_CONFIG: Partial<Record<Biome, FlowConfig>> = {
     palette: LAVA_PALETTE,
   },
   forest: {
-    // One meandering channel + 1–2 side arms + small ponds. The arms
-    // give the river system a more natural branched look instead of a
-    // lone canal across the map.
+    // One meandering channel that snakes edge-to-edge across the map +
+    // small ponds. Branching looked broken on the water shader (flow
+    // direction mismatch at the join), so river systems are kept as a
+    // single continuous polyline.
     riverCount: 1,
-    tributaries: true,
     riverWidth: 1.8,
-    tributaryWidth: 0.9,
     lakeCount: 2,
     lakeMin: 0.9,
     lakeRange: 1.0,
@@ -96,9 +91,7 @@ const FLOW_CONFIG: Partial<Record<Biome, FlowConfig>> = {
     // Static puddles only — goo doesn't flow on the alien plane. Puddles
     // are larger and more numerous to compensate for the absent rivers.
     riverCount: 0,
-    tributaries: false,
     riverWidth: 0,
-    tributaryWidth: 0,
     lakeCount: 8,
     lakeMin: 1.4,
     lakeRange: 1.8,
@@ -134,95 +127,6 @@ export type Bridge = RectBridge | PlazaBridge;
 type SourcedRect = RectBridge & { pathIdx: number };
 export type LavaFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
 
-// Pick a perpendicular direction at a point along a polyline (sign-randomized).
-const perpAt = (
-  pts: Vec2[],
-  i: number,
-  rng: () => number,
-): { ox: number; oy: number; tx: number; ty: number } => {
-  const a = pts[Math.max(0, i - 1)];
-  const b = pts[Math.min(pts.length - 1, i + 1)];
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const tx = dx / len;
-  const ty = dy / len;
-  const sign = rng() < 0.5 ? -1 : 1;
-  return { ox: -ty * sign, oy: tx * sign, tx, ty };
-};
-
-// Short meandering offshoot that leaves the parent river roughly perpendicular
-// at index `parentIdx`, drifts a few units, then peters out. Uses the same
-// sinusoidal+noise wobble as main rivers but at smaller amplitude.
-const buildTributary = (rng: () => number, parent: Vec2[], parentIdx: number): Vec2[] => {
-  const { ox, oy, tx, ty } = perpAt(parent, parentIdx, rng);
-  const start = parent[parentIdx];
-  const N = 6 + Math.floor(rng() * 4); // 6–9 segments
-  const length = 5 + rng() * 5; // 5–10 world units
-  const amp = 0.8 + rng() * 0.8;
-  const phase = rng() * Math.PI * 2;
-  // 35° drift along the parent so tributaries don't always come in at right
-  // angles — looks more like real branching channels.
-  const drift = (rng() - 0.5) * 0.6;
-  const dirX = ox + tx * drift;
-  const dirY = oy + ty * drift;
-  const dlen = Math.hypot(dirX, dirY) || 1;
-  const ux = dirX / dlen;
-  const uy = dirY / dlen;
-  const nx = -uy;
-  const ny = ux;
-  const out: Vec2[] = [];
-  for (let i = 0; i <= N; i++) {
-    const t = i / N;
-    const along = t * length;
-    const wobble = Math.sin(phase + t * Math.PI * 1.6) * amp * (1 - 0.6 * t);
-    const x = start.x + ux * along + nx * wobble;
-    const y = start.y + uy * along + ny * wobble;
-    out.push({ x, y });
-  }
-  return out;
-};
-
-const tributaryEndpointInBounds = (points: Vec2[]): boolean => {
-  const last = points[points.length - 1];
-  return !(
-    last.x < -MAP_WIDTH / 2 - 2 ||
-    last.x > MAP_WIDTH / 2 + 2 ||
-    last.y < -MAP_HEIGHT / 2 - 2 ||
-    last.y > MAP_HEIGHT / 2 + 2
-  );
-};
-
-// Same candidate-picker pattern as rivers. First candidate consumes baseRng
-// to preserve old downstream determinism; the rest use private sub-rngs.
-// Returns null if every candidate's endpoint falls off-map (caller skips).
-const TRIBUTARY_CANDIDATES = 8;
-const buildBestTributary = (
-  baseRng: () => number,
-  candidateSeed: number,
-  parent: Vec2[],
-  paths: Vec2[][],
-  width: number,
-): Vec2[] | null => {
-  const baseParentIdx = 2 + Math.floor(baseRng() * Math.max(1, parent.length - 4));
-  const baseTrib = buildTributary(baseRng, parent, baseParentIdx);
-  let best: Vec2[] | null = tributaryEndpointInBounds(baseTrib) ? baseTrib : null;
-  let bestCost = best ? scoreRiverPathInteraction(best, paths, width) : Infinity;
-
-  for (let i = 1; i < TRIBUTARY_CANDIDATES; i++) {
-    const candRng = mulberry32(candidateSeed + i * 12345);
-    const parentIdx = 2 + Math.floor(candRng() * Math.max(1, parent.length - 4));
-    const candidate = buildTributary(candRng, parent, parentIdx);
-    if (!tributaryEndpointInBounds(candidate)) continue;
-    const cost = scoreRiverPathInteraction(candidate, paths, width);
-    if (cost < bestCost) {
-      bestCost = cost;
-      best = candidate;
-    }
-  }
-  return best;
-};
-
 // Meandering polyline crossing the map on the chosen axis. Endpoints push
 // well past the max-panned viewport (visible half ≈ 24 + pan ≈ 16 = 40 on
 // X) so the river clearly runs off the screen at any zoom/pan. Shape is
@@ -256,11 +160,11 @@ const catmullRom1D = (p0: number, p1: number, p2: number, p3: number, t: number)
 //
 // The candidate-picker still rejects layouts that overlap paths, so we
 // can afford generous excursions and let the picker filter.
-const RIVER_CONTROLS = 9;
-const RIVER_VEL_DECAY = 0.62;
-const RIVER_STEP_AMP = 2.4;
-const RIVER_PULL_BACK = 0.07;
-const RIVER_MAX_EXCURSION = 8;
+const RIVER_CONTROLS = 11;
+const RIVER_VEL_DECAY = 0.72;
+const RIVER_STEP_AMP = 3.2;
+const RIVER_PULL_BACK = 0.05;
+const RIVER_MAX_EXCURSION = 9.5;
 const buildRiver = (rng: () => number, axis: "h" | "v"): Vec2[] => {
   const N = 48;
   const margin = 16;
@@ -369,15 +273,14 @@ const scoreRiverPathInteraction = (river: Vec2[], paths: Vec2[][], riverWidth: n
 
 // Candidate-picker: try N rng-seeded river layouts, score each against the
 // paths, return the lowest-cost one. The first candidate uses the shared
-// `baseRng` on the preferred axis so downstream consumers (lakes,
-// tributaries) see the SAME rng sequence as before — old levels are
-// unchanged unless a better candidate is found. Subsequent candidates
-// spin private mulberry32 sub-rngs so they don't perturb the shared
-// stream. Half of the extra candidates flip to the off-axis with a small
-// surcharge — flips happen only when the off-axis layout beats the
-// preferred-axis best by enough to overcome the surcharge (e.g. when
-// every horizontal layout would run parallel to a stack of horizontal
-// paths).
+// `baseRng` on the preferred axis so downstream consumers (lakes) see the
+// SAME rng sequence as before — old levels are unchanged unless a better
+// candidate is found. Subsequent candidates spin private mulberry32
+// sub-rngs so they don't perturb the shared stream. Half of the extra
+// candidates flip to the off-axis with a small surcharge — flips happen
+// only when the off-axis layout beats the preferred-axis best by enough
+// to overcome the surcharge (e.g. when every horizontal layout would run
+// parallel to a stack of horizontal paths).
 const RIVER_CANDIDATES = 16;
 const OFF_AXIS_PENALTY = 30;
 const buildBestRiver = (
@@ -676,23 +579,6 @@ export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome
     mainPoints.push(buildBestRiver(rng, candidateSeed, axis, paths, config.riverWidth));
   }
   const rivers: River[] = mainPoints.map((points) => ({ points, width: config.riverWidth }));
-
-  if (config.tributaries) {
-    // 1–3 tributaries off each main river, branching from non-endpoint
-    // indices. Each branch tries several candidates and keeps the one
-    // with the lowest path-overlap cost; skipped if all candidates land
-    // off-map.
-    let tribIdx = 0;
-    for (const main of mainPoints) {
-      const branchCount = 1 + Math.floor(rng() * 2.4);
-      for (let b = 0; b < branchCount; b++) {
-        const candidateSeed = levelId * 7919 + 5003 + tribIdx * 137;
-        tribIdx++;
-        const points = buildBestTributary(rng, candidateSeed, main, paths, config.tributaryWidth);
-        if (points) rivers.push({ points, width: config.tributaryWidth });
-      }
-    }
-  }
 
   const allPoints = rivers.map((r) => r.points);
   return {
