@@ -1,6 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
@@ -10,7 +11,13 @@ import type { MeshSource } from "./meshSource";
 // Decorative sci-fi props placed around each HQ endpoint so the plasma
 // turret reads as the centrepiece of a small research compound rather
 // than a lone gun in a field. Render-only: they are culled around towers
-// and never participate in placement blocking.
+// and the path corridor, and never participate in placement blocking.
+//
+// Layout convention: `fwd > 0` is along the approach corridor (where
+// dinos walk). Anything with positive `fwd` must keep |right| greater
+// than PATH_WIDTH/2 + its clearRadius + margin, otherwise enemies will
+// path through or visibly clip into it. A path-cull pass below is the
+// belt-and-braces check so curved approaches don't sneak past.
 
 type PropDef = {
   url: string;
@@ -31,27 +38,30 @@ type PrimitiveDef = {
   yawOffset?: number;
 };
 
+// Approach corridor sits at |right| <= PATH_WIDTH/2 = 1.4. For any
+// prop with fwd > 0 (approach side) we need |right| >= 1.4 + clearRadius
+// + small margin so dinos cleanly path past.
 const BASE_PROPS: PropDef[] = [
   {
     url: "/models/scifi/hangar_smallA.glb",
-    right: -1.45,
-    fwd: -1.65,
+    right: -1.55,
+    fwd: -1.75,
     targetHeight: 1.08,
     clearRadius: 1.05,
     facesHQ: true,
   },
   {
     url: "/models/scifi/structure_detailed.glb",
-    right: 1.35,
-    fwd: -1.25,
+    right: 1.55,
+    fwd: -1.75,
     targetHeight: 1.18,
     clearRadius: 0.95,
     facesHQ: true,
   },
   {
     url: "/models/scifi/structure_closed.glb",
-    right: -2.45,
-    fwd: 0.35,
+    right: -2.85,
+    fwd: -0.35,
     targetHeight: 0.95,
     clearRadius: 0.85,
     facesHQ: true,
@@ -59,49 +69,50 @@ const BASE_PROPS: PropDef[] = [
   {
     url: "/models/scifi/gate_simple.glb",
     right: 0,
-    fwd: 2.05,
+    fwd: -2.65,
     targetHeight: 0.78,
     clearRadius: 0.7,
+    facesHQ: true,
   },
   {
     url: "/models/scifi/satelliteDish_detailed.glb",
-    right: -2.8,
-    fwd: -0.75,
+    right: -2.95,
+    fwd: -1.65,
     targetHeight: 1.18,
     clearRadius: 0.8,
     facesHQ: true,
   },
   {
     url: "/models/scifi/machine_generatorLarge.glb",
-    right: 2.65,
-    fwd: -0.25,
+    right: 2.85,
+    fwd: -0.35,
     targetHeight: 1.0,
     clearRadius: 0.85,
   },
   {
     url: "/models/scifi/machine_wirelessCable.glb",
-    right: 0.35,
-    fwd: -2.35,
+    right: -1.1,
+    fwd: -2.55,
     targetHeight: 0.72,
     clearRadius: 0.6,
   },
   {
     url: "/models/scifi/machine_barrelLarge.glb",
-    right: 2.15,
-    fwd: 1.2,
+    right: 2.55,
+    fwd: -2.45,
     targetHeight: 0.62,
     clearRadius: 0.55,
   },
   {
     url: "/models/scifi/barrels.glb",
-    right: -1.25,
-    fwd: 1.2,
+    right: -2.55,
+    fwd: 1.35,
     targetHeight: 0.46,
     clearRadius: 0.45,
   },
   {
     url: "/models/scifi/rover.glb",
-    right: 1.05,
+    right: 2.55,
     fwd: 1.55,
     targetHeight: 0.56,
     clearRadius: 0.65,
@@ -110,32 +121,46 @@ const BASE_PROPS: PropDef[] = [
 ];
 
 const BASE_PRIMITIVES: PrimitiveDef[] = [
-  { kind: "fence", right: -2.25, fwd: -2.45, length: 1.4, clearRadius: 0.65 },
-  { kind: "fence", right: 2.25, fwd: -2.45, length: 1.4, clearRadius: 0.65 },
+  { kind: "fence", right: -2.15, fwd: -2.95, length: 1.4, clearRadius: 0.65 },
+  { kind: "fence", right: 2.15, fwd: -2.95, length: 1.4, clearRadius: 0.65 },
   {
     kind: "fence",
-    right: -3.15,
-    fwd: -0.8,
+    right: -3.25,
+    fwd: -1.0,
     length: 1.2,
     yawOffset: Math.PI / 2,
     clearRadius: 0.55,
   },
   {
     kind: "fence",
-    right: 3.15,
-    fwd: -0.8,
+    right: 3.25,
+    fwd: -1.0,
     length: 1.2,
     yawOffset: Math.PI / 2,
     clearRadius: 0.55,
   },
-  { kind: "light", right: -2.9, fwd: 1.55, clearRadius: 0.35 },
-  { kind: "light", right: 2.9, fwd: 1.55, clearRadius: 0.35 },
-  { kind: "light", right: -2.9, fwd: -2.0, clearRadius: 0.35 },
-  { kind: "light", right: 2.9, fwd: -2.0, clearRadius: 0.35 },
+  { kind: "light", right: -2.95, fwd: 1.95, clearRadius: 0.35 },
+  { kind: "light", right: 2.95, fwd: 1.95, clearRadius: 0.35 },
+  { kind: "light", right: -2.95, fwd: -2.15, clearRadius: 0.35 },
+  { kind: "light", right: 2.95, fwd: -2.15, clearRadius: 0.35 },
 ];
 
 const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
 const noRaycast: THREE.Mesh["raycast"] = () => {};
+
+const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2): number => {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+  const lenSq = abx * abx + aby * aby;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
+  const cx = a.x + t * abx;
+  const cy = a.y + t * aby;
+  const dx = p.x - cx;
+  const dy = p.y - cy;
+  return dx * dx + dy * dy;
+};
 
 type Instance = GroupItem & { url: string; clearRadius: number };
 type PrimitiveInstance = {
@@ -400,8 +425,8 @@ export const HQBase = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
   const visible = useMemo(() => {
-    if (towers.length === 0) return { instances, primitives };
     const towerR = TOWER_FOOTPRINT * 0.5;
+    const pathHalf = PATH_WIDTH * 0.5;
     const clear = <T extends { pos: Vec2; clearRadius: number }>(item: T) => {
       for (const tower of towers) {
         const dx = tower.pos.x - item.pos.x;
@@ -409,13 +434,20 @@ export const HQBase = () => {
         const lim = towerR + item.clearRadius;
         if (dx * dx + dy * dy < lim * lim) return false;
       }
+      const pathLim = pathHalf + item.clearRadius;
+      const pathLimSq = pathLim * pathLim;
+      for (const path of paths) {
+        for (let i = 0; i < path.length - 1; i++) {
+          if (distToSegmentSq(item.pos, path[i], path[i + 1]) < pathLimSq) return false;
+        }
+      }
       return true;
     };
     return {
       instances: instances.filter(clear),
       primitives: primitives.filter(clear),
     };
-  }, [instances, primitives, towers, towerVersion]);
+  }, [instances, primitives, towers, paths, towerVersion]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Instance[]>();
