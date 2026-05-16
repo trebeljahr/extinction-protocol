@@ -648,6 +648,87 @@ export const LEVELS: LevelConfig[] = [
         trickleStream(0, ["swarm", "raptor", "allosaur"], 1.0, 1.6, 18),
       ]),
     ],
+    heroic: {
+      startGold: 460,
+      tagline: "No mortar against the plated queen",
+      // Mortar's the easy answer to plated stegos — yank it. Chain is
+      // the matriarch's only soft spot; pulse handles trickle.
+      forbiddenTowers: ["mortar"],
+      waves: [
+        intro(20, 14),
+        mixed({ raptor: 18, swarm: 14, allosaur: 4 }),
+        // Shielded raptor pack early — denies easy chain-clears.
+        shielded({ raptor: 14, swarm: 6 }, 0.5),
+        rush(100, 18),
+        // Fierce armored push — 40% extra damage on leaks, no mortar to
+        // soft-counter the plates.
+        {
+          archetype: "heavy",
+          spacing: 0.85,
+          spawns: [
+            ...toSpawns({ armored: 5 }, 0, { fierce: true }),
+            ...toSpawns({ stego: 4, allosaur: 4 }),
+          ],
+        },
+        chaos({ raptor: 22, swarm: 30, allosaur: 10, stego: 5, armored: 3 }),
+        rush(140, 30),
+        // Elite stego vanguard — flattened resists turn his plates into
+        // a serious chain-only puzzle.
+        {
+          archetype: "vanguard",
+          spacing: 0.6,
+          spawns: [
+            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ armored: 8, allosaur: 4 }),
+          ],
+        },
+        mixed({ raptor: 28, swarm: 22, allosaur: 12, stego: 7, armored: 4 }),
+        // Boss wave: Stegosaur Matriarch with a fiercer entourage and a
+        // denser child trickle. No mortar means the trickle pressure has
+        // to be cleared by pulse/chain/flame while the matriarch eats
+        // chain bolts.
+        {
+          archetype: "convoy",
+          spacing: 0.65,
+          bossWave: true,
+          spawns: [
+            ...toSpawns({ armored: 2 }, 0, { fierce: true }),
+            ...toSpawns({ allosaur: 5, titan: 1 }),
+            ...toSpawns({ stego: 1 }, 0, { elite: true }),
+            bossSpawn("stego", 0),
+          ],
+          bossTrickle: [
+            trickleStream(0, ["swarm", "raptor"], 1.3, 1.9, 5),
+            trickleStream(0, ["raptor", "allosaur"], 0.9, 1.4, 18, { fierce: true }),
+          ],
+        },
+      ],
+    },
+    iron: {
+      startGold: 480,
+      tagline: "One life. Pulse, chain, cryo, hive. Crack the queen.",
+      // Anti-plate loadout: chain shreds matriarch + shielded packs,
+      // cryo controls boss tempo, pulse handles raptor trickle, hive
+      // tops up rate-of-fire. No mortar, no flame — pure burst + control.
+      lockedLoadout: ["pulse", "chain", "cryo", "hive"],
+      singleLife: true,
+      noSelling: true,
+      waves: [
+        mixed({ raptor: 16, swarm: 12, allosaur: 3 }),
+        shielded({ raptor: 12, swarm: 6 }, 0.5),
+        rush(90, 18),
+        heavy({ armored: 7, stego: 4, allosaur: 4 }),
+        chaos({ raptor: 22, swarm: 28, allosaur: 8, stego: 4, armored: 3 }),
+        mixed({ raptor: 26, swarm: 20, allosaur: 10, stego: 6, armored: 3 }),
+        // Iron's boss is the same Stegosaur Matriarch, slightly leaner
+        // entourage to compensate for the locked loadout — chain still
+        // does the work, hive amps it, cryo buys time, pulse mops trickle.
+        bossWave("stego", { allosaur: 4, armored: 2, titan: 1 }, 1, 0.7, 0, [
+          trickleStream(0, ["swarm", "raptor"], 1.6, 2.2, 6),
+          trickleStream(0, ["swarm", "raptor", "allosaur"], 1.0, 1.6, 18),
+        ]),
+      ],
+    },
   },
   {
     id: 11,
