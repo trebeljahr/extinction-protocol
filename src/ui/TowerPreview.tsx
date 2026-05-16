@@ -4,7 +4,7 @@ import { type BakeSpec, prewarmIcon, useBakedIcon } from "./bakedIcon";
 const TOWER_MODEL: Record<TowerKind, { url: string; rotY: number }> = {
   pulse: { url: "/models/tower_pulse.glb", rotY: 0 },
   chain: { url: "/models/turrets/Lighting Turret.glb", rotY: 0 },
-  mortar: { url: "/models/turrets/Missile Turret.glb", rotY: 0 },
+  mortar: { url: "/models/turrets/Missile Turret.glb", rotY: Math.PI / 2 },
   cryo: { url: "/models/turrets/Emp Turret.glb", rotY: 0 },
   flame: { url: "/models/turrets/Flamethrower Turret.glb", rotY: 0 },
   hive: { url: "/models/turrets/Hive Turret.glb", rotY: 0 },
