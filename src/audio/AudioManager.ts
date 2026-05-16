@@ -354,9 +354,32 @@ export class AudioManager {
       this.activeFlames.clear();
       return;
     }
-    for (const id of [...this.activeFlames.keys()]) {
-      this.stopFlame(id);
+    // Hard-kill path: pause/screen transitions need flames silenced now, not
+    // 180ms later via the natural fade. The fade-stop in stopFlame() relies
+    // on ctx.currentTime advancing, which it can't if a pause coincides with
+    // the AudioContext getting suspended — voices then loop on the pause
+    // screen until next interaction. Cut master to 0 immediately and stop
+    // the source at currentTime.
+    const now = this.ctx.currentTime;
+    for (const flame of this.activeFlames.values()) {
+      try {
+        flame.master.gain.cancelScheduledValues(now);
+        flame.master.gain.setValueAtTime(0, now);
+      } catch {
+        /* ok */
+      }
+      try {
+        flame.sample.stop(now);
+      } catch {
+        /* ok */
+      }
+      try {
+        flame.master.disconnect();
+      } catch {
+        /* ok */
+      }
     }
+    this.activeFlames.clear();
   }
 
   // Wet "mush" splat for enemy deaths: a short noise burst bandpassed from
