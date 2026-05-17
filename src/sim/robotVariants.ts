@@ -140,7 +140,9 @@ export type RobotVariantSpec = {
   // beam from the robot to the target instead of (or alongside) the
   // projectile. George uses this for the sniper read.
   attackTracer?: boolean;
-  unlockStars: number;
+  // Bolt cost to unlock this robot from the roster. 0 = starter (george).
+  // Bolts are gathered per enemy kill — see store.ts.
+  unlockBolts: number;
   abilities: [DashSpec, BurstSpec, BuffSpec, PayloadSpec];
   tint: string;
   // HUD labels per slot (Q/W/E/R). Short ASCII glyph picks up from the
@@ -172,7 +174,7 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     damageType: "kinetic",
     attackSplashRadius: 0,
     attackTracer: true,
-    unlockStars: 0,
+    unlockBolts: 0,
     abilities: [
       // Q — Sidestep: short lateral hop; flags the next auto-attack as a
       // piercing crit that ignores splash falloff and lands ×2.5 damage.
@@ -252,7 +254,7 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     damageType: "electric",
     attackSplashRadius: 0,
     attackChain: { hops: 1, damagePerHop: 6, radius: 2.4 },
-    unlockStars: 6,
+    unlockBolts: 250,
     abilities: [
       // Q — Phase Step: forward dash, on lunge end arcs to 3 closest dinos.
       {
@@ -317,7 +319,7 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     fireRate: 4.5,
     damageType: "flame",
     attackSplashRadius: 0.8,
-    unlockStars: 12,
+    unlockBolts: 600,
     abilities: [
       // Q — Thruster Burst (kept). Forward dash with coal trail.
       { type: "dash", cooldown: 5.0, duration: 0.4, speed: 11.0 },
@@ -379,7 +381,7 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     fireRate: 1.0,
     damageType: "explosive",
     attackSplashRadius: 1.5,
-    unlockStars: 20,
+    unlockBolts: 1200,
     abilities: [
       // Q — Ground Pound: short dash; detonates an explosion at landing.
       {

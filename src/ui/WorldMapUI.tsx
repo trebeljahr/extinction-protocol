@@ -22,6 +22,7 @@ import { DifficultyTag } from "./DifficultyTag";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { FullscreenToggle } from "./FullscreenToggle";
 import {
+  IconBolt,
   IconBook,
   IconCog,
   IconCoin,
@@ -97,6 +98,7 @@ export const WorldMapUI = () => {
   const maxTotal = LEVELS.length * 5;
   const completed = LEVELS.filter((l) => getStars(progress, l.id) > 0).length;
   const availableStars = Math.max(0, total - spentMetaStars(progress.metaSkills));
+  const bolts = progress.bolts;
 
   useGamepadMenuNavigation(menuOpen);
 
@@ -194,26 +196,6 @@ export const WorldMapUI = () => {
         </button>
         <button
           type="button"
-          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setCompendiumOpen(true, "lore")}
-          aria-label="Open lore codex"
-          title="Lore — recovered field documents"
-        >
-          <IconScroll size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
-        </button>
-        <button
-          type="button"
-          className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setRobotShopOpen(true)}
-          aria-label="Open robot roster"
-          title="Pilot roster"
-        >
-          <IconSquad size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
-        </button>
-        <button
-          type="button"
           className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
           onClick={() => setSkillTreeOpen(true)}
           aria-label="Open lab"
@@ -225,12 +207,38 @@ export const WorldMapUI = () => {
         >
           <IconLab size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Lab</span>
-          {availableStars > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full bg-gold text-black text-[11px] font-bold tabular-nums">
-              <IconStar size={10} className="shrink-0" />
-              {availableStars}
-            </span>
-          )}
+          <span
+            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${availableStars > 0 ? "bg-gold text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
+          >
+            <IconStar size={10} className="shrink-0" />
+            {availableStars}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setRobotShopOpen(true)}
+          aria-label="Open robot roster"
+          title={`Pilot roster — ${bolts} bolt${bolts === 1 ? "" : "s"} gathered`}
+        >
+          <IconSquad size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
+          <span
+            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-blue text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
+          >
+            <IconBolt size={10} className="shrink-0" />
+            {bolts}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setCompendiumOpen(true, "lore")}
+          aria-label="Open lore codex"
+          title="Lore — recovered field documents"
+        >
+          <IconScroll size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
         </button>
       </div>
 

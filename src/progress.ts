@@ -141,6 +141,11 @@ export type ProgressData = {
   robotXp: Partial<Record<RobotVariant, number>>;
   // Per-robot skill tree ranks. Shape mirrors AllMetaSkills.
   robotSkills: AllRobotSkills;
+  // Scrap "bolts" gathered by the active robot. Bolts are the unlock
+  // currency for additional robot variants (replacing the old star cost)
+  // and a generic in-game currency hook for later economy uses. Earned
+  // on every enemy death credited to the player; never decays.
+  bolts: number;
   // Persistent per-(levelId, eggId) one-shot guard. Once an egg fires on
   // a given map it never spawns there again, even before the achievement
   // unlocks globally. Keyed `${levelId}:${eggId}`.
@@ -189,6 +194,7 @@ export const emptyProgress = (): ProgressData => ({
   robotUnlocks: { george: true },
   robotXp: {},
   robotSkills: {},
+  bolts: 0,
   triggeredEasterEggs: {},
 });
 
@@ -303,6 +309,8 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
     robotSkills: (raw.robotSkills ??
       (raw as { heroSkills?: AllRobotSkills }).heroSkills ??
       {}) as AllRobotSkills,
+    bolts:
+      typeof raw.bolts === "number" && Number.isFinite(raw.bolts) ? Math.max(0, raw.bolts | 0) : 0,
     triggeredEasterEggs:
       raw.triggeredEasterEggs && typeof raw.triggeredEasterEggs === "object"
         ? (raw.triggeredEasterEggs as Record<string, true>)

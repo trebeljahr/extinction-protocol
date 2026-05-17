@@ -1126,6 +1126,7 @@ export const useGame = create<GameStore>((set, get) => ({
           progress = {
             ...progress,
             stats: { ...progress.stats, killsTotal: progress.stats.killsTotal + 1 },
+            bolts: progress.bolts + 1,
           };
         }
         if (ev.type === "game-over") {
@@ -1351,15 +1352,11 @@ export const useGame = create<GameStore>((set, get) => ({
   unlockRobot: (variant) => {
     const s = get();
     if (s.progress.robotUnlocks[variant]) return;
-    const cost = ROBOT_SPECS[variant].unlockStars;
-    const earned = totalStars(s.progress);
-    const spent = spentMetaStars(s.progress.metaSkills);
-    const robotUnlockCost = Object.entries(ROBOT_SPECS)
-      .filter(([v]) => v !== "george" && s.progress.robotUnlocks[v as RobotVariant])
-      .reduce((acc, [, sp]) => acc + sp.unlockStars, 0);
-    if (earned - spent - robotUnlockCost < cost) return;
+    const cost = ROBOT_SPECS[variant].unlockBolts;
+    if (s.progress.bolts < cost) return;
     const progress: ProgressData = {
       ...s.progress,
+      bolts: s.progress.bolts - cost,
       robotUnlocks: { ...s.progress.robotUnlocks, [variant]: true },
     };
     persistProgress(s.activeSlot, progress);

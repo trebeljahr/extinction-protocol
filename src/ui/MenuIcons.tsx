@@ -136,6 +136,12 @@ export const IconStar: FC<MenuIconProps> = (p) => (
   </Svg>
 );
 
+export const IconBolt: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Bolt">
+    <path d="M13 2 L4 14 H11 L10 22 L20 9 H13 Z" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
 export const IconSpeakerMute: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Sound muted">
     <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" />

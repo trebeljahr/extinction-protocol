@@ -1,6 +1,4 @@
 import { type FC, useState } from "react";
-import { totalStars } from "../progress";
-import { spentMetaStars } from "../sim/metaSkills";
 import {
   levelForXp,
   ROBOT_MAX_LEVEL,
@@ -139,7 +137,7 @@ const RosterCard = ({
         {active && <span className="robot-roster-active-tag">Active</span>}
         {!unlocked && (
           <span className="robot-roster-lock">
-            <span className="robot-roster-lock-cost">★ {spec.unlockStars}</span>
+            <span className="robot-roster-lock-cost">⚡ {spec.unlockBolts}</span>
             <span className="robot-roster-lock-label">LOCKED</span>
           </span>
         )}
@@ -383,13 +381,13 @@ const AutoAttackCard = ({
 
 const RobotDetail = ({
   variant,
-  availableStars,
+  availableBolts,
   activeRobot,
   unlocked,
   onBack,
 }: {
   variant: RobotVariant;
-  availableStars: number;
+  availableBolts: number;
   activeRobot: RobotVariant;
   unlocked: boolean;
   onBack: () => void;
@@ -408,7 +406,7 @@ const RobotDetail = ({
   const { into, need, maxed } = xpProgressInLevel(xp);
   const pts = robotSkillPointsAvailable(xp, ranks);
   const active = activeRobot === variant;
-  const canUnlock = !unlocked && availableStars >= spec.unlockStars;
+  const canUnlock = !unlocked && availableBolts >= spec.unlockBolts;
   const xpPct = maxed ? 1 : need > 0 ? into / need : 0;
   const investedTotal = pts.spent;
 
@@ -539,7 +537,7 @@ const RobotDetail = ({
             <div className="border-t border-border-faint pt-3 flex items-center gap-3">
               <span className="text-[12px] text-fg-muted">Unlock cost</span>
               <span className="text-blue text-base font-bold tabular-nums">
-                ★ {spec.unlockStars}
+                ⚡ {spec.unlockBolts}
               </span>
               <button
                 type="button"
@@ -547,7 +545,7 @@ const RobotDetail = ({
                 disabled={!canUnlock}
                 onClick={() => unlockRobot(variant)}
                 title={
-                  canUnlock ? "Unlock" : `Need ${spec.unlockStars - availableStars} more stars`
+                  canUnlock ? "Unlock" : `Need ${spec.unlockBolts - availableBolts} more bolts`
                 }
               >
                 {canUnlock ? "Unlock" : "Locked"}
@@ -567,13 +565,7 @@ export const RobotShop = () => {
   const resetAll = useGame((s) => s.resetAllRobotSkills);
   const [selected, setSelected] = useState<RobotVariant | null>(null);
   if (!open) return null;
-  const earned = totalStars(progress);
-  const metaSpent = spentMetaStars(progress.metaSkills);
-  const robotSpent = ROSTER.filter((v) => v !== "george" && progress.robotUnlocks[v]).reduce(
-    (acc, v) => acc + ROBOT_SPECS[v].unlockStars,
-    0,
-  );
-  const availableStars = Math.max(0, earned - metaSpent - robotSpent);
+  const availableBolts = progress.bolts;
   const anyInvested = Object.values(progress.robotSkills).some(
     (r) => r && Object.keys(r).length > 0,
   );
@@ -582,8 +574,6 @@ export const RobotShop = () => {
     setSelected(null);
     setOpen(false);
   };
-
-  const totalSpent = metaSpent + robotSpent;
 
   return (
     <MenuOverlay
@@ -596,7 +586,7 @@ export const RobotShop = () => {
         {selected ? (
           <RobotDetail
             variant={selected}
-            availableStars={availableStars}
+            availableBolts={availableBolts}
             activeRobot={progress.activeRobot}
             unlocked={!!progress.robotUnlocks[selected]}
             onBack={() => setSelected(null)}
@@ -615,9 +605,8 @@ export const RobotShop = () => {
           </div>
         )}
       </div>
-      <LabStarsToolbar
-        spent={totalSpent}
-        available={availableStars}
+      <RobotShopToolbar
+        bolts={availableBolts}
         canRefundAll={!selected && anyInvested}
         onRefundAll={resetAll}
       />
@@ -625,43 +614,22 @@ export const RobotShop = () => {
   );
 };
 
-const StarGlyph = ({ filled, size = 18 }: { filled: boolean; size?: number }) => {
-  const color = filled ? "#ffd66a" : "#3a4452";
-  const stroke = filled ? "#ffe8a8" : "#4a5562";
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden focusable="false">
-      <path
-        d="M12 2.5 L14.9 8.9 L22 9.8 L16.7 14.6 L18.1 21.5 L12 17.9 L5.9 21.5 L7.3 14.6 L2 9.8 L9.1 8.9 Z"
-        fill={color}
-        stroke={stroke}
-        strokeWidth="0.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-};
-
-const LabStarsToolbar = ({
-  spent,
-  available,
+const RobotShopToolbar = ({
+  bolts,
   canRefundAll,
   onRefundAll,
 }: {
-  spent: number;
-  available: number;
+  bolts: number;
   canRefundAll: boolean;
   onRefundAll: () => void;
 }) => (
   <div className="lab-stars-toolbar">
-    <span className="lab-stars-chip" title={`${spent} stars spent`}>
-      <StarGlyph filled={false} />
-      <span className="lab-stars-num tabular-nums">{spent}</span>
-      <span className="lab-stars-lbl">spent</span>
-    </span>
-    <span className="lab-stars-chip" title={`${available} stars available`}>
-      <StarGlyph filled />
-      <span className="lab-stars-num tabular-nums">{available}</span>
-      <span className="lab-stars-lbl">available</span>
+    <span className="lab-stars-chip" title={`${bolts} bolts gathered`}>
+      <span aria-hidden style={{ color: "#5ad6ff", fontSize: 16, lineHeight: 1 }}>
+        ⚡
+      </span>
+      <span className="lab-stars-num tabular-nums">{bolts}</span>
+      <span className="lab-stars-lbl">bolts</span>
     </span>
     {canRefundAll && (
       <button type="button" className="lab-stars-refund" onClick={onRefundAll}>

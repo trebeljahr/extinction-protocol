@@ -25,7 +25,7 @@ export const RobotCompendiumSection = ({ progress }: { progress: ProgressData })
                 <RobotDiorama variant={variant} />
                 {!unlocked && (
                   <div className="robot-compendium-locked">
-                    <span>★ {spec.unlockStars}</span>
+                    <span>⚡ {spec.unlockBolts}</span>
                     <span className="robot-compendium-locked-label">LOCKED</span>
                   </div>
                 )}
