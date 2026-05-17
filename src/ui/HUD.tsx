@@ -254,11 +254,11 @@ export const HUD = () => {
         )}
         {levelName && (
           <div className="outpost-pill">
-            <div className="outpost-label">OUTPOST</div>
+            <div className="outpost-label">
+              OUTPOST{levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}
+            </div>
             <div className="outpost-name" title={`${levelOrdinalLabel} · ${levelName}`}>
-              <span className="outpost-progress">{levelOrdinalLabel}</span>
-              <span className="outpost-separator"> · </span>
-              <span>{levelName}</span>
+              {levelName}
             </div>
           </div>
         )}

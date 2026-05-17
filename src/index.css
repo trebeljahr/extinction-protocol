@@ -262,15 +262,6 @@
     white-space: nowrap;
   }
 
-  .outpost-progress {
-    color: var(--color-blue);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .outpost-separator {
-    color: var(--color-fg-faint);
-  }
-
   .call-wave-btn {
     cursor: pointer;
     color: var(--color-fg);
