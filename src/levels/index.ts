@@ -158,6 +158,64 @@ const split = (
 
 const FLAME_ADAPTED_SWARM_RESISTS: Partial<Record<DamageType, number>> = { flame: 0.35 };
 
+// Specialist resistance chips — each constant takes ~95% less damage from
+// one tower's damage type. Paired with `withSpecialist` below to drop a
+// small adapted minority into otherwise vanilla mid/late waves so a
+// single-tower spam build stalls on the holdouts. Multiplier 0.05 stacks
+// on top of the kind's base resist; T3 anti-modifiers and the elite-flatten
+// chip still soften them, which keeps a fully-built portfolio honest.
+//
+// Adaptive-resistance design hook: keep the per-spawn `resists` chip
+// dimension (`Partial<Record<DamageType, number>>`) general — wave authors
+// pick the type today, item 14's adaptive system will pick it at runtime
+// from the same field with no schema change.
+export const SPECIALIST_RESIST_MUL = 0.05;
+export const RESIST_KINETIC_95: Partial<Record<DamageType, number>> = {
+  kinetic: SPECIALIST_RESIST_MUL,
+};
+export const RESIST_ELECTRIC_95: Partial<Record<DamageType, number>> = {
+  electric: SPECIALIST_RESIST_MUL,
+};
+export const RESIST_COLD_95: Partial<Record<DamageType, number>> = {
+  cold: SPECIALIST_RESIST_MUL,
+};
+export const RESIST_EXPLOSIVE_95: Partial<Record<DamageType, number>> = {
+  explosive: SPECIALIST_RESIST_MUL,
+};
+export const RESIST_FLAME_95: Partial<Record<DamageType, number>> = {
+  flame: SPECIALIST_RESIST_MUL,
+};
+
+// Append a small specialist sub-pack (kind + count tagged with a resist
+// chip) onto an existing wave. Used to sprinkle damage-type holdouts into
+// otherwise vanilla mid/late waves without restructuring the whole spec.
+const withSpecialist = (
+  base: WaveSpec,
+  spec: {
+    kind: EnemyKind;
+    count: number;
+    resists: Partial<Record<DamageType, number>>;
+    pathIndex?: number;
+    fierce?: boolean;
+    elite?: boolean;
+    shielded?: boolean;
+  },
+): WaveSpec => ({
+  ...base,
+  spawns: [
+    ...base.spawns,
+    {
+      kind: spec.kind,
+      count: spec.count,
+      pathIndex: spec.pathIndex ?? 0,
+      resists: spec.resists,
+      ...(spec.fierce ? { fierce: true } : {}),
+      ...(spec.elite ? { elite: true } : {}),
+      ...(spec.shielded ? { shielded: true } : {}),
+    },
+  ],
+});
+
 const flamebreakSpawns = (c: EnemyCounts, pathIndex: number): EnemySpec[] => {
   const spawns: EnemySpec[] = [];
   if ((c.swarm ?? 0) > 0) {
@@ -1011,7 +1069,17 @@ export const LEVELS: LevelConfig[] = [
       rush(120, 24),
       mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 4, armored: 2 }),
       heavy({ armored: 12, stego: 7, allosaur: 5 }),
-      chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 7, titan: 2 }),
+      // Specialist finale: a small block of kinetic-resistant armored
+      // ("Ironplate" hide) ride the chaos so pulse-only spam stalls on
+      // the holdouts. Chain/cryo/mortar still cut through cleanly.
+      withSpecialist(
+        chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 5, titan: 2 }),
+        {
+          kind: "armored",
+          count: 3,
+          resists: RESIST_KINETIC_95,
+        },
+      ),
     ],
     heroic: {
       startGold: 450,
@@ -1331,7 +1399,15 @@ export const LEVELS: LevelConfig[] = [
           ...toSpawns({ para: 2 }, 0, { healAura: true }),
         ],
       },
-      chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }),
+      // Electric-resistant ("Insulated") para minority — paras normally
+      // ring through chain at 1.7×, this batch flips the script so chain
+      // spam can't melt them. The vanilla chaos still teaches the regular
+      // mid-wave; the holdouts demand a second damage type to finish.
+      withSpecialist(chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }), {
+        kind: "para",
+        count: 4,
+        resists: RESIST_ELECTRIC_95,
+      }),
       rush(120, 26),
       heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
       // Healing paras mixed into a chaos pack — the heal trickle keeps
@@ -1503,7 +1579,17 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
       heavy({ armored: 16, stego: 9, allosaur: 6, titan: 2 }),
-      chaos({ raptor: 30, swarm: 40, allosaur: 12, stego: 7, armored: 6, titan: 2 }),
+      // Flame-resistant ("Asbestos") allosaur minority — DoT pyre spam
+      // slides off them, so the player needs kinetic/explosive burst to
+      // finish or watches them barrel through with full HP.
+      withSpecialist(
+        chaos({ raptor: 30, swarm: 40, allosaur: 9, stego: 7, armored: 6, titan: 2 }),
+        {
+          kind: "allosaur",
+          count: 3,
+          resists: RESIST_FLAME_95,
+        },
+      ),
     ],
     // Heroic — no mortar, no flame. The lesson level for regen + shielded
     // healers becomes a precision-DPS exam: no AoE chip, no DoT crutch.
@@ -1669,15 +1755,17 @@ export const LEVELS: LevelConfig[] = [
         ],
       },
       heavy({ armored: 16, stego: 9, allosaur: 7, titan: 2 }),
-      // Mixed-defense penultimate: shielded healing paras + plain push.
-      // Tests whether the player can sustain anti-shield + anti-heal at
-      // once. Sentinel-mode hive is the cleanest answer.
+      // Mixed-defense penultimate: shielded healing paras + plain push +
+      // a small explosive-resistant ("Bunker") stego pocket. Mortar spam
+      // bounces off the bunker stegos, so the wave demands a second hard
+      // counter alongside the anti-shield/anti-heal answers.
       {
         archetype: "chaos",
         spacing: 0.3,
         spawns: [
           ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
-          ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
+          ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 4, armored: 4, titan: 1 }),
+          ...toSpawns({ stego: 3 }, 0, { resists: RESIST_EXPLOSIVE_95 }),
         ],
       },
       // Boss wave: the Parasaur Matriarch. Crested resonator — chain
@@ -2058,7 +2146,17 @@ export const LEVELS: LevelConfig[] = [
       chaos({ raptor: 24, swarm: 32, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
       heavy({ armored: 18, stego: 9, allosaur: 7, titan: 2 }),
       rush(120, 28),
-      chaos({ raptor: 34, swarm: 44, allosaur: 14, stego: 9, armored: 7, titan: 3 }),
+      // Cold-resistant ("Thermal") swarm minority — cryo spam can no
+      // longer freeze-and-melt the whole hatchling stream. Player needs
+      // chain or flame to mop up the thermal swarm specifically.
+      withSpecialist(
+        chaos({ raptor: 34, swarm: 32, allosaur: 14, stego: 9, armored: 7, titan: 3 }),
+        {
+          kind: "swarm",
+          count: 12,
+          resists: RESIST_COLD_95,
+        },
+      ),
       chaos({ raptor: 38, swarm: 48, allosaur: 16, stego: 12, armored: 10, titan: 4 }),
     ],
     // Heroic — no pulse, no hive. The kinetic workhorse and the drone
@@ -2645,12 +2743,26 @@ export const LEVELS: LevelConfig[] = [
         [0, { raptor: 24, swarm: 32, para: 10, allosaur: 12, stego: 9, armored: 7, titan: 3 }],
         [1, { raptor: 24, swarm: 32, para: 10, allosaur: 12, stego: 9, armored: 7, titan: 3 }],
       ),
-      split(
-        "chaos",
-        0.22,
-        [0, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
-        [1, { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 4 }],
-      ),
+      // Penultimate: vanilla chaos plus a brace of kinetic-resistant
+      // titans per lane ("Ironplate" titans). Pulse spam barely scrapes
+      // them — the player needs chain or explosive to crack the lead
+      // titans before the matriarchs land next wave.
+      {
+        archetype: "chaos",
+        spacing: 0.22,
+        spawns: [
+          ...toSpawns(
+            { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 3 },
+            0,
+          ),
+          ...toSpawns(
+            { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 3 },
+            1,
+          ),
+          ...toSpawns({ titan: 1 }, 0, { resists: RESIST_KINETIC_95 }),
+          ...toSpawns({ titan: 1 }, 1, { resists: RESIST_KINETIC_95 }),
+        ],
+      },
       // Boss wave: twin T-Rex Matriarchs, one per lane, flanked by
       // titan+armored entourages. The two-path map means the player
       // can't focus-fire one boss without leaving the other unchecked.
@@ -4439,15 +4551,27 @@ export const LEVELS: LevelConfig[] = [
         [3, { armored: 10, stego: 6, titan: 2 }],
         [4, { armored: 10, stego: 6, titan: 2 }],
       ),
-      split(
-        "chaos",
-        0.23,
-        [0, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
-        [1, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
-        [2, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
-        [3, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
-        [4, { raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }],
-      ),
+      // Five-lane chaos with two specialist holdouts per outer lane: a
+      // flame-resistant "Asbestos" armored pair (DoT pyre spam slides off
+      // their plates) and an explosive-resistant "Bunker" titan (mortar
+      // splash hardly scratches). Inner lanes stay vanilla so the player
+      // still gets gold flow; the outer holdouts force a real second
+      // damage type even when most kills are coming from one tower.
+      {
+        archetype: "chaos",
+        spacing: 0.23,
+        spawns: [
+          ...toSpawns({ raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 2, titan: 1 }, 0),
+          ...toSpawns({ raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }, 1),
+          ...toSpawns({ raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }, 2),
+          ...toSpawns({ raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 2 }, 3),
+          ...toSpawns({ raptor: 16, swarm: 22, allosaur: 7, stego: 5, armored: 2, titan: 1 }, 4),
+          ...toSpawns({ armored: 2 }, 0, { resists: RESIST_FLAME_95 }),
+          ...toSpawns({ titan: 1 }, 0, { resists: RESIST_EXPLOSIVE_95 }),
+          ...toSpawns({ armored: 2 }, 4, { resists: RESIST_FLAME_95 }),
+          ...toSpawns({ titan: 1 }, 4, { resists: RESIST_EXPLOSIVE_95 }),
+        ],
+      },
       // Boss wave: twin Triceratops Matriarchs on the outer lanes,
       // heavy titan+armored entourages on the inner three. Their child
       // drip is the slowest of any variant (7.5s) because each armored
@@ -5991,13 +6115,35 @@ export const LEVELS: LevelConfig[] = [
         [1, { armored: 24, stego: 14, titan: 6 }],
         [2, { armored: 24, stego: 14, titan: 6 }],
       ),
-      split(
-        "chaos",
-        0.17,
-        [0, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
-        [1, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
-        [2, { raptor: 32, swarm: 44, para: 14, allosaur: 18, stego: 13, armored: 10, titan: 5 }],
-      ),
+      // Pre-finale: every damage type meets its specialist. Pulse can't
+      // close on the Ironplate armored, chain can't fry the Insulated
+      // para, cryo can't lock the Thermal swarm, mortar can't crack the
+      // Bunker titan, pyre can't ignite the Asbestos allosaur. The
+      // single-tower-spam route hits a wall here — the apex finale that
+      // follows assumes a full portfolio is in play.
+      {
+        archetype: "chaos",
+        spacing: 0.17,
+        spawns: [
+          ...toSpawns(
+            { raptor: 32, swarm: 36, para: 12, allosaur: 16, stego: 13, armored: 8, titan: 4 },
+            0,
+          ),
+          ...toSpawns(
+            { raptor: 32, swarm: 36, para: 12, allosaur: 16, stego: 13, armored: 8, titan: 4 },
+            1,
+          ),
+          ...toSpawns(
+            { raptor: 32, swarm: 36, para: 12, allosaur: 16, stego: 13, armored: 8, titan: 4 },
+            2,
+          ),
+          ...toSpawns({ armored: 2 }, 0, { resists: RESIST_KINETIC_95 }),
+          ...toSpawns({ para: 2 }, 1, { resists: RESIST_ELECTRIC_95 }),
+          ...toSpawns({ swarm: 8 }, 2, { resists: RESIST_COLD_95 }),
+          ...toSpawns({ titan: 1 }, 0, { resists: RESIST_EXPLOSIVE_95 }),
+          ...toSpawns({ allosaur: 2 }, 2, { resists: RESIST_FLAME_95 }),
+        ],
+      },
       // Final Extinction: a triumvirate of Apex Matriarchs, one per
       // lane, riding in on a wall of titans and armored. The apex
       // variant deliberately has no child-spawn stream — the campaign
