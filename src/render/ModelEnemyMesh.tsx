@@ -16,6 +16,7 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 import { cloneAndCaptureBase, findClip } from "./animUtils";
+import { clearEnemyRender, setEnemyRender } from "./enemyRenderRegistry";
 import { measureVisibleBox } from "./measureModel";
 
 type Props = {
@@ -246,6 +247,8 @@ export const ModelEnemyMesh = ({
     item.mixer.stopAllAction();
     item.obj.rotation.x = 0;
     item.obj.rotation.z = 0;
+    const recycledId = item.obj.userData.enemyId;
+    if (typeof recycledId === "number") clearEnemyRender(recycledId);
     if (poolRef.current.length < POOL_LIMIT) {
       item.obj.visible = false;
       item.obj.userData.enemyId = undefined;
@@ -480,6 +483,10 @@ export const ModelEnemyMesh = ({
         }
       }
       item.obj.rotation.set(attackPose * 0.18, baseRotY + item.visYaw, attackPose * 0.035);
+      // Publish smoothed body-center XZ + bob so decoration renderers
+      // (fierce halo, etc.) ride the same animated pose as the skeleton
+      // instead of snapping to the raw sim position.
+      setEnemyRender(e.id, { x: item.visX, z: item.visZ, bobY: bobY - attackPose * 0.08 });
 
       const flashing = world.time < e.flashUntil;
       const frost = e.frost;

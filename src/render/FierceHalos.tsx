@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EnemyKind } from "../sim/types";
 import { useGame } from "../store";
+import { getEnemyRender } from "./enemyRenderRegistry";
 
 const MAX_FIERCE = 128;
 // Soft red sphere halo around any enemy carrying the fierce chip.
@@ -47,7 +48,14 @@ export const FierceHalos = () => {
       // Slow pulse so the halo feels alive without being noisy.
       const pulse = 1 + Math.sin(time * 2.0 + e.id) * 0.06;
       const r = baseR * pulse;
-      dummy.position.set(e.pos.x, baseR * 0.6, -e.pos.y);
+      // Track the rendered mesh transform (smoothed XZ + bob) so the halo
+      // sticks to the dino through corner turns and bobs in lockstep with
+      // the skeleton instead of hovering at the raw sim position.
+      const xform = getEnemyRender(e.id);
+      const cx = xform ? xform.x : e.pos.x;
+      const cz = xform ? xform.z : -e.pos.y;
+      const bobY = xform ? xform.bobY : 0;
+      dummy.position.set(cx, baseR * 0.6 + bobY, cz);
       dummy.rotation.set(0, 0, 0);
       dummy.scale.setScalar(r);
       dummy.updateMatrix();
