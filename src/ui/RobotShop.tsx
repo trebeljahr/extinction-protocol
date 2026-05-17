@@ -7,6 +7,7 @@ import {
   ROBOT_POINTS_PER_LEVEL,
   ROBOT_SKILL_MAX_RANK,
   ROBOT_SKILL_TREE,
+  ROBOT_TREE_TOTAL_POINTS,
   type RobotSkillId,
   type RobotSkillNode,
   robotSkillPointsAvailable,
@@ -494,6 +495,7 @@ const RobotDetail = ({
                 <div className="robot-level-foot">
                   <span>
                     {ROBOT_POINTS_PER_LEVEL} skill point per level · earned {pts.earned}
+                    {pts.earned >= ROBOT_TREE_TOTAL_POINTS ? " (tree max)" : ""}
                   </span>
                   <span className="robot-level-points">
                     {pts.available} pt{pts.available === 1 ? "" : "s"} to spend

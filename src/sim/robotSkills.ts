@@ -13,10 +13,12 @@ import type { Robot, RobotVariant } from "./types";
 export const ROBOT_SKILL_MAX_RANK = 3;
 export const ROBOT_POINTS_PER_LEVEL = 1;
 // Level 1 starts at 0 points. Each level past 1 awards
-// ROBOT_POINTS_PER_LEVEL. The skill tree has 4 nodes × 3 ranks = 12
-// rank points total, so level 13 fully maxes a robot. Levels beyond
-// that grant nothing the player can spend.
-export const ROBOT_MAX_LEVEL = 13;
+// ROBOT_POINTS_PER_LEVEL up to the tree's total capacity (4 nodes × 3
+// ranks = 12), so level 13 fully maxes the spendable tree. Levels
+// 14-20 still grant the inherent +15 HP/level bonus (see
+// robotLevelHpBonus in sim/world.ts) so they remain meaningful even
+// once the tree is full.
+export const ROBOT_MAX_LEVEL = 20;
 
 export type RobotSkillId = "vitality" | "firepower" | "mobility" | "ultimate";
 
@@ -171,12 +173,17 @@ export const xpProgressInLevel = (
 
 // Earned skill points across the run for one variant. Spent points are
 // the sum of rank values in the robot's tree.
+export const ROBOT_TREE_TOTAL_POINTS = ROBOT_SKILL_TREE.length * ROBOT_SKILL_MAX_RANK;
+
 export const robotSkillPointsAvailable = (
   xp: number,
   ranks: RobotSkillRanks | undefined,
 ): { earned: number; spent: number; available: number } => {
   const lvl = levelForXp(xp);
-  const earned = Math.max(0, (lvl - 1) * ROBOT_POINTS_PER_LEVEL);
+  const raw = Math.max(0, (lvl - 1) * ROBOT_POINTS_PER_LEVEL);
+  // Cap earned at the tree's total spendable capacity so levels past
+  // the fill point don't surface fake unspent points in the UI.
+  const earned = Math.min(ROBOT_TREE_TOTAL_POINTS, raw);
   let spent = 0;
   if (ranks) for (const id in ranks) spent += norm(ranks[id as RobotSkillId]);
   return { earned, spent, available: Math.max(0, earned - spent) };
