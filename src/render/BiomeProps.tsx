@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import { nanoid } from "nanoid";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   BIOME_LAYERS,
@@ -12,11 +12,15 @@ import {
   TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { LEVELS } from "../levels";
+import { getStars, type ProgressData } from "../progress";
 import { mulberry32 } from "../sim/random";
+import { useGame } from "../store";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
 // recognizable little vignette rather than a noisy pile: one robot landmark
-// where the biome supports it, a small trace prop, then trees/rocks.
+// where the biome supports it, a small trace prop, then trees/rocks, plus a
+// touch of biome foliage so the planet doesn't read as pure tech. Cleared
+// levels get a small bones trail — the player's "march of death".
 
 type PropInstance = {
   id: string;
@@ -24,6 +28,7 @@ type PropInstance = {
   pos: THREE.Vector3;
   rotY: number;
   scale: number;
+  tiltZ?: number;
 };
 
 type PropRoleBucket = {
@@ -31,9 +36,15 @@ type PropRoleBucket = {
   count: number;
   minScale: number;
   maxScale: number;
-  clearance: number;
   minRadius: number;
   maxRadius: number;
+  // Extra spacing slack on top of the visible-silhouette radius. Larger
+  // buckets read better with more breathing room.
+  pad?: number;
+  // Optional Z-axis tilt range so dead-dino bones can lie flat instead of
+  // standing upright like the rest of the deco.
+  tiltMin?: number;
+  tiltMax?: number;
 };
 
 // Robot structure per biome — modular sci-fi research outposts. Every level
@@ -67,56 +78,71 @@ const BIOME_MODULES: Record<Biome, string[]> = {
   alien: ["/models/scifi/satelliteDish_large.glb", "/models/scifi/structure_closed.glb"],
 };
 
-// Pick rocks only out of each biome's layer list — no bushes/grass on
-// the world map, they just add noise at this zoom level.
 const rockUrls = (biome: Biome): string[] =>
   BIOME_LAYERS[biome]
     .flatMap((l) => l.urls)
     .filter((u) => /rock/i.test(u) || /crystal_(?:large|medium)/i.test(u));
 
-// Wooden / camp props (tent, house, cabin, sawmill, barrel, chest, torch)
-// are excluded from the world map. They still render inside levels as
-// HQ-area dressing via BiomeCosmetics, but at the world map's tilt + zoom
-// they undermined the sci-fi theme — every node should look like a base,
-// not a pirate camp.
 const WOODEN_RX = /tent|house|cabin|sawmill|barrel\.glb|chest|torch/i;
 const storyUrls = (biome: Biome): string[] =>
   BIOME_STORY_PROPS[biome].filter((u) => !WOODEN_RX.test(u));
 
+// Biome-specific foliage / ground deco — bushes, plants, flowers,
+// mushrooms drawn from each biome's BIOME_LAYERS. Pulled separately from
+// rocks so the world-map clusters read as more than "tech + bare ground".
+const FOLIAGE_RX = /bush|bushflowers|mushroom|plant|grass/i;
+const foliageUrls = (biome: Biome): string[] => {
+  const seen = new Set<string>();
+  for (const l of BIOME_LAYERS[biome]) {
+    for (const u of l.urls) {
+      if (FOLIAGE_RX.test(u)) seen.add(u);
+    }
+  }
+  return Array.from(seen);
+};
+
+// Bone / carcass props for the march-of-death trail near cleared levels.
+// Two skull variants give silhouette variation without committing to a
+// full-dino "lying on its side" rotation hack.
+const BONES_URLS = ["/models/landmarks/wasteland/Skull.glb", "/models/landmarks/desert/Skull.glb"];
+
 // Per-level cluster geometry. Props land on composition slots outside
-// the clean node bubble so each node reads as a deliberate vignette
-// rather than a noisy pile around the marker.
-const CLUSTER_R = 7.2;
-// Visible node footprint — hit cylinder (1.95) + stars/labels slack.
-// Used edge-of-prop → edge-of-node so a wide hangar can't poke into the
-// bubble even when its center clears NODE_CLEAR. Previously a center-only
-// distance check let asymmetric landmarks graze the bubble.
-const NODE_VISIBLE_R = 2.4;
+// the clean node bubble.
+const CLUSTER_R = 7.6;
+// Visible node footprint — hit cylinder (1.95) + outer hover ring (1.95) +
+// south-side label/stars slack. Was 2.4; bumped to 3.1 because the HTML
+// label and star row extend ~1.85 + label height south of the bubble, so
+// any prop landing on that side could visually overlap the label even with
+// the bbox-circle check clearing the hit cylinder.
+const NODE_VISIBLE_R = 3.1;
 // Center-to-center spacing slack between props on top of summed radii.
-// Was applied as `MIN_GAP * 0.25` (≈0.3u), which let trees and rocks
-// silhouettes nearly touch on the world map. The full slack reads as
-// deliberately spaced.
 const MIN_GAP = 1.45;
-// Extra gap between a prop's edge and the node's visible footprint. Smaller
-// than MIN_GAP because the bubble already reads as a hard target and props
-// adjacent to it look like part of the base composition. Combined with
-// NODE_VISIBLE_R this guarantees a prop edge sits at least this far past
-// the bubble for every node, not just the one this prop belongs to.
+// Extra gap between a prop's edge and the node's visible footprint.
 const NODE_PROP_GAP = 0.55;
-// Was 14 — too low when the disc is 90% full after the landmark drops.
-// 28 retries gives the rock placements a real chance to land cleanly.
 const MAX_RETRIES = 32;
-// Five evenly-spaced angular slots around the node — anchor + module sit
-// on opposite sides (slot 0 / slot Math.PI) so they read as one base, the
-// remaining slots fan trees / rocks / story away from the bubble.
-const COMPOSITION_SLOTS = [0, Math.PI, 1.95, -1.95, Math.PI * 0.5];
+// Six evenly-ish-spaced angular slots so each role gets a clean home and
+// the cluster reads as a deliberate composition. Anchor at slot 0, module
+// on the opposite side, foliage / bones tucked between trees and rocks.
+const COMPOSITION_SLOTS = [0, Math.PI, 1.95, -1.95, Math.PI * 0.5, -Math.PI * 0.5];
 
 const NODE_POSITIONS: { x: number; z: number }[] = LEVELS.map((l) => ({
   x: l.nodePos.x,
   z: -l.nodePos.y,
 }));
 
-const buildPropPlan = () => {
+// Visible half-radius of a prop URL at a given placement scale. Derived
+// from `TARGET_SIZE_BY_ROLE` (the same target the renderer normalizes
+// each GLB's max-dim to) so the overlap check matches the rendered
+// silhouette instead of the per-bucket clearance heuristic — that was
+// the source of node↔prop overlaps when a role's clearance underestimated
+// the visible mesh (e.g. story buckets containing a tent-classified-as-
+// building that rendered ~2x the claimed radius).
+const visibleRadius = (url: string, scale: number): number => {
+  const role = classifyPropUrl(url);
+  return (TARGET_SIZE_BY_ROLE[role] * scale) / 2;
+};
+
+const buildPropPlan = (progress: ProgressData) => {
   const perUrl: Record<string, PropInstance[]> = {};
   const placed: { x: number; z: number; r: number }[] = [];
 
@@ -134,16 +160,16 @@ const buildPropPlan = () => {
       const x = center.x + Math.cos(a) * r;
       const z = center.z + Math.sin(a) * r;
       const scale = bucket.minScale + rand() * (bucket.maxScale - bucket.minScale);
-      const radius = bucket.clearance * scale;
+      // Pick the URL up front so the visible-silhouette radius matches
+      // the prop that will actually render at this position.
+      const url = bucket.urls[Math.floor(rand() * bucket.urls.length)];
+      const pad = bucket.pad ?? 0;
+      const radius = visibleRadius(url, scale) + pad;
 
       let bad = false;
-      // Edge-of-prop → edge-of-node check. `radius` is the prop's
-      // half-footprint at its sampled scale; node visible radius is the
-      // bubble + label slack. Sum + NODE_PROP_GAP ensures the rendered
-      // silhouette never overlaps a level bubble for ANY node, not just
-      // this one. (The MIN_GAP slack used for prop↔prop spacing would be
-      // too aggressive here — base modules deliberately read as adjacent
-      // to the bubble.)
+      // Edge-of-prop → edge-of-node check. Uses the rendered silhouette
+      // radius so the bubble + label/stars footprint can never overlap
+      // ANY node, not just this one.
       const minNodeDist = radius + NODE_VISIBLE_R + NODE_PROP_GAP;
       const minNodeDistSq = minNodeDist * minNodeDist;
       for (const n of NODE_POSITIONS) {
@@ -168,13 +194,17 @@ const buildPropPlan = () => {
       if (bad) continue;
 
       placed.push({ x, z, r: radius });
-      const url = bucket.urls[Math.floor(rand() * bucket.urls.length)];
+      const tilt =
+        bucket.tiltMin !== undefined && bucket.tiltMax !== undefined
+          ? bucket.tiltMin + rand() * (bucket.tiltMax - bucket.tiltMin)
+          : undefined;
       return {
         id: nanoid(),
         url,
         pos: new THREE.Vector3(x, 0, z),
         rotY: rand() * Math.PI * 2,
         scale,
+        tiltZ: tilt,
       };
     }
     return null;
@@ -187,67 +217,107 @@ const buildPropPlan = () => {
     const landmarkUrls = BIOME_LANDMARKS[biome] ?? [];
     const moduleUrls = BIOME_MODULES[biome] ?? [];
     const traceUrls = storyUrls(biome);
+    const foliage = foliageUrls(biome);
     const baseAngle = rand() * Math.PI * 2;
     const hasLandmark = landmarkUrls.length > 0;
+    const cleared = getStars(progress, lvl.id) > 0;
 
-    // Scale ranges are kept tight (0.95–1.1) so props within a role look
-    // like siblings rather than random sizes — the *role* provides the
-    // variation between classes.
     const landmarkBucket: PropRoleBucket = {
       urls: landmarkUrls,
       count: 1,
       minScale: 0.95,
       maxScale: 1.1,
-      clearance: 1.9,
-      // Inner edge accounts for radius (1.9*1.1=2.09) + NODE_VISIBLE_R
-      // (2.4) + NODE_PROP_GAP (0.55) = 5.04 minimum. 5.2 gives some
-      // slack so most attempts land cleanly without exhausting retries.
-      minRadius: 5.2,
-      maxRadius: 6.0,
+      // Inner edge accounts for landmark half-radius (~1.55) + node
+      // visible (3.1) + gap (0.55) = ~5.2 minimum. 5.4 gives slack so
+      // retries usually land cleanly.
+      minRadius: 5.4,
+      maxRadius: 6.1,
+      pad: 0.15,
     };
-    // Modular accent — small sci-fi outbuilding placed on the opposite side
-    // of the node from the anchor. Smaller radius range so it nestles up
-    // next to the bubble like a sibling structure of the main base.
     const moduleBucket: PropRoleBucket = {
       urls: moduleUrls,
       count: hasLandmark ? 1 : 0,
       minScale: 0.85,
       maxScale: 1.0,
-      clearance: 1.4,
-      minRadius: 4.9,
-      maxRadius: 5.7,
+      minRadius: 5.2,
+      maxRadius: 5.9,
+      pad: 0.1,
     };
     const treeBucket: PropRoleBucket = {
       urls: BIOME_TREE_URLS[biome],
       count: hasLandmark ? 1 : 2,
       minScale: 0.95,
       maxScale: 1.1,
-      clearance: 1.2,
-      minRadius: 5.2,
+      minRadius: 5.3,
       maxRadius: CLUSTER_R,
+      pad: 0.2,
     };
     const storyBucket: PropRoleBucket = {
       urls: traceUrls,
       count: 1,
       minScale: 0.85,
       maxScale: 1.1,
-      clearance: 0.85,
-      minRadius: 5.0,
+      minRadius: 5.1,
       maxRadius: 6.0,
+      pad: 0.1,
     };
     const rockBucket: PropRoleBucket = {
       urls: rockUrls(biome),
       count: 1,
       minScale: 0.95,
       maxScale: 1.1,
-      clearance: 0.6,
       minRadius: 5.0,
       maxRadius: CLUSTER_R,
+      pad: 0.1,
+    };
+    // Foliage tucks in close to the cluster ring — small bushes/flowers/
+    // mushrooms/plants drawn from the biome's own scatter layers so each
+    // node reads as planted in a biome, not just on a tech pad. Slightly
+    // larger than the in-level scatter (which authors at 0.18–0.55) so
+    // the silhouettes register at the world map's tilted ortho.
+    const foliageBucket: PropRoleBucket = {
+      urls: foliage,
+      count: foliage.length > 0 ? 2 : 0,
+      minScale: 0.6,
+      maxScale: 1.0,
+      minRadius: 5.0,
+      maxRadius: CLUSTER_R,
+      pad: 0.05,
+    };
+    // Bones — only near cleared levels. The player's march of death
+    // leaves a small trail of remains tucked between the trees and rocks
+    // on each conquered node. Kept to 1–2 per cleared level so it reads
+    // as "a few" rather than a graveyard.
+    const bonesCount = cleared ? (rand() < 0.55 ? 2 : 1) : 0;
+    // Skulls classify as "rock" (target 0.7), so a scale of 2.6–3.6 lands
+    // the rendered max-dim at ~1.8–2.5 world units — substantial enough
+    // to read as a dino-sized carcass from the world-map tilt without
+    // dominating the cluster.
+    const bonesBucket: PropRoleBucket = {
+      urls: BONES_URLS,
+      count: bonesCount,
+      minScale: 2.6,
+      maxScale: 3.6,
+      minRadius: 5.4,
+      maxRadius: CLUSTER_R,
+      pad: 0.1,
+      // Slight Z-tilt so the skulls read as fallen on the ground, not
+      // floating upright like a trophy.
+      tiltMin: -0.35,
+      tiltMax: 0.35,
     };
 
     let slotIndex = 0;
-    for (const bucket of [landmarkBucket, moduleBucket, storyBucket, treeBucket, rockBucket]) {
-      if (bucket.urls.length === 0) continue;
+    for (const bucket of [
+      landmarkBucket,
+      moduleBucket,
+      storyBucket,
+      treeBucket,
+      foliageBucket,
+      rockBucket,
+      bonesBucket,
+    ]) {
+      if (bucket.urls.length === 0 || bucket.count === 0) continue;
       for (let i = 0; i < bucket.count; i++) {
         const inst = tryPlace(center, bucket, rand, baseAngle, slotIndex++);
         if (!inst) continue;
@@ -264,7 +334,6 @@ const noRaycast: THREE.Mesh["raycast"] = () => {};
 
 const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) => {
   const { scene } = useGLTF(url);
-  const groupRef = useRef<THREE.Group>(null);
 
   const { normalizedScale, centerOffset, minY } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
@@ -286,24 +355,33 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
       if (!m.isMesh) return;
       m.castShadow = true;
       m.receiveShadow = true;
-      // Decorative — never block clicks/hovers on the level node it
-      // surrounds.
       m.raycast = noRaycast;
     });
   }, [scene]);
 
   return (
-    <group ref={groupRef}>
+    <group>
       {items.map((it) => {
         const s = normalizedScale * it.scale;
+        // Two-level transform so rotY orbits the mesh's VISIBLE center,
+        // not the GLB's authored origin. Previously the centerOffset
+        // recentering happened on the same node as the rotation, which
+        // meant any GLB with a non-zero authored origin (most of them)
+        // had its silhouette swing away from `it.pos` as rotY changed —
+        // up to centerOffset*s units of drift. The wrapper group fixes
+        // both pivots (yaw + side-tilt) on the intended placement point.
         return (
-          <primitive
+          <group
             key={it.id}
-            object={scene.clone(true)}
-            position={[it.pos.x - centerOffset.x * s, -minY * s, it.pos.z - centerOffset.z * s]}
-            rotation={[0, it.rotY, 0]}
-            scale={s}
-          />
+            position={[it.pos.x, -minY * s, it.pos.z]}
+            rotation={[0, it.rotY, it.tiltZ ?? 0]}
+          >
+            <primitive
+              object={scene.clone(true)}
+              position={[-centerOffset.x * s, 0, -centerOffset.z * s]}
+              scale={s}
+            />
+          </group>
         );
       })}
     </group>
@@ -311,7 +389,8 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
 };
 
 export const BiomeProps = () => {
-  const plan = useMemo(() => buildPropPlan(), []);
+  const progress = useGame((s) => s.progress);
+  const plan = useMemo(() => buildPropPlan(progress), [progress]);
   const entries = useMemo(() => Object.entries(plan), [plan]);
 
   return (
@@ -329,8 +408,10 @@ for (const lvl of LEVELS) {
   const biome: Biome = biomeForPos(lvl.nodePos);
   for (const u of rockUrls(biome)) allUrls.add(u);
   for (const u of storyUrls(biome)) allUrls.add(u);
+  for (const u of foliageUrls(biome)) allUrls.add(u);
   for (const u of BIOME_TREE_URLS[biome]) allUrls.add(u);
   for (const u of BIOME_LANDMARKS[biome] ?? []) allUrls.add(u);
   for (const u of BIOME_MODULES[biome] ?? []) allUrls.add(u);
 }
+for (const u of BONES_URLS) allUrls.add(u);
 for (const u of allUrls) useGLTF.preload(u);
