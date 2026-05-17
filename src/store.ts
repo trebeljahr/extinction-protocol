@@ -782,8 +782,8 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   goToWorldMap: () => {
-    const { engine } = get();
-    engine.reset();
+    const s = get();
+    s.engine.reset();
     set({
       screen: "worldMap",
       hoveredLevelId: null,
@@ -793,6 +793,12 @@ export const useGame = create<GameStore>((set, get) => ({
       autoPausedForNewEnemy: false,
       levelIntroVisible: false,
       runMinDifficulty: null,
+      // The next level start rebuilds the world (and resets inspect),
+      // but clear here so the EnemyPanel doesn't leak across the world-
+      // map screen into the next run if anything reads s.inspectedEnemy
+      // before startLevel runs.
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },
 
@@ -1494,10 +1500,14 @@ export const useGame = create<GameStore>((set, get) => ({
       };
       persistProgress(s.activeSlot, progress);
     }
+    // Force a clean inspect state on intro dismiss — the player hasn't
+    // had a chance to inspect anything yet, so a non-empty inspect here
+    // is stale carry-over (e.g. dismissed a prior panel under the modal).
     set({
       levelIntroVisible: false,
       progress,
-      ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
+      inspectedEnemy: emptyInspect,
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, emptyInspect),
     });
   },
 

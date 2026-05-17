@@ -249,6 +249,12 @@ export const ModelEnemyMesh = ({
     if (poolRef.current.length < POOL_LIMIT) {
       item.obj.visible = false;
       item.obj.userData.enemyId = undefined;
+      // Clear the stale id from every descendant too — the click handler
+      // walks UP from the hit object, so a child that still carries the
+      // old id would resurface a panel for an enemy that's been pooled.
+      item.obj.traverse((o) => {
+        o.userData.enemyId = undefined;
+      });
       if (item.proxy) {
         item.proxy.visible = false;
         item.proxy.userData.enemyId = undefined;
@@ -649,13 +655,16 @@ export const ModelEnemyMesh = ({
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
+    const enemyId = obj.userData.enemyId as number;
+    // Defensive: only inspect an enemy that actually exists and is alive.
+    // Pooled / dying / leaker meshes are supposed to have enemyId cleared
+    // before they go invisible, but a child userData entry can outlive
+    // the root clear on the leaker path — refuse to pop a panel for a
+    // dino that isn't on the map.
+    const enemy = state.world.enemyById.get(enemyId);
+    if (!enemy?.alive) return;
     e.stopPropagation();
-    state.inspectEnemy(
-      obj.userData.enemyId as number,
-      kind,
-      obj.userData.enemyMaxHp as number,
-      bossVariant ?? null,
-    );
+    state.inspectEnemy(enemyId, kind, obj.userData.enemyMaxHp as number, bossVariant ?? null);
   };
 
   // Right-click on a dino always opens its info panel, regardless of
@@ -668,14 +677,12 @@ export const ModelEnemyMesh = ({
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
+    const enemyId = obj.userData.enemyId as number;
+    const enemy = state.world.enemyById.get(enemyId);
+    if (!enemy?.alive) return;
     e.nativeEvent.preventDefault();
     e.stopPropagation();
-    state.inspectEnemy(
-      obj.userData.enemyId as number,
-      kind,
-      obj.userData.enemyMaxHp as number,
-      bossVariant ?? null,
-    );
+    state.inspectEnemy(enemyId, kind, obj.userData.enemyMaxHp as number, bossVariant ?? null);
   };
 
   return <group ref={groupRef} onClick={handleClick} onContextMenu={handleContextMenu} />;
