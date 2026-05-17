@@ -149,18 +149,22 @@
     overscroll-behavior: none;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
-    /* Kill text selection app-wide — long-press on mobile and drag on
-       desktop otherwise pull a selection cursor over HUD copy, which
-       breaks game immersion and reveals the web origin. Form inputs
-       opt back in explicitly below. */
-    user-select: none;
-    -webkit-user-select: none;
     cursor: default;
   }
 
-  input,
-  textarea,
-  [contenteditable="true"] {
+  /* Kill text selection app-wide — long-press on mobile and drag on
+     desktop otherwise pull a selection cursor over HUD copy, which
+     breaks game immersion and reveals the web origin. Form inputs
+     opt back in explicitly below. Gated by data-lock-select on <html>
+     so dev builds keep selection (handy for copying error text). */
+  html[data-lock-select="true"] body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html[data-lock-select="true"] input,
+  html[data-lock-select="true"] textarea,
+  html[data-lock-select="true"] [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
   }
