@@ -12,7 +12,7 @@ export type MechanicId =
   | "elite"
   | "fierce"
   | "slow"
-  | "resists";
+  | "adaptation";
 
 export const MECHANIC_ORDER: MechanicId[] = [
   "shielded",
@@ -21,7 +21,7 @@ export const MECHANIC_ORDER: MechanicId[] = [
   "elite",
   "fierce",
   "slow",
-  "resists",
+  "adaptation",
 ];
 
 export const MECHANIC_LABEL: Record<MechanicId, string> = {
@@ -31,7 +31,7 @@ export const MECHANIC_LABEL: Record<MechanicId, string> = {
   elite: "Elite",
   fierce: "Fierce",
   slow: "Slow",
-  resists: "Resist Adaptation",
+  adaptation: "Adaptation",
 };
 
 export const MECHANIC_TINT: Record<MechanicId, string> = {
@@ -41,7 +41,7 @@ export const MECHANIC_TINT: Record<MechanicId, string> = {
   elite: "#d8b4ff",
   fierce: "#ff5a3a",
   slow: "#bfe9ff",
-  resists: "#ffb266",
+  adaptation: "#ffb266",
 };
 
 export const MECHANIC_SUBTITLE: Record<MechanicId, string> = {
@@ -51,7 +51,7 @@ export const MECHANIC_SUBTITLE: Record<MechanicId, string> = {
   elite: "Hardened variant",
   fierce: "Berserker",
   slow: "Speed debuff",
-  resists: "Per-spawn immunity",
+  adaptation: "Evolved resistance",
 };
 
 export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = {
@@ -61,8 +61,8 @@ export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = {
   elite: "Hardened variant of the host kind. Flattened resist spread, increased slow resistance.",
   fierce: "Red glowing halo. +40% damage on exit.",
   slow: "Applied only by Cryo Emitter. Reduces movement speed for the slow duration.",
-  resists:
-    "Per-spawn damage-type adaptation. Layered on top of base resists, independent of the host kind.",
+  adaptation:
+    "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch.",
 };
 
 // Compact key numbers per mechanic — rendered as a 3-cell stat grid in
@@ -102,9 +102,9 @@ export const MECHANIC_STATS: Record<MechanicId, [string, string][]> = {
     ["Duration", "1.5s"],
     ["Source", "Cryo only"],
   ],
-  resists: [
-    ["Mod", "0×–0.4×"],
-    ["Stacks", "× base resist"],
-    ["Counter", "Tower T3 anti-mod"],
+  adaptation: [
+    ["Triggers", "L12+"],
+    ["Max boost", "95%"],
+    ["Window", "3 waves"],
   ],
 };

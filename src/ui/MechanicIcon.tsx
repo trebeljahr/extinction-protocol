@@ -25,7 +25,7 @@ export const MechanicIcon = ({ id, size = 220 }: Props) => {
         {id === "elite" && <EliteGlyph fill={fill} />}
         {id === "fierce" && <FierceGlyph fill={fill} />}
         {id === "slow" && <SlowGlyph fill={fill} />}
-        {id === "resists" && <ResistsGlyph fill={fill} />}
+        {id === "adaptation" && <AdaptationGlyph fill={fill} />}
       </svg>
     </div>
   );
@@ -178,35 +178,69 @@ const SlowGlyph = ({ fill }: { fill: string }) => (
   </g>
 );
 
-const ResistsGlyph = ({ fill }: { fill: string }) => (
-  <g>
-    <circle cx="100" cy="100" r="58" fill={fill} fillOpacity="0.1" stroke={fill} strokeWidth="2" />
-    <path
-      d="M100 50 L132 80 V128 Q132 152 100 162 Q68 152 68 128 V80 Z"
-      fill="none"
-      stroke={fill}
-      strokeWidth="2.5"
-    />
-    <line
-      x1="60"
-      y1="60"
-      x2="140"
-      y2="140"
-      stroke={fill}
-      strokeOpacity="0.85"
-      strokeWidth="6"
-      strokeLinecap="round"
-    />
-    <text
-      x="100"
-      y="118"
-      textAnchor="middle"
-      fontSize="48"
-      fontWeight="700"
-      fill={fill}
-      fontFamily="monospace"
-    >
-      0×
-    </text>
-  </g>
-);
+// Adaptation glyph: a DNA helix rendered as two interlocking sine-wave
+// strands with five color stops — one per damage type — to evoke
+// "evolving across the elemental spectrum" without leaning on game-art.
+const ADAPT_STRAND_COLORS = ["#5a6478", "#a040ff", "#3ec0ff", "#ff8a1f", "#ff2a14"];
+const AdaptationGlyph = ({ fill }: { fill: string }) => {
+  const cy = 100;
+  const amp = 28;
+  const x0 = 38;
+  const x1 = 162;
+  const points = 32;
+  const ladder: number[] = [];
+  for (let i = 1; i < points; i += 4) ladder.push(i / (points - 1));
+  return (
+    <g>
+      <circle
+        cx="100"
+        cy="100"
+        r="80"
+        fill={fill}
+        fillOpacity="0.06"
+        stroke={fill}
+        strokeOpacity="0.4"
+        strokeWidth="2"
+      />
+      {[0, 1].map((strand) => {
+        const phase = strand === 0 ? 0 : Math.PI;
+        let d = "";
+        for (let i = 0; i <= points; i++) {
+          const t = i / points;
+          const x = x0 + (x1 - x0) * t;
+          const y = cy + Math.sin(t * Math.PI * 2 + phase) * amp;
+          d += (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1) + " ";
+        }
+        return (
+          <path
+            key={strand}
+            d={d}
+            fill="none"
+            stroke={fill}
+            strokeOpacity="0.85"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+        );
+      })}
+      {ladder.map((t, idx) => {
+        const x = x0 + (x1 - x0) * t;
+        const y1 = cy + Math.sin(t * Math.PI * 2) * amp;
+        const y2 = cy + Math.sin(t * Math.PI * 2 + Math.PI) * amp;
+        const c = ADAPT_STRAND_COLORS[idx % ADAPT_STRAND_COLORS.length];
+        return (
+          <line
+            key={idx}
+            x1={x}
+            y1={y1}
+            x2={x}
+            y2={y2}
+            stroke={c}
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </g>
+  );
+};

@@ -8,8 +8,14 @@ import { HEAL_HUG_RADIUS_BY_KIND } from "../render/HealAuras.constants";
 import { measureVisibleBox } from "../render/measureModel";
 import { buildPlusGeometry, buildPlusMaterial } from "../render/RegenBadges.geometry";
 import type { MechanicId } from "../sim/mechanicsText";
-import type { EnemyKind } from "../sim/types";
-import { ELITE_TINT_BY_KIND, ENEMY_MODEL, HEAL_AURA_RANGE } from "../sim/world";
+import type { DamageType, EnemyKind } from "../sim/types";
+import {
+  ADAPTIVE_EMISSIVE_BY_TYPE,
+  ADAPTIVE_TINT_BY_TYPE,
+  ELITE_TINT_BY_KIND,
+  ENEMY_MODEL,
+  HEAL_AURA_RANGE,
+} from "../sim/world";
 
 // Preview-only single-instance copies of the in-world effect renderers
 // (ShieldBubbles / HealAuras / RegenBadges / FierceHalos / model frost +
@@ -55,7 +61,30 @@ const PREVIEW_KIND: Record<MechanicId, EnemyKind> = {
   elite: "raptor",
   fierce: "allosaur",
   slow: "raptor",
-  resists: "armored",
+  adaptation: "stego",
+};
+
+// Adaptation preview tint cycle — one stop per damage type so the
+// player sees every body discoloration the herd can evolve. Order
+// matches the in-game ADAPTIVE_TINT_BY_TYPE record. Each phase holds
+// for ADAPT_PHASE_HOLD then crossfades over ADAPT_PHASE_FADE.
+const ADAPT_PHASE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
+const ADAPT_PHASE_HOLD = 1.6;
+const ADAPT_PHASE_FADE = 0.6;
+const ADAPT_TINT_AMOUNT = 0.45;
+const ADAPT_EMISSIVE_AMOUNT = 0.3;
+
+type AdaptPhase = { from: DamageType; to: DamageType; mix: number };
+const adaptPhaseAt = (t: number): AdaptPhase => {
+  const cycle = ADAPT_PHASE_HOLD + ADAPT_PHASE_FADE;
+  const total = cycle * ADAPT_PHASE_ORDER.length;
+  const u = ((t % total) + total) % total;
+  const idx = Math.floor(u / cycle);
+  const within = u - idx * cycle;
+  const from = ADAPT_PHASE_ORDER[idx];
+  const to = ADAPT_PHASE_ORDER[(idx + 1) % ADAPT_PHASE_ORDER.length];
+  const mix = within < ADAPT_PHASE_HOLD ? 0 : (within - ADAPT_PHASE_HOLD) / ADAPT_PHASE_FADE;
+  return { from, to, mix };
 };
 
 // === Creature ===
@@ -68,6 +97,18 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
   const gltf = useGLTF(cfg.url);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const eliteTint = useMemo(() => new THREE.Color(ELITE_TINT_BY_KIND[kind]), [kind]);
+  const adaptTints = useMemo(() => {
+    const out = {} as Record<DamageType, THREE.Color>;
+    for (const t of ADAPT_PHASE_ORDER) out[t] = new THREE.Color(ADAPTIVE_TINT_BY_TYPE[t]);
+    return out;
+  }, []);
+  const adaptEmissives = useMemo(() => {
+    const out = {} as Record<DamageType, THREE.Color>;
+    for (const t of ADAPT_PHASE_ORDER) out[t] = new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE[t]);
+    return out;
+  }, []);
+  const adaptTintTmp = useMemo(() => new THREE.Color(), []);
+  const adaptEmissiveTmp = useMemo(() => new THREE.Color(), []);
 
   const obj = useMemo(() => {
     // precise=true via measureVisibleBox so the bbox reflects the
@@ -124,14 +165,22 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
     };
   }, [obj, gltf.animations, cfg.clip]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     mixerRef.current?.update(delta);
     // Frost = full chill (1.0) for the slow preview so the dino reads
     // unambiguously frozen-blue. Elite stamps the kind-tint onto the
-    // base color. Reset when neither effect applies so re-entering this
-    // creature for a different mechanic restores the original palette.
+    // base color. Adaptation cycles through the five ADAPTIVE tints so
+    // the player sees every body discoloration the herd can evolve.
+    // Reset when no effect applies so re-entering this creature for a
+    // different mechanic restores the original palette.
     const frost = effect === "slow" ? 1 : 0;
     const isElite = effect === "elite";
+    const isAdapt = effect === "adaptation";
+    if (isAdapt) {
+      const phase = adaptPhaseAt(state.clock.elapsedTime);
+      adaptTintTmp.copy(adaptTints[phase.from]).lerp(adaptTints[phase.to], phase.mix);
+      adaptEmissiveTmp.copy(adaptEmissives[phase.from]).lerp(adaptEmissives[phase.to], phase.mix);
+    }
     obj.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -141,11 +190,13 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
         if (base && mm.color) {
           if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
           else if (isElite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
+          else if (isAdapt) mm.color.copy(base).lerp(adaptTintTmp, ADAPT_TINT_AMOUNT);
           else mm.color.copy(base);
         }
         if (!mm.emissive) return;
         if (frost > 0.05) mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
         else if (isElite) mm.emissive.copy(eliteTint).multiplyScalar(ELITE_EMISSIVE_AMOUNT);
+        else if (isAdapt) mm.emissive.copy(adaptEmissiveTmp).multiplyScalar(ADAPT_EMISSIVE_AMOUNT);
         else mm.emissive.setRGB(0, 0, 0);
       };
       if (Array.isArray(mat)) mat.forEach(apply);
@@ -369,69 +420,6 @@ const FierceShellEffect = ({ kind }: { kind: EnemyKind }) => {
   return <primitive object={obj} />;
 };
 
-// "0×" plate above the dino — the same idea as the regen badge but
-// with a different glyph + warmer tint so it reads as immunity rather
-// than healing.
-const buildResistsTexture = (): THREE.CanvasTexture => {
-  const W = 192;
-  const H = 96;
-  const c = document.createElement("canvas");
-  c.width = W;
-  c.height = H;
-  const ctx = c.getContext("2d");
-  if (!ctx) return new THREE.CanvasTexture(c);
-  ctx.clearRect(0, 0, W, H);
-  // Soft amber halo behind the text so it pops against the ground.
-  const grd = ctx.createRadialGradient(W / 2, H / 2, 6, W / 2, H / 2, 80);
-  grd.addColorStop(0, "rgba(255, 178, 102, 0.55)");
-  grd.addColorStop(1, "rgba(255, 178, 102, 0)");
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, H);
-  ctx.font = "bold 64px ui-sans-serif, system-ui, -apple-system, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "#5a2d05";
-  ctx.strokeText("0×", W / 2, H / 2 + 2);
-  ctx.fillStyle = "#ffd9a8";
-  ctx.fillText("0×", W / 2, H / 2 + 2);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-};
-
-const ResistsBadgeEffect = ({ kind }: { kind: EnemyKind }) => {
-  const cfg = ENEMY_MODEL[kind];
-  const ref = useRef<THREE.Mesh>(null);
-  const tex = useMemo(buildResistsTexture, []);
-  useFrame((state) => {
-    const m = ref.current;
-    if (!m) return;
-    const t = state.clock.elapsedTime;
-    const camDir = new THREE.Vector3();
-    state.camera.getWorldDirection(camDir);
-    const yaw = Math.atan2(-camDir.x, -camDir.z);
-    const bob = Math.sin(t * 2.0) * 0.06;
-    const pulse = 0.95 + 0.06 * Math.sin(t * 3);
-    m.position.set(0, cfg.targetSize * 1.15 + bob, 0);
-    m.rotation.set(0, yaw, 0);
-    m.scale.set(pulse * 1.6, pulse * 0.9, 1);
-  });
-  return (
-    <mesh ref={ref} renderOrder={6}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
-        map={tex}
-        transparent
-        depthWrite={false}
-        toneMapped={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
-};
-
 // === Public component ===
 
 type Props = {
@@ -494,8 +482,7 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
         {id === "healAura" && <HealAuraEffect kind={kind} />}
         {id === "regen" && <RegenBadgeEffect kind={kind} />}
         {id === "fierce" && <FierceShellEffect kind={kind} />}
-        {id === "resists" && <ResistsBadgeEffect kind={kind} />}
-        {/* "elite" + "slow" tint the creature itself; no overlay mesh. */}
+        {/* "elite" + "slow" + "adaptation" tint the creature itself; no overlay mesh. */}
 
         <OrbitControls
           makeDefault

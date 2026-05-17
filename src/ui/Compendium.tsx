@@ -26,6 +26,8 @@ import {
 import type { BossVariant, DamageType, EnemyKind, TowerKind } from "../sim/types";
 import { UPGRADES } from "../sim/upgrades";
 import {
+  ADAPT_TRIGGER_LEVEL,
+  ADAPTIVE_TINT_BY_TYPE,
   BOSS_VARIANT_LABEL,
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_SLOW_RESIST,
@@ -641,12 +643,48 @@ const MechanicSectionView = ({
                 </div>
               ))}
             </dl>
+            {selected === "adaptation" && <AdaptationTintRow />}
           </div>
         </div>
       )}
     </div>
   );
 };
+
+// Per-damage-type discoloration legend shown beneath the adaptation
+// mechanic dossier. Reads the same ADAPTIVE_TINT_BY_TYPE the renderer
+// uses so a tuning change to a hue updates here automatically.
+const AdaptationTintRow = () => (
+  <div className="compendium-section-block">
+    <div className="compendium-resist-label">Discoloration per damage type</div>
+    <div className="compendium-resist-chips">
+      {DAMAGE_TYPES.map((dt) => {
+        const swatch = ADAPTIVE_TINT_BY_TYPE[dt];
+        return (
+          <div
+            key={dt}
+            className="compendium-chip"
+            title={`${DAMAGE_TYPE_LABEL[dt]}: body tints toward ${swatch} when the herd adapts to this type. Up to 95% damage reduction at peak streak from level ${ADAPT_TRIGGER_LEVEL}+.`}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 3,
+                background: swatch,
+                border: "1px solid rgba(255,255,255,0.18)",
+                display: "inline-block",
+              }}
+            />
+            <span className="compendium-chip-label">{DAMAGE_TYPE_LABEL[dt]}</span>
+            <span className="compendium-chip-val">≤95%</span>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
 // --- Lore section ----------------------------------------------------------
 
