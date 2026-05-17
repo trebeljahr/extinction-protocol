@@ -96,6 +96,29 @@ export type EasterEggDef = {
   sfx?: { sample: string; volume?: number; duration?: number };
 };
 
+const puff = (
+  color: string,
+  count: number,
+  speed: [number, number],
+  life: number,
+): EasterEggEffect => ({
+  particleColor: color,
+  particleCount: count,
+  particleSpeed: speed,
+  particleLife: life,
+});
+
+const burst = (
+  primary: { color: string; count: number; speed: [number, number]; life: number },
+  secondary: { color: string; count: number; speed: [number, number]; life: number },
+): EasterEggEffect => ({
+  particleColor: primary.color,
+  particleCount: primary.count,
+  particleSpeed: primary.speed,
+  particleLife: primary.life,
+  secondary,
+});
+
 export const EASTER_EGG_DEFS: EasterEggDef[] = [
   {
     id: "skull",
@@ -106,13 +129,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     clickThreshold: 1,
     // Heavy bone-fragment burst — three layers so the click reads as a
     // shatter (white shards + dust + gold reward sparkle).
-    effect: {
-      particleColor: "#f4ecdc",
-      particleCount: 32,
-      particleSpeed: [3.2, 6.4],
-      particleLife: 0.7,
-      secondary: { color: "#9a8060", count: 18, speed: [1.6, 3.2], life: 0.55 },
-    },
+    effect: burst(
+      { color: "#f4ecdc", count: 32, speed: [3.2, 6.4], life: 0.7 },
+      { color: "#9a8060", count: 18, speed: [1.6, 3.2], life: 0.55 },
+    ),
     goldReward: 20,
     // Springy snap-pop so the skull visibly breaks apart on the click.
     reaction: { popIntensity: 0.6 },
@@ -130,12 +150,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/forest/Mushroom.glb",
     targetSize: 1.0,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#c8f2a4",
-      particleCount: 14,
-      particleSpeed: [1.5, 3.5],
-      particleLife: 0.45,
-    },
+    effect: puff("#c8f2a4", 14, [1.5, 3.5], 0.45),
   },
   {
     id: "torch",
@@ -144,13 +159,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/snow/Torch.glb",
     targetSize: 1.2,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#ffb266",
-      particleCount: 18,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.55,
-      secondary: { color: "#fff2c8", count: 10, speed: [1.5, 3], life: 0.35 },
-    },
+    effect: burst(
+      { color: "#ffb266", count: 18, speed: [2, 4.5], life: 0.55 },
+      { color: "#fff2c8", count: 10, speed: [1.5, 3], life: 0.35 },
+    ),
     // Torch flares — bigger pop reads as the flame whooshing up.
     reaction: { popIntensity: 0.45 },
   },
@@ -161,12 +173,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/forest/Barrel.glb",
     targetSize: 1.0,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#a07046",
-      particleCount: 14,
-      particleSpeed: [2, 4],
-      particleLife: 0.5,
-    },
+    effect: puff("#a07046", 14, [2, 4], 0.5),
     // Click sends the barrel rolling in a random horizontal direction
     // until it leaves the playfield. spinRate is high so the barrel
     // visibly rolls across the ground rather than coasting upright.
@@ -192,12 +199,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/snow/Cabin.glb",
     targetSize: 2.6,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#e2e8ee",
-      particleCount: 20,
-      particleSpeed: [1, 2.5],
-      particleLife: 0.9,
-    },
+    effect: puff("#e2e8ee", 20, [1, 2.5], 0.9),
     // Buildings shouldn't squash like rubber — small settle is enough.
     reaction: { popIntensity: 0.08 },
     chimneyOffset: { x: -0.29, y: 3.39, z: -0.86 },
@@ -209,13 +211,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/snow/Crystal1.glb",
     targetSize: 1.1,
     clickThreshold: 5,
-    effect: {
-      particleColor: "#aaf0ff",
-      particleCount: 24,
-      particleSpeed: [3, 6],
-      particleLife: 0.7,
-      secondary: { color: "#e8faff", count: 14, speed: [1.5, 3.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#aaf0ff", count: 24, speed: [3, 6], life: 0.7 },
+      { color: "#e8faff", count: 14, speed: [1.5, 3.5], life: 0.5 },
+    ),
   },
   {
     id: "cactus",
@@ -224,13 +223,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/biomes/desert/Tree5.glb",
     targetSize: 1.5,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#ff88ba",
-      particleCount: 18,
-      particleSpeed: [1.5, 3.5],
-      particleLife: 0.7,
-      secondary: { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#ff88ba", count: 18, speed: [1.5, 3.5], life: 0.7 },
+      { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.5 },
+    ),
   },
   {
     id: "glyph",
@@ -239,13 +235,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/scifi/rock_crystalsLargeA.glb",
     targetSize: 1.3,
     clickThreshold: 3,
-    effect: {
-      particleColor: "#7ff0d0",
-      particleCount: 20,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.7,
-      secondary: { color: "#aaf0ff", count: 12, speed: [1, 2.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#7ff0d0", count: 20, speed: [2, 4.5], life: 0.7 },
+      { color: "#aaf0ff", count: 12, speed: [1, 2.5], life: 0.5 },
+    ),
   },
   {
     id: "radio",
@@ -254,13 +247,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/scifi/machine_wirelessCable.glb",
     targetSize: 1.5,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#9ff08c",
-      particleCount: 16,
-      particleSpeed: [2, 4],
-      particleLife: 0.6,
-      secondary: { color: "#ff9966", count: 10, speed: [1.5, 3], life: 0.4 },
-    },
+    effect: burst(
+      { color: "#9ff08c", count: 16, speed: [2, 4], life: 0.6 },
+      { color: "#ff9966", count: 10, speed: [1.5, 3], life: 0.4 },
+    ),
   },
   {
     id: "satellite",
@@ -269,13 +259,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/scifi/satelliteDish_large.glb",
     targetSize: 1.8,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#9fd8ff",
-      particleCount: 20,
-      particleSpeed: [2.5, 5],
-      particleLife: 0.8,
-      secondary: { color: "#e8faff", count: 12, speed: [1.5, 3], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#9fd8ff", count: 20, speed: [2.5, 5], life: 0.8 },
+      { color: "#e8faff", count: 12, speed: [1.5, 3], life: 0.5 },
+    ),
   },
   {
     id: "fairy",
@@ -284,13 +271,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/forest/BushFlowers.glb",
     targetSize: 1.2,
     clickThreshold: 3,
-    effect: {
-      particleColor: "#ffd66a",
-      particleCount: 18,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.7,
-      secondary: { color: "#ff88ba", count: 12, speed: [1.5, 3.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#ffd66a", count: 18, speed: [2, 4.5], life: 0.7 },
+      { color: "#ff88ba", count: 12, speed: [1.5, 3.5], life: 0.5 },
+    ),
   },
   {
     id: "rocket",
@@ -299,13 +283,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/scifi/rocket_baseA.glb",
     targetSize: 2.2,
     clickThreshold: 3,
-    effect: {
-      particleColor: "#ff9966",
-      particleCount: 28,
-      particleSpeed: [3, 7],
-      particleLife: 0.9,
-      secondary: { color: "#fff2c8", count: 18, speed: [2, 5], life: 0.6 },
-    },
+    effect: burst(
+      { color: "#ff9966", count: 28, speed: [3, 7], life: 0.9 },
+      { color: "#fff2c8", count: 18, speed: [2, 5], life: 0.6 },
+    ),
     // Each tap of the rocket gives a vertical kick — bigger pop reads as
     // the booster pulsing before launch.
     reaction: { popIntensity: 0.35 },
@@ -317,13 +298,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/biomes/desert/Bush3.glb",
     targetSize: 1.1,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#c8a264",
-      particleCount: 20,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.6,
-      secondary: { color: "#e8d2a0", count: 12, speed: [1.5, 3], life: 0.4 },
-    },
+    effect: burst(
+      { color: "#c8a264", count: 20, speed: [2, 4.5], life: 0.6 },
+      { color: "#e8d2a0", count: 12, speed: [1.5, 3], life: 0.4 },
+    ),
     motion: { kind: "traverse", speed: 6, lifetime: 9, spinRate: 6 },
     scheduled: { earliestSec: 25, latestSec: 90 },
   },
@@ -335,13 +313,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     targetSize: 1.8,
     clickThreshold: 1,
     goldReward: 10,
-    effect: {
-      particleColor: "#9fd8ff",
-      particleCount: 20,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.6,
-      secondary: { color: "#a08060", count: 14, speed: [1.5, 3.5], life: 0.55 },
-    },
+    effect: burst(
+      { color: "#9fd8ff", count: 20, speed: [2, 4.5], life: 0.6 },
+      { color: "#a08060", count: 14, speed: [1.5, 3.5], life: 0.55 },
+    ),
     motion: { kind: "traverse", speed: 4, lifetime: 14 },
     scheduled: { earliestSec: 30, latestSec: 120 },
   },
@@ -352,13 +327,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/Velociraptor.glb",
     targetSize: 0.8,
     clickThreshold: 1,
-    effect: {
-      particleColor: "#ff88ba",
-      particleCount: 16,
-      particleSpeed: [1.5, 3.5],
-      particleLife: 0.5,
-      secondary: { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.4 },
-    },
+    effect: burst(
+      { color: "#ff88ba", count: 16, speed: [1.5, 3.5], life: 0.5 },
+      { color: "#ffd0e4", count: 10, speed: [1, 2.5], life: 0.4 },
+    ),
     visual: { tint: "#ffc8dc", skinned: true, clip: "Idle" },
     // Springy startle pop + the raptor briefly turns to look at the camera.
     reaction: { popIntensity: 0.4, faceCamera: true },
@@ -370,13 +342,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/Parasaurolophus.glb",
     targetSize: 1.6,
     clickThreshold: 5,
-    effect: {
-      particleColor: "#e8faff",
-      particleCount: 22,
-      particleSpeed: [2.5, 5],
-      particleLife: 0.7,
-      secondary: { color: "#aaf0ff", count: 14, speed: [1.5, 3.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#e8faff", count: 22, speed: [2.5, 5], life: 0.7 },
+      { color: "#aaf0ff", count: 14, speed: [1.5, 3.5], life: 0.5 },
+    ),
     // Buried under the snow with just the head and dorsal ridge poking
     // out. Five frantic clicks free it; clickRoll then hurls it toward
     // the nearest map edge at full sprint with the Run animation.
@@ -391,13 +360,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     targetSize: 1.6,
     clickThreshold: 1,
     goldReward: 20,
-    effect: {
-      particleColor: "#b8e8ff",
-      particleCount: 18,
-      particleSpeed: [2, 4.5],
-      particleLife: 0.7,
-      secondary: { color: "#7f9fff", count: 12, speed: [1.5, 3.5], life: 0.5 },
-    },
+    effect: burst(
+      { color: "#b8e8ff", count: 18, speed: [2, 4.5], life: 0.7 },
+      { color: "#7f9fff", count: 12, speed: [1.5, 3.5], life: 0.5 },
+    ),
     visual: { opacity: 0.45, tint: "#c8e8ff", skinned: true, clip: "Walk" },
     motion: { kind: "traverse", speed: 2.5, lifetime: 18 },
     scheduled: { earliestSec: 35, latestSec: 130 },
@@ -409,13 +375,10 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     model: "/models/landmarks/wasteland/Ruins.glb",
     targetSize: 2.2,
     clickThreshold: 3,
-    effect: {
-      particleColor: "#b48cff",
-      particleCount: 24,
-      particleSpeed: [2.5, 5],
-      particleLife: 0.8,
-      secondary: { color: "#7f4fff", count: 14, speed: [1.5, 3.5], life: 0.6 },
-    },
+    effect: burst(
+      { color: "#b48cff", count: 24, speed: [2.5, 5], life: 0.8 },
+      { color: "#7f4fff", count: 14, speed: [1.5, 3.5], life: 0.6 },
+    ),
   },
 ];
 
