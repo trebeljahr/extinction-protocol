@@ -17,11 +17,9 @@ const CAMERA_BASE_POSITION: [number, number, number] = [0, 24, 14];
 const BATTLE_MIN_POLAR = 0.35;
 const BATTLE_MAX_POLAR = 0.75;
 
-// Pan limits — keep the playfield mostly on screen at all zoom levels.
-// Tuned generously: the player can drift the camera over an edge to
-// peek at a corner tower, but can't lose the path entirely.
-const PAN_LIMIT_X = MAP_WIDTH * 0.4;
-const PAN_LIMIT_Z = MAP_HEIGHT * 0.4;
+// Pan limits are computed dynamically from current zoom — see
+// `panLimitFor` below. At fit zoom the range collapses to 0 so the whole
+// map stays centred; the player can only pan once they've zoomed in.
 
 // Camera tilt is rotation.x ≈ -π/3 (60° pitch). One pixel along the
 // camera's screen-up axis at zoom Z corresponds to ~0.577/Z world units
@@ -125,6 +123,19 @@ export const CameraRig = () => {
     [size.width, size.height, pathHalfZ],
   );
   const maxZoom = Math.min(fitZoom * MAX_ZOOM_MULT, ABS_MAX_ZOOM);
+  // At zoom z the visible half-extent is viewport / (2z) on X and
+  // TILT * viewport / z on Z. Pan range is what was visible at fit zoom
+  // minus what's visible now — zero at fit zoom, growing as the player
+  // zooms in. Keeps the map locked-centred when fully zoomed out.
+  const panLimitFor = useMemo(() => {
+    const fitHalfX = size.width / (2 * fitZoom);
+    const fitHalfZ = (TILT_HALF_FACTOR * size.height) / fitZoom;
+    return (zoom: number) => {
+      const halfX = size.width / (2 * zoom);
+      const halfZ = (TILT_HALF_FACTOR * size.height) / zoom;
+      return { x: Math.max(0, fitHalfX - halfX), z: Math.max(0, fitHalfZ - halfZ) };
+    };
+  }, [size.width, size.height, fitZoom]);
 
   // Reset to the fit baseline whenever the level changes or the
   // viewport resizes. Re-centre pan too; otherwise a prior level's
@@ -209,8 +220,9 @@ export const CameraRig = () => {
       />
       <MapOrbitControls
         ref={controlsRef}
-        panLimitX={PAN_LIMIT_X}
-        panLimitZ={PAN_LIMIT_Z}
+        panLimitX={0}
+        panLimitZ={0}
+        panLimitFor={panLimitFor}
         minZoom={fitZoom}
         maxZoom={maxZoom}
         panSpeed={1.4}

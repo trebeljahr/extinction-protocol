@@ -7,6 +7,11 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 export type MapGestureConfig = {
   panLimitX: number;
   panLimitZ: number;
+  // Optional dynamic limits keyed off current camera zoom. When provided,
+  // overrides the static panLimitX/Z each frame — used by the battle camera
+  // so pan range collapses to 0 at fit zoom (the whole map fits the screen,
+  // panning would just slide off the map).
+  panLimitFor?: (zoom: number) => { x: number; z: number };
   minZoom: number;
   maxZoom: number;
   panSpeed?: number;
@@ -33,6 +38,7 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
     {
       panLimitX,
       panLimitZ,
+      panLimitFor,
       minZoom,
       maxZoom,
       panSpeed = 1.4,
@@ -58,8 +64,11 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       const c = controlsRef.current;
       if (!c) return;
       const t = c.target;
-      const cx = THREE.MathUtils.clamp(t.x, -panLimitX, panLimitX);
-      const cz = THREE.MathUtils.clamp(t.z, -panLimitZ, panLimitZ);
+      const dyn = panLimitFor ? panLimitFor((c.object as THREE.OrthographicCamera).zoom) : null;
+      const limX = dyn ? dyn.x : panLimitX;
+      const limZ = dyn ? dyn.z : panLimitZ;
+      const cx = THREE.MathUtils.clamp(t.x, -limX, limX);
+      const cz = THREE.MathUtils.clamp(t.z, -limZ, limZ);
       const dx = cx - t.x;
       const dy = -t.y;
       const dz = cz - t.z;

@@ -16,7 +16,7 @@ import { HQ_PAD_BLOCKER_RADIUS, MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../lev
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
 import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage";
-import { prependLeadIn, SMOOTH_PATH_SUBDIVISIONS, samplePath, smoothPath } from "./path";
+import { prependLeadIn, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
 import {
@@ -493,24 +493,17 @@ export const createWorld = (
   // if any consumer fell back to the raw waypoints they'd cut corners
   // that the others curved around.
   // Off-map lead-in: each authored path gets one extra waypoint prepended
-  // in the reverse of its first segment direction so enemies spawn past
-  // the playfield border and march on-screen, instead of popping into
-  // existence at the border. The painted ribbon still renders from the
-  // original first waypoint via `pathRibbonStart`. Distance is tuned so
-  // the spawn point sits past the camera's decor margin at fit zoom —
-  // see CameraRig.tsx DECOR_MARGIN_X (4) — leaving ~2 units of margin
-  // so enemies fade in by walking from off-screen rather than appearing
-  // at the visible edge. Higher zoom levels naturally extend this.
-  const PATH_LEAD_IN_DISTANCE = 12;
+  // in the reverse of its first segment direction so the path attaches to
+  // the camera's fit-zoom bounding box edge — DECOR_MARGIN_X (4) past the
+  // playable rectangle. Spawn ring sits at the new path[0] so the player
+  // sees where enemies enter exactly at the screen edge at max zoom-out.
+  const PATH_LEAD_IN_DISTANCE = 4;
   const extendedAuthored = level.paths.map((p) => prependLeadIn(p, PATH_LEAD_IN_DISTANCE));
   const paths = extendedAuthored.map((p) => smoothPath(p));
-  // smoothPath emits `subdivisions` points per input segment (the final
-  // segment gets one extra). With a single prepended waypoint, smoothed
-  // index = SMOOTH_PATH_SUBDIVISIONS is exactly the original first
-  // waypoint (the playfield border) — ribbon starts there.
-  const pathRibbonStart = level.paths.map((p, i) =>
-    extendedAuthored[i].length > p.length ? SMOOTH_PATH_SUBDIVISIONS : 0,
-  );
+  // Ribbon + spawn ring both anchor at path[0] now (the lead-in point at
+  // the visible edge). Kept as a per-path array for compat with the World
+  // shape and any future per-level offset.
+  const pathRibbonStart = level.paths.map(() => 0);
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes

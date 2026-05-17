@@ -6,39 +6,19 @@ import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 
-const VISUAL_EXIT_EXTENSION = 12;
-const extendPathExit = (path: Vec2[]): Vec2[] => {
-  if (path.length < 2) return path;
-  const last = path[path.length - 1];
-  const prev = path[path.length - 2];
-  const dx = last.x - prev.x;
-  const dy = last.y - prev.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 1e-6) return path;
-  return [
-    ...path,
-    {
-      x: last.x + (dx / len) * VISUAL_EXIT_EXTENSION,
-      y: last.y + (dy / len) * VISUAL_EXIT_EXTENSION,
-    },
-  ];
-};
-
 export const PathLine = () => {
   const paths = useGame((s) => s.world.paths);
-  const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const biome = useGame((s) => s.world.biome);
   const pathDebug = useGame((s) => s.pathDebug);
   const style = BIOME_STYLE[biome];
   const pathsWithIds = useMemo(
     () =>
-      paths.map((path, i) => ({
+      paths.map((path) => ({
         id: nanoid(),
         path,
-        renderPath: extendPathExit(path),
-        ringIndex: pathRibbonStart[i] ?? 0,
+        renderPath: path,
       })),
-    [paths, pathRibbonStart],
+    [paths],
   );
 
   // Outline color: the path color darkened so the rim reads as a sunken
@@ -63,11 +43,11 @@ export const PathLine = () => {
         ))}
       </group>
       <group>
-        {pathsWithIds.map(({ id, path, renderPath, ringIndex }) => (
+        {pathsWithIds.map(({ id, path, renderPath }) => (
           <PathInner
             key={`in-${id}`}
             path={renderPath}
-            ringPos={path[ringIndex]}
+            ringPos={path[0]}
             pathColor={style.pathColor}
             startColor={style.startRing}
           />
