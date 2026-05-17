@@ -279,7 +279,7 @@ const DESERT_LAYERS: BiomeLayerSpec = [
     blocks: true,
     cluster: { seeds: 4, sigma: 2.2 },
   },
-  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.09, 0.15),
+  DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.135, 0.225),
   {
     // Loose pebbles — tiny gritty stones carpeting the sand so the dunes
     // read as littered with debris instead of empty. Authored small so
@@ -382,7 +382,7 @@ const WASTELAND_LAYERS: BiomeLayerSpec = [
     blocks: true,
     cluster: { seeds: 5, sigma: 2.2 },
   },
-  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151),
+  DEAD_TREE_LAYER("/models/landmarks/wasteland/DeadTree.glb", 3, 5151, 0.18, 0.315),
   {
     // Loose rubble — wasteland Rocks downscaled to pebble-grade clutter so
     // the cracked ground between the larger formations reads as littered
@@ -684,6 +684,21 @@ export const BIOME_TREE_URLS: Record<Biome, string[]> = {
     "/models/biomes/alien/Tree_Blob_1.gltf",
     "/models/biomes/alien/Tree_Spiral_1.gltf",
   ],
+};
+
+// Per-biome scale multiplier applied to clearable trees at world build time.
+// Wasteland's clearable Tree1–4 are the "dead/skeletal" set (also used as
+// inspiration for the brown-oak and white-birch silhouettes); they read too
+// small at the global 0.5–1.1 range, so wasteland alone gets bumped 1.5x.
+// Lava/alien reuse the same wasteland Tree URLs but stay at 1.0 — those
+// biomes already tune their feel separately.
+export const BIOME_TREE_SCALE_MUL: Record<Biome, number> = {
+  forest: 1,
+  desert: 1,
+  snow: 1,
+  wasteland: 1.5,
+  lava: 1,
+  alien: 1,
 };
 
 // Small cosmetic props scattered across levels via BiomeCosmetics.tsx. All

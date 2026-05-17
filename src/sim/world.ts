@@ -1,4 +1,10 @@
-import { BIOME_LAYERS, type Biome, type BiomeLayer, biomeForPos } from "../biomes";
+import {
+  BIOME_LAYERS,
+  BIOME_TREE_SCALE_MUL,
+  type Biome,
+  type BiomeLayer,
+  biomeForPos,
+} from "../biomes";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS, type EasterEggDef } from "../easterEggs";
 import {
   buildLavaFeatures,
@@ -163,7 +169,9 @@ const buildTrees = (
   seed: number,
   firstId: number,
   lava: LavaFeatures | null,
+  biome: Biome,
 ): { trees: Tree[]; nextId: number } => {
+  const biomeScale = BIOME_TREE_SCALE_MUL[biome] ?? 1;
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
   const pathR2 = clearance * clearance;
   const halfW = MAP_WIDTH / 2 + 11;
@@ -216,7 +224,8 @@ const buildTrees = (
       variant: Math.floor(rng() * TREE_VARIANTS),
       // Triangular distribution (avg of two uniforms) biases toward mid-size,
       // so saplings and elders are uncommon but visible.
-      scale: TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE),
+      scale:
+        (TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE)) * biomeScale,
       rot: rng() * Math.PI * 2,
     });
   }
@@ -487,7 +496,7 @@ export const createWorld = (
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
   // share the same flow geometry — see hasFlowFeatures.
   const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, level.id, biome) : null;
-  const { trees, nextId: afterTrees } = buildTrees(paths, level.id * 7919 + 101, 1, lava);
+  const { trees, nextId: afterTrees } = buildTrees(paths, level.id * 7919 + 101, 1, lava, biome);
   const { rocks, nextId: afterRocks } = buildRocks(biome, paths, trees, afterTrees, lava, level.id);
   const { eggs, nextId } = buildEasterEggs(
     biome,
