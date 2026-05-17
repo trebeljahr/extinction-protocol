@@ -1,14 +1,21 @@
 import { OrthographicCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import type * as THREE from "three";
 import type { OrthographicCamera as OrthographicCameraImpl } from "three";
+import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { useGame } from "../store";
 import { MapOrbitControls } from "./useMapGestures";
 
 const CAMERA_BASE_POSITION: [number, number, number] = [0, 24, 14];
+
+// Battle camera orbit clamps. Base position sits at polar ≈ 0.528 rad
+// (≈30° from world +Y). Allow a small tilt window so the player can hint
+// the scene is 3D without flipping to top-down or dipping under the
+// ground plane and exposing background.
+const BATTLE_MIN_POLAR = 0.35;
+const BATTLE_MAX_POLAR = 0.75;
 
 // Pan limits — keep the playfield mostly on screen at all zoom levels.
 // Tuned generously: the player can drift the camera over an edge to
@@ -179,6 +186,16 @@ export const CameraRig = () => {
         zoomSpeed={0.9}
         reserveLeftClick
         reserveTouchPlacement={selectedKind !== null}
+        // Yaw + small pitch hint that the playfield is 3D. Disabled while
+        // a tower is armed because the placement gesture maps one-finger
+        // touch to ROTATE as a no-op — leaving rotate enabled there would
+        // spin the camera mid-placement. Right-mouse drag on desktop,
+        // two-finger twist on mobile (DOLLY_ROTATE keeps pinch zoom).
+        enableRotate={selectedKind === null}
+        minPolarAngle={BATTLE_MIN_POLAR}
+        maxPolarAngle={BATTLE_MAX_POLAR}
+        rotateSpeed={0.6}
+        touchTwo={THREE.TOUCH.DOLLY_ROTATE}
       />
     </group>
   );
