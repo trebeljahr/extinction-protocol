@@ -177,6 +177,7 @@ const fireHeroShot = (world: World, hero: Hero, target: Enemy) => {
       hero.attackSplashRadius,
       HERO_PROJECTILE_SPEED,
       false,
+      { fromHero: true },
     );
   } else {
     createProjectile(
@@ -189,6 +190,7 @@ const fireHeroShot = (world: World, hero: Hero, target: Enemy) => {
       0,
       HERO_PROJECTILE_SPEED,
       false,
+      { fromHero: true },
     );
   }
   hero.shootFlashUntil = world.time + 0.18;
@@ -212,6 +214,7 @@ const firePendingShot = (
     shot.splashRadius,
     18,
     false,
+    { fromHero: true },
   );
   emit(world, { type: "shoot", towerId: hero.id, towerKind: "mortar", pos: hero.pos });
 };
@@ -286,6 +289,49 @@ const respawnHero = (world: World, hero: Hero) => {
   spawnParticles(world, hero.pos, 24, "#9fd8ff", [2, 5], 0.5);
 };
 
+// Forward-corridor blocker bypass. When a tower/tree/rock sits in the
+// hero's near-future path corridor, return a lateral target that steps
+// around it on the side closest to the original `defaultLateral`. May
+// exceed HERO_LANE_HALF — the lane clamp is intentionally overridden
+// here so the hero can route around obstacles that intrude on the lane
+// envelope (notably towers placed at the lane edge). Iterates blockers
+// sequentially; each pass refines `lateral` against any blocker still
+// within the corridor at the updated lateral.
+const BLOCKER_BYPASS_LOOKAHEAD = 3.0;
+const BLOCKER_BYPASS_BEHIND = 0.4;
+const BLOCKER_BYPASS_CLEARANCE = 0.18;
+const BLOCKER_BYPASS_MAX_LATERAL = 2.2;
+
+const lateralBypassForBlockers = (
+  world: World,
+  path: Vec2[],
+  heroProgress: number,
+  defaultLateral: number,
+  forwardSign: number,
+): number => {
+  let lateral = defaultLateral;
+  const dir = forwardSign >= 0 ? 1 : -1;
+  const consider = (cx: number, cy: number, br: number) => {
+    const proj = projectOnPath(path, { x: cx, y: cy });
+    const bProg = pathProgress(path, proj.segment, proj.segmentT);
+    const along = (bProg - heroProgress) * dir;
+    if (along < -BLOCKER_BYPASS_BEHIND || along > BLOCKER_BYPASS_LOOKAHEAD) return;
+    const minGap = br + HERO_RADIUS + BLOCKER_BYPASS_CLEARANCE;
+    if (Math.abs(proj.lateralOffset - lateral) >= minGap) return;
+    const lowSide = proj.lateralOffset - minGap;
+    const highSide = proj.lateralOffset + minGap;
+    const distLow = Math.abs(defaultLateral - lowSide);
+    const distHigh = Math.abs(defaultLateral - highSide);
+    lateral = distLow <= distHigh ? lowSide : highSide;
+  };
+  for (const t of world.towers) consider(t.pos.x, t.pos.y, TOWER_FOOTPRINT * 0.6);
+  for (const tr of world.trees) consider(tr.pos.x, tr.pos.y, TREE_FOOTPRINT * tr.scale);
+  for (const rk of world.rocks) consider(rk.pos.x, rk.pos.y, ROCK_FOOTPRINT * rk.scale);
+  if (lateral > BLOCKER_BYPASS_MAX_LATERAL) lateral = BLOCKER_BYPASS_MAX_LATERAL;
+  if (lateral < -BLOCKER_BYPASS_MAX_LATERAL) lateral = -BLOCKER_BYPASS_MAX_LATERAL;
+  return lateral;
+};
+
 // Local steering: nudge desired velocity sideways around any blocker
 // the hero is heading at. Skips obstacles behind the hero or outside
 // the look-ahead cone. Multiple obstacles sum so a cluster (grove)
@@ -354,7 +400,9 @@ const tickPayload = (world: World, hero: Hero) => {
       return 1;
     }
     if (world.time >= p.nextTickAt) {
-      applyDamage(world, target, p.tickDamage, p.damageType, "#ffb054", 4);
+      applyDamage(world, target, p.tickDamage, p.damageType, "#ffb054", 4, false, {
+        fromHero: true,
+      });
       target.flashUntil = world.time + 0.1;
       spawnParticles(world, target.pos, 4, "#ff8a3a", [2, 5], 0.3);
       p.nextTickAt = world.time + 0.5;
@@ -461,9 +509,20 @@ export const updateHero = (world: World, dt: number) => {
       const progressDelta = targetProgress - heroProgress;
       // Clamp the desired-lateral to the lane half-width so the hero
       // can't stand on top of a tree even if the click landed off-road.
-      const targetLateral = Math.max(
+      const baseTargetLateral = Math.max(
         -HERO_LANE_HALF,
         Math.min(HERO_LANE_HALF, targetProj.lateralOffset),
+      );
+      // Bypass-override: if a tower/tree/rock sits in the forward
+      // corridor, step around it. May exceed HERO_LANE_HALF; the
+      // override drives the hero past the obstacle then the next-tick
+      // re-evaluation lets them rejoin the lane.
+      const targetLateral = lateralBypassForBlockers(
+        world,
+        path,
+        heroProgress,
+        baseTargetLateral,
+        Math.sign(targetProgress - heroProgress),
       );
       const dir = smoothDirection(path, heroProj.segment, heroProj.segmentT);
       const tangentLen = Math.hypot(dir.x, dir.y);
@@ -740,7 +799,9 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, hero.pos) > r2) continue;
-      applyDamage(world, e, spec.damage, spec.damageType, "#ffb054", 10);
+      applyDamage(world, e, spec.damage, spec.damageType, "#ffb054", 10, false, {
+        fromHero: true,
+      });
       e.flashUntil = world.time + 0.12;
     }
     createExplosion(world, hero.pos, spec.radius, 0.45);

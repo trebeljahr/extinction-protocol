@@ -17,6 +17,7 @@ const applyHit = (world: World, p: Projectile) => {
     resistStrip: p.resistStrip,
     regenSuppressOnHit: p.regenSuppressOnHit,
     attackerTowerId: p.ownerTowerId,
+    fromHero: p.fromHero,
   };
 
   if (p.kind === "splash") {

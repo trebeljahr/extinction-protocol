@@ -328,6 +328,13 @@ export type Hero = {
   // 0..1 fraction of incoming damage absorbed (1 = invuln). Driven by
   // the slot-2 self-buff; 0 when no buff is active.
   damageResist: number;
+  // Enemies this hero personally killed this run. Credited in
+  // applyDamage when the kill source carries this hero's id (auto-shots,
+  // burst, incinerate ticks, dash coal embers).
+  kills: number;
+  // Total damage this hero dealt this run. Clamped to remaining HP per
+  // hit so overkill doesn't inflate the stat.
+  damageDealt: number;
   // Slot-3 ongoing effect — mark buff or incinerate burn. Null when no
   // ultimate is currently in flight.
   payload: HeroPayloadState | null;
@@ -448,6 +455,10 @@ export type Projectile = {
   // applyDamage so kill credit lands on the firing tower even if it
   // was sold or upgraded between fire and impact.
   ownerTowerId: EntityId | null;
+  // Set when the projectile came from a hero attack (shot or ability
+  // mortar). Forwarded into applyDamage so hero XP attribution survives
+  // the projectile's flight time.
+  fromHero: boolean;
   // Mortar Targeting meta — extra damage applied at splash impact when
   // ≥CLUSTER_THRESHOLD enemies sit inside the splash radius. 0 = no bonus.
   clusterDamageBonus: number;

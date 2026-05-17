@@ -16,7 +16,7 @@ import {
   xpForEnemyKill,
 } from "./heroSkills";
 import { HERO_SPECS } from "./heroVariants";
-import { prependLeadIn, samplePath, SMOOTH_PATH_SUBDIVISIONS, smoothPath } from "./path";
+import { prependLeadIn, SMOOTH_PATH_SUBDIVISIONS, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
 import type {
@@ -99,6 +99,8 @@ const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number)
     fireRateMul: 1,
     speedMul: 1,
     damageResist: 0,
+    kills: 0,
+    damageDealt: 0,
     payload: null,
     selfBuff: null,
     pendingShots: [],
@@ -512,25 +514,67 @@ export const createWorld = (
   // life pool. The runtime never tops these up, so this is the only
   // place the value is set per run.
   const startingLives = modeConfig.singleLife ? 1 : STARTING_LIVES;
-  // Hero spawns a few units back from HQ along the first path's tangent,
-  // shifted off-center so she doesn't sit on the lane. Reuses the path
-  // end direction so the spawn lines up with whichever side faces HQ.
-  const firstPath = paths[0] ?? [
+  // Hero spawns ON the path, one short step in front of the HQ — she
+  // guards the base directly. Multi-entry maps pick the path whose HQ
+  // endpoint sits closest to the centroid of all HQs so the hero lands
+  // on the most central front line.
+  const hqEnds: Vec2[] = paths.map((p) => p[p.length - 1] ?? { x: 0, y: 0 });
+  let cx = 0;
+  let cy = 0;
+  for (const h of hqEnds) {
+    cx += h.x;
+    cy += h.y;
+  }
+  const denom = Math.max(1, hqEnds.length);
+  cx /= denom;
+  cy /= denom;
+  let pickIdx = 0;
+  let bestD = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < hqEnds.length; i++) {
+    const dx = hqEnds[i].x - cx;
+    const dy = hqEnds[i].y - cy;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) {
+      bestD = d;
+      pickIdx = i;
+    }
+  }
+  const guardPath = paths[pickIdx] ?? [
     { x: 0, y: 0 },
     { x: 0, y: 0 },
   ];
-  const endPt = firstPath[firstPath.length - 1] ?? { x: 0, y: 0 };
-  const prevPt = firstPath[firstPath.length - 2] ?? endPt;
-  const tx = endPt.x - prevPt.x;
-  const ty = endPt.y - prevPt.y;
+  const endPt = guardPath[guardPath.length - 1] ?? { x: 0, y: 0 };
+  // Walk backwards along the path until we've stepped this many world
+  // units away from the HQ. Keeps the hero on the authored lane regardless
+  // of how dense the smoothing subdivisions are.
+  const HERO_FRONT_OFFSET = 2.6;
+  let spawnX = endPt.x;
+  let spawnY = endPt.y;
+  let remaining = HERO_FRONT_OFFSET;
+  for (let i = guardPath.length - 1; i > 0 && remaining > 0; i--) {
+    const a = guardPath[i];
+    const b = guardPath[i - 1];
+    const segDx = b.x - a.x;
+    const segDy = b.y - a.y;
+    const segLen = Math.hypot(segDx, segDy);
+    if (segLen <= 0) continue;
+    if (segLen >= remaining) {
+      const t = remaining / segLen;
+      spawnX = a.x + segDx * t;
+      spawnY = a.y + segDy * t;
+      remaining = 0;
+      break;
+    }
+    spawnX = b.x;
+    spawnY = b.y;
+    remaining -= segLen;
+  }
+  const heroSpawn: Vec2 = { x: spawnX, y: spawnY };
+  const tx = endPt.x - spawnX;
+  const ty = endPt.y - spawnY;
   const tl = Math.hypot(tx, ty) || 1;
   const tdx = tx / tl;
   const tdy = ty / tl;
-  // Perpendicular off-lane offset (left of travel direction).
-  const heroSpawn: Vec2 = {
-    x: endPt.x - tdx * 2.6 + -tdy * 2.4,
-    y: endPt.y - tdy * 2.6 + tdx * 2.4,
-  };
   const hero = heroDefaults(heroCtx.variant, heroSpawn, nextId, heroCtx.xp);
   hero.facing = Math.atan2(-tdx, tdy);
   applyHeroSkillsToHero(hero, heroCtx.skills);
@@ -1046,6 +1090,11 @@ export type HitOptions = {
   resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
   regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
   attackerTowerId?: EntityId | null;
+  // Killing-blow attribution for hero XP. Set true on every hero-sourced
+  // damage path (hero shots, payload ticks, burst abilities, coal embers,
+  // dash trails). The kill branch in applyDamage gates the hero.xp award
+  // on this flag so tower-only kills no longer drip XP into the hero.
+  fromHero?: boolean;
   // Mortar Targeting meta — projectile splash applies +bonus damage when
   // ≥CLUSTER_THRESHOLD enemies are in the splash radius. Forwarded to
   // the Projectile and consumed in projectiles.ts:applyHit.
@@ -1095,6 +1144,7 @@ export const applyDamage = (
         const attacker = world.towerById.get(hitOpts.attackerTowerId);
         if (attacker) attacker.damageDealt += dealt;
       }
+      if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
       return;
     }
   }
@@ -1145,6 +1195,7 @@ export const applyDamage = (
     const attacker = world.towerById.get(hitOpts.attackerTowerId);
     if (attacker) attacker.damageDealt += dealt;
   }
+  if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
@@ -1152,11 +1203,16 @@ export const applyDamage = (
       const attacker = world.towerById.get(hitOpts.attackerTowerId);
       if (attacker) attacker.kills += 1;
     }
-    // Hero XP — every kill drips into the active hero. Persistent across
-    // runs via the store's tick → progress.heroXp merge. Tower kills
-    // count too: the player picks the hero loadout and the run, so the
-    // whole result rolls back into that hero's growth.
-    world.hero.xp += xpForEnemyKill(enemy.maxHp);
+    // Hero XP + kill credit — only awarded when the killing blow came
+    // from the hero (any hero-sourced damage path tags hitOpts.fromHero).
+    // XP persists across runs via the store's tick → progress.heroXp
+    // merge. Tower kills no longer feed hero XP; the hero must do the
+    // work itself. Killing-blow attribution (vs damage-share weighting)
+    // keeps the accounting trivial and matches tower kill-credit semantics.
+    if (hitOpts?.fromHero) {
+      world.hero.kills += 1;
+      world.hero.xp += xpForEnemyKill(enemy.maxHp);
+    }
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
     emit(world, { type: "death", pos: enemy.pos });
     // Boss kill — extra payout on top of the normal bounty so the
@@ -1502,6 +1558,7 @@ export const createProjectile = (
     resistStrip: hitOpts?.resistStrip ?? 0,
     regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
     ownerTowerId: hitOpts?.attackerTowerId ?? null,
+    fromHero: hitOpts?.fromHero ?? false,
     clusterDamageBonus: hitOpts?.clusterDamageBonus ?? 0,
   };
   world.projectiles.push(p);
@@ -1559,7 +1616,9 @@ export const updateCoalEmbers = (world: World, _dt: number) => {
         const dx = enemy.pos.x - e.pos.x;
         const dy = enemy.pos.y - e.pos.y;
         if (dx * dx + dy * dy > r2) continue;
-        applyDamage(world, enemy, e.tickDamage, "flame", "#ff8a3a", 3);
+        applyDamage(world, enemy, e.tickDamage, "flame", "#ff8a3a", 3, false, {
+          fromHero: true,
+        });
       }
       e.nextTickAt = world.time + COAL_TICK_INTERVAL;
     }
