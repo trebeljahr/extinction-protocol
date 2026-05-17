@@ -682,6 +682,13 @@ export const updateRobot = (world: World, dt: number) => {
         walking = distAlong > 0.04 || Math.abs(lateralDelta) > 0.05;
         robot.pathIndex = pi;
         robot.lateralOffset = robotProj.lateralOffset;
+        // Path-bound follow has converged but straight-line distance to
+        // moveTarget still exceeds ROBOT_ARRIVE_RADIUS — clicked point
+        // sits past the path end or off-lane. Clear the order so the
+        // path marker disappears instead of hanging on the map.
+        if (!walking) {
+          robot.moveTarget = null;
+        }
       } else {
         // Degenerate path segment — fall back to straight-line aim so
         // we don't freeze the robot.
@@ -776,11 +783,7 @@ export const updateRobot = (world: World, dt: number) => {
   const hurtR2 = ROBOT_HURT_RANGE * ROBOT_HURT_RANGE;
   let closest: Enemy | null = null;
   let closestD2 = Number.POSITIVE_INFINITY;
-  if (
-    robot.alive &&
-    world.time >= robot.abilityActiveUntil[0] &&
-    world.time >= robot.iFrameUntil
-  ) {
+  if (robot.alive && world.time >= robot.abilityActiveUntil[0] && world.time >= robot.iFrameUntil) {
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (e.leak) continue;
