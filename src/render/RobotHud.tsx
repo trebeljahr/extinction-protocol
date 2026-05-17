@@ -12,6 +12,25 @@ const ROBOT_DEATH_DURATION = 0.85;
 const ROBOT_DEATH_EXPLOSION_DURATION = 0.7;
 const ROBOT_DEATH_CORE_DURATION = 0.22;
 
+// Arrow geometry lives in the local XZ plane with +Z as "forward"
+// (the dash direction). The aim group's yaw rotation maps local +Z
+// onto the world-space dash vector via yaw = atan2(dir.x, -dir.y).
+const ARROW_BASE_W = 0.32;
+const ARROW_TIP_W = 0.42;
+// Three sliding chevrons ride the shaft to signal "armed and ready".
+const CHEVRON_COUNT = 3;
+const CHEVRON_GLYPH = (() => {
+  const g = new THREE.BufferGeometry();
+  // Forward-pointing chevron lying on the XZ plane. Tip at +Z, wings
+  // open toward -Z, so the chevron points along the dash direction.
+  const verts = new Float32Array([
+    0, 0, 0.18, 0.28, 0, -0.06, 0.12, 0, -0.06, 0, 0, 0.18, -0.12, 0, -0.06, -0.28, 0, -0.06,
+  ]);
+  g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+  g.computeVertexNormals();
+  return g;
+})();
+
 export const RobotHud = () => {
   const variant = useGame((s) => s.world.robot.variant);
   const tint = ROBOT_SPECS[variant].tint;
@@ -24,17 +43,32 @@ export const RobotHud = () => {
   const moveGeom = useMemo(() => new THREE.RingGeometry(0.4, 0.55, 32), []);
   const selGeom = useMemo(() => new THREE.RingGeometry(1.1, 1.32, 48), []);
   const selRef = useRef<THREE.Mesh>(null);
-  // Dash-aim arrow assembled from a thin shaft + triangular head; both
-  // ride a parent group so we can rotate/position once per frame.
+  // Dash-aim arrow assembled from a tapered shaft, a chunky arrowhead,
+  // sliding chevrons, and a landing reticle at the endpoint. Everything
+  // rides a parent group so we can rotate/position once per frame; the
+  // shaft + arrowhead geometries are stretched to the variant's actual
+  // dash distance (speed × duration) by mutating their position attrs.
   const aimGroupRef = useRef<THREE.Group>(null);
-  const aimShaftGeom = useMemo(() => new THREE.PlaneGeometry(2.6, 0.16), []);
+  const aimRingRef = useRef<THREE.Mesh>(null);
+  const aimRingInnerRef = useRef<THREE.Mesh>(null);
+  const chevronRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const aimShaftGeom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const verts = new Float32Array(4 * 3);
+    g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    g.computeVertexNormals();
+    return g;
+  }, []);
   const aimHeadGeom = useMemo(() => {
     const g = new THREE.BufferGeometry();
-    const verts = new Float32Array([0, 0, 0.32, -0.32, 0, -0.18, -0.32, 0, 0.18]);
+    const verts = new Float32Array(3 * 3);
     g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
     g.computeVertexNormals();
     return g;
   }, []);
+  const aimLandingRing = useMemo(() => new THREE.RingGeometry(0.62, 0.78, 36), []);
+  const aimLandingDot = useMemo(() => new THREE.CircleGeometry(0.18, 24), []);
   // Death shockwave + flash — mirrors the HQ explosion sequence so a
   // robot wipe feels equally violent.
   const deathFlashRef = useRef<THREE.Mesh>(null);
@@ -70,9 +104,11 @@ export const RobotHud = () => {
     } else {
       selRef.current.visible = false;
     }
-    // Dash aim arrow (armed dash, any variant). Sin-pulsed scale +
-    // opacity sells the "armed and waiting" read while the cursor
-    // steers the dir.
+    // Dash aim arrow (armed dash, any variant). Shaft + arrowhead +
+    // landing reticle stretch to the variant's actual dash distance so
+    // the player previews where the lunge will land. Three chevrons
+    // slide forward along the shaft at world.time to sell "armed and
+    // ready to fire" without animating the body of the arrow itself.
     const aim = aimGroupRef.current;
     if (aim) {
       if (robot.alive && robot.dashAim) {
@@ -81,8 +117,56 @@ export const RobotHud = () => {
         const yaw = Math.atan2(dir.x, -dir.y);
         aim.position.set(robot.pos.x, 0.08, -robot.pos.y);
         aim.rotation.set(0, yaw, 0);
-        const pulse = 0.92 + Math.sin(world.time * 8) * 0.08;
+        const pulse = 0.97 + Math.sin(world.time * 7) * 0.03;
         aim.scale.setScalar(pulse);
+
+        const dashSpec = ROBOT_SPECS[robot.variant].abilities[0];
+        const dashLen = dashSpec.speed * dashSpec.duration;
+        const headLen = Math.min(0.9, dashLen * 0.32);
+        const shaftStart = 0.55;
+        const shaftEnd = dashLen - headLen;
+        const tipZ = dashLen;
+
+        const shaftPos = aimShaftGeom.getAttribute("position") as THREE.BufferAttribute;
+        const baseHalf = ARROW_BASE_W * 0.5;
+        const tipHalf = ARROW_TIP_W * 0.5;
+        shaftPos.setXYZ(0, -baseHalf, 0, shaftStart);
+        shaftPos.setXYZ(1, baseHalf, 0, shaftStart);
+        shaftPos.setXYZ(2, tipHalf, 0, shaftEnd);
+        shaftPos.setXYZ(3, -tipHalf, 0, shaftEnd);
+        shaftPos.needsUpdate = true;
+
+        const headPos = aimHeadGeom.getAttribute("position") as THREE.BufferAttribute;
+        const headHalf = 0.62;
+        headPos.setXYZ(0, 0, 0, tipZ);
+        headPos.setXYZ(1, headHalf, 0, shaftEnd - 0.05);
+        headPos.setXYZ(2, -headHalf, 0, shaftEnd - 0.05);
+        headPos.needsUpdate = true;
+
+        const usableShaftLen = Math.max(0.01, shaftEnd - shaftStart);
+        for (let i = 0; i < CHEVRON_COUNT; i++) {
+          const cm = chevronRefs.current[i];
+          if (!cm) continue;
+          if (usableShaftLen < 0.6) {
+            cm.visible = false;
+            continue;
+          }
+          cm.visible = true;
+          const phase = (world.time * 0.9 + i / CHEVRON_COUNT) % 1;
+          const z = shaftStart + phase * usableShaftLen;
+          cm.position.set(0, 0, z);
+          const fade = Math.min(phase * 3, (1 - phase) * 3, 1);
+          (cm.material as THREE.MeshBasicMaterial).opacity = 0.65 * Math.max(0, fade);
+        }
+
+        const ring = aimRingRef.current;
+        if (ring) {
+          ring.position.set(0, 0.01, tipZ);
+          const ringPulse = 1 + Math.sin(world.time * 6) * 0.08;
+          ring.scale.setScalar(ringPulse);
+        }
+        const ringDot = aimRingInnerRef.current;
+        if (ringDot) ringDot.position.set(0, 0.01, tipZ);
       } else {
         aim.visible = false;
       }
@@ -135,24 +219,64 @@ export const RobotHud = () => {
       <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
         <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
-      {/* Dash aim arrow — shaft + tip, anchored at robot pos. Hidden
-          unless robot.dashAim is set (any dash robot in aim window). */}
+      {/* Dash aim arrow — tapered shaft + bold arrowhead + sliding
+          chevrons + landing reticle, anchored at robot pos. Hidden
+          unless robot.dashAim is set. Shaft/head vertices rewritten
+          per-frame to match the variant's actual dash distance. */}
       <group ref={aimGroupRef} visible={false} renderOrder={4}>
-        <mesh geometry={aimShaftGeom} position={[0, 0, -1.7]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh geometry={aimShaftGeom}>
           <meshBasicMaterial
             color={tint}
             transparent
-            opacity={0.92}
+            opacity={0.85}
             toneMapped={false}
             depthWrite={false}
             side={THREE.DoubleSide}
           />
         </mesh>
-        <mesh geometry={aimHeadGeom} position={[0, 0, -3.1]} rotation={[0, 0, 0]}>
+        <mesh geometry={aimHeadGeom}>
           <meshBasicMaterial
             color={tint}
             transparent
-            opacity={0.98}
+            opacity={1}
+            toneMapped={false}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {Array.from({ length: CHEVRON_COUNT }, (_, i) => (
+          <mesh
+            key={i}
+            ref={(m) => {
+              chevronRefs.current[i] = m;
+            }}
+            geometry={CHEVRON_GLYPH}
+          >
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={0.65}
+              toneMapped={false}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        ))}
+        <mesh ref={aimRingRef} rotation={[-Math.PI / 2, 0, 0]} geometry={aimLandingRing}>
+          <meshBasicMaterial
+            color={tint}
+            transparent
+            opacity={0.85}
+            toneMapped={false}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        <mesh ref={aimRingInnerRef} rotation={[-Math.PI / 2, 0, 0]} geometry={aimLandingDot}>
+          <meshBasicMaterial
+            color={tint}
+            transparent
+            opacity={0.55}
             toneMapped={false}
             depthWrite={false}
             side={THREE.DoubleSide}

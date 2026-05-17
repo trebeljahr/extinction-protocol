@@ -666,7 +666,12 @@ export type GameEvent =
   | { type: "wave-called-early" }
   | { type: "easter-egg-click"; defId: string }
   | { type: "flame-start"; towerId: number; pos: Vec2 }
-  | { type: "flame-stop"; towerId: number };
+  | { type: "flame-stop"; towerId: number }
+  | {
+      type: "robot-ability";
+      kind: "dash-aim" | "dash" | "burst" | "buff" | "barrage" | "mark" | "incinerate" | "killshot";
+      pos: Vec2;
+    };
 
 export type Shake = {
   magnitude: number;

@@ -161,6 +161,39 @@ export const useAudioBridge = () => {
         case "flame-stop":
           audio.stopFlame(e.towerId);
           break;
+        case "robot-ability": {
+          // Per-ability voicing reuses the existing tower/shot sample
+          // library so the player gets feedback on every cast without
+          // shipping new audio assets.
+          if (state.screen !== "playing" || state.world.status !== "running") break;
+          switch (e.kind) {
+            case "dash-aim":
+              audio.ui("tab");
+              break;
+            case "dash":
+              audio.play("shoot-pulse", "towers", 0.55, 80, 0.35);
+              break;
+            case "burst":
+              audio.play("shoot-mortar", "towers", 0.5, 120, 1.0);
+              break;
+            case "buff":
+              audio.play("upgrade", "ui", 0.6, 120, 0.9);
+              break;
+            case "barrage":
+              audio.play("shoot-mortar", "towers", 0.6, 120, 1.4);
+              break;
+            case "mark":
+              audio.play("shoot-chain", "towers", 0.55, 120, 0.9);
+              break;
+            case "incinerate":
+              audio.play("shoot-flame", "towers", 0.45, 120, 0.9);
+              break;
+            case "killshot":
+              audio.play("shoot-pulse", "towers", 0.7, 120, 0.6);
+              break;
+          }
+          break;
+        }
         case "game-over":
           audio.stopAllSfx();
           audio.stopMusic();

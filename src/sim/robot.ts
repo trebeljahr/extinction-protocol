@@ -1002,6 +1002,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       if (world.time < robot.abilityReadyAt[slot]) return false;
       const initial = dashDir(robot);
       robot.dashAim = { dir: initial, expiresAt: world.time + DASH_AIM_LIFETIME };
+      emit(world, { type: "robot-ability", kind: "dash-aim", pos: robot.pos });
       return true;
     }
     if (world.time < robot.abilityReadyAt[slot]) {
@@ -1012,6 +1013,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     robot.dashAim = null;
     robot.abilityReadyAt[slot] = world.time + spec.cooldown * robot.abilityCooldownMul;
     commitDash(world, robot, variant, spec, dir);
+    emit(world, { type: "robot-ability", kind: "dash", pos: robot.pos });
     return true;
   }
 
@@ -1023,6 +1025,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     // through the 2-stage path above. This branch keeps a single-press
     // fallback if a future variant puts a dash in another slot.
     commitDash(world, robot, variant, spec, dashDir(robot));
+    emit(world, { type: "robot-ability", kind: "dash", pos: robot.pos });
     return true;
   }
 
@@ -1077,6 +1080,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     spawnParticles(world, robot.pos, 14, variant.tint, [4, 9], 0.4);
     addShake(world, 0.4, 5);
     emit(world, { type: "impact", pos: robot.pos });
+    emit(world, { type: "robot-ability", kind: "burst", pos: robot.pos });
     return true;
   }
 
@@ -1089,6 +1093,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       damageResist: spec.damageResist,
     };
     spawnParticles(world, robot.pos, 18, variant.tint, [2, 5], 0.5);
+    emit(world, { type: "robot-ability", kind: "buff", pos: robot.pos });
     return true;
   }
 
@@ -1122,6 +1127,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
         );
       }
     }
+    emit(world, { type: "robot-ability", kind: "barrage", pos: robot.pos });
     return true;
   }
 
@@ -1159,6 +1165,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       robot.payload = base;
     }
     spawnParticles(world, robot.pos, 18, variant.tint, [2, 5], 0.5);
+    emit(world, { type: "robot-ability", kind: "mark", pos: robot.pos });
     return true;
   }
 
@@ -1177,6 +1184,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     };
     spawnParticles(world, target.pos, 24, "#ff8a3a", [3, 7], 0.5);
     emit(world, { type: "impact", pos: target.pos });
+    emit(world, { type: "robot-ability", kind: "incinerate", pos: target.pos });
     return true;
   }
 
@@ -1198,6 +1206,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       damageType: spec.damageType,
     };
     spawnParticles(world, robot.pos, 12, variant.tint, [2, 5], 0.45);
+    emit(world, { type: "robot-ability", kind: "killshot", pos: robot.pos });
     return true;
   }
 
