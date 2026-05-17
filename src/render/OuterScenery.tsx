@@ -13,7 +13,7 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
-import { sampleStratifiedFeatures, worleyFieldFromFeatures } from "../sim/worley";
+import { sampleStratifiedFeatures } from "../sim/worley";
 import { useGame } from "../store";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
@@ -35,10 +35,6 @@ const INNER_HALF_H = MAP_HEIGHT / 2 - 0.5;
 // so the rim and the inner area share the same "neighbours can almost
 // touch, but not visually overlap" convention.
 const PROP_SPACING_SLACK = 0.15;
-// Sparse-region Poisson radius is r_min × this. >1 spreads outliers out
-// between Worley features instead of packing every prop into the densest
-// pocket. Matches Ground.tsx's DECOR_MAX_SPACING_MUL.
-const DECOR_MAX_SPACING_MUL = 2.0;
 
 const defaultFootprint = (url: string): number => {
   const f = url.toLowerCase();
@@ -79,57 +75,15 @@ const cosmeticScale = (rng: () => number): number => 0.7 + ((rng() + rng()) / 2)
 const layerScale = (rng: () => number, layer: BiomeLayer): number =>
   layer.minScale + ((rng() + rng()) / 2) * (layer.maxScale - layer.minScale);
 
-// Sample a position uniformly inside the band (outer rect minus inner rect).
-// Pick which side of the band by area weight, then sample uniformly inside
-// that side. Sides overlap at corners; that's fine.
-const sampleBandPoint = (rng: () => number): Vec2 => {
-  const horizontalArea = OUTER_HALF_W * 2 * (OUTER_HALF_H - INNER_HALF_H);
-  const verticalArea = (OUTER_HALF_W - INNER_HALF_W) * INNER_HALF_H * 2;
-  const totalArea = 2 * horizontalArea + 2 * verticalArea;
-  const r = rng() * totalArea;
-  let acc = horizontalArea;
-  if (r < acc) {
-    return {
-      x: (rng() - 0.5) * 2 * OUTER_HALF_W,
-      y: INNER_HALF_H + rng() * (OUTER_HALF_H - INNER_HALF_H),
-    };
-  }
-  acc += horizontalArea;
-  if (r < acc) {
-    return {
-      x: (rng() - 0.5) * 2 * OUTER_HALF_W,
-      y: -INNER_HALF_H - rng() * (OUTER_HALF_H - INNER_HALF_H),
-    };
-  }
-  acc += verticalArea;
-  if (r < acc) {
-    return {
-      x: -INNER_HALF_W - rng() * (OUTER_HALF_W - INNER_HALF_W),
-      y: (rng() - 0.5) * 2 * INNER_HALF_H,
-    };
-  }
-  return {
-    x: INNER_HALF_W + rng() * (OUTER_HALF_W - INNER_HALF_W),
-    y: (rng() - 0.5) * 2 * INNER_HALF_H,
-  };
-};
-
 const insideInner = (x: number, y: number): boolean =>
   Math.abs(x) < INNER_HALF_W && Math.abs(y) < INNER_HALF_H;
 
-// Pick K Worley features in the band so the resulting density field
-// only invests in band area (features in the inner exclusion would
-// waste falloff on the playable rect). Each side of the band gets a
-// proportional share, stratified inside that side's rect — pure random
-// rim sampling reliably stacked features on one side of the map and
-// left the other bare.
+// Four band rects (top/bottom/left/right) stratified independently —
+// stratifying over OUTER_BOUNDS as one rect wastes ~56% of seeds inside
+// the inner exclusion. Per-side stratification keeps coverage even
+// around the rim.
 const BAND_SIDES = (() => {
-  const top = {
-    minX: -OUTER_HALF_W,
-    maxX: OUTER_HALF_W,
-    minY: INNER_HALF_H,
-    maxY: OUTER_HALF_H,
-  };
+  const top = { minX: -OUTER_HALF_W, maxX: OUTER_HALF_W, minY: INNER_HALF_H, maxY: OUTER_HALF_H };
   const bottom = {
     minX: -OUTER_HALF_W,
     maxX: OUTER_HALF_W,
@@ -142,20 +96,15 @@ const BAND_SIDES = (() => {
     minY: -INNER_HALF_H,
     maxY: INNER_HALF_H,
   };
-  const right = {
-    minX: INNER_HALF_W,
-    maxX: OUTER_HALF_W,
-    minY: -INNER_HALF_H,
-    maxY: INNER_HALF_H,
-  };
+  const right = { minX: INNER_HALF_W, maxX: OUTER_HALF_W, minY: -INNER_HALF_H, maxY: INNER_HALF_H };
   const area = (b: typeof top) => (b.maxX - b.minX) * (b.maxY - b.minY);
   return [top, bottom, left, right].map((bounds) => ({ bounds, area: area(bounds) }));
 })();
 
-const pickBandFeatures = (seed: number, count: number): Vec2[] => {
+const bandInitialPoints = (seed: number, count: number): Vec2[] => {
   if (count <= 0) return [];
   const totalArea = BAND_SIDES.reduce((s, side) => s + side.area, 0);
-  const features: Vec2[] = [];
+  const out: Vec2[] = [];
   let placed = 0;
   for (let i = 0; i < BAND_SIDES.length; i++) {
     const side = BAND_SIDES[i];
@@ -164,10 +113,10 @@ const pickBandFeatures = (seed: number, count: number): Vec2[] => {
       ? Math.max(0, count - placed)
       : Math.round((count * side.area) / totalArea);
     if (share <= 0) continue;
-    features.push(...sampleStratifiedFeatures(seed + i * 7919, side.bounds, share));
+    out.push(...sampleStratifiedFeatures(seed + i * 7919, side.bounds, share));
     placed += share;
   }
-  return features;
+  return out;
 };
 
 const OUTER_BOUNDS = {
@@ -177,12 +126,11 @@ const OUTER_BOUNDS = {
   maxY: OUTER_HALF_H,
 };
 
-// Mirror one BIOME_LAYER on the band at proportional count using the
-// layer's own cluster config (now Worley-driven). Spacing is derived
-// from the layer's footprint × scale so rocks don't pile on top of each
-// other and grass doesn't waste space between blades. Spacing-checks
-// against the running `out` list so previously-placed layers don't
-// collide.
+// Mirror one BIOME_LAYER on the band at proportional count using uniform
+// Poisson sampling — non-removable outer decor should spread evenly
+// across the band rather than clump into Worley features. Spacing is
+// derived from the layer's footprint × max scale. Spacing-checks against
+// the running `out` list so previously-placed layers don't collide.
 const placeLayerInBand = (
   out: Instance[],
   layer: BiomeLayer,
@@ -196,18 +144,7 @@ const placeLayerInBand = (
   if (targetCount === 0) return;
 
   const seedBase = layer.seed * 17 + levelId * 4451 + layerIndex * 991;
-  const sigma = layer.cluster?.sigma ?? 2.0;
-  const featureRadius = sigma * 2.0;
-  const featureCount = Math.max(4, Math.round((layer.cluster?.seeds ?? 5) * Math.sqrt(BAND_RATIO)));
-  const features = pickBandFeatures(seedBase, featureCount);
-  const worley = worleyFieldFromFeatures(features, featureRadius);
-
   const rMin = layerMinSpacing(layer);
-  const rMax = rMin * DECOR_MAX_SPACING_MUL;
-  const radiusAt = (x: number, y: number): number => {
-    const d = worley.density(x, y);
-    return rMin + (1 - d) * (rMax - rMin);
-  };
 
   // Conservative footprint for the cross-layer check — use this layer's
   // max-scale instance so a worst-case sibling at the candidate position
@@ -219,25 +156,24 @@ const placeLayerInBand = (
     for (const o of out) {
       const dx = o.pos.x - x;
       const dy = o.pos.y - y;
-      // Both candidate and existing instances carry their own size, but
-      // we don't track per-instance footprint here. Approximate with the
-      // larger of the two candidate radii — keeps it conservative.
       const min = candidateR + PROP_SPACING_SLACK;
       if (dx * dx + dy * dy < min * min) return false;
     }
     return true;
   };
 
+  const initialPoints = bandInitialPoints(
+    seedBase + 4099,
+    Math.max(4, Math.ceil(Math.sqrt(targetCount) * 2)),
+  );
+
   const points = poissonDiskSample({
     bounds: OUTER_BOUNDS,
-    radiusAt,
+    radiusAt: () => rMin,
     isValid,
     maxCount: targetCount,
     seed: seedBase + 7,
-    // Seed one Bridson frontier per Worley feature so clusters
-    // populate together rather than stacking around the first feature
-    // the algorithm happens to hit.
-    initialPoints: features,
+    initialPoints,
   });
 
   const detailRng = mulberry32(seedBase + 13);
@@ -274,12 +210,18 @@ const placeUniformInBand = (
     return true;
   };
 
+  const initialPoints = bandInitialPoints(
+    seed + 4099,
+    Math.max(4, Math.ceil(Math.sqrt(count) * 2)),
+  );
+
   const points = poissonDiskSample({
     bounds: OUTER_BOUNDS,
     radiusAt: () => minSep,
     isValid,
     maxCount: count,
     seed,
+    initialPoints,
   });
 
   const detailRng = mulberry32(seed + 31);

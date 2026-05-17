@@ -15,7 +15,7 @@ import { mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
 import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
-import { createWorleyField, type WorleyField } from "../sim/worley";
+import { sampleStratifiedFeatures } from "../sim/worley";
 import { useGame } from "../store";
 
 const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
@@ -51,45 +51,17 @@ const layerFootprint = (spec: BiomeLayer): number =>
 // neighbours visually distinct without forcing them to never touch.
 const PROP_SPACING_SLACK = 0.35;
 
-// Sparse-region spacing multiplier — Poisson radius in low-density
-// Worley regions is r_min × this. >1 spreads outliers out.
-const DECOR_MAX_SPACING_MUL = 2.3;
-
-// Ground-cover mode tunables. Small non-blocking decor (grass, mushroom,
-// flowers, pebbles, shards) should sprinkle near-uniformly over the
-// whole playable area, not clump into a handful of Worley features the
-// way trees/rocks do. Achieved by:
-//   1. Density-driven feature count — one feature per ~22 world-units²
-//      tiles the map with ~40 small Worley centres so every spot is
-//      inside (or close to) a feature's halo.
-//   2. Small feature radius (2.0) so each centre's high-density zone
-//      stays local.
-//   3. Tight rMin/rMax ratio (1.35×) so the spacing variation between
-//      "dense" and "sparse" is mild — gentle clumping, no bare regions.
-//   4. Reduced cross-layer slack (0.05) so a dense grass field still
-//      leaves room for mushrooms/flowers to slot in between tufts
-//      instead of being completely shut out.
-const GROUND_COVER_AREA_PER_FEATURE = 22;
-const GROUND_COVER_FEATURE_RADIUS = 2.0;
-const GROUND_COVER_MAX_SPACING_MUL = 1.35;
+// Cross-groundCover-layer slack — smaller than PROP_SPACING_SLACK so a
+// dense grass field still leaves room for mushrooms/flowers to slot in
+// between tufts instead of being completely shut out. Footprint sums
+// still keep meshes from physically overlapping.
 const GROUND_COVER_CROSS_SLACK = 0.05;
 
-// Shared blocker-cluster Worley parameters. All non-groundCover layers in
-// a biome reuse the same Worley field so rocks, bushes, dead trees,
-// crystals etc. centre on the SAME density peaks instead of each carving
-// out its own monoculture pocket. The player sees mixed clusters of
-// multiple types interleaved across the map rather than "a clump of
-// rocks here, a clump of bushes there". sigma is tuned generous so the
-// halos overlap and cluster-mode layers still pack tight inside them.
-const SHARED_CLUSTER_SEEDS = 6;
-const SHARED_CLUSTER_SIGMA = 2.6;
-
-// Build placements for one non-blocking layer using a Worley density
-// field + variable-radius Poisson disk sampling. Density features come
-// from the layer's `cluster` config (seeds → feature count, sigma →
-// feature radius); Poisson packs tight inside features and loose
-// between them. External constraints (paths, lava, blockers, earlier
-// decor) plug into `isValid`.
+// Build placements for one non-blocking layer using uniform Poisson disk
+// sampling. Non-removable decor spreads evenly across the playable rect
+// (no Worley clustering) so the map reads as "alive and full" without
+// type-segregated clumps or bare patches. External constraints (paths,
+// lava, blockers, earlier decor) plug into `isValid`.
 const buildLayer = (
   paths: Vec2[][],
   spec: BiomeLayer,
@@ -98,8 +70,6 @@ const buildLayer = (
   lava: LavaFeatures | null,
   levelId: number,
   layerIndex: number,
-  sharedClusterWorley: WorleyField,
-  sharedGroundWorley: WorleyField,
 ): Placement[][] => {
   const buckets: Placement[][] = spec.urls.map(() => []);
   const footprint = layerFootprint(spec);
@@ -108,26 +78,14 @@ const buildLayer = (
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
   const isGroundCover = spec.groundCover === true;
 
-  // Shared density field — all non-groundCover layers in the biome use
-  // SHARED cluster centres so rocks/bushes/dead-trees/crystals interleave
-  // around the same peaks instead of forming type-segregated clumps.
-  // Ground-cover layers likewise share a single dense-tile field so types
-  // sprinkle uniformly across the whole playfield with consistent density,
-  // with collision ordering naturally interleaving them.
-  const worley = isGroundCover ? sharedGroundWorley : sharedClusterWorley;
   const seedBase = spec.seed + levelId * 1103 + layerIndex * 149;
 
   // Layer min-spacing — derived from footprint × avg scale × 2 (two
-  // halves touching) plus slack. Ground-cover layers use a tight
-  // rMin/rMax ratio so spacing variation reads as gentle thinning
-  // rather than dense-vs-empty patches.
+  // halves touching) plus slack. Constant radius across the map yields
+  // a near-uniform Poisson scatter.
   const avgScale = (spec.minScale + spec.maxScale) / 2;
   const rMin = 2 * footprint * avgScale + PROP_SPACING_SLACK;
-  const rMax = rMin * (isGroundCover ? GROUND_COVER_MAX_SPACING_MUL : DECOR_MAX_SPACING_MUL);
-  const radiusAt = (x: number, y: number): number => {
-    const d = worley.density(x, y);
-    return rMin + (1 - d) * (rMax - rMin);
-  };
+  const radiusAt = (): number => rMin;
 
   // Conservative footprints for external checks — use max scale so a
   // max-scale instance at the candidate position couldn't graze any
@@ -159,18 +117,24 @@ const buildLayer = (
     return true;
   };
 
+  // Stratified initial frontiers — Bridson with a single seed fills a
+  // disc outward from that seed and stops at maxCount, leaving the rest
+  // of the rect bare. Seeding ~one start per √count points gives the
+  // algorithm many parallel fronts so the Poisson scatter covers the
+  // whole playable rect uniformly.
+  const initialPoints = sampleStratifiedFeatures(
+    seedBase * 17 + 5,
+    bounds,
+    Math.max(6, Math.ceil(Math.sqrt(spec.count) * 2)),
+  );
+
   const points = poissonDiskSample({
     bounds,
     radiusAt,
     isValid,
     maxCount: spec.count,
     seed: seedBase * 31 + 23,
-    // Seed Bridson with each Worley cluster centre so the layer
-    // spreads across all clusters instead of packing every prop
-    // around the first cluster the algorithm reaches. For ground
-    // cover this means ~40 starting fronts so the Poisson fills the
-    // whole map in parallel.
-    initialPoints: worley.features,
+    initialPoints,
   });
 
   const detailRng = mulberry32(seedBase * 53 + 91);
@@ -269,42 +233,14 @@ export const Ground = () => {
     const blockers = buildBlockers(trees, rocks);
     const decor: DecorEntry[] = [];
     const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
-    const halfW = MAP_WIDTH * 0.475;
-    const halfH = MAP_HEIGHT * 0.475;
-    const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
-    const area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
-    const groundFeatures = Math.max(24, Math.ceil(area / GROUND_COVER_AREA_PER_FEATURE));
-    // One Worley per role, seeded by levelId only — all blocker layers
-    // share cluster peaks (mixed clumps of multiple types) and all
-    // ground-cover layers share a uniform tile (interleaved sprinkle).
-    const sharedClusterWorley = createWorleyField(
-      levelId * 1103 + 17,
-      bounds,
-      SHARED_CLUSTER_SEEDS,
-      SHARED_CLUSTER_SIGMA * 2.0,
-    );
-    const sharedGroundWorley = createWorleyField(
-      levelId * 1103 + 91,
-      bounds,
-      groundFeatures,
-      GROUND_COVER_FEATURE_RADIUS,
-    );
     return specs.map((spec, layerIndex) => ({
       spec,
-      buckets: buildLayer(
-        paths,
-        spec,
-        decor,
-        blockers,
-        lava,
-        levelId,
-        layerIndex,
-        sharedClusterWorley,
-        sharedGroundWorley,
-      ).map((placements) => ({
-        id: nanoid(),
-        placements,
-      })),
+      buckets: buildLayer(paths, spec, decor, blockers, lava, levelId, layerIndex).map(
+        (placements) => ({
+          id: nanoid(),
+          placements,
+        }),
+      ),
     }));
   }, [paths, specs, biome, levelId, trees, rocks]);
 
