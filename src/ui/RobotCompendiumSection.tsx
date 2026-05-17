@@ -22,9 +22,8 @@ export const RobotCompendiumSection = ({ progress }: { progress: ProgressData })
               data-locked={unlocked ? undefined : "true"}
             >
               <div className="robot-compendium-diorama">
-                {unlocked ? (
-                  <RobotDiorama variant={variant} />
-                ) : (
+                <RobotDiorama variant={variant} />
+                {!unlocked && (
                   <div className="robot-compendium-locked">
                     <span>★ {spec.unlockStars}</span>
                     <span className="robot-compendium-locked-label">LOCKED</span>

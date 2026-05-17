@@ -4587,6 +4587,9 @@
   .robot-roster-card.locked {
     opacity: 0.78;
   }
+  .robot-roster-card.locked .robot-roster-portrait {
+    filter: grayscale(0.7) brightness(0.78);
+  }
   .robot-roster-portrait {
     position: relative;
     width: 100%;
@@ -4620,15 +4623,17 @@
   .robot-roster-lock {
     position: absolute;
     inset: 0;
-    background: rgba(4, 8, 12, 0.7);
-    backdrop-filter: blur(2px);
+    background: linear-gradient(180deg, rgba(4, 8, 12, 0.18) 0%, rgba(4, 8, 12, 0.55) 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 4px;
+    justify-content: flex-end;
+    padding-bottom: 8px;
+    gap: 2px;
     color: var(--color-fg-muted);
     font-weight: 700;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   }
   .robot-roster-lock-cost {
     color: var(--color-blue);
@@ -5195,7 +5200,10 @@
     border-color: rgba(180, 220, 255, 0.4);
   }
   .robot-compendium-card[data-locked="true"] {
-    opacity: 0.6;
+    opacity: 0.78;
+  }
+  .robot-compendium-card[data-locked="true"] .robot-compendium-diorama {
+    filter: grayscale(0.7) brightness(0.8);
   }
   .robot-compendium-diorama {
     height: 180px;
@@ -5204,14 +5212,19 @@
     position: relative;
   }
   .robot-compendium-locked {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100%;
+    justify-content: flex-end;
+    padding-bottom: 10px;
+    background: linear-gradient(180deg, rgba(4, 8, 12, 0.12) 0%, rgba(4, 8, 12, 0.55) 100%);
     color: var(--color-fg-muted);
-    gap: 4px;
+    gap: 2px;
     font-weight: 700;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   }
   .robot-compendium-locked-label {
     font-size: var(--fs-xs);
