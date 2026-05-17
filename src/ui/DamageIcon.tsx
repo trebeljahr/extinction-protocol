@@ -1,15 +1,14 @@
-import type { DamageType } from "../sim/types";
-import { DAMAGE_TYPE_COLOR } from "../sim/world";
+import { DAMAGE_TYPE_COLOR, SUPPORT_PILL_COLOR, type TowerPillType } from "../sim/world";
 
 type Props = {
-  type: DamageType;
+  type: TowerPillType;
   size?: number;
   title?: string;
   color?: string;
 };
 
 export const DamageIcon = ({ type, size = 16, title, color }: Props) => {
-  const fill = color ?? DAMAGE_TYPE_COLOR[type];
+  const fill = color ?? (type === "support" ? SUPPORT_PILL_COLOR : DAMAGE_TYPE_COLOR[type]);
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={title ?? type}>
       {title && <title>{title}</title>}
@@ -18,9 +17,23 @@ export const DamageIcon = ({ type, size = 16, title, color }: Props) => {
       {type === "cold" && <ColdPath fill={fill} />}
       {type === "explosive" && <ExplosivePath fill={fill} />}
       {type === "flame" && <FlamePath fill={fill} />}
+      {type === "support" && <SupportPath fill={fill} />}
     </svg>
   );
 };
+
+const SupportPath = ({ fill }: { fill: string }) => (
+  <g>
+    <circle cx="12" cy="12" r="9" fill={fill} opacity={0.18} />
+    <path
+      d="M10.4 4.5 H13.6 V10.4 H19.5 V13.6 H13.6 V19.5 H10.4 V13.6 H4.5 V10.4 H10.4 Z"
+      fill={fill}
+      stroke={fill}
+      strokeWidth="0.4"
+      strokeLinejoin="round"
+    />
+  </g>
+);
 
 const FlamePath = ({ fill }: { fill: string }) => (
   <g>

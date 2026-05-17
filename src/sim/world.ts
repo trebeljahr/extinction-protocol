@@ -866,6 +866,24 @@ export const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
   flame: "#ff5a3a",
 };
 
+// Hive is pure support — it doesn't deal direct damage, so its pill
+// uses a dedicated "support" category rather than reusing a damage
+// type. Light pleasant green hints "help" without clashing with the
+// kinetic/electric/cold/explosive/flame palette.
+export type TowerPillType = DamageType | "support";
+export const SUPPORT_PILL_COLOR = "#bbffc8";
+export const SUPPORT_PILL_LABEL = "Support";
+
+export const towerPillInfo = (
+  kind: TowerKind,
+): { type: TowerPillType; color: string; label: string } => {
+  if (kind === "hive") {
+    return { type: "support", color: SUPPORT_PILL_COLOR, label: SUPPORT_PILL_LABEL };
+  }
+  const dt = TOWER_DAMAGE_TYPE[kind];
+  return { type: dt, color: DAMAGE_TYPE_COLOR[dt], label: DAMAGE_TYPE_LABEL[dt] };
+};
+
 // Flame is its own damage type so per-spawn `resists` chips can target
 // it without also blocking mortar's explosive output. Default flame
 // resist per kind mirrors the original explosive value so the split is

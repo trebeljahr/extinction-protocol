@@ -3,7 +3,7 @@ import { getLevel, getLevelOrdinal } from "../levels";
 import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
-import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
+import { TOWER_LABEL, towerPillInfo } from "../sim/world";
 import { useGame } from "../store";
 import { BasePanel } from "./BasePanel";
 import { BossBanner } from "./BossBanner";
@@ -379,7 +379,7 @@ export const HUD = () => {
             const cost = effectiveTowerCost(kind, progress.metaSkills);
             const affordable = gold >= cost;
             const active = selectedKind === kind;
-            const dmgType = TOWER_DAMAGE_TYPE[kind];
+            const pill = towerPillInfo(kind);
             return (
               <button
                 type="button"
@@ -390,7 +390,7 @@ export const HUD = () => {
                   setSelectedKind(selectedKind === kind ? null : kind);
                   e.currentTarget.blur();
                 }}
-                title={`${TOWER_LABEL[kind]} · ${DAMAGE_TYPE_LABEL[dmgType]} · ${cost}g${showKeyboardHints ? ` [${HOTKEYS[kind]}]` : ""}`}
+                title={`${TOWER_LABEL[kind]} · ${pill.label} · ${cost}g${showKeyboardHints ? ` [${HOTKEYS[kind]}]` : ""}`}
               >
                 {active && (
                   <span className="card-cancel" aria-hidden>
@@ -404,10 +404,10 @@ export const HUD = () => {
                 <div className="flex items-center justify-between gap-1 mt-1">
                   <span
                     className="inline-flex items-center"
-                    style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
-                    title={DAMAGE_TYPE_LABEL[dmgType]}
+                    style={{ color: pill.color }}
+                    title={pill.label}
                   >
-                    <DamageIcon type={dmgType} size={13} title={DAMAGE_TYPE_LABEL[dmgType]} />
+                    <DamageIcon type={pill.type} size={13} title={pill.label} />
                   </span>
                   <span className="tower-cost text-[11px] font-bold tabular-nums text-gold">
                     {cost}g

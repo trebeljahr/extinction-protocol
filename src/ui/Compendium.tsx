@@ -30,7 +30,6 @@ import {
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_SLOW_RESIST,
   BOSS_VARIANT_STATS,
-  DAMAGE_TYPE_COLOR,
   DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
@@ -39,9 +38,9 @@ import {
   HIVE_BASE_DRONES,
   HIVE_BASE_SERVICE_BUFF,
   TOWER_COST,
-  TOWER_DAMAGE_TYPE,
   TOWER_LABEL,
   TOWER_STATS,
+  towerPillInfo,
 } from "../sim/world";
 import type { CompendiumSection } from "../store";
 import { useGame } from "../store";
@@ -396,7 +395,7 @@ const TowerSectionView = ({
 }) => {
   const stats = TOWER_STATS[selected];
   const cost = TOWER_COST[selected];
-  const dmgType = TOWER_DAMAGE_TYPE[selected];
+  const pill = towerPillInfo(selected);
   const tree = UPGRADES[selected];
   const isHive = selected === "hive";
   const isCryo = selected === "cryo";
@@ -459,18 +458,11 @@ const TowerSectionView = ({
             <div className="compendium-detail-head">
               <div className="compendium-detail-name">{TOWER_LABEL[selected]}</div>
               <div className="compendium-detail-subtitle">
-                {!isHive && (
-                  <>
-                    <span
-                      className="compendium-detail-damage-type"
-                      style={{ color: DAMAGE_TYPE_COLOR[dmgType] }}
-                    >
-                      <DamageIcon type={dmgType} size={14} />
-                      {DAMAGE_TYPE_LABEL[dmgType]}
-                    </span>
-                    <span className="compendium-detail-divider">·</span>
-                  </>
-                )}
+                <span className="compendium-detail-damage-type" style={{ color: pill.color }}>
+                  <DamageIcon type={pill.type} size={14} />
+                  {pill.label}
+                </span>
+                <span className="compendium-detail-divider">·</span>
                 <span>{TOWER_SUBTITLE[selected]}</span>
                 <span className="compendium-detail-divider">·</span>
                 <span>{cost}g</span>

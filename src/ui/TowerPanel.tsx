@@ -10,13 +10,14 @@ import {
   UPGRADES,
 } from "../sim/upgrades";
 import {
-  DAMAGE_TYPE_COLOR,
-  DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
   HIVE_MAX_DRONES_PER_TOWER,
+  SUPPORT_PILL_COLOR,
+  SUPPORT_PILL_LABEL,
   TOWER_DAMAGE_TYPE,
   TOWER_LABEL,
+  towerPillInfo,
 } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
@@ -83,10 +84,11 @@ export const TowerPanel = () => {
               {TOWER_LABEL[tower.kind]}
               <span
                 className="dmg-tag"
-                style={{ color: "#bbffc8", borderColor: "#bbffc8" }}
+                style={{ color: SUPPORT_PILL_COLOR, borderColor: SUPPORT_PILL_COLOR }}
                 title="Support tower — boosts other towers' fire rate"
               >
-                SUPPORT
+                <DamageIcon type="support" size={12} title={SUPPORT_PILL_LABEL} />
+                {SUPPORT_PILL_LABEL}
               </span>
             </div>
             <div className="panel-stats">
@@ -125,6 +127,7 @@ export const TowerPanel = () => {
   }
 
   const damageType = TOWER_DAMAGE_TYPE[tower.kind];
+  const pill = towerPillInfo(tower.kind);
 
   return (
     <div className="tower-panel">
@@ -133,15 +136,9 @@ export const TowerPanel = () => {
         <div className="panel-title">
           <div className="panel-name">
             {TOWER_LABEL[tower.kind]}
-            <span
-              className="dmg-tag"
-              style={{
-                color: DAMAGE_TYPE_COLOR[damageType],
-                borderColor: DAMAGE_TYPE_COLOR[damageType],
-              }}
-            >
-              <DamageIcon type={damageType} size={12} title={DAMAGE_TYPE_LABEL[damageType]} />
-              {DAMAGE_TYPE_LABEL[damageType]}
+            <span className="dmg-tag" style={{ color: pill.color, borderColor: pill.color }}>
+              <DamageIcon type={pill.type} size={12} title={pill.label} />
+              {pill.label}
             </span>
           </div>
           <div className="panel-stats">
