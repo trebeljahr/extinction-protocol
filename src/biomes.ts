@@ -281,40 +281,25 @@ const DESERT_LAYERS: BiomeLayerSpec = [
   },
   DEAD_TREE_LAYER("/models/landmarks/desert/DeadTree.glb", 3, 5151, 0.09, 0.15),
   {
-    // Dwarf scrub — desert bushes downscaled into ground-cover sprigs so the
-    // dunes aren't visually empty between the larger rocks and dead trees.
-    // Non-blocking; tiny silhouettes that read as flat scrub from the play
-    // camera but fill the bare ground.
-    seed: 3131,
-    urls: [
-      "/models/biomes/desert/Bush1.glb",
-      "/models/biomes/desert/Bush2.glb",
-      "/models/biomes/desert/Bush3.glb",
-    ],
-    count: 140,
-    clearance: PATH_WIDTH / 2 + 0.2,
-    minScale: 0.16,
-    maxScale: 0.28,
-    castShadow: false,
-    footprint: 0.18,
-    groundCover: true,
-  },
-  {
-    // Loose pebbles — the smallest desert rocks shrunk further so the sand
-    // reads as scattered with grit rather than bare. Non-blocking so they
-    // don't get in the way of build slots; tower placement auto-culls.
+    // Loose pebbles — tiny gritty stones carpeting the sand so the dunes
+    // read as littered with debris instead of empty. Authored small so
+    // they sit under foot like real desert pavement, and dense enough to
+    // cover the whole field. Non-blocking; tower placement auto-culls.
+    // Replaces the previous dwarf-scrub layer (small desert bushes) —
+    // those bush meshes read as tiny cacti and were too small to be
+    // clearable, so they got mistaken for stuck obstacles.
     seed: 5959,
     urls: [
       "/models/biomes/desert/Rock1.glb",
       "/models/biomes/desert/Rock2.glb",
       "/models/biomes/desert/Rock3.glb",
     ],
-    count: 110,
-    clearance: PATH_WIDTH / 2 + 0.25,
-    minScale: 0.18,
-    maxScale: 0.3,
+    count: 260,
+    clearance: PATH_WIDTH / 2 + 0.2,
+    minScale: 0.08,
+    maxScale: 0.16,
     castShadow: false,
-    footprint: 0.2,
+    footprint: 0.12,
     groundCover: true,
   },
 ];

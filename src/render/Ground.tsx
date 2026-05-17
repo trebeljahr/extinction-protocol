@@ -15,7 +15,7 @@ import { mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
 import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
-import { createWorleyField } from "../sim/worley";
+import { createWorleyField, type WorleyField } from "../sim/worley";
 import { useGame } from "../store";
 
 const nearAnyPath = (paths: Vec2[][], x: number, y: number, clearance: number) => {
@@ -74,6 +74,16 @@ const GROUND_COVER_FEATURE_RADIUS = 2.0;
 const GROUND_COVER_MAX_SPACING_MUL = 1.35;
 const GROUND_COVER_CROSS_SLACK = 0.05;
 
+// Shared blocker-cluster Worley parameters. All non-groundCover layers in
+// a biome reuse the same Worley field so rocks, bushes, dead trees,
+// crystals etc. centre on the SAME density peaks instead of each carving
+// out its own monoculture pocket. The player sees mixed clusters of
+// multiple types interleaved across the map rather than "a clump of
+// rocks here, a clump of bushes there". sigma is tuned generous so the
+// halos overlap and cluster-mode layers still pack tight inside them.
+const SHARED_CLUSTER_SEEDS = 6;
+const SHARED_CLUSTER_SIGMA = 2.6;
+
 // Build placements for one non-blocking layer using a Worley density
 // field + variable-radius Poisson disk sampling. Density features come
 // from the layer's `cluster` config (seeds → feature count, sigma →
@@ -88,6 +98,8 @@ const buildLayer = (
   lava: LavaFeatures | null,
   levelId: number,
   layerIndex: number,
+  sharedClusterWorley: WorleyField,
+  sharedGroundWorley: WorleyField,
 ): Placement[][] => {
   const buckets: Placement[][] = spec.urls.map(() => []);
   const footprint = layerFootprint(spec);
@@ -96,29 +108,14 @@ const buildLayer = (
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
   const isGroundCover = spec.groundCover === true;
 
-  // Per-layer Worley field. Different layers in the same biome get
-  // different seeds, so a grass-cluster centre and a bush-cluster
-  // centre rarely overlap exactly — the rim reads as varied terrain.
-  //
-  // Ground-cover layers override the cluster knobs with a density-driven
-  // feature count and small feature radius so the Worley tiles the
-  // entire playfield instead of carving out a few isolated pockets.
-  // Result: every region of the map sits inside (or near) a feature's
-  // halo, so spacing stays in the dense end of the rMin/rMax band
-  // almost everywhere.
+  // Shared density field — all non-groundCover layers in the biome use
+  // SHARED cluster centres so rocks/bushes/dead-trees/crystals interleave
+  // around the same peaks instead of forming type-segregated clumps.
+  // Ground-cover layers likewise share a single dense-tile field so types
+  // sprinkle uniformly across the whole playfield with consistent density,
+  // with collision ordering naturally interleaving them.
+  const worley = isGroundCover ? sharedGroundWorley : sharedClusterWorley;
   const seedBase = spec.seed + levelId * 1103 + layerIndex * 149;
-  let featureRadius: number;
-  let featureCount: number;
-  if (isGroundCover) {
-    const area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
-    featureCount = Math.max(24, Math.ceil(area / GROUND_COVER_AREA_PER_FEATURE));
-    featureRadius = GROUND_COVER_FEATURE_RADIUS;
-  } else {
-    const sigma = spec.cluster?.sigma ?? 2.5;
-    featureRadius = sigma * 2.0;
-    featureCount = spec.cluster?.seeds ?? 5;
-  }
-  const worley = createWorleyField(seedBase, bounds, featureCount, featureRadius);
 
   // Layer min-spacing — derived from footprint × avg scale × 2 (two
   // halves touching) plus slack. Ground-cover layers use a tight
@@ -272,14 +269,42 @@ export const Ground = () => {
     const blockers = buildBlockers(trees, rocks);
     const decor: DecorEntry[] = [];
     const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
+    const halfW = MAP_WIDTH * 0.475;
+    const halfH = MAP_HEIGHT * 0.475;
+    const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
+    const area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    const groundFeatures = Math.max(24, Math.ceil(area / GROUND_COVER_AREA_PER_FEATURE));
+    // One Worley per role, seeded by levelId only — all blocker layers
+    // share cluster peaks (mixed clumps of multiple types) and all
+    // ground-cover layers share a uniform tile (interleaved sprinkle).
+    const sharedClusterWorley = createWorleyField(
+      levelId * 1103 + 17,
+      bounds,
+      SHARED_CLUSTER_SEEDS,
+      SHARED_CLUSTER_SIGMA * 2.0,
+    );
+    const sharedGroundWorley = createWorleyField(
+      levelId * 1103 + 91,
+      bounds,
+      groundFeatures,
+      GROUND_COVER_FEATURE_RADIUS,
+    );
     return specs.map((spec, layerIndex) => ({
       spec,
-      buckets: buildLayer(paths, spec, decor, blockers, lava, levelId, layerIndex).map(
-        (placements) => ({
-          id: nanoid(),
-          placements,
-        }),
-      ),
+      buckets: buildLayer(
+        paths,
+        spec,
+        decor,
+        blockers,
+        lava,
+        levelId,
+        layerIndex,
+        sharedClusterWorley,
+        sharedGroundWorley,
+      ).map((placements) => ({
+        id: nanoid(),
+        placements,
+      })),
     }));
   }, [paths, specs, biome, levelId, trees, rocks]);
 
