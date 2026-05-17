@@ -79,6 +79,11 @@ export type EasterEggDef = {
   biomes: Biome[];
   model: string;
   targetSize: number;
+  // Override the auto-derived click sphere radius. Defaults to
+  // max(targetSize*0.7, 0.9). Bump for small fast-moving eggs whose
+  // model is otherwise hard to hit (tumbleweed sprints across the
+  // desert at speed 6).
+  hitRadius?: number;
   clickThreshold: number;
   effect: EasterEggEffect;
   motion?: EasterEggMotion;
@@ -296,13 +301,16 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
     achievement: "tumbleweed",
     biomes: ["desert"],
     model: "/models/biomes/desert/Bush3.glb",
-    targetSize: 1.1,
+    targetSize: 1.4,
+    // Sprints across the desert at speed 6 — generous click sphere
+    // keeps it catchable on the first pass.
+    hitRadius: 1.8,
     clickThreshold: 1,
     effect: burst(
       { color: "#c8a264", count: 20, speed: [2, 4.5], life: 0.6 },
       { color: "#e8d2a0", count: 12, speed: [1.5, 3], life: 0.4 },
     ),
-    motion: { kind: "traverse", speed: 6, lifetime: 9, spinRate: 6 },
+    motion: { kind: "traverse", speed: 6, lifetime: 13, spinRate: 6 },
     scheduled: { earliestSec: 25, latestSec: 90 },
   },
   {
@@ -317,7 +325,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       { color: "#9fd8ff", count: 20, speed: [2, 4.5], life: 0.6 },
       { color: "#a08060", count: 14, speed: [1.5, 3.5], life: 0.55 },
     ),
-    motion: { kind: "traverse", speed: 4, lifetime: 14 },
+    motion: { kind: "traverse", speed: 4, lifetime: 20 },
     scheduled: { earliestSec: 30, latestSec: 120 },
   },
   {
@@ -365,7 +373,7 @@ export const EASTER_EGG_DEFS: EasterEggDef[] = [
       { color: "#7f9fff", count: 12, speed: [1.5, 3.5], life: 0.5 },
     ),
     visual: { opacity: 0.45, tint: "#c8e8ff", skinned: true, clip: "Walk" },
-    motion: { kind: "traverse", speed: 2.5, lifetime: 18 },
+    motion: { kind: "traverse", speed: 2.5, lifetime: 30 },
     scheduled: { earliestSec: 35, latestSec: 130 },
   },
   {

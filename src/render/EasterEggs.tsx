@@ -338,7 +338,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   // regardless of how deep a buried egg goes.
   const yOffset = def.visual?.yOffset ?? 0;
   const yModel = yOffset - minY * scale;
-  const hitRadius = Math.max(def.targetSize * 0.7, 0.9);
+  const hitRadius = def.hitRadius ?? Math.max(def.targetSize * 0.7, 0.9);
   const hitY = Math.max(def.targetSize * 0.5, 0.9);
 
   useFrame((state, delta) => {
@@ -435,7 +435,13 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    clickEasterEgg(egg.id);
+    // Snapshot the visible egg pos at click time. Outer-group world pos
+    // maps back to game space as (x, -z). Passed through so the burst
+    // anchors to what the user clicked, not the sim-integrated egg.pos
+    // a few frames later (moving eggs travel 1-2 units per sim tick).
+    const g = groupRef.current;
+    const hitPos = g ? { x: g.position.x, y: -g.position.z } : { x: egg.pos.x, y: egg.pos.y };
+    clickEasterEgg(egg.id, hitPos);
   };
 
   return (

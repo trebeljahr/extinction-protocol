@@ -871,7 +871,7 @@ export const IconRocketLaunch: FC<AchievementIconProps> = (p) => (
 );
 
 export const IconTumbleweed: FC<AchievementIconProps> = (p) => (
-  <Svg {...p} label="Tumbleweed">
+  <Svg {...p} label="Running Cactus">
     {/* Tangled bramble circle */}
     <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.4" />
     <path d="M5 8 Q 12 10, 19 8" fill="none" stroke="currentColor" strokeWidth="0.9" />

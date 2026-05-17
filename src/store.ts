@@ -1597,7 +1597,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
   clearSelectedRock: () => set({ selectedRockId: null }),
 
-  clickEasterEgg: (id) => {
+  clickEasterEgg: (id, hitPos) => {
     const s = get();
     const w = s.world;
     if (w.status !== "running" && w.status !== "paused") return;
@@ -1606,6 +1606,12 @@ export const useGame = create<GameStore>((set, get) => ({
     const def = EASTER_EGG_BY_ID[egg.defId];
     if (!def) return;
     egg.clickCount++;
+    // Particle origin: prefer the renderer-supplied hit point — the
+    // visible egg position at the click frame. For moving eggs the sim
+    // integrates between the click event firing and this handler
+    // running, so reading egg.pos here can drop the burst a few units
+    // ahead of where the user saw the model.
+    const burstPos = hitPos ?? egg.pos;
     // Eggs with a chimney offset (the cabin) render their own per-egg
     // smoke column in the renderer, anchored to the chimney top. The
     // default ground-plane puff would just plume out around the cabin's
@@ -1614,7 +1620,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!def.chimneyOffset) {
       spawnParticles(
         w,
-        egg.pos,
+        burstPos,
         def.effect.particleCount,
         def.effect.particleColor,
         def.effect.particleSpeed,
@@ -1623,7 +1629,7 @@ export const useGame = create<GameStore>((set, get) => ({
       if (def.effect.secondary) {
         spawnParticles(
           w,
-          egg.pos,
+          burstPos,
           def.effect.secondary.count,
           def.effect.secondary.color,
           def.effect.secondary.speed,
@@ -1647,8 +1653,8 @@ export const useGame = create<GameStore>((set, get) => ({
       // back toward a wall.
       if (def.goldReward) {
         w.gold += def.goldReward;
-        spawnParticles(w, egg.pos, 14, "#ffd700", [3, 6], 0.7);
-        spawnParticles(w, egg.pos, 10, "#ffec80", [2, 4.5], 0.5);
+        spawnParticles(w, burstPos, 14, "#ffd700", [3, 6], 0.7);
+        spawnParticles(w, burstPos, 10, "#ffec80", [2, 4.5], 0.5);
         // Give the renderer a short window to fade/shrink the model out
         // rather than vanishing on the same tick the click registers.
         // clickRoll eggs (the barrel) overwrite this below with their
@@ -1670,7 +1676,9 @@ export const useGame = create<GameStore>((set, get) => ({
         else dy = 1;
         const speed = def.clickRoll.speed;
         egg.vel = { x: dx * speed, y: dy * speed };
-        egg.rotY = Math.atan2(dx, dy);
+        // Model-forward at rotY=0 is -z_world; game-y maps to -z_world,
+        // so heading = atan2(dx, -dy_game). Matches ModelEnemyMesh.
+        egg.rotY = Math.atan2(dx, -dy);
         egg.spin = def.clickRoll.spinRate;
         egg.despawnAt = w.time + def.clickRoll.lifetime;
       }

@@ -234,9 +234,9 @@ const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
   ),
   hintAch(
     "tumbleweed",
-    "Tumbleweed",
-    "Catch a rolling tumbleweed in motion.",
-    "Watch the desert — something rolls.",
+    "Running Cactus",
+    "Catch a running cactus mid-sprint.",
+    "Watch the desert — something runs.",
   ),
   hintAch(
     "rover_roam",
