@@ -583,14 +583,12 @@ export const RobotShop = () => {
     setOpen(false);
   };
 
+  const totalSpent = metaSpent + robotSpent;
+
   return (
     <MenuOverlay
       title={selected ? ROBOT_SPECS[selected].label : "Pilot Roster"}
-      subtitle={
-        selected
-          ? ROBOT_SPECS[selected].callsign
-          : `${availableStars} stars available · ${robotSpent} invested in pilots`
-      }
+      subtitle={selected ? ROBOT_SPECS[selected].callsign : null}
       onClose={handleClose}
       cardClassName="!w-[min(1100px,calc(100vw-24px))] !max-w-none !min-w-0 !px-4 sm:!px-6 md:!px-8"
     >
@@ -604,36 +602,71 @@ export const RobotShop = () => {
             onBack={() => setSelected(null)}
           />
         ) : (
-          <>
-            <div className="flex items-center justify-between gap-3 px-1 mb-3">
-              <p className="text-[11px] text-fg-muted leading-snug flex-1 min-w-0">
-                Recruit pilots with earned stars. Each kill drips XP into the active pilot — level
-                up to spend skill points in their tech tree.
-              </p>
-              {anyInvested && (
-                <button
-                  type="button"
-                  className="btn btn-ghost text-xs py-1.5 px-3 shrink-0 whitespace-nowrap"
-                  onClick={resetAll}
-                >
-                  Refund all
-                </button>
-              )}
-            </div>
-            <div className="robot-roster-grid">
-              {ROSTER.map((variant) => (
-                <RosterCard
-                  key={variant}
-                  variant={variant}
-                  activeRobot={progress.activeRobot}
-                  unlocked={!!progress.robotUnlocks[variant]}
-                  onSelect={setSelected}
-                />
-              ))}
-            </div>
-          </>
+          <div className="robot-roster-grid">
+            {ROSTER.map((variant) => (
+              <RosterCard
+                key={variant}
+                variant={variant}
+                activeRobot={progress.activeRobot}
+                unlocked={!!progress.robotUnlocks[variant]}
+                onSelect={setSelected}
+              />
+            ))}
+          </div>
         )}
       </div>
+      <LabStarsToolbar
+        spent={totalSpent}
+        available={availableStars}
+        canRefundAll={!selected && anyInvested}
+        onRefundAll={resetAll}
+      />
     </MenuOverlay>
   );
 };
+
+const StarGlyph = ({ filled, size = 18 }: { filled: boolean; size?: number }) => {
+  const color = filled ? "#ffd66a" : "#3a4452";
+  const stroke = filled ? "#ffe8a8" : "#4a5562";
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden focusable="false">
+      <path
+        d="M12 2.5 L14.9 8.9 L22 9.8 L16.7 14.6 L18.1 21.5 L12 17.9 L5.9 21.5 L7.3 14.6 L2 9.8 L9.1 8.9 Z"
+        fill={color}
+        stroke={stroke}
+        strokeWidth="0.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+const LabStarsToolbar = ({
+  spent,
+  available,
+  canRefundAll,
+  onRefundAll,
+}: {
+  spent: number;
+  available: number;
+  canRefundAll: boolean;
+  onRefundAll: () => void;
+}) => (
+  <div className="lab-stars-toolbar">
+    <span className="lab-stars-chip" title={`${spent} stars spent`}>
+      <StarGlyph filled={false} />
+      <span className="lab-stars-num tabular-nums">{spent}</span>
+      <span className="lab-stars-lbl">spent</span>
+    </span>
+    <span className="lab-stars-chip" title={`${available} stars available`}>
+      <StarGlyph filled />
+      <span className="lab-stars-num tabular-nums">{available}</span>
+      <span className="lab-stars-lbl">available</span>
+    </span>
+    {canRefundAll && (
+      <button type="button" className="lab-stars-refund" onClick={onRefundAll}>
+        ↺ Refund all
+      </button>
+    )}
+  </div>
+);
