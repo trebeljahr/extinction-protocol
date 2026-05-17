@@ -20,8 +20,9 @@ wild.
 Something went wrong in the revival process. Specimens started
 integrating the revival hardware into themselves — not symbolically.
 Physiologically. Bone laced with the scaffolding alloys. Neural tissue
-patched into the conditioning network. Pack coordination through
-comm-band frequencies that should only carry our telemetry.
+grown out of the conditioning lattice. Pack coordination happens
+inside the animals now — on tissue that used to be our equipment,
+through nothing we can intercept.
 
 Containment failed. The reserve walls fell. The revival hardware kept
 working, because it was never designed to fail safe — it was designed
@@ -51,10 +52,13 @@ longer ours.
 
 4. **Collapse (L16–L20, wasteland).** Past the last city. There has
    not been a city for some time. Multi-vector coordination — three
-   approach lanes at once, synchronised, on frequencies we recognise.
-   They are using our comm net against us. All civilian channels
-   dark for nine days. The **Extinction Protocol** becomes the only
-   standing directive.
+   approach lanes at once, synchronised, with no signal between them
+   on any band. The conditioning lattice has finished growing into the
+   herd's nervous tissue; they no longer transmit because they no
+   longer need to. The native biosphere between outposts is failing —
+   ground cover dying, surface water turning, catalogued fauna gone
+   from the survey grids. The **Extinction Protocol** becomes the
+   only standing directive.
 
 5. **Terraforming (L21–L30, lava → alien).** They are restructuring
    the crust. Geothermal vents opened along migration corridors —
@@ -123,8 +127,8 @@ consistent so the briefings and SITREPs make sense.
 - **Before L1.** Reserve perimeter goes down. Cloning vats and
   conditioning rigs inside the wall keep running. Kairos Corp
   corporate command is on the coast, several hundred kilometres
-  east, issuing directives over a comm net the operator does not
-  yet know is compromised.
+  east, still issuing directives into a chain of command that
+  the open biosphere is already pulling apart from underneath.
 - **L1–L5.** The line is a series of forward outposts covering an
   evacuation east of the river. Civilians are still alive in large
   numbers. Some of them still believe the wall will be repaired.
@@ -156,10 +160,12 @@ consistent so the briefings and SITREPs make sense.
   a contingency document — becomes the standing order because no
   other order is being issued.
 - **L16–L20.** Four to six months. Civilian comms dark for nine
-  days at L20 reflects the moment the herd's use of the comm net
-  outpaces the operators' use of it. The decision not to shut the
-  net down is made by station chiefs individually; there is no
-  longer a corporate decision-maker.
+  days at L20 reflects the moment the native biosphere outside the
+  cordon has failed widely enough that the civilian radio
+  infrastructure no longer has operators to maintain it. The
+  decision to keep the operator net running is made by station
+  chiefs individually; there is no longer a corporate
+  decision-maker.
 - **L20–L21.** The continent begins to vent. Geothermal corridors
   open along herd migration paths. Operators understand it as the
   herd's hardware metabolism catalysing the crust. Surveyors stop
@@ -186,10 +192,11 @@ terse, after-action, sleep-deprived. No pride left in the work.
 
 ### The Matriarchs
 Apex specimens. The most heavily integrated — bone-grafted scaffolding,
-conditioning-network nodes, comm-band hooks they were never meant to
-have. Five canonical appearances at L5 / L10 / L15 / L30, with
-biome-themed mini-bosses across the late game. Each one denser and
-less recognisable as the species she started as.
+neural tissue grown out of the conditioning lattice they were never
+meant to host, regenerative metabolism the revival tanks could only
+run under controlled conditions. Five canonical appearances at L5 /
+L10 / L15 / L30, with biome-themed mini-bosses across the late game.
+Each one denser and less recognisable as the species she started as.
 
 Not a faction with goals in the political sense. They lead because the
 revival programme conditioned a hierarchy and the apex specimens
@@ -197,9 +204,10 @@ absorbed the conditioning hardware. They are what the herd becomes.
 
 ### The hardware
 Not a character. The revival rigs, scaffolding alloys, conditioning
-nodes, comm relays — all of it human-built, all of it now grown into
-the dinosaurs. Referenced obliquely in field reports: "scaffolding",
-"integument", "the conditioning network", "our frequencies". Never
+nodes — all of it human-built, all of it now grown into the dinosaurs
+and evolving inside them faster than any wave of ordnance can adapt
+against. Referenced obliquely in field reports: "scaffolding",
+"integument", "the conditioning network", "the lattice". Never
 explained directly. The player infers the symbiosis from:
 - Crashed rovers and abandoned tank rigs in forest/snow world props
 - Wreckage of generator stations and satellite dishes in wasteland
@@ -213,7 +221,7 @@ explained directly. The player infers the symbiosis from:
 | Forest | L1–L5 | The reserve perimeter. First contact. The world still recognisable. |
 | Snow | L6–L10 | First fall-back. Climate isn't a buffer. |
 | Desert | L11–L15 | Phenotype divergence. Hardware showing up in tissue. |
-| Wasteland | L16–L20 | Post-civilisation. They use our comm net. |
+| Wasteland | L16–L20 | Post-civilisation. The native biosphere collapses around the outposts. |
 | Lava | L21–L25 | Geothermal restructuring. They walk through magma. |
 | Alien | L26–L30 | Their terraform output. Not somewhere else — our world, rewritten. |
 
@@ -252,9 +260,11 @@ silhouettes. Shown, not told.
 - Each beat acknowledges at least one of: biome fall-back, roster
   mechanic debut, Matriarch sighting, hardware integration.
 - The revival hardware is referenced obliquely. Vocabulary:
-  scaffolding, integument, alloy, conditioning, the network, our
-  frequencies, the reserve, the programme, the tanks. Never
-  "alien", "substrate", "artifact".
+  scaffolding, integument, alloy, conditioning, the lattice, the
+  network, the reserve, the programme, the tanks. Never "alien",
+  "substrate", "artifact". Avoid the "they hacked our comms" framing —
+  coordination happens inside them now, on tissue grown out of the
+  lattice. There is no signal to intercept.
 - A briefing is the operator typing into a log five minutes after the
   wave. Sleep-deprived. No flourish.
 

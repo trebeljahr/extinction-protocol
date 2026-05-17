@@ -113,11 +113,11 @@ export const LORE_FRAGMENTS: Record<number, LoreFragment> = {
   },
   8: {
     id: 8,
-    title: "Band 217.4 Diagnostic",
+    title: "Coordination Forensic",
     kind: "report",
     author: "Dr. J. Halvers",
     source: "Lattice Forensics · Day 32",
-    body: "Captured a five-second pack-coordination signal on band 217.4 MHz. That band is ours. It is the conditioning lattice band. The lattice was installed inside the reserve. The signal is being broadcast from approximately forty kilometres north of the wall. Recommend immediate isolation of the lattice. Authorisation: pending. Pending whom is unclear. — Halvers",
+    body: "Watched a pack execute a synchronised flank in real time this morning. No transmission. None on our bands, none on any band — we ran the full spectrum twice. They are not signalling each other. Whatever decision is being made is being made inside them, on tissue the conditioning lattice grew into them over nine years. The lattice is no longer something we operate. It is something the animals are. I am writing this report at three in the morning because there is no longer a working day. — Halvers",
   },
   9: {
     id: 9,
@@ -178,7 +178,7 @@ export const LORE_FRAGMENTS: Record<number, LoreFragment> = {
     body: "Subject leads the pack on engagement. Subject does not retreat. The pack does not retreat while the subject is engaged. The subject is not a member of any catalogued species in the original revival manifest. Subject is descended from the manifest. We are calling this individual a Matriarch and writing the term in lowercase to avoid implying we coined a category. We did. The third one this season. The category exists.",
   },
 
-  // Wasteland — civilisation past tense. Multi-lane coordination on captured frequencies.
+  // Wasteland — civilisation past tense. Coordination through grown-in lattice tissue; biosphere failing.
   16: {
     id: 16,
     title: "Coastal Relay 9 Intercept",
@@ -205,11 +205,11 @@ export const LORE_FRAGMENTS: Record<number, LoreFragment> = {
   },
   19: {
     id: 19,
-    title: "Final Comm Net Bulletin",
+    title: "Final Lattice Bulletin",
     kind: "report",
     author: "Dr. J. Halvers",
     source: "Lattice Forensics · Day 204",
-    body: "Three approach lanes coordinated on three of our directional bands at once. The lattice is no longer transmitting from the reserve. The lattice is transmitting from inside the pack. The pack is the lattice now. I do not know how to shut down a network that is its own infrastructure. I have filed this report with the addressees I have left. If you receive it, please return acknowledgement. — Halvers",
+    body: "Three approach lanes synchronised this morning with no transmission between them on any band, ours or any other. We confirmed it twice. They are no longer signalling because they no longer need to. Whatever the conditioning lattice grew into the apex specimens during nine years inside the wall is doing the talking. The hardware is the herd's nervous system now. The animals are the lattice. I do not know how to shut down a network that is its own infrastructure, and I no longer have anyone to ask. The lab is empty. If anyone reads this, the answer to your question is yes — we did this to ourselves, and we did it deliberately, over nine years, with budget approval. — Halvers",
   },
   20: {
     id: 20,
