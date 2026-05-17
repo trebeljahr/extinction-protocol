@@ -113,6 +113,7 @@ const robotDefaults = (variant: RobotVariant, pos: Vec2, id: EntityId, xp: numbe
     flashUntil: 0,
     shootFlashUntil: 0,
     respawnAt: null,
+    iFrameUntil: 0,
     lastDamagedAt: -1000,
     selected: false,
     xp,

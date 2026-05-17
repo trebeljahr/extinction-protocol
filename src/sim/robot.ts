@@ -280,6 +280,7 @@ export const damageRobot = (world: World, amount: number) => {
   const robot = world.robot;
   if (!robot.alive) return;
   if (world.time < robot.abilityActiveUntil[0]) return; // dash i-frames
+  if (world.time < robot.iFrameUntil) return; // post-respawn i-frames
   // Slot-2 self-buff damage resist absorbs a fraction of every hit.
   // Clamped to <1 so a max-resist buff still leaks a sliver of damage.
   const resist = Math.min(0.95, Math.max(0, robot.damageResist));
@@ -336,8 +337,16 @@ const respawnRobot = (world: World, robot: Robot) => {
   robot.alive = true;
   robot.respawnAt = null;
   robot.motionState = "idle";
-  robot.abilityActiveUntil[0] = world.time + 0.8; // brief respawn i-frames
+  // Respawn i-frames go on a dedicated field. Reusing
+  // abilityActiveUntil[0] would also trip the dash-velocity branch in
+  // updateRobot, making the robot sprint in their facing direction the
+  // instant they revive.
+  robot.iFrameUntil = world.time + 0.8;
   robot.attackCooldown = 0;
+  robot.vel = { x: 0, y: 0 };
+  robot.moveTarget = null;
+  robot.dashAim = null;
+  robot.stuckTimer = 0;
   spawnParticles(world, robot.pos, 24, "#9fd8ff", [2, 5], 0.5);
 };
 
@@ -767,7 +776,11 @@ export const updateRobot = (world: World, dt: number) => {
   const hurtR2 = ROBOT_HURT_RANGE * ROBOT_HURT_RANGE;
   let closest: Enemy | null = null;
   let closestD2 = Number.POSITIVE_INFINITY;
-  if (robot.alive && world.time >= robot.abilityActiveUntil[0]) {
+  if (
+    robot.alive &&
+    world.time >= robot.abilityActiveUntil[0] &&
+    world.time >= robot.iFrameUntil
+  ) {
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (e.leak) continue;

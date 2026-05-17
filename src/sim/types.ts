@@ -394,6 +394,10 @@ export type Robot = {
   flashUntil: number;
   shootFlashUntil: number;
   respawnAt: number | null;
+  // Invulnerability window opened by respawn. Kept separate from
+  // abilityActiveUntil[0] (the dash window) so respawn i-frames don't
+  // accidentally trigger the forced dash-velocity branch in updateRobot.
+  iFrameUntil: number;
   // world.time when this robot last took damage. Drives the
   // out-of-combat HP regen (regen starts 4s after this stamp).
   lastDamagedAt: number;
