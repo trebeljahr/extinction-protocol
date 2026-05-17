@@ -1216,9 +1216,9 @@ export const useGame = create<GameStore>((set, get) => ({
     if (kind !== null) {
       world.selectedTowerId = null;
       world.selectedBase = false;
-      // Picking up a tower implicitly cancels a pending Mike dash aim
-      // so the next ground click places the tower instead of firing
-      // the dash. Cooldown wasn't consumed by the aim stage.
+      // Picking up a tower implicitly cancels any pending robot dash
+      // aim so the next ground click places the tower instead of
+      // firing the dash. Cooldown wasn't consumed by the aim stage.
       if (world.robot.dashAim) world.robot.dashAim = null;
     }
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;

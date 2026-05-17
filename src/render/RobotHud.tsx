@@ -5,9 +5,9 @@ import { ROBOT_SPECS } from "../sim/robotVariants";
 import { useGame } from "../store";
 
 // In-world robot markers: pulsing range ring, move-target ping,
-// translucent ground footprint, death explosion shockwave, and Mike's
-// pre-dash directional arrow. Cheap (a handful of meshes), updated by
-// useFrame.
+// translucent ground footprint, death explosion shockwave, and the
+// pre-dash directional arrow (every robot variant has a dash). Cheap
+// (a handful of meshes), updated by useFrame.
 const ROBOT_DEATH_DURATION = 0.85;
 const ROBOT_DEATH_EXPLOSION_DURATION = 0.7;
 const ROBOT_DEATH_CORE_DURATION = 0.22;
@@ -70,8 +70,9 @@ export const RobotHud = () => {
     } else {
       selRef.current.visible = false;
     }
-    // Dash aim arrow (Mike pre-dash). Sin-pulsed scale + opacity sells
-    // the "armed and waiting" read while the cursor steers the dir.
+    // Dash aim arrow (armed dash, any variant). Sin-pulsed scale +
+    // opacity sells the "armed and waiting" read while the cursor
+    // steers the dir.
     const aim = aimGroupRef.current;
     if (aim) {
       if (robot.alive && robot.dashAim) {
@@ -135,7 +136,7 @@ export const RobotHud = () => {
         <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
       {/* Dash aim arrow — shaft + tip, anchored at robot pos. Hidden
-          unless robot.dashAim is set (Mike + pre-dash window). */}
+          unless robot.dashAim is set (any dash robot in aim window). */}
       <group ref={aimGroupRef} visible={false} renderOrder={4}>
         <mesh geometry={aimShaftGeom} position={[0, 0, -1.7]} rotation={[-Math.PI / 2, 0, 0]}>
           <meshBasicMaterial

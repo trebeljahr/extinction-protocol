@@ -3,7 +3,7 @@ import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { dampFactor, shortAngleDelta } from "./angle";
 import { isEnemyTargetable } from "./enemyState";
 import { pathProgress, projectOnPath, smoothDirection } from "./path";
-import { ROBOT_SPECS, type RobotVariantSpec } from "./robotVariants";
+import { type DashSpec, ROBOT_SPECS, type RobotVariantSpec } from "./robotVariants";
 import type {
   DamageType,
   Enemy,
@@ -65,7 +65,7 @@ const ROBOT_LATERAL_LERP_PER_SEC = 2.2;
 // in melee. Engaged dinos halt forward path movement until the robot
 // either dies, dashes free, or walks out of this range.
 const ROBOT_ENGAGE_RANGE = 1.6;
-// Window in which a Mike pre-dash aim stays valid before auto-clearing.
+// Window in which a pre-dash aim stays valid before auto-clearing.
 const DASH_AIM_LIFETIME = 4.0;
 // Max distance a move-order click can land from the painted path before
 // the order is rejected as off-path. Matches the visible lane half-width
@@ -323,8 +323,9 @@ export const setRobotDashAimDir = (world: World, dir: Vec2) => {
   robot.dashAim.dir = { x: dir.x / d, y: dir.y / d };
 };
 
-// Cancels a pending Mike dash aim (Escape, deselect, variant swap).
-// Cooldown was never consumed, so the dash remains ready.
+// Cancels a pending robot dash aim (Esc, right-click, deselect, variant
+// swap, tower pickup). Cooldown was never consumed, so the dash stays
+// ready for the next press.
 export const cancelRobotDashAim = (world: World) => {
   const robot = world.robot;
   if (!robot.dashAim) return;
@@ -593,7 +594,7 @@ export const updateRobot = (world: World, dt: number) => {
   const baseSpeed = robot.speed * robot.speedMul;
   const speed = dashing ? dashSpec.speed : baseSpeed;
 
-  // Auto-clear an expired pre-dash aim — a Mike aim ignored for a few
+  // Auto-clear an expired pre-dash aim — an aim ignored for a few
   // seconds shouldn't trap the cursor in commit-on-click mode.
   if (robot.dashAim && world.time >= robot.dashAim.expiresAt) robot.dashAim = null;
 
@@ -908,6 +909,71 @@ export const selectRobot = (world: World, on: boolean) => {
   robot.selected = on;
 };
 
+// Commit a dash in the supplied direction: orients the robot, marks
+// the dash window for i-frames + velocity, and fires variant riders
+// (Mike coal trail, George next-shot crit, Leela end-chain arcs, Stan
+// landing blast). Caller owns cooldown bookkeeping so this helper
+// stays purely about effects.
+const commitDash = (
+  world: World,
+  robot: Robot,
+  variant: RobotVariantSpec,
+  spec: DashSpec,
+  dir: Vec2,
+) => {
+  robot.facing = Math.atan2(dir.x, -dir.y);
+  robot.abilityActiveUntil[0] = world.time + spec.duration;
+  if (robot.variant === "mike") robot.mikeCoalDropAt = world.time;
+  spawnParticles(world, robot.pos, 14, variant.tint, [2, 5], 0.35);
+  if (spec.nextShotCrit) {
+    robot.pendingCrit = { mul: spec.nextShotCrit.mul, pierce: spec.nextShotCrit.pierce };
+  }
+  if (spec.endChain) {
+    const endX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
+    const endY = robot.pos.y + -Math.cos(robot.facing) * spec.speed * spec.duration;
+    const endPos: Vec2 = { x: endX, y: endY };
+    const r2 = spec.endChain.radius * spec.endChain.radius;
+    const seen = new Set<EntityId>();
+    let from: { pos: Vec2 } = { pos: endPos };
+    for (let i = 0; i < spec.endChain.hops; i++) {
+      let best: Enemy | null = null;
+      let bd = Number.POSITIVE_INFINITY;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (seen.has(e.id)) continue;
+        const d2 = distSq(e.pos, from.pos);
+        if (d2 > r2) continue;
+        if (d2 < bd) {
+          bd = d2;
+          best = e;
+        }
+      }
+      if (!best) break;
+      applyDamage(world, best, spec.endChain.damagePerHop, spec.endChain.damageType, "#cfe8ff", 4);
+      createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
+      seen.add(best.id);
+      from = best;
+    }
+  }
+  if (spec.landingBlast) {
+    const lbX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
+    const lbY = robot.pos.y + -Math.cos(robot.facing) * spec.speed * spec.duration;
+    const lbPos: Vec2 = { x: lbX, y: lbY };
+    const r2 = spec.landingBlast.radius * spec.landingBlast.radius;
+    for (const e of world.enemies) {
+      if (!isEnemyTargetable(e)) continue;
+      if (distSq(e.pos, lbPos) > r2) continue;
+      applyDamage(world, e, spec.landingBlast.damage, spec.landingBlast.damageType, "#ffb054", 8);
+      e.flashUntil = world.time + 0.12;
+    }
+    createExplosion(world, lbPos, spec.landingBlast.radius, 0.45);
+    spawnParticles(world, lbPos, 24, "#ffb04a", [3, 7], 0.5);
+    spawnParticles(world, lbPos, 14, variant.tint, [4, 9], 0.4);
+    addShake(world, 0.5, 5);
+    emit(world, { type: "impact", pos: lbPos });
+  }
+};
+
 // Variant-aware ability dispatch. Slot 0 always = dash, slot 1 = burst,
 // slot 2 = the variant's payload (barrage/mark/incinerate). The cooldown
 // stored on the spec is scaled by robot.abilityCooldownMul (from the
@@ -919,11 +985,12 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
   const variant = ROBOT_SPECS[robot.variant];
   const spec = variant.abilities[slot];
 
-  // Mike's dash is the only 2-stage ability today: first press enters
-  // aim mode (cursor-driven arrow), second press / ground click commits
-  // in that direction. No cooldown is consumed by the aim stage itself,
-  // so the player can preview safely.
-  if (slot === 0 && spec.type === "dash" && robot.variant === "mike") {
+  // Dash is a 2-stage ability for every variant: first press arms aim
+  // (cursor-driven arrow on the HUD via robot.dashAim), second press /
+  // ground click commits in that direction. No cooldown is consumed by
+  // the aim stage so previewing is free; Esc clears dashAim without
+  // spending the cooldown (see cancelRobotDashAim).
+  if (slot === 0 && spec.type === "dash") {
     if (robot.dashAim === null) {
       if (world.time < robot.abilityReadyAt[slot]) return false;
       const initial = dashDir(robot);
@@ -936,11 +1003,8 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     }
     const dir = robot.dashAim.dir;
     robot.dashAim = null;
-    robot.facing = Math.atan2(dir.x, -dir.y);
     robot.abilityReadyAt[slot] = world.time + spec.cooldown * robot.abilityCooldownMul;
-    robot.abilityActiveUntil[0] = world.time + spec.duration;
-    robot.mikeCoalDropAt = world.time;
-    spawnParticles(world, robot.pos, 14, variant.tint, [2, 5], 0.35);
+    commitDash(world, robot, variant, spec, dir);
     return true;
   }
 
@@ -948,69 +1012,10 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
   robot.abilityReadyAt[slot] = world.time + spec.cooldown * robot.abilityCooldownMul;
 
   if (spec.type === "dash") {
-    const dir = dashDir(robot);
-    robot.facing = Math.atan2(dir.x, -dir.y);
-    robot.abilityActiveUntil[0] = world.time + spec.duration;
-    spawnParticles(world, robot.pos, 14, variant.tint, [2, 5], 0.35);
-    // George Sidestep — arm the next auto-attack as a piercing crit.
-    if (spec.nextShotCrit) {
-      robot.pendingCrit = { mul: spec.nextShotCrit.mul, pierce: spec.nextShotCrit.pierce };
-    }
-    // Leela Phase Step — arc lightning to closest enemies on lunge end.
-    // Apply immediately (i-frames cover the brief windup).
-    if (spec.endChain) {
-      const endX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
-      const endY = robot.pos.y + -Math.cos(robot.facing) * spec.speed * spec.duration;
-      const endPos: Vec2 = { x: endX, y: endY };
-      const r2 = spec.endChain.radius * spec.endChain.radius;
-      const seen = new Set<EntityId>();
-      let from: { pos: Vec2 } = { pos: endPos };
-      for (let i = 0; i < spec.endChain.hops; i++) {
-        let best: Enemy | null = null;
-        let bd = Number.POSITIVE_INFINITY;
-        for (const e of world.enemies) {
-          if (!isEnemyTargetable(e)) continue;
-          if (seen.has(e.id)) continue;
-          const d2 = distSq(e.pos, from.pos);
-          if (d2 > r2) continue;
-          if (d2 < bd) {
-            bd = d2;
-            best = e;
-          }
-        }
-        if (!best) break;
-        applyDamage(
-          world,
-          best,
-          spec.endChain.damagePerHop,
-          spec.endChain.damageType,
-          "#cfe8ff",
-          4,
-        );
-        createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
-        seen.add(best.id);
-        from = best;
-      }
-    }
-    // Stan Ground Pound — detonate at landing position. Cheat the
-    // landing point as forward-step from current pos using dash dir.
-    if (spec.landingBlast) {
-      const lbX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
-      const lbY = robot.pos.y + -Math.cos(robot.facing) * spec.speed * spec.duration;
-      const lbPos: Vec2 = { x: lbX, y: lbY };
-      const r2 = spec.landingBlast.radius * spec.landingBlast.radius;
-      for (const e of world.enemies) {
-        if (!isEnemyTargetable(e)) continue;
-        if (distSq(e.pos, lbPos) > r2) continue;
-        applyDamage(world, e, spec.landingBlast.damage, spec.landingBlast.damageType, "#ffb054", 8);
-        e.flashUntil = world.time + 0.12;
-      }
-      createExplosion(world, lbPos, spec.landingBlast.radius, 0.45);
-      spawnParticles(world, lbPos, 24, "#ffb04a", [3, 7], 0.5);
-      spawnParticles(world, lbPos, 14, variant.tint, [4, 9], 0.4);
-      addShake(world, 0.5, 5);
-      emit(world, { type: "impact", pos: lbPos });
-    }
+    // Defensive: dashes are slot-0 only in current variants and route
+    // through the 2-stage path above. This branch keeps a single-press
+    // fallback if a future variant puts a dash in another slot.
+    commitDash(world, robot, variant, spec, dashDir(robot));
     return true;
   }
 

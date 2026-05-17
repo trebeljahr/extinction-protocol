@@ -356,9 +356,9 @@ export const Placement = () => {
     if (Date.now() < suppressClickUntilRef.current) return;
     const pos = eventPoint(e);
     const state = useGame.getState();
-    // Dash aim active (Mike): a ground click commits the dash in the
-    // current aim direction and swallows the click so we don't also
-    // re-order the robot to walk somewhere.
+    // Dash aim active (any dash robot): a ground click commits the dash
+    // in the current aim direction and swallows the click so we don't
+    // also re-order the robot to walk somewhere.
     if (state.world.robot.dashAim) {
       state.setRobotDashAimDir({
         x: pos.x - state.world.robot.pos.x,
@@ -383,11 +383,18 @@ export const Placement = () => {
 
   // Right-click = move-order for the robot. Falls back to mouse-button
   // detection on contextmenu because R3F surfaces it as a plain MouseEvent.
+  // If a dash aim is armed, right-click cancels the aim (no cooldown
+  // spent) and does NOT issue a move order — symmetric with Esc.
   const onContextMenu = (e: ThreeEvent<MouseEvent>) => {
     e.nativeEvent.preventDefault();
     e.stopPropagation();
+    const state = useGame.getState();
+    if (state.world.robot.dashAim) {
+      state.cancelRobotDashAim();
+      return;
+    }
     const pos = eventPoint(e);
-    if (!useGame.getState().orderRobotMove(pos)) {
+    if (!state.orderRobotMove(pos)) {
       audio.ui("error");
       flashInvalidMove(pos);
     }

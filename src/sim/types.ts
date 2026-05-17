@@ -433,10 +433,11 @@ export type Robot = {
   // burning-trail spawn rate so a single dash leaves ~9 tiles instead
   // of one per tick (60). Mike-only; ignored by other variants.
   mikeCoalDropAt: number;
-  // Mike-only pre-dash aim. When set, the dash key has been pressed
-  // once; the UI renders an arrow that follows the cursor. A second
-  // dash press OR a ground click commits the dash in `dir`. Escape
-  // clears it. Auto-clears after world.time >= expiresAt.
+  // Pre-dash aim (every robot variant). When set, the dash key has
+  // been pressed once; the UI renders an arrow that follows the
+  // cursor. A second dash press OR a ground click commits the dash in
+  // `dir`. Esc or right-click clears it. Auto-clears after
+  // world.time >= expiresAt.
   dashAim: { dir: Vec2; expiresAt: number } | null;
   // George — set by Sidestep dash; the next auto-attack lands with the
   // crit multiplier and (optionally) a piercing flag. Consumed on fire.
