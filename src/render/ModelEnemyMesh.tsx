@@ -1,10 +1,10 @@
 import { useGLTF } from "@react-three/drei";
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { smoothDirection } from "../sim/path";
-import type { BossVariant, EnemyKind } from "../sim/types";
+import type { BossVariant, EnemyKind, World } from "../sim/types";
 import { BOSS_VARIANT_MATERIAL, BOSS_VARIANT_TINT, ELITE_TINT_BY_KIND } from "../sim/world";
 import { useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
@@ -107,6 +107,15 @@ export const ModelEnemyMesh = ({
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, Item>>(new Map());
+  // Tracks the World reference last seen in useFrame. startLevel swaps the
+  // World object wholesale (new createWorld()); PlayScene stays mounted on
+  // results→next-level / retry, so itemsRef carries over corpses still in
+  // mid-death anim. After the swap, world.time resets to 0 < item.dyingStart,
+  // so elapsed clamps to 0 and the Death clip restarts at the old position
+  // — playtest reads it as "dinos dying all over the map on every new
+  // level". When this ref doesn't match the current world, force-recycle
+  // all stale items before the live pass runs.
+  const worldRef = useRef<World | null>(null);
   // Stable per-kind elite color — built once and reused for the body
   // lerp every frame so we don't allocate THREE.Color in the inner loop.
   // Variant-tagged boss meshes route through the variant tint table so
@@ -212,10 +221,41 @@ export const ModelEnemyMesh = ({
     [],
   );
 
+  const recycleOrDispose = useCallback((item: Item) => {
+    const parent = groupRef.current;
+    if (!parent) return;
+    item.mixer.stopAllAction();
+    item.obj.rotation.x = 0;
+    item.obj.rotation.z = 0;
+    if (poolRef.current.length < POOL_LIMIT) {
+      item.obj.visible = false;
+      item.obj.userData.enemyId = undefined;
+      if (item.proxy) {
+        item.proxy.visible = false;
+        item.proxy.userData.enemyId = undefined;
+      }
+      poolRef.current.push(item);
+    } else {
+      item.obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || !m.material) return;
+        if (Array.isArray(m.material)) for (const mm of m.material) mm.dispose();
+        else (m.material as THREE.Material).dispose();
+      });
+      parent.remove(item.obj);
+      if (item.proxy) parent.remove(item.proxy);
+    }
+  }, []);
+
   useFrame((_, delta) => {
     const parent = groupRef.current;
     if (!parent) return;
     const { world } = useGame.getState();
+    if (worldRef.current !== null && worldRef.current !== world) {
+      for (const [, item] of itemsRef.current) recycleOrDispose(item);
+      itemsRef.current.clear();
+    }
+    worldRef.current = world;
     const frozen = world.status !== "running";
 
     const live = new Set<number>();
@@ -471,36 +511,6 @@ export const ModelEnemyMesh = ({
         else apply(mat as THREE.MeshStandardMaterial);
       });
     }
-
-    const recycleOrDispose = (item: Item) => {
-      item.mixer.stopAllAction();
-      // Reset rotation before pooling so the next recycle starts upright
-      // even if the corpse was mid-tilt when the timer expired.
-      item.obj.rotation.x = 0;
-      item.obj.rotation.z = 0;
-      if (poolRef.current.length < POOL_LIMIT) {
-        // Stash for reuse: hide in place, keep parent attachment, drop
-        // the userData id so a stale click can't dispatch.
-        item.obj.visible = false;
-        item.obj.userData.enemyId = undefined;
-        if (item.proxy) {
-          item.proxy.visible = false;
-          item.proxy.userData.enemyId = undefined;
-        }
-        poolRef.current.push(item);
-      } else {
-        // Pool full — drop. Dispose per-clone materials we created in
-        // the constructor branch so GPU resources don't leak.
-        item.obj.traverse((o) => {
-          const m = o as THREE.Mesh;
-          if (!m.isMesh || !m.material) return;
-          if (Array.isArray(m.material)) for (const mm of m.material) mm.dispose();
-          else (m.material as THREE.Material).dispose();
-        });
-        parent.remove(item.obj);
-        if (item.proxy) parent.remove(item.proxy);
-      }
-    };
 
     for (const [id, item] of itemsRef.current) {
       if (live.has(id)) continue;
