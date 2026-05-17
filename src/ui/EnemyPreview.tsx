@@ -166,7 +166,13 @@ export const EnemyPreview = ({ kind, bossVariant, size = 360 }: Props) => {
   const targetY = baseTargetSize * 0.25;
   const isSwarm = kind === "swarm";
   return (
-    <Diorama span={span} size={size} targetY={targetY} className="enemy-preview">
+    <Diorama
+      span={span}
+      size={size}
+      targetY={targetY}
+      className="enemy-preview"
+      contactShadows={isSwarm}
+    >
       {isSwarm ? (
         SWARM_PACK.map((p, i) => (
           <Creature

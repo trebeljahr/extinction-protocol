@@ -1,4 +1,4 @@
-import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
+import { ContactShadows, Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { type ReactNode, Suspense, useMemo } from "react";
 import * as THREE from "three";
@@ -106,6 +106,12 @@ type DioramaProps = {
   // explicit height to keep the orbit centered on the body instead of
   // the empty space above it.
   targetY?: number;
+  // Render a soft contact shadow underneath the focal subject. Use for
+  // multi-instance previews (the swarm pack) where the directional-light
+  // shadow on each tiny raptor body is too small to read at preview
+  // resolution — the directional shadow still renders, this just adds a
+  // visible grounding patch under each foot.
+  contactShadows?: boolean;
 };
 
 // Shared compendium diorama: orbit camera with tilt-clamp, HDRI + 3-light
@@ -119,6 +125,7 @@ export const Diorama = ({
   children,
   className = "diorama",
   targetY,
+  contactShadows = false,
 }: DioramaProps) => {
   const target: [number, number, number] = [0, targetY ?? span * 0.35, 0];
   return (
@@ -170,6 +177,18 @@ export const Diorama = ({
           <circleGeometry args={[span * 2.5, 56]} />
           <meshStandardMaterial color="#4a4438" roughness={0.98} metalness={0} />
         </mesh>
+        {contactShadows && (
+          <ContactShadows
+            position={[0, -0.015, 0]}
+            opacity={0.7}
+            scale={span * 4}
+            blur={2.2}
+            far={span * 1.5}
+            resolution={1024}
+            color="#1a1410"
+            frames={Infinity}
+          />
+        )}
 
         <Suspense fallback={null}>
           {children}
