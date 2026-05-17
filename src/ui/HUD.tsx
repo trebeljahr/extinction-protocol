@@ -65,7 +65,7 @@ export const HUD = () => {
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
-  const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}/${levelOrdinal.total}` : "";
+  const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}` : "";
   const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
   // On the final wave the label embeds the n/m count, so the value
