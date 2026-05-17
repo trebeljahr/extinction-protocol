@@ -308,7 +308,13 @@ export const ModelHeroMesh = () => {
 
   return (
     <group ref={groupRef}>
-      <mesh ref={proxyRef} geometry={proxyGeom} material={proxyMat} onClick={onClick} />
+      <mesh
+        ref={proxyRef}
+        geometry={proxyGeom}
+        material={proxyMat}
+        onClick={onClick}
+        userData={{ heroProxy: true }}
+      />
       <mesh ref={jetRef} geometry={jetGeom} material={jetMat} visible={false} />
     </group>
   );

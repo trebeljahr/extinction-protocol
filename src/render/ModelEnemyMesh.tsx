@@ -601,6 +601,11 @@ export const ModelEnemyMesh = ({
     // ground spot as a waypoint). Right-click on a dino is the dedicated
     // inspect channel below.
     if (state.world.hero.selected) return;
+    // Hero outranks dino selection: if the hero proxy is among this click's
+    // intersections, yield without stopPropagation so the hero's onClick
+    // fires next in the R3F bubbling chain.
+    if (state.world.hero.alive && e.intersections.some((i) => i.object.userData.heroProxy === true))
+      return;
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
     if (!obj) return;
