@@ -90,7 +90,6 @@ const computeFitZoom = (width: number, height: number, pathHalfZ: number): numbe
 };
 
 export const CameraRig = () => {
-  const groupRef = useRef<THREE.Group>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const cameraRef = useRef<OrthographicCameraImpl>(null);
 
@@ -98,6 +97,7 @@ export const CameraRig = () => {
   const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const levelId = useGame((s) => s.world.levelId);
   const selectedKind = useGame((s) => s.selectedKind);
+  const status = useGame((s) => s.world.status);
   const size = useThree((s) => s.size);
 
   // Local one-shot rumble triggered when the run flips to "lost". The
@@ -107,6 +107,14 @@ export const CameraRig = () => {
   // null means inactive. prevStatus tracks the transition into "lost".
   const lossShakeStartRef = useRef<number | null>(null);
   const prevStatusRef = useRef(useGame.getState().world.status);
+  // Last applied shake offset (in world XZ). Re-applied each frame as a
+  // delta to BOTH camera.position and controls.target so OrbitControls'
+  // lookAt(target) keeps the same view direction — the shake reads as
+  // pure screen translation. Wrapping the camera in a parent group
+  // (the old approach) instead moved the camera in world space while
+  // target stayed pinned at (0,0,0), so lookAt re-aimed every frame and
+  // the loss rumble visibly rotated the whole map.
+  const shakeOffsetRef = useRef({ x: 0, z: 0 });
 
   const pathHalfZ = useMemo(
     () => computeMaxPathExtentZ(paths, pathRibbonStart),
@@ -137,17 +145,18 @@ export const CameraRig = () => {
   }, [levelId, fitZoom]);
 
   useFrame(() => {
-    const g = groupRef.current;
-    if (!g) return;
+    const cam = cameraRef.current;
+    if (!cam) return;
+    const ctrls = controlsRef.current;
     const { world } = useGame.getState();
-    const status = world.status;
-    if (status === "lost" && prevStatusRef.current !== "lost") {
+    const curStatus = world.status;
+    if (curStatus === "lost" && prevStatusRef.current !== "lost") {
       lossShakeStartRef.current = performance.now();
     }
-    if (status === "running") lossShakeStartRef.current = null;
-    prevStatusRef.current = status;
+    if (curStatus === "running") lossShakeStartRef.current = null;
+    prevStatusRef.current = curStatus;
 
-    let mag = status === "running" ? world.shake.magnitude : 0;
+    let mag = curStatus === "running" ? world.shake.magnitude : 0;
     const lossStart = lossShakeStartRef.current;
     if (lossStart !== null) {
       // 600ms ease-out (cubic): magnitude 0.6 → 0.
@@ -157,16 +166,26 @@ export const CameraRig = () => {
       if (lossMag > mag) mag = lossMag;
       if (t >= 1) lossShakeStartRef.current = null;
     }
-    if (mag > 0.001) {
-      g.position.x = (Math.random() - 0.5) * mag;
-      g.position.z = (Math.random() - 0.5) * mag;
-    } else {
-      g.position.set(0, 0, 0);
+
+    const desiredX = mag > 0.001 ? (Math.random() - 0.5) * mag : 0;
+    const desiredZ = mag > 0.001 ? (Math.random() - 0.5) * mag : 0;
+    const last = shakeOffsetRef.current;
+    const dx = desiredX - last.x;
+    const dz = desiredZ - last.z;
+    if (dx !== 0 || dz !== 0) {
+      cam.position.x += dx;
+      cam.position.z += dz;
+      if (ctrls) {
+        ctrls.target.x += dx;
+        ctrls.target.z += dz;
+      }
+      last.x = desiredX;
+      last.z = desiredZ;
     }
   });
 
   return (
-    <group ref={groupRef}>
+    <>
       <OrthographicCamera
         ref={cameraRef}
         makeDefault
@@ -189,14 +208,17 @@ export const CameraRig = () => {
         // Yaw + small pitch hint that the playfield is 3D. Disabled while
         // a tower is armed because the placement gesture maps one-finger
         // touch to ROTATE as a no-op — leaving rotate enabled there would
-        // spin the camera mid-placement. Right-mouse drag on desktop,
-        // two-finger twist on mobile (DOLLY_ROTATE keeps pinch zoom).
-        enableRotate={selectedKind === null}
+        // spin the camera mid-placement. Also disabled once the run is
+        // lost so the HQ-death rumble doesn't get mistaken for a rotate
+        // gesture and spin the whole map under the player. Right-mouse
+        // drag on desktop, two-finger twist on mobile (DOLLY_ROTATE keeps
+        // pinch zoom).
+        enableRotate={selectedKind === null && status !== "lost"}
         minPolarAngle={BATTLE_MIN_POLAR}
         maxPolarAngle={BATTLE_MAX_POLAR}
         rotateSpeed={0.6}
         touchTwo={THREE.TOUCH.DOLLY_ROTATE}
       />
-    </group>
+    </>
   );
 };
