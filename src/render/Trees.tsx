@@ -67,12 +67,17 @@ const useVariantSources = (urls: string[]): (VariantSource | null)[] => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: scenes array is derived from useGLTF hooks above, references change only with urls
   const sources = useMemo(() => scenes.map(buildVariantSource), scenes);
 
-  // Publish each variant's hit radius into the global cache so canPlaceAt
-  // (sim side) can read it when towers/path placement queries fire.
+  // Publish each variant's placement-block radius into the global cache so
+  // canPlaceAt (sim side) can read it when towers/path placement queries fire.
+  // We publish the root footprint (lower slice), not the full canopy extent —
+  // canopy can hang over a tower without forbidding placement. The wider
+  // selection hitbox stays driven by the VariantSource directly in render.
   useEffect(() => {
     for (let i = 0; i < sources.length; i++) {
       const src = sources[i];
-      if (src) meshXZRadii.set(urls[i], src.xzRadius);
+      if (!src) continue;
+      const block = Math.max(src.trunkXzRadius, src.footprintXzRadius) || src.xzRadius;
+      meshXZRadii.set(urls[i], block);
     }
   }, [sources, urls]);
 
