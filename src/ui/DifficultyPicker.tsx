@@ -88,9 +88,7 @@ export const DifficultyPicker = () => {
                     Active
                   </span>
                 )}
-                <div
-                  className={`w-12 h-12 sm:w-full sm:h-auto sm:aspect-square rounded-md flex items-center justify-center ${accent.tint} border border-border-faint`}
-                >
+                <div className="w-12 h-12 sm:w-full sm:h-auto sm:aspect-square rounded-md flex items-center justify-center bg-surface-2 border border-border-faint">
                   <DifficultyModelIcon difficulty={d} className="w-full h-full" />
                 </div>
                 <div className={`text-xs sm:text-base font-bold ${accent.text} tracking-mid`}>

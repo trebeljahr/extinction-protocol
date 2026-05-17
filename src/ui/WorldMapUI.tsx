@@ -7,7 +7,6 @@ import { useGamepadMenuNavigation } from "../input/useGamepadMenuNavigation";
 import { LEVELS } from "../levels";
 import { LEVEL_BRIEFING } from "../levels/briefings";
 import {
-  DIFFICULTY_ACCENT,
   DIFFICULTY_LABEL,
   getStars,
   hasUnlockedChallengeModes,
@@ -77,8 +76,6 @@ export const WorldMapUI = () => {
     direction: 0,
     nextAt: 0,
   });
-
-  const accent = DIFFICULTY_ACCENT[difficulty];
 
   // Prewarm enemy thumbnails so opening the compendium from the world
   // map doesn't show empty bordered boxes while six GLB models bake
@@ -165,7 +162,7 @@ export const WorldMapUI = () => {
       <div className="world-map-difficulty absolute bottom-6 left-6 pointer-events-none">
         <button
           type="button"
-          className={`world-map-utility-btn ${accent.tint} border ${accent.border} rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:brightness-110`}
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
           onClick={() => setDifficultyPickerOpen(true)}
           aria-label="Change difficulty"
           title="Change difficulty"

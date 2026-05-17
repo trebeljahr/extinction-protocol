@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLevel, getLevelOrdinal } from "../levels";
-import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL } from "../progress";
+import { DIFFICULTY_LABEL } from "../progress";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
 import { TOWER_LABEL, towerPillInfo } from "../sim/world";
@@ -66,7 +66,6 @@ export const HUD = () => {
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
   const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
   const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}` : "";
-  const difficultyAccent = DIFFICULTY_ACCENT[difficulty];
   const paused = status === "paused";
   // On the final wave the label embeds the n/m count, so the value
   // slot is free to show the wave state ("ACTIVE") rather than just
@@ -265,7 +264,7 @@ export const HUD = () => {
         <button
           type="button"
           onClick={() => setDifficultyPickerOpen(true)}
-          className={`${difficultyAccent.tint} border ${difficultyAccent.border} rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong`}
+          className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
           title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]} · Change`}
           aria-label="Change difficulty"
         >
