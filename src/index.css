@@ -4288,10 +4288,13 @@
 
   /* Hero selection panel — reuses .tower-panel base styling. Top-right
      slot; mutually exclusive with the tower/tree/enemy panels via the
-     store's selection invariant. */
+     store's selection invariant. Pushed below the corner cluster (z:46)
+     on desktop via top:64; raised to z:50 so on narrow viewports where
+     it still collides horizontally it renders on top of the cluster. */
   .hero-selection-panel {
     right: 16px;
-    top: 16px;
+    top: 64px;
+    z-index: 50;
     background: rgba(14, 18, 26, 0.92);
     border-color: rgba(120, 180, 220, 0.28);
   }
