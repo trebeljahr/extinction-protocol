@@ -9,14 +9,7 @@ import {
   previewBaseUpgrade,
 } from "../sim/upgrades";
 import { useGame } from "../store";
-
-// Compact number formatter mirrors TowerPanel — kept inline rather than
-// shared so the two panels can drift if needed without coupling.
-const fmtCompact = (n: number): string => {
-  if (n < 1000) return Math.round(n).toString();
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0)}M`;
-};
+import { fmtCompact } from "./format";
 
 export const BasePanel = () => {
   const selectedBase = useGame((s) => s.ui.selectedBase);

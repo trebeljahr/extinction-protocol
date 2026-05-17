@@ -1,5 +1,6 @@
 import type { HeroAbilitySlot } from "../sim/types";
 import { useGame } from "../store";
+import { fmtCompact } from "./format";
 
 // QWER hotkey map. Slot 3 (R) is always the ultimate so the climactic
 // move sits on the same key across pilots — League-style muscle memory.
@@ -9,15 +10,6 @@ const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Q" | "W" | "E" | "R" }> = 
   { slot: 2, key: "E" },
   { slot: 3, key: "R" },
 ];
-
-// Compact number formatter — same shape as TowerPanel's so a hero
-// dealing tens of thousands of damage reads as "12k" instead of bloating
-// the HUD strip.
-const fmtCompact = (n: number): string => {
-  if (n < 1000) return Math.round(n).toString();
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0)}M`;
-};
 
 // In-game HUD strip: HP/XP bar plus the four ability buttons. The hero
 // menu (HeroShop) is opened from the top-left banner only — not from
