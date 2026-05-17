@@ -987,6 +987,19 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     s.engine.step(s.world, realTimeSec);
 
+    // Close placement when the armed tower stops being affordable.
+    // Otherwise the picker would track a ghost the player can't drop —
+    // every click would just play the "no gold" reject sound.
+    let autoClosedSelection = false;
+    if (
+      s.selectedKind !== null &&
+      !s.freeTowers &&
+      s.world.gold < effectiveTowerCost(s.selectedKind, s.progress.metaSkills)
+    ) {
+      autoClosedSelection = true;
+      emit(s.world, { type: "place-failed", reason: "gold" });
+    }
+
     let progress = s.progress;
     let newEnemyQueue = s.newEnemyQueue;
     let deferredNewEnemyQueue = s.deferredNewEnemyQueue;
@@ -1201,6 +1214,10 @@ export const useGame = create<GameStore>((set, get) => ({
     if (autoPaused !== s.autoPausedForNewEnemy) updates.autoPausedForNewEnemy = autoPaused;
     if (lastResult !== s.lastResult) updates.lastResult = lastResult;
     if (screen !== s.screen) updates.screen = screen;
+    if (autoClosedSelection) {
+      updates.selectedKind = null;
+      updates.pendingTouchPlacement = null;
+    }
     if (newToasts.length > 0) updates.achievementToasts = [...s.achievementToasts, ...newToasts];
     const next = snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy);
     if (!uiEqual(s.ui, next)) updates.ui = next;
@@ -1851,12 +1868,21 @@ export const useGame = create<GameStore>((set, get) => ({
     // the robot so the next click drops a tower or selects, not a move
     // order for the robot.
     if (w.robot.selected) w.robot.selected = false;
-    // Keep the currently-picked tower kind selected (so the player can
-    // keep placing more of the same) and *don't* auto-select the tower
-    // we just dropped — being thrown into the upgrade panel after every
-    // placement is noisy mid-wave.
+    // Don't auto-select the freshly dropped tower — being thrown into
+    // the upgrade panel after every placement is noisy mid-wave.
     const newVersion = s.towerVersion + 1;
-    set({ towerVersion: newVersion, ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy) });
+    // Close placement when the spend leaves the player unable to afford
+    // the next one of the same kind, so the picker doesn't keep the
+    // ghost armed and force a "no gold" reject on the very next click.
+    const stillAffordable = w.gold >= effectiveTowerCost(s.selectedKind, s.progress.metaSkills);
+    const nextSelectedKind = free || stillAffordable ? s.selectedKind : null;
+    const nextPendingTouch = nextSelectedKind === null ? null : s.pendingTouchPlacement;
+    set({
+      towerVersion: newVersion,
+      selectedKind: nextSelectedKind,
+      pendingTouchPlacement: nextPendingTouch,
+      ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy),
+    });
   },
 
   selectTower: (id) => {
