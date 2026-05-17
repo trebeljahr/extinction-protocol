@@ -647,6 +647,10 @@ export const createWorld = (
     forbiddenTowers: new Set(modeConfig.forbiddenTowers ?? []),
     lockedLoadout: modeConfig.lockedLoadout ?? null,
     sellingDisabled: modeConfig.noSelling ?? false,
+    // Adaptive-resistance state — empty until applyDamage starts
+    // tallying. dominantNext stays null until startWave picks it
+    // from the trailing buckets.
+    adaptation: { perWave: new Map(), dominantNext: null },
   };
 };
 
@@ -883,6 +887,145 @@ export const ELITE_BOUNTY_MUL = 1.4;
 export const FIERCE_BOUNTY_MUL = 1.3;
 
 export const MIN_SLOW_FACTOR = 0.25;
+
+// === Adaptive Resistance =================================================
+//
+// Playtest note 10 / item 14. Starting one level after the "training the
+// herd" SITREP at LEVEL_INTERSTITIAL[11], the herd actively adapts to
+// the damage type the player has been leaning on — a fraction of each
+// wave spawns with bumped resistance (up to full immunity in late
+// game) against the type the player dealt the most damage with over
+// the trailing ADAPT_WINDOW waves. Adapted spawns carry a slight
+// off-color material tint so the player can read the threat without
+// having to inspect the resist panel.
+//
+// The whole system is gated by ADAPTIVE_RESISTANCE_ENABLED below. Flip
+// the flag to `false` and the tally short-circuits, dominantNext stays
+// null, spawnEnemy skips the snapshot, and ModelEnemyMesh's adaptive
+// branch never fires — a clean one-line back-out if playtests reject
+// the mechanic.
+//
+// See docs/adaptive-resistance.md for the full spec.
+export const ADAPTIVE_RESISTANCE_ENABLED = true;
+
+// First level at which the herd adapts. L11 carries the SITREP that
+// names the loop ("we have been training the herd"); the mechanic
+// kicks in on the next level so the narrative beat is paid off
+// immediately by the very next wave.
+export const ADAPT_TRIGGER_LEVEL = 12;
+
+// Trailing wave window summed when picking the dominant damage type.
+// Three waves smooths single-wave spikes (boss splash, ignite tails)
+// without making the herd take forever to retune when the player
+// swaps a tower.
+export const ADAPT_WINDOW = 3;
+
+// Bosses get adaptation at half rate (and never hard-immune) — their
+// resists are already scripted per BOSS_VARIANT_RESIST and turning a
+// matriarch fully immune to the player's primary type would gut the
+// fight.
+export const ADAPT_BOSS_BOOST_SCALE = 0.5;
+
+// If the effective multiplier (baseMul × (1 − boost)) drops to or
+// below this floor, snap it to 0 so the enemy reads as truly immune
+// instead of pinging for 6% damage. Non-bosses only.
+export const ADAPT_IMMUNITY_FLOOR = 0.1;
+
+// Multiplicative reduction applied to extraResists[type] for the
+// dominant type, per adapted spawn. Grows roughly linearly past the
+// trigger; capped at 0.75 so even L30+ leaves the highest-base-resist
+// enemies with a hairline of damage taken.
+export const adaptiveBoost = (level: number): number => {
+  if (level < ADAPT_TRIGGER_LEVEL) return 0;
+  const t = level - ADAPT_TRIGGER_LEVEL;
+  return Math.min(0.75, 0.2 + t * 0.04);
+};
+
+// Per-spawn probability the spawn is one of the adapted variants. The
+// early ramp keeps the "some specimens are adapting" reading on
+// screen; reaches saturation at L22 so late game is uniformly adapted.
+export const adaptiveCoverage = (level: number): number => {
+  if (level < ADAPT_TRIGGER_LEVEL) return 0;
+  const t = level - ADAPT_TRIGGER_LEVEL;
+  return Math.min(1, 0.3 + t * 0.07);
+};
+
+// Material tint lerp amount for the adapted body color. Kept below
+// ELITE_TINT_AMOUNT (0.55 in ModelEnemyMesh) at every level so an
+// adapted-but-not-elite enemy never out-saturates an elite silhouette.
+// Stepped instead of continuous so the visual change between bands
+// reads on screen.
+export const adaptiveTintAmount = (level: number): number => {
+  if (level < ADAPT_TRIGGER_LEVEL) return 0;
+  if (level <= 14) return 0.1;
+  if (level <= 17) return 0.18;
+  if (level <= 20) return 0.28;
+  if (level <= 25) return 0.38;
+  return 0.48;
+};
+
+// Adaptive tint hex per resisted damage type. Reuses the existing
+// DAMAGE_TYPE_COLOR palette so the player learns one color → type
+// mapping that's already on screen via the damage-type pips. Read by
+// ModelEnemyMesh.tsx for the body lerp.
+export const ADAPTIVE_TINT_BY_TYPE: Record<DamageType, string> = {
+  kinetic: DAMAGE_TYPE_COLOR.kinetic,
+  electric: DAMAGE_TYPE_COLOR.electric,
+  cold: DAMAGE_TYPE_COLOR.cold,
+  explosive: DAMAGE_TYPE_COLOR.explosive,
+  flame: DAMAGE_TYPE_COLOR.flame,
+};
+
+export const emptyAdaptBucket = (): Record<DamageType, number> => ({
+  kinetic: 0,
+  electric: 0,
+  cold: 0,
+  explosive: 0,
+  flame: 0,
+});
+
+// Picks the damage type the herd will resist on the next wave from
+// the trailing ADAPT_WINDOW buckets. Lexical tie-break on the
+// DamageType keys keeps replays deterministic when totals tie. Null
+// when the flag is off or no damage has been recorded yet.
+// Per-type damage accumulator called by applyDamage. Cheap (one Map
+// lookup + one number add) and gated by ADAPTIVE_RESISTANCE_ENABLED so
+// the whole feature can be backed out by flipping the flag.
+export const tallyAdaptiveDamage = (world: World, type: DamageType, dealt: number): void => {
+  if (!ADAPTIVE_RESISTANCE_ENABLED) return;
+  if (dealt <= 0) return;
+  // Wave 0 = pre-first-wave (waveActive false). Don't tally — those
+  // hits would land in a bucket that never gets read.
+  if (world.wave <= 0) return;
+  let bucket = world.adaptation.perWave.get(world.wave);
+  if (!bucket) {
+    bucket = emptyAdaptBucket();
+    world.adaptation.perWave.set(world.wave, bucket);
+  }
+  bucket[type] += dealt;
+};
+
+export const computeAdaptiveDominant = (world: World): DamageType | null => {
+  if (!ADAPTIVE_RESISTANCE_ENABLED) return null;
+  const totals = emptyAdaptBucket();
+  const fromWave = Math.max(1, world.wave - ADAPT_WINDOW);
+  for (let w = fromWave; w <= world.wave; w++) {
+    const bucket = world.adaptation.perWave.get(w);
+    if (!bucket) continue;
+    for (const k of Object.keys(totals) as DamageType[]) totals[k] += bucket[k];
+  }
+  // Iterate in a fixed order so ties resolve deterministically.
+  const order: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
+  let best: DamageType | null = null;
+  let bestVal = 0;
+  for (const k of order) {
+    if (totals[k] > bestVal) {
+      best = k;
+      bestVal = totals[k];
+    }
+  }
+  return best;
+};
 
 export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; clip?: string }> = {
   raptor: { url: "/models/Velociraptor.glb", targetSize: 1.6 },
@@ -1148,6 +1291,7 @@ export const applyDamage = (
         if (attacker) attacker.damageDealt += dealt;
       }
       if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
+      tallyAdaptiveDamage(world, type, dealt);
       return;
     }
   }
@@ -1199,6 +1343,7 @@ export const applyDamage = (
     if (attacker) attacker.damageDealt += dealt;
   }
   if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
+  tallyAdaptiveDamage(world, type, dealt);
   if (enemy.hp <= 0) {
     enemy.alive = false;
     world.gold += enemy.bounty;
@@ -1351,6 +1496,36 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     bossVariant: effectiveVariant,
     childSpawnAt: childCfg ? world.time + childCfg.interval : undefined,
   };
+  // Adaptive resistance snapshot — a fraction of spawns at L12+ mutate
+  // their extraResists toward immunity for the dominant damage type
+  // picked by startWave. The renderer reads `adaptiveResistType` to
+  // pick the off-color body tint. Whole block is gated by the feature
+  // flag so it can be backed out in one flip.
+  if (
+    ADAPTIVE_RESISTANCE_ENABLED &&
+    world.adaptation.dominantNext !== null &&
+    world.levelId >= ADAPT_TRIGGER_LEVEL
+  ) {
+    const lvl = world.levelId;
+    if (Math.random() < adaptiveCoverage(lvl)) {
+      const type = world.adaptation.dominantNext;
+      const boostScale = enemy.kind === "boss" ? ADAPT_BOSS_BOOST_SCALE : 1;
+      const boost = adaptiveBoost(lvl) * boostScale;
+      // baseMul matches what applyDamage will look up for the dominant
+      // type — keeps the "snap to immune" floor in sync with the real
+      // damage path.
+      const baseMul =
+        enemy.kind === "boss" && enemy.bossVariant !== undefined
+          ? BOSS_VARIANT_RESIST[enemy.bossVariant][type]
+          : ENEMY_RESIST[enemy.kind][type];
+      const existing = enemy.extraResists[type] ?? 1;
+      let next = existing * (1 - boost);
+      if (enemy.kind !== "boss" && baseMul * next <= ADAPT_IMMUNITY_FLOOR) next = 0;
+      enemy.extraResists[type] = next;
+      enemy.adaptiveResistType = type;
+      enemy.adaptiveResistAmount = adaptiveTintAmount(lvl);
+    }
+  }
   world.enemies.push(enemy);
   world.enemyById.set(enemy.id, enemy);
   world.runEnemyKinds[kind] = true;

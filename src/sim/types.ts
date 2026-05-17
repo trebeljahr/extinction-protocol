@@ -132,6 +132,17 @@ export type Enemy = {
   // render layer reads it to swivel the model toward the hero so the
   // skirmish reads visually. Cleared each tick before the engage check.
   engagedWithHero?: boolean;
+  // Adaptive-resistance snapshot — set at spawn for the fraction of
+  // enemies the herd "adapted" this wave. Mirrors the dominant damage
+  // type the player has been leaning on (see world.adaptation) and is
+  // used purely for the renderer tint; the actual resist mutation
+  // lives on `extraResists[adaptiveResistType]`. Undefined for
+  // non-adapted spawns and for all spawns before ADAPT_TRIGGER_LEVEL.
+  adaptiveResistType?: DamageType;
+  // Lerp amount for the off-color body tint that telegraphs the
+  // adaptation. Scales with level so later mutations read as more
+  // pronounced on screen. 0..1; only the renderer reads it.
+  adaptiveResistAmount?: number;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -732,6 +743,26 @@ export type World = {
   forbiddenTowers: ReadonlySet<TowerKind>;
   lockedLoadout: readonly TowerKind[] | null;
   sellingDisabled: boolean;
+  // Adaptive-resistance state. Updated inside applyDamage (per-type
+  // tally) and read by startWave (computes dominantNext) and
+  // spawnEnemy (snapshots into the spawned enemy). Inert when
+  // ADAPTIVE_RESISTANCE_ENABLED is false — the flag in world.ts gates
+  // every write and read so the whole feature can be backed out with
+  // a single bool flip. See docs/adaptive-resistance.md.
+  adaptation: AdaptiveResistanceState;
+};
+
+export type AdaptiveResistanceState = {
+  // Per-wave damage-by-type tally. Only the trailing ADAPT_WINDOW
+  // entries are kept; older waves are reaped at startWave. Buckets
+  // count damage actually applied (HP reduction + shield absorption),
+  // matching the per-tower `damageDealt` semantics.
+  perWave: Map<number, Record<DamageType, number>>;
+  // Dominant damage type for the current wave's spawns. Computed once
+  // at startWave from the perWave tally and held constant for the
+  // wave so mid-wave tower swaps don't re-tune in flight. Null while
+  // pre-trigger or before any damage has been dealt.
+  dominantNext: DamageType | null;
 };
 
 export type EasterEgg = {

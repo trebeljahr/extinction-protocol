@@ -4,8 +4,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { smoothDirection } from "../sim/path";
-import type { BossVariant, EnemyKind, World } from "../sim/types";
-import { BOSS_VARIANT_MATERIAL, BOSS_VARIANT_TINT, ELITE_TINT_BY_KIND } from "../sim/world";
+import type { BossVariant, DamageType, EnemyKind, World } from "../sim/types";
+import {
+  ADAPTIVE_TINT_BY_TYPE,
+  BOSS_VARIANT_MATERIAL,
+  BOSS_VARIANT_TINT,
+  ELITE_TINT_BY_KIND,
+} from "../sim/world";
 import { useGame } from "../store";
 import { measureVisibleBox } from "./measureModel";
 
@@ -125,6 +130,20 @@ export const ModelEnemyMesh = ({
     [kind, bossVariant],
   );
   const matriarchMaterial = bossVariant !== undefined ? BOSS_VARIANT_MATERIAL[bossVariant] : null;
+  // Adaptive-resistance tint palette — one stable THREE.Color per damage
+  // type so the per-frame body lerp doesn't allocate. Built once and
+  // shared by every enemy in this mesh; the per-enemy snapshot
+  // (`enemy.adaptiveResistType`) picks which key to read.
+  const adaptiveTintByType = useMemo<Record<DamageType, THREE.Color>>(
+    () => ({
+      kinetic: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.kinetic),
+      electric: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.electric),
+      cold: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.cold),
+      explosive: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.explosive),
+      flame: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.flame),
+    }),
+    [],
+  );
   // Free list of skinned clones from dead-but-recyclable enemies. Reusing
   // is significantly cheaper than another `cloneSkinned + AnimationMixer`,
   // which matters for swarms.
@@ -463,6 +482,16 @@ export const ModelEnemyMesh = ({
       // queen, not a chip-stacked rank-and-file. Captured here once per
       // enemy so the inner traverse callback is a cheap branch.
       const matriarch = bossVariant !== undefined;
+      // Adaptive-resistance render: enemies whose extraResists were
+      // bumped at spawn carry a slight off-color body tint hinting at
+      // which damage type they're now hardened against. Lerp amount
+      // scales with level (set at spawn into e.adaptiveResistAmount)
+      // so later mutations read as more pronounced on screen.
+      // Priority is below frost/matriarch/elite; the elite chip's
+      // silhouette read still wins when both fire.
+      const adaptiveType = e.adaptiveResistType;
+      const adaptiveAmount = e.adaptiveResistAmount ?? 0;
+      const adaptiveTint = adaptiveType ? adaptiveTintByType[adaptiveType] : null;
       item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -479,6 +508,8 @@ export const ModelEnemyMesh = ({
             else if (matriarch && matriarchMaterial)
               mm.color.copy(base).lerp(eliteTint, matriarchMaterial.tintAmount);
             else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
+            else if (adaptiveTint && adaptiveAmount > 0)
+              mm.color.copy(base).lerp(adaptiveTint, adaptiveAmount);
             else mm.color.copy(base);
           }
           if (matriarch && matriarchMaterial) {

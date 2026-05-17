@@ -1,5 +1,13 @@
 import type { BossVariant, DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
-import { addShake, emit, spawnEnemy } from "./world";
+import {
+  ADAPT_WINDOW,
+  ADAPTIVE_RESISTANCE_ENABLED,
+  addShake,
+  computeAdaptiveDominant,
+  emit,
+  emptyAdaptBucket,
+  spawnEnemy,
+} from "./world";
 
 export type { WaveArchetype };
 
@@ -120,6 +128,21 @@ export const startWave = (world: World) => {
   world.midwaveTimer = 0;
   world.midwaveTimerMax = 0;
   world.bossTrickleStreams = [];
+  // Adaptive resistance — pick the dominant damage type from the
+  // trailing window *before* this wave's spawns are queued so
+  // spawnEnemy can snapshot the type into each adapted enemy. Also
+  // reap stale buckets so the Map doesn't grow unbounded across a
+  // full run. See docs/adaptive-resistance.md.
+  if (ADAPTIVE_RESISTANCE_ENABLED) {
+    world.adaptation.dominantNext = computeAdaptiveDominant(world);
+    if (!world.adaptation.perWave.has(world.wave)) {
+      world.adaptation.perWave.set(world.wave, emptyAdaptBucket());
+    }
+    const keepFrom = Math.max(1, world.wave - ADAPT_WINDOW);
+    for (const w of Array.from(world.adaptation.perWave.keys())) {
+      if (w < keepFrom) world.adaptation.perWave.delete(w);
+    }
+  }
   const spec = world.plannedWaves[world.wave - 1];
   const roster = rosterFromSpec(spec);
   world.waveTotalEnemies = roster.length;
