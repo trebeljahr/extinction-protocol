@@ -164,19 +164,30 @@ export const EnemyPanel = () => {
               </span>
             );
           })}
-          {hasAdaptation && (
-            <span
-              className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
-              style={{
-                color: "#ffb266",
-                borderColor: "rgba(255,178,102,0.5)",
-                background: "rgba(255,178,102,0.10)",
-              }}
-              title="Adapted — evolved resistance to specific damage types."
-            >
-              Adapted
-            </span>
-          )}
+          {hasAdaptation &&
+            (() => {
+              const adaptLines = DAMAGE_TYPE_ORDER.flatMap((t) => {
+                const extra = extraResists[t];
+                if (extra === undefined || extra === 1) return [];
+                const pct = Math.round((1 - extra) * 100);
+                return [
+                  `${DAMAGE_TYPE_LABEL[t]}: ${pct > 0 ? `${pct}% resistance` : `${-pct}% vulnerability`}`,
+                ];
+              }).join(" · ");
+              return (
+                <span
+                  className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
+                  style={{
+                    color: "#ffb266",
+                    borderColor: "rgba(255,178,102,0.5)",
+                    background: "rgba(255,178,102,0.10)",
+                  }}
+                  title={`Adapted — evolved resistance to specific damage types. ${adaptLines}`}
+                >
+                  Adapted · {adaptLines}
+                </span>
+              );
+            })()}
         </div>
       )}
 
@@ -234,7 +245,12 @@ export const EnemyPanel = () => {
       <div className="grid grid-cols-5 auto-rows-fr gap-1 mb-3">
         {DAMAGE_TYPE_ORDER.map((type) => {
           const mul = resist[type];
-          const adapted = (extraResists[type] ?? 1) !== 1;
+          const extra = extraResists[type] ?? 1;
+          const adapted = extra !== 1;
+          // Resistance from adaptation only — extra<1 means damage of this
+          // type is reduced by the adapted fraction. Display as a positive
+          // percent so "40% adapted" reads as a resistance shield.
+          const adaptPct = adapted ? Math.round((1 - extra) * 100) : 0;
           const pct = Math.round((mul - 1) * 100);
           let value: string;
           if (mul === 0) value = "0×";
@@ -244,12 +260,19 @@ export const EnemyPanel = () => {
           const state: "good" | "bad" | "neutral" = pct > 0 ? "bad" : pct < 0 ? "good" : "neutral";
           const titleParts = [`${DAMAGE_TYPE_LABEL[type]}: ${mul.toFixed(2)}×`];
           if (elite) titleParts.push("(elite)");
-          if (adapted) titleParts.push("(adapted)");
+          if (adapted) {
+            titleParts.push(
+              adaptPct > 0
+                ? `(adapted: ${adaptPct}% resistance)`
+                : `(adapted: ${-adaptPct}% extra damage)`,
+            );
+          }
           return (
             <ResistChip
               key={type}
               state={state}
               adapted={adapted}
+              adaptPct={adapted ? adaptPct : null}
               title={titleParts.join(" ")}
               nameColor={DAMAGE_TYPE_COLOR[type]}
               name={DAMAGE_TYPE_LABEL[type]}
@@ -308,6 +331,7 @@ const CHIP_VAL_COLOR: Record<"good" | "bad" | "neutral", string> = {
 const ResistChip = ({
   state,
   adapted,
+  adaptPct,
   title,
   nameColor,
   name,
@@ -315,6 +339,7 @@ const ResistChip = ({
 }: {
   state: "good" | "bad" | "neutral";
   adapted?: boolean;
+  adaptPct?: number | null;
   title: string;
   nameColor: string;
   name: string;
@@ -330,5 +355,13 @@ const ResistChip = ({
       {name}
     </span>
     <span className={`text-[11px] font-bold tabular-nums ${CHIP_VAL_COLOR[state]}`}>{value}</span>
+    {adaptPct !== null && adaptPct !== undefined && (
+      <span
+        className="text-[8.5px] font-bold tabular-nums tracking-tight mt-[1px]"
+        style={{ color: "#ffb266" }}
+      >
+        {adaptPct > 0 ? `↓${adaptPct}% adapt` : `↑${-adaptPct}% adapt`}
+      </span>
+    )}
   </div>
 );
