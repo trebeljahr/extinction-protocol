@@ -1,5 +1,5 @@
 import { isOnLavaSurface } from "../lavaGeometry";
-import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { dampFactor, shortAngleDelta } from "./angle";
 import { isEnemyTargetable } from "./enemyState";
 import { pathProgress, projectOnPath, smoothDirection } from "./path";
@@ -67,6 +67,14 @@ const ROBOT_LATERAL_LERP_PER_SEC = 2.2;
 const ROBOT_ENGAGE_RANGE = 1.6;
 // Window in which a Mike pre-dash aim stays valid before auto-clearing.
 const DASH_AIM_LIFETIME = 4.0;
+// Max distance a move-order click can land from the painted path before
+// the order is rejected as off-path. Matches the visible lane half-width
+// so any click on the painted lane is accepted.
+const ROBOT_MOVE_ON_PATH_TOLERANCE = PATH_WIDTH / 2;
+// Once the robot ends up beyond this lateral distance from the nearest
+// path (typically after a dash overshoot), an auto-return move-order is
+// issued so they walk back to the lane.
+const ROBOT_OFF_PATH_RETURN_THRESHOLD = ROBOT_LANE_HALF + 0.15;
 // Mike dash coal-trail tuning.
 const COAL_DROP_INTERVAL = 0.045; // ~9 embers per default 0.4s dash
 const COAL_TICK_DAMAGE = 16;
@@ -581,6 +589,23 @@ export const updateRobot = (world: World, dt: number) => {
   // seconds shouldn't trap the cursor in commit-on-click mode.
   if (robot.dashAim && world.time >= robot.dashAim.expiresAt) robot.dashAim = null;
 
+  // Auto-return to the path if a dash (or any other forced displacement)
+  // left the robot too far off-road. Skipped while a dash is still active
+  // so the dash motion plays out fully, and only fires when the player
+  // has no pending move-order — manual orders always win.
+  if (!dashing && !robot.moveTarget) {
+    const { pathIndex: nearestIdx, distSq: nearestD2 } = nearestPathFor(
+      world,
+      robot.pos,
+      robot.pathIndex,
+    );
+    if (nearestD2 > ROBOT_OFF_PATH_RETURN_THRESHOLD * ROBOT_OFF_PATH_RETURN_THRESHOLD) {
+      const proj = projectOnPath(world.paths[nearestIdx], robot.pos);
+      robot.moveTarget = { x: proj.pos.x, y: proj.pos.y };
+      robot.pathIndex = nearestIdx;
+    }
+  }
+
   let desiredX = 0;
   let desiredY = 0;
   let walking = false;
@@ -821,13 +846,14 @@ export const updateRobot = (world: World, dt: number) => {
 
 // --- Player-issued actions ---------------------------------------------
 
-export const orderRobotMove = (world: World, pos: Vec2) => {
-  const robot = world.robot;
-  if (!robot.alive) return;
-  robot.moveTarget = { x: pos.x, y: pos.y };
-  // Re-bind to whichever path lane the click landed nearest. Single-path
-  // levels are a no-op; multi-path levels swap lanes on the move order.
-  let bestIdx = robot.pathIndex;
+// Picks the nearest path lane for `pos` and returns its index plus the
+// squared distance from `pos` to the closest point on that lane.
+const nearestPathFor = (
+  world: World,
+  pos: Vec2,
+  fallbackIdx: number,
+): { pathIndex: number; distSq: number } => {
+  let bestIdx = fallbackIdx;
   let bestD2 = Number.POSITIVE_INFINITY;
   for (let i = 0; i < world.paths.length; i++) {
     const proj = projectOnPath(world.paths[i], pos);
@@ -837,7 +863,31 @@ export const orderRobotMove = (world: World, pos: Vec2) => {
       bestIdx = i;
     }
   }
-  robot.pathIndex = bestIdx;
+  return { pathIndex: bestIdx, distSq: bestD2 };
+};
+
+// Returns true if `pos` falls within the painted lane of any path. Used
+// by the move-order gate so clicks that land off-road are rejected
+// outright instead of silently snapping the robot to the nearest lane.
+export const isPointOnAnyPath = (world: World, pos: Vec2): boolean => {
+  const { distSq } = nearestPathFor(world, pos, 0);
+  return distSq <= ROBOT_MOVE_ON_PATH_TOLERANCE * ROBOT_MOVE_ON_PATH_TOLERANCE;
+};
+
+// Returns true if the order was accepted. Off-path clicks are rejected
+// — the robot stays put and the caller (store/UI) can surface feedback.
+export const orderRobotMove = (world: World, pos: Vec2): boolean => {
+  const robot = world.robot;
+  if (!robot.alive) return false;
+  const { pathIndex, distSq } = nearestPathFor(world, pos, robot.pathIndex);
+  if (distSq > ROBOT_MOVE_ON_PATH_TOLERANCE * ROBOT_MOVE_ON_PATH_TOLERANCE) {
+    return false;
+  }
+  robot.moveTarget = { x: pos.x, y: pos.y };
+  // Re-bind to whichever path lane the click landed nearest. Single-path
+  // levels are a no-op; multi-path levels swap lanes on the move order.
+  robot.pathIndex = pathIndex;
+  return true;
 };
 
 export const selectRobot = (world: World, on: boolean) => {

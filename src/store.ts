@@ -497,7 +497,7 @@ type GameStore = {
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
 
-  orderRobotMove: (pos: Vec2) => void;
+  orderRobotMove: (pos: Vec2) => boolean;
   triggerRobotAbility: (slot: RobotAbilitySlot) => void;
   selectRobotUnit: (on: boolean) => void;
   setRobotDashAimDir: (dir: Vec2) => void;
@@ -1234,11 +1234,13 @@ export const useGame = create<GameStore>((set, get) => ({
 
   orderRobotMove: (pos) => {
     const s = get();
-    if (s.world.status !== "running") return;
+    if (s.world.status !== "running") return false;
     // Forward the raw click — simOrderRobotMove projects to the path
     // each tick and derives a lane-clamped lateral offset, so clicking
     // near the edge of the painted lane parks the robot on that side.
-    simOrderRobotMove(s.world, pos);
+    // Returns false if the click landed off-road so callers can play a
+    // rejection cue.
+    return simOrderRobotMove(s.world, pos);
   },
 
   triggerRobotAbility: (slot) => {

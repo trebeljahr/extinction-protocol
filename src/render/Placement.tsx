@@ -1,4 +1,4 @@
-import { type ThreeEvent, useThree } from "@react-three/fiber";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
@@ -43,6 +43,8 @@ export const Placement = () => {
   const multiTouchRef = useRef(false);
   const suppressClickUntilRef = useRef(0);
   const lastTouchInputAtRef = useRef(0);
+  const invalidPulseTimerRef = useRef<number | null>(null);
+  const [invalidPulse, setInvalidPulse] = useState<{ pos: Vec2; key: number } | null>(null);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
   const selectedKind = useGame((s) => s.selectedKind);
@@ -67,6 +69,30 @@ export const Placement = () => {
     controllerActiveRef.current = active;
     setControllerActive(active);
   }, []);
+
+  // Flash a transient red ring at the rejected click position so the
+  // player gets a visual "no, not there" alongside the error tone. The
+  // ring auto-clears after a short window — restarting the timer if a
+  // second invalid click lands while one's already showing.
+  const flashInvalidMove = useCallback((pos: Vec2) => {
+    if (invalidPulseTimerRef.current !== null) {
+      window.clearTimeout(invalidPulseTimerRef.current);
+    }
+    setInvalidPulse({ pos: { x: pos.x, y: pos.y }, key: Date.now() });
+    invalidPulseTimerRef.current = window.setTimeout(() => {
+      setInvalidPulse(null);
+      invalidPulseTimerRef.current = null;
+    }, 380);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (invalidPulseTimerRef.current !== null) {
+        window.clearTimeout(invalidPulseTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const pointFromScreen = (clientX: number, clientY: number): Vec2 | null => {
     const rect = gl.domElement.getBoundingClientRect();
@@ -345,7 +371,10 @@ export const Placement = () => {
     // is a move order (snapped to the path inside orderRobotMove). Robot
     // stays selected — click the robot again to deselect.
     if (state.world.robot.selected && state.selectedKind === null) {
-      state.orderRobotMove(pos);
+      if (!state.orderRobotMove(pos)) {
+        audio.ui("error");
+        flashInvalidMove(pos);
+      }
       return;
     }
     if (state.towerAtPos(pos)) audio.ui("select");
@@ -358,7 +387,10 @@ export const Placement = () => {
     e.nativeEvent.preventDefault();
     e.stopPropagation();
     const pos = eventPoint(e);
-    useGame.getState().orderRobotMove(pos);
+    if (!useGame.getState().orderRobotMove(pos)) {
+      audio.ui("error");
+      flashInvalidMove(pos);
+    }
   };
 
   // Suppress browser's native context menu on the canvas so right-click
@@ -419,6 +451,8 @@ export const Placement = () => {
         </group>
       )}
 
+      {invalidPulse && <InvalidMovePulse key={invalidPulse.key} pos={invalidPulse.pos} />}
+
       {showPlacement && (
         <>
           <group position={[activeHover!.x, 0, -activeHover!.y]}>
@@ -450,6 +484,49 @@ export const Placement = () => {
           </Suspense>
         </>
       )}
+    </group>
+  );
+};
+
+const INVALID_PULSE_DURATION = 0.38;
+
+const InvalidMovePulse = ({ pos }: { pos: Vec2 }) => {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const matRef = useRef<THREE.MeshBasicMaterial>(null);
+  const xRef = useRef<THREE.Group>(null);
+  const elapsedRef = useRef(0);
+  useFrame((_, dt) => {
+    elapsedRef.current += dt;
+    const t = Math.min(1, elapsedRef.current / INVALID_PULSE_DURATION);
+    const scale = 0.6 + t * 0.9;
+    if (ringRef.current) ringRef.current.scale.setScalar(scale);
+    if (xRef.current) xRef.current.scale.setScalar(0.9 + t * 0.2);
+    const opacity = 0.95 * (1 - t);
+    if (matRef.current) matRef.current.opacity = opacity;
+  });
+  return (
+    <group position={[pos.x, 0, -pos.y]}>
+      <mesh ref={ringRef} position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.45, 0.62, 32]} />
+        <meshBasicMaterial
+          ref={matRef}
+          color="#ff4d6a"
+          transparent
+          opacity={0.95}
+          depthTest={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <group ref={xRef} position={[0, 0.06, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, Math.PI / 4]}>
+          <planeGeometry args={[0.75, 0.08]} />
+          <meshBasicMaterial color="#ff4d6a" transparent opacity={0.95} depthTest={false} />
+        </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, -Math.PI / 4]}>
+          <planeGeometry args={[0.75, 0.08]} />
+          <meshBasicMaterial color="#ff4d6a" transparent opacity={0.95} depthTest={false} />
+        </mesh>
+      </group>
     </group>
   );
 };
