@@ -176,7 +176,7 @@ const signedPct = (m: number) => {
   return `${delta >= 0 ? "+" : ""}${delta}%`;
 };
 
-const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): string[] => {
+export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): string[] => {
   const a = spec.abilities[slot];
   if (a.type === "dash") {
     const lines = [

@@ -14,7 +14,6 @@ import { EnemyPanel } from "./EnemyPanel";
 import { IconCog } from "./MenuIcons";
 import { PauseMenu } from "./PauseMenu";
 import { QuickSettings } from "./QuickSettings";
-import { RobotMiniIcon } from "./RobotMiniIcon";
 import { RobotPanel } from "./RobotPanel";
 import { RobotSelectionPanel } from "./RobotSelectionPanel";
 import { TowerPanel } from "./TowerPanel";
@@ -212,7 +211,6 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
-        <RobotMiniIcon />
         <Stat label="GOLD" value={gold} accentClass="text-gold" />
         <Stat label="LIVES" value={lives} accentClass="text-red" />
         <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accentClass="text-blue" />

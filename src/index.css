@@ -4139,6 +4139,33 @@
     z-index: 26;
     min-width: 232px;
   }
+  /* Click target on top half of the robot panel — opens the robot
+     overview overlay. Resets <button> chrome so it inherits the panel
+     layout; hover/active reads as a subtle highlight, not a full button. */
+  .robot-portrait {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 2px 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.12s,
+      border-color 0.12s;
+  }
+  .robot-portrait:hover {
+    background: rgba(159, 216, 255, 0.06);
+    border-color: rgba(159, 216, 255, 0.22);
+  }
+  .robot-portrait.active {
+    background: rgba(159, 216, 255, 0.1);
+    border-color: rgba(159, 216, 255, 0.4);
+  }
   .robot-name {
     font-size: var(--fs-xs);
     font-weight: 700;
@@ -4321,92 +4348,6 @@
     color: #fff;
   }
 
-  /* Robot mini icon — sits in the hud-top row alongside GOLD/LIVES/WAVE.
-     Clickable shortcut into the robot selection panel; doubles as an
-     always-visible HP readout. */
-  .robot-mini {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(10, 16, 24, 0.72);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 6px;
-    padding: 8px 14px 8px 8px;
-    font-family: inherit;
-    color: inherit;
-    cursor: pointer;
-    pointer-events: auto;
-    backdrop-filter: blur(6px);
-    transition:
-      border-color 0.12s,
-      box-shadow 0.12s,
-      transform 0.08s;
-  }
-  .robot-mini > .robot-swatch {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    flex-shrink: 0;
-  }
-  .robot-mini:hover {
-    border-color: var(--color-blue);
-    box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.32);
-  }
-  .robot-mini.active {
-    border-color: var(--color-blue);
-    box-shadow:
-      0 0 0 1px rgba(159, 216, 255, 0.45),
-      0 0 18px rgba(159, 216, 255, 0.2);
-  }
-  .robot-mini.dead {
-    filter: grayscale(0.5) brightness(0.7);
-  }
-  .robot-mini-body {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 92px;
-    text-align: left;
-  }
-  .robot-mini-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 6px;
-  }
-  .robot-mini-label {
-    font-size: var(--fs-xs);
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    color: var(--color-blue);
-  }
-  .robot-mini-lvl {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--color-fg-soft);
-    background: rgba(159, 216, 255, 0.12);
-    padding: 1px 6px;
-    border-radius: 999px;
-  }
-  .robot-mini-bar {
-    height: 6px;
-    background: rgba(6, 10, 14, 0.7);
-    border: 1px solid rgba(120, 160, 200, 0.18);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .robot-mini-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ff5a3a, #ffb054 70%, #ffe080);
-    transition: width 0.12s linear;
-  }
-  .robot-mini-hp {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--color-fg);
-    font-variant-numeric: tabular-nums;
-  }
-
   /* Robot selection panel — reuses .tower-panel base styling. Top-right
      slot; mutually exclusive with the tower/tree/enemy panels via the
      store's selection invariant. Pushed below the corner cluster (z:46)
@@ -4469,52 +4410,44 @@
     gap: 6px;
     margin-bottom: 12px;
   }
-  .robot-sel-ability {
+  /* Read-only ability info card. No trigger affordance — the overlay is
+     a reference page, not a control surface. Keys still show so players
+     map the entry to the QWER muscle memory in the bottom-left panel. */
+  .robot-sel-ability-info {
     display: flex;
-    align-items: stretch;
-    gap: 10px;
+    flex-direction: column;
+    gap: 6px;
     padding: 8px 10px;
     background: rgba(14, 20, 28, 0.55);
     border: 1px solid rgba(120, 160, 200, 0.18);
     border-radius: 6px;
     color: var(--color-fg);
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition:
-      border-color 0.12s,
-      transform 0.08s;
   }
-  .robot-sel-ability:hover:not(:disabled) {
-    border-color: rgba(180, 220, 255, 0.55);
+  .robot-sel-ability-info-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-  .robot-sel-ability.ready {
-    border-color: rgba(159, 216, 255, 0.55);
-  }
-  .robot-sel-ability.cooling {
-    filter: grayscale(0.4) brightness(0.78);
-    cursor: not-allowed;
+  .robot-sel-ability-info-title {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
   }
   .robot-sel-ability-glyph {
     font-size: 22px;
     line-height: 1;
     color: var(--color-blue);
     text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
-    align-self: center;
     width: 28px;
     text-align: center;
-  }
-  .robot-sel-ability-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
+    flex-shrink: 0;
   }
   .robot-sel-ability-name {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
     font-size: var(--fs-sm);
     font-weight: 700;
     color: var(--color-fg);
@@ -4528,24 +4461,29 @@
     border-radius: 4px;
     letter-spacing: 0.06em;
   }
-  .robot-sel-ability-meta {
+  .robot-sel-ability-blurb {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-fg);
+    opacity: 0.92;
+  }
+  .robot-sel-ability-stats {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
   }
-  .robot-sel-ability-bar {
-    height: 3px;
-    background: rgba(6, 10, 14, 0.7);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 2px;
-  }
-  .robot-sel-ability-bar-fill {
-    height: 100%;
-    background: var(--color-blue);
-    transition: width 0.08s linear;
+  .robot-sel-ability-stats li {
+    padding-left: 8px;
+    border-left: 2px solid rgba(159, 216, 255, 0.18);
   }
   .robot-sel-blurb {
     font-size: 11px;

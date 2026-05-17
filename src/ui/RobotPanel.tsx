@@ -12,10 +12,10 @@ const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> =
   { slot: 3, key: "R" },
 ];
 
-// In-game HUD strip: HP/XP bar plus the four ability buttons. The robot
-// menu (RobotShop) is opened from the top-left banner only — not from
-// this panel, not from the robot name. Clicking an ability triggers it
-// the same way the hotkey would.
+// In-game HUD strip: HP/XP bar plus the four ability buttons. Clicking
+// the portrait area (name / HP / XP / combat stats) opens the read-only
+// robot overview overlay. Clicking an ability triggers it the same way
+// the hotkey would.
 export const RobotPanel = () => {
   const label = useGame((s) => s.ui.robotLabel);
   const hp = useGame((s) => s.ui.robotHp);
@@ -33,13 +33,22 @@ export const RobotPanel = () => {
   const dps = useGame((s) => s.ui.robotDps);
   const damageDealt = useGame((s) => s.ui.robotDamageDealt);
   const trigger = useGame((s) => s.triggerRobotAbility);
+  const panelOpen = useGame((s) => s.robotPanelOpen);
+  const setRobotPanelOpen = useGame((s) => s.setRobotPanelOpen);
 
   const hpPct = maxHp > 0 ? clamp01(hp / maxHp) : 0;
   const xpPct = xpNeed > 0 ? clamp01(xpInto / xpNeed) : 0;
 
   return (
     <div className="robot-panel">
-      <div className="robot-portrait">
+      <button
+        type="button"
+        className={`robot-portrait ${panelOpen ? "active" : ""}`}
+        onClick={() => setRobotPanelOpen(!panelOpen)}
+        aria-pressed={panelOpen}
+        aria-label="Toggle robot overview"
+        title="Robot overview"
+      >
         <div className="robot-name">
           MECHA · {label.toUpperCase()}
           <span className="robot-level">Lv {level}</span>
@@ -64,7 +73,7 @@ export const RobotPanel = () => {
         <div className="robot-combat-row">
           DPS {dps.toFixed(1)} · KILLS {kills} · DEALT {fmtCompact(damageDealt)}
         </div>
-      </div>
+      </button>
       <div className="robot-abilities">
         {SLOT_KEYS.map(({ slot, key }) => {
           const cd = cooldowns[slot];

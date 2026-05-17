@@ -5,6 +5,20 @@ import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { RobotPreview } from "./RobotPreview";
+import { formatAbilityStats } from "./RobotShop";
+
+// Per-ability damage type lookup. Buff/dash abilities have no innate
+// damage type, so they read the robot's base type for the badge — keeps
+// the panel visually consistent without lying about what the ability
+// itself inflicts (the stat lines spell out the actual numbers).
+const abilityDamageType = (
+  spec: (typeof ROBOT_SPECS)[keyof typeof ROBOT_SPECS],
+  slot: RobotAbilitySlot,
+) => {
+  const a = spec.abilities[slot];
+  if ("damageType" in a && a.damageType) return a.damageType;
+  return spec.damageType;
+};
 
 const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
   { slot: 0, key: "Q" },
@@ -25,11 +39,8 @@ export const RobotSelectionPanel = () => {
   const maxHp = useGame((s) => s.ui.robotMaxHp);
   const alive = useGame((s) => s.ui.robotAlive);
   const respawnRemaining = useGame((s) => s.ui.robotRespawnRemaining);
-  const cooldowns = useGame((s) => s.ui.robotAbilityCooldowns);
-  const maxCooldowns = useGame((s) => s.ui.robotAbilityMaxCooldowns);
   const labels = useGame((s) => s.ui.robotAbilityLabels);
   const glyphs = useGame((s) => s.ui.robotAbilityGlyphs);
-  const trigger = useGame((s) => s.triggerRobotAbility);
   const setRobotPanelOpen = useGame((s) => s.setRobotPanelOpen);
 
   if (!open || status !== "running") return null;
@@ -100,38 +111,36 @@ export const RobotSelectionPanel = () => {
       <div className="robot-sel-section-title">Abilities</div>
       <div className="robot-sel-abilities">
         {SLOT_KEYS.map(({ slot, key }) => {
-          const cd = cooldowns[slot];
-          const max = maxCooldowns[slot];
-          const ready = cd === 0 && alive;
-          const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
+          const dt = abilityDamageType(spec, slot);
+          const stats = formatAbilityStats(spec, slot);
           return (
-            <button
-              key={key}
-              type="button"
-              className={`robot-sel-ability ${ready ? "ready" : "cooling"}`}
-              onClick={() => trigger(slot)}
-              disabled={!ready}
-              title={`${labels[slot]} [${key}] — ${spec.abilityBlurbs[slot + 1]}`}
-            >
-              <span className="robot-sel-ability-glyph">{glyphs[slot]}</span>
-              <div className="robot-sel-ability-body">
-                <div className="robot-sel-ability-name">
-                  {labels[slot]}
-                  <span className="robot-sel-ability-key">{key}</span>
-                </div>
-                <div className="robot-sel-ability-meta">
-                  {ready
-                    ? `Ready · ${max.toFixed(1)}s CD`
-                    : `${cd.toFixed(1)}s / ${max.toFixed(1)}s`}
-                </div>
-                <div className="robot-sel-ability-bar">
-                  <div
-                    className="robot-sel-ability-bar-fill"
-                    style={{ width: `${fillPct * 100}%` }}
-                  />
+            <div key={key} className="robot-sel-ability-info">
+              <div className="robot-sel-ability-info-head">
+                <span className="robot-sel-ability-glyph">{glyphs[slot]}</span>
+                <div className="robot-sel-ability-info-title">
+                  <div className="robot-sel-ability-name">
+                    {labels[slot]}
+                    <span className="robot-sel-ability-key">{key}</span>
+                  </div>
+                  <span
+                    className="dmg-tag"
+                    style={{
+                      color: DAMAGE_TYPE_COLOR[dt],
+                      borderColor: DAMAGE_TYPE_COLOR[dt],
+                    }}
+                  >
+                    <DamageIcon type={dt} size={11} title={DAMAGE_TYPE_LABEL[dt]} />
+                    {DAMAGE_TYPE_LABEL[dt]}
+                  </span>
                 </div>
               </div>
-            </button>
+              <p className="robot-sel-ability-blurb">{spec.abilityBlurbs[slot + 1]}</p>
+              <ul className="robot-sel-ability-stats">
+                {stats.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
           );
         })}
       </div>
