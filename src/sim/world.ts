@@ -1281,9 +1281,9 @@ export const BOSS_VARIANT_MODEL: Record<
   BossVariant,
   { url: string; targetSize: number; clip?: string; timeScale?: number }
 > = {
-  raptor: { url: "/models/Velociraptor.glb", targetSize: 7.4, timeScale: 0.62 },
-  stego: { url: "/models/Stegosaurus.glb", targetSize: 5.8 },
-  para: { url: "/models/Parasaurolophus.glb", targetSize: 5.4 },
+  raptor: { url: "/models/Velociraptor.glb", targetSize: 9.0, timeScale: 0.62 },
+  stego: { url: "/models/Stegosaurus.glb", targetSize: 7.2 },
+  para: { url: "/models/Parasaurolophus.glb", targetSize: 6.8 },
   allosaur: { url: "/models/Trex.glb", targetSize: 6.4 },
   armored: { url: "/models/Triceratops.glb", targetSize: 6.3 },
   apex: { url: "/models/Apatosaurus.glb", targetSize: 20.0, clip: "Walk" },
@@ -1315,7 +1315,7 @@ export const BOSS_VARIANT_MATERIAL: Record<
 > = {
   raptor: { tintAmount: 0.22, emissiveAmount: 0.05, metalness: 0.35, roughness: 0.5 },
   stego: { tintAmount: 0.2, emissiveAmount: 0.07, metalness: 0.55, roughness: 0.42 },
-  para: { tintAmount: 0.32, emissiveAmount: 0.14, metalness: 0.45, roughness: 0.4 },
+  para: { tintAmount: 0.12, emissiveAmount: 0.04, metalness: 0.45, roughness: 0.4 },
   allosaur: { tintAmount: 0.3, emissiveAmount: 0.11, metalness: 0.5, roughness: 0.4 },
   armored: { tintAmount: 0.36, emissiveAmount: 0.16, metalness: 0.75, roughness: 0.28 },
   apex: { tintAmount: 0.38, emissiveAmount: 0.2, metalness: 0.55, roughness: 0.35 },
@@ -1334,6 +1334,25 @@ export const BOSS_VARIANT_CHILD: Partial<Record<BossVariant, BossChildSpawn>> = 
   para: { kind: "para", interval: 2.2 },
   allosaur: { kind: "allosaur", interval: 3.8 },
   armored: { kind: "armored", interval: 7.5 },
+};
+
+// End-of-run barrage — once the matriarch crosses `threshold` (0..1
+// path progress), a second spawn channel opens that drops a wave of
+// her species at the PATH START every `interval` seconds. Builds a
+// trailing column that converges on her position so the final third
+// of her walk feels oppressive rather than just-one-big-dino. Only
+// the species variants that the player should feel chased by use
+// this — apex/allosaur/armored already pressure via stats.
+export type BossBarrage = {
+  kind: EnemyKind;
+  threshold: number;
+  interval: number;
+  count: number;
+};
+export const BOSS_VARIANT_BARRAGE: Partial<Record<BossVariant, BossBarrage>> = {
+  raptor: { kind: "raptor", threshold: 0.45, interval: 2.4, count: 2 },
+  stego: { kind: "stego", threshold: 0.45, interval: 4.5, count: 1 },
+  para: { kind: "para", threshold: 0.45, interval: 2.6, count: 2 },
 };
 
 export const BOSS_VARIANT_LABEL: Record<BossVariant, string> = {
@@ -1587,6 +1606,8 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   // after she enters the field rather than immediately at spawn.
   const childCfg =
     effectiveVariant !== undefined ? BOSS_VARIANT_CHILD[effectiveVariant] : undefined;
+  const barrageCfg =
+    effectiveVariant !== undefined ? BOSS_VARIANT_BARRAGE[effectiveVariant] : undefined;
   const enemy: Enemy = {
     id: world.nextEntityId++,
     kind: base.kind,
@@ -1622,6 +1643,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     freezeUntil: 0,
     bossVariant: effectiveVariant,
     childSpawnAt: childCfg ? world.time + childCfg.interval : undefined,
+    barrageSpawnAt: barrageCfg ? world.time + barrageCfg.interval : undefined,
   };
   // Adaptive resistance snapshot — a fraction of spawns at L12+ mutate
   // their extraResists toward immunity for the dominant damage type

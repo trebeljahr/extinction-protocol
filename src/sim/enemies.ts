@@ -1,10 +1,11 @@
-import { advanceAlongPath, samplePath, segmentLength, smoothDirection } from "./path";
+import { advanceAlongPath, pathProgress, samplePath, segmentLength, smoothDirection } from "./path";
 import { IGNITE_TICK_INTERVAL } from "./towers";
 import type { Enemy, EnemyKind, Vec2, World } from "./types";
 import { clamp01 } from "./vec2";
 import {
   addShake,
   applyDamage,
+  BOSS_VARIANT_BARRAGE,
   BOSS_VARIANT_CHILD,
   BOSS_VARIANT_STATS,
   emit,
@@ -138,6 +139,14 @@ export const updateEnemies = (world: World, dt: number) => {
     spawnCount: number;
   };
   const childSpawns: DeferredChild[] = [];
+  type DeferredBarrage = {
+    kind: EnemyKind;
+    pathIndex: number;
+    hpMul: number;
+    spawnIndex: number;
+    spawnCount: number;
+  };
+  const barrageSpawns: DeferredBarrage[] = [];
 
   const robot = world.robot;
   const robotAlive = robot.alive;
@@ -206,6 +215,42 @@ export const updateEnemies = (world: World, dt: number) => {
           });
         }
         e.childSpawnAt = world.time + cfg.interval;
+      }
+    }
+
+    // End-of-run barrage — once she's past the threshold fraction of
+    // her walk, drop a wave of her species at the path start every
+    // BOSS_VARIANT_BARRAGE interval. Same slow/freeze suppression as
+    // the trickle so cold still gates the pressure.
+    if (
+      e.kind === "boss" &&
+      e.bossVariant !== undefined &&
+      e.barrageSpawnAt !== undefined &&
+      world.time >= e.barrageSpawnAt &&
+      world.time >= e.slowUntil &&
+      world.time >= e.freezeUntil
+    ) {
+      const bcfg = BOSS_VARIANT_BARRAGE[e.bossVariant];
+      if (bcfg) {
+        const path = world.paths[e.pathIndex];
+        const total = pathProgress(path, path.length - 2, 1);
+        const here = pathProgress(path, e.segment, e.segmentT);
+        const progress = total > 0 ? here / total : 0;
+        if (progress >= bcfg.threshold) {
+          const variantHp = BOSS_VARIANT_STATS[e.bossVariant].hp;
+          const hpMul = e.maxHp / variantHp;
+          const spawnCount = Math.max(1, bcfg.count);
+          for (let i = 0; i < spawnCount; i++) {
+            barrageSpawns.push({
+              kind: bcfg.kind,
+              pathIndex: e.pathIndex,
+              hpMul,
+              spawnIndex: i,
+              spawnCount,
+            });
+          }
+        }
+        e.barrageSpawnAt = world.time + bcfg.interval;
       }
     }
 
@@ -305,5 +350,16 @@ export const updateEnemies = (world: World, dt: number) => {
     const sideSpread = c.spawnCount > 1 ? (c.spawnIndex - mid) * 0.42 : 0;
     child.lateralOffset += sideSpread;
     plantEnemyOnPath(world, child, c.pathIndex, c.segment, c.segmentT - 0.04 + progressSpread);
+  }
+
+  // Barrage children drop at the actual path origin so they read as a
+  // fresh wave entering the lane behind the matriarch. Lateral spread
+  // fans them out so the burst looks like a pack, not a single-file
+  // queue.
+  for (const b of barrageSpawns) {
+    const child = spawnEnemy(world, b.kind, { pathIndex: b.pathIndex, hpMul: b.hpMul });
+    const mid = (b.spawnCount - 1) / 2;
+    const sideSpread = b.spawnCount > 1 ? (b.spawnIndex - mid) * 0.5 : 0;
+    child.lateralOffset += sideSpread;
   }
 };

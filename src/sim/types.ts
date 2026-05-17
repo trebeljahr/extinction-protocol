@@ -118,6 +118,12 @@ export type Enemy = {
   // resets to the variant's interval. Undefined = matriarch doesn't
   // spawn children.
   childSpawnAt?: number;
+  // Matriarch end-of-run barrage timer — set on spawn from
+  // BOSS_VARIANT_BARRAGE. Once path progress crosses the variant
+  // threshold, fires every interval and drops a wave of her species
+  // at the PATH START so a trailing column piles up behind her.
+  // Undefined = no barrage channel for this variant.
+  barrageSpawnAt?: number;
   // Short terminal state once an enemy has reached the HQ. The enemy is
   // still rendered but no longer targetable; `impactAt` is the single
   // life-loss/removal deadline so leaks cannot stall wave progression.
