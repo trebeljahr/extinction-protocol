@@ -5,6 +5,7 @@ import {
   updateCryoWaves,
   updateExplosions,
   updateParticles,
+  updatePuffs,
   updateShake,
 } from "./effects";
 import { updateEnemies } from "./enemies";
@@ -63,6 +64,7 @@ export class Engine {
     updateCoalEmbers(world, TICK_DT);
     updateRobotCraters(world, TICK_DT);
     updateParticles(world, TICK_DT);
+    updatePuffs(world, TICK_DT);
     updateShake(world, TICK_DT);
     updateEasterEggs(world, TICK_DT);
     checkRunEnd(world);

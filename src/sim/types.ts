@@ -560,6 +560,25 @@ export type Particle = {
   color: string;
 };
 
+// Sprite-billboard smoke puff. Drifts outward + upward, fades + grows.
+// Rendered with a Kenney smoke texture, NormalBlending (occludes scene
+// like real smoke, unlike the additive spark Particles above).
+export type Puff = {
+  id: EntityId;
+  pos: Vec2; // ground-plane drift
+  vel: Vec2;
+  h: number; // height above ground
+  vh: number; // vertical velocity
+  expiresAt: number;
+  maxLife: number;
+  size0: number;
+  size1: number;
+  rot: number;
+  rotVel: number;
+  tint: string;
+  alpha0: number;
+};
+
 export type SpawnRequest = {
   kind: EnemyKind;
   at: number;
@@ -708,6 +727,7 @@ export type World = {
   coalEmbers: CoalEmber[];
   robotCraters: RobotCrater[];
   particles: Particle[];
+  puffs: Puff[];
   spawnQueue: SpawnRequest[];
   bossTrickleStreams: ActiveBossTrickle[];
   // Scales interval between trickle spawns during a boss wave. <1 = more

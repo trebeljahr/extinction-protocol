@@ -640,6 +640,7 @@ export const createWorld = (
     coalEmbers: [],
     robotCraters: [],
     particles: [],
+    puffs: [],
     spawnQueue: [],
     bossTrickleStreams: [],
     bossTrickleIntervalMul: difficulty.bossTrickleIntervalMul,
@@ -2080,6 +2081,11 @@ export const createExplosion = (
     maxLife: lifeSec,
   };
   world.explosions.push(e);
+  // Soot puffs scale with blast radius so a tiny sidearm pop spawns
+  // ~3 wisps while a mortar gets a fat plume. Capped to keep the puff
+  // pool from blowing out on overlapping splashes.
+  const puffCount = Math.min(10, Math.max(3, Math.round(radius * 2.2)));
+  spawnExplosionSmoke(world, pos, radius, puffCount);
   return e;
 };
 
@@ -2108,6 +2114,41 @@ export const spawnParticles = (
       expiresAt: world.time + lifeSec,
       maxLife: lifeSec,
       color,
+    });
+  }
+};
+
+// Soft smoke puffs spawned at an explosion impact — Kenney whitepuff
+// sprite billboards rendered separately from the existing additive
+// spark particles. Tinted darker for diesel/industrial reads, with
+// outward drift, slow upward rise, and rotation jitter.
+export const spawnExplosionSmoke = (world: World, pos: Vec2, radius: number, count = 6) => {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const drift = 0.6 + Math.random() * 1.4;
+    const life = 0.9 + Math.random() * 0.6;
+    const size0 = radius * (0.45 + Math.random() * 0.25);
+    const size1 = radius * (1.1 + Math.random() * 0.4);
+    // Mix of warm (smoke lit by fire) and cool grey, biased darker for
+    // the "explosion soot" read.
+    const warm = Math.random() < 0.35;
+    const tint = warm
+      ? `rgb(${140 + ((Math.random() * 30) | 0)},${80 + ((Math.random() * 20) | 0)},${55 + ((Math.random() * 15) | 0)})`
+      : `rgb(${90 + ((Math.random() * 50) | 0)},${85 + ((Math.random() * 45) | 0)},${82 + ((Math.random() * 40) | 0)})`;
+    world.puffs.push({
+      id: world.nextEntityId++,
+      pos: { x: pos.x, y: pos.y },
+      vel: { x: Math.cos(angle) * drift, y: Math.sin(angle) * drift },
+      h: 0.4 + Math.random() * 0.3,
+      vh: 0.6 + Math.random() * 0.8,
+      expiresAt: world.time + life,
+      maxLife: life,
+      size0,
+      size1,
+      rot: Math.random() * Math.PI * 2,
+      rotVel: (Math.random() * 2 - 1) * 0.6,
+      tint,
+      alpha0: 0.55 + Math.random() * 0.2,
     });
   }
 };

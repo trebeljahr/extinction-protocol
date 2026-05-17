@@ -119,6 +119,17 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
+    title: "2D Sprites",
+    entries: [
+      {
+        name: "Smoke billboard texture for explosion puffs (textures/fx/whitepuff15.png)",
+        creator: "Kenney",
+        license: "CC0 1.0",
+        url: "https://kenney.nl/assets/smoke-particles",
+      },
+    ],
+  },
+  {
     title: "Audio",
     entries: [
       {

@@ -38,6 +38,24 @@ export const updateParticles = (world: World, dt: number) => {
   retainInPlace(world.particles, (p) => p.expiresAt > t);
 };
 
+export const updatePuffs = (world: World, dt: number) => {
+  // Heavier drag than spark particles — smoke billows then loses momentum.
+  const decay = 1 - 1.4 * dt;
+  // Buoyancy minus light gravity ≈ small upward residual after rise.
+  const vhDecay = 1 - 0.9 * dt;
+  for (const p of world.puffs) {
+    p.pos.x += p.vel.x * dt;
+    p.pos.y += p.vel.y * dt;
+    p.h += p.vh * dt;
+    p.vel.x *= decay;
+    p.vel.y *= decay;
+    p.vh *= vhDecay;
+    p.rot += p.rotVel * dt;
+  }
+  const t = world.time;
+  retainInPlace(world.puffs, (p) => p.expiresAt > t);
+};
+
 export const updateShake = (world: World, dt: number) => {
   if (world.shake.magnitude > 0) {
     world.shake.magnitude = Math.max(0, world.shake.magnitude - world.shake.decay * dt);
