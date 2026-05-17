@@ -84,12 +84,24 @@ export const ModelHeroMesh = () => {
   }, [scene]);
 
   const clips = useMemo(() => {
+    const rawDeath = findClip(animations, ["Death"]);
+    // Strip position tracks from the death clip so the model dies in
+    // place. Otherwise the death anim's baked root motion translates the
+    // mesh, and on revive the bones snap back to bind pose — reading as
+    // a teleport at the moment of revive.
+    const death = rawDeath
+      ? new THREE.AnimationClip(
+          rawDeath.name,
+          rawDeath.duration,
+          rawDeath.tracks.filter((t) => !t.name.endsWith(".position")),
+        )
+      : null;
     return {
       idle: findClip(animations, ["Idle"]),
       walk: findClip(animations, ["Walk"]),
       run: findClip(animations, ["Run"]),
       shoot: findClip(animations, ["Shoot"]),
-      death: findClip(animations, ["Death"]),
+      death,
       dash: findClip(animations, ["Run", "Walk_Tall"]),
     };
   }, [animations]);
