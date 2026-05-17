@@ -17,7 +17,7 @@ const AURA_COLOR = new THREE.Color("#7eff8a");
 // Tight body-hug radius per kind — sized to sit just outside the
 // silhouette, distinct from the broad HEAL_AURA_RANGE which is the
 // actual gameplay heal range and now reads as the wave's terminal arc.
-const HEAL_HUG_RADIUS_BY_KIND: Record<EnemyKind, number> = {
+export const HEAL_HUG_RADIUS_BY_KIND: Record<EnemyKind, number> = {
   raptor: 0.6,
   swarm: 0.35,
   para: 0.85,
@@ -150,5 +150,3 @@ export const HealAuras = () => {
     </group>
   );
 };
-
-export { HEAL_HUG_RADIUS_BY_KIND };
