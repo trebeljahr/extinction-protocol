@@ -957,11 +957,12 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 11, stego: 6, allosaur: 5 }),
       mixed({ raptor: 26, swarm: 20, allosaur: 10, stego: 6, armored: 3 }),
       // Boss wave: the Stegosaur Matriarch. Heaviest plates yet, slow
-      // crawl, and she calves a fresh stego every six seconds. The
-      // entourage is lightened from the original generic-matriarch wave
-      // because her child drip is doing the heavy-lifting now —
-      // electric is the only real lever (her plates eat kinetic/blast).
-      bossWave("stego", { allosaur: 4, armored: 2, titan: 1 }, 1, 0.7, 0, [
+      // crawl, and she calves a fresh stego every six seconds. No titan
+      // here — the apatosaurus debut is held back to the next level so
+      // this wave reads as the stego's solo spotlight. Entourage leans
+      // on allosaur + armored pressure while her child drip handles the
+      // trickle; electric is the only real lever (plates eat kinetic/blast).
+      bossWave("stego", { allosaur: 5, armored: 3 }, 1, 0.7, 0, [
         trickleStream(0, ["swarm", "raptor"], 1.6, 2.2, 6),
         trickleStream(0, ["swarm", "raptor", "allosaur"], 1.0, 1.6, 18),
       ]),
@@ -1068,7 +1069,11 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 7, stego: 4, allosaur: 3 }),
       rush(120, 24),
       mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 4, armored: 2 }),
-      heavy({ armored: 12, stego: 7, allosaur: 5 }),
+      // Apatosaurus debut: a single titan slipped into a heavy push so the
+      // player meets him alongside familiar armored/stego pressure before
+      // the finale doubles up. Moved here from level 10's boss wave so the
+      // Stegosaur Matriarch keeps her solo spotlight.
+      heavy({ armored: 12, stego: 7, allosaur: 5, titan: 1 }),
       // Specialist finale: a small block of kinetic-resistant armored
       // ("Ironplate" hide) ride the chaos so pulse-only spam stalls on
       // the holdouts. Chain/cryo/mortar still cut through cleanly.
