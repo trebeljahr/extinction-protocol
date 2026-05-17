@@ -42,13 +42,15 @@ const LASER_VISIBLE_DURATION = 0.11;
 // reads as a teleport; above 0.15 the turret lags so far the beam
 // fires perpendicular to the target.
 const TURRET_YAW_HALFLIFE = 0.08;
-// Where each cannon barrel sits in the turret's local frame. The
-// Plasma Turret has dual cannons mounted slightly above and forward of
-// its center. Tuned to land the laser origin at the actual muzzles in
-// preview — adjust if the GLB ever changes.
-const BARREL_FORWARD = 0.85;
-const BARREL_HEIGHT = 1.05;
-const BARREL_SIDE = 0.34;
+// Where each cannon muzzle sits in the turret's local frame after
+// scaling to HQ_TARGET_SIZE. Sampled directly from the Plasma Turret
+// mesh: the two forward-most vertex clusters land at (±0.65, 0.89, +1.07)
+// in node-local coords (post the GLB's -90°X bind rotation). The model's
+// forward axis is +Z, so localZ is positive here — the yaw rotation
+// turns +Z into the direction of the live target.
+const BARREL_FORWARD = 1.07;
+const BARREL_HEIGHT = 0.89;
+const BARREL_SIDE = 0.65;
 const LASER_RADIUS = 0.055;
 // Number of voronoi cells the turret shatters into. Kept modest because
 // fracture is N×N CSG (each cell intersects N-1 halfspaces and then the
@@ -339,7 +341,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
       const c = Math.cos(turretYawRef.current);
       const s = Math.sin(turretYawRef.current);
       const localX = sideSign * BARREL_SIDE;
-      const localZ = -BARREL_FORWARD; // turret yaw 0 faces -z
+      const localZ = BARREL_FORWARD; // model's cannons extend along +Z
       const wx = pose.position[0] + localX * c + localZ * s;
       const wz = -pose.position[1] + -localX * s + localZ * c;
       const wy = baseY + BARREL_HEIGHT;
@@ -376,7 +378,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
       const c = Math.cos(turretYawRef.current);
       const s = Math.sin(turretYawRef.current);
       const localX = sideSign * BARREL_SIDE;
-      const localZ = -BARREL_FORWARD;
+      const localZ = BARREL_FORWARD;
       const wx = pose.position[0] + localX * c + localZ * s;
       const wz = -pose.position[1] + -localX * s + localZ * c;
       const wy = baseY + BARREL_HEIGHT;
