@@ -1,6 +1,6 @@
-import type { AllHeroSkills } from "./sim/heroSkills";
 import { type AllMetaSkills, migrateLegacyMetaSkills } from "./sim/metaSkills";
-import type { BossVariant, EnemyKind, HeroVariant } from "./sim/types";
+import type { AllRobotSkills } from "./sim/robotSkills";
+import type { BossVariant, EnemyKind, RobotVariant } from "./sim/types";
 
 const withLocalStorage = <T>(fn: (ls: Storage) => T, fallback: T): T => {
   if (typeof window === "undefined" || !window.localStorage) return fallback;
@@ -107,10 +107,13 @@ export const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 // v2 added mode-stars (heroic + iron). v1 saves auto-migrate: the old
 // per-level number becomes ModeStars.normal with heroic + iron zeroed.
-export const PROGRESS_VERSION = 2 as const;
+// v3 renamed the in-memory hero fields to robot (activeHero → activeRobot
+// etc.). normalizeProgress accepts the legacy keys as fallback so v2
+// saves load without wiping unlocked robots / XP / skill trees.
+export const PROGRESS_VERSION = 3 as const;
 
 export type ProgressData = {
-  version: 2;
+  version: 3;
   starsByLevel: Record<number, ModeStars>;
   encountered: Partial<Record<EnemyKind, boolean>>;
   // Per-variant matriarch encounter set. The Compendium's matriarch
@@ -126,18 +129,18 @@ export type ProgressData = {
   // applied at tower creation. Total invested stars + freed stars must
   // not exceed totalStars(progress) — enforced at the store layer.
   metaSkills: AllMetaSkills;
-  // Active hero variant — drives heroDefaults at every level start.
+  // Active robot variant — drives robotDefaults at every level start.
   // Defaults to "george" so legacy saves run unchanged.
-  activeHero: HeroVariant;
+  activeRobot: RobotVariant;
   // Permanent unlock map. George is implicitly unlocked even when
-  // missing from the map; the others must be purchased from the hero
+  // missing from the map; the others must be purchased from the robot
   // shop with stars.
-  heroUnlocks: Partial<Record<HeroVariant, boolean>>;
-  // Per-hero XP — accrues from kills, never decays. Level + available
+  robotUnlocks: Partial<Record<RobotVariant, boolean>>;
+  // Per-robot XP — accrues from kills, never decays. Level + available
   // skill points derive from this.
-  heroXp: Partial<Record<HeroVariant, number>>;
-  // Per-hero skill tree ranks. Shape mirrors AllMetaSkills.
-  heroSkills: AllHeroSkills;
+  robotXp: Partial<Record<RobotVariant, number>>;
+  // Per-robot skill tree ranks. Shape mirrors AllMetaSkills.
+  robotSkills: AllRobotSkills;
   // Persistent per-(levelId, eggId) one-shot guard. Once an egg fires on
   // a given map it never spawns there again, even before the achievement
   // unlocks globally. Keyed `${levelId}:${eggId}`.
@@ -177,10 +180,10 @@ export const emptyProgress = (): ProgressData => ({
   difficulty: DEFAULT_DIFFICULTY,
   seenIntros: {},
   metaSkills: {},
-  activeHero: "george",
-  heroUnlocks: { george: true },
-  heroXp: {},
-  heroSkills: {},
+  activeRobot: "george",
+  robotUnlocks: { george: true },
+  robotXp: {},
+  robotSkills: {},
   triggeredEasterEggs: {},
 });
 
@@ -192,7 +195,7 @@ const isDifficulty = (v: unknown): v is Difficulty =>
 const isProgressLike = (parsed: unknown): parsed is Partial<ProgressData> => {
   if (typeof parsed !== "object" || parsed === null) return false;
   const v = (parsed as { version?: unknown }).version;
-  if (v !== 1 && v !== 2) return false;
+  if (v !== 1 && v !== 2 && v !== 3) return false;
   return typeof (parsed as { starsByLevel?: unknown }).starsByLevel === "object";
 };
 
@@ -226,6 +229,26 @@ const normalizeStarsMap = (raw: unknown): Record<number, ModeStars> => {
   return out;
 };
 
+const pickActiveRobot = (raw: Partial<ProgressData>): RobotVariant => {
+  const candidate =
+    raw.activeRobot ?? (raw as { activeHero?: RobotVariant }).activeHero ?? "george";
+  return candidate === "leela" ||
+    candidate === "mike" ||
+    candidate === "stan" ||
+    candidate === "george"
+    ? candidate
+    : "george";
+};
+
+const pickRecord = <K extends string, V>(
+  next: Partial<Record<K, V>> | undefined,
+  legacy: Partial<Record<K, V>> | undefined,
+): Partial<Record<K, V>> => {
+  const src =
+    next && typeof next === "object" ? next : legacy && typeof legacy === "object" ? legacy : null;
+  return src ?? {};
+};
+
 const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
   const stats = raw.stats as Partial<ProgressStats> | undefined;
   const encountered = (raw.encountered as Partial<Record<EnemyKind, boolean>>) ?? {};
@@ -257,23 +280,24 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
         ? (raw.seenIntros as Record<number, true>)
         : {},
     metaSkills: migrateLegacyMetaSkills(raw.metaSkills),
-    activeHero:
-      raw.activeHero === "leela" ||
-      raw.activeHero === "mike" ||
-      raw.activeHero === "stan" ||
-      raw.activeHero === "george"
-        ? raw.activeHero
-        : "george",
-    heroUnlocks: {
+    // v2 → v3 migration: pre-rename saves stored these as activeHero /
+    // heroUnlocks / heroXp / heroSkills. Fall back to the legacy keys so
+    // an existing save keeps its unlocked robots, XP totals, and skill
+    // tree ranks after the rename.
+    activeRobot: pickActiveRobot(raw),
+    robotUnlocks: {
       george: true,
-      ...((raw.heroUnlocks as Partial<Record<HeroVariant, boolean>> | undefined) ?? {}),
+      ...((raw.robotUnlocks ??
+        (raw as { heroUnlocks?: Partial<Record<RobotVariant, boolean>> }).heroUnlocks ??
+        {}) as Partial<Record<RobotVariant, boolean>>),
     },
-    heroXp:
-      raw.heroXp && typeof raw.heroXp === "object"
-        ? (raw.heroXp as Partial<Record<HeroVariant, number>>)
-        : {},
-    heroSkills:
-      raw.heroSkills && typeof raw.heroSkills === "object" ? (raw.heroSkills as AllHeroSkills) : {},
+    robotXp: pickRecord<RobotVariant, number>(
+      raw.robotXp,
+      (raw as { heroXp?: Partial<Record<RobotVariant, number>> }).heroXp,
+    ),
+    robotSkills: (raw.robotSkills ??
+      (raw as { heroSkills?: AllRobotSkills }).heroSkills ??
+      {}) as AllRobotSkills,
     triggeredEasterEggs:
       raw.triggeredEasterEggs && typeof raw.triggeredEasterEggs === "object"
         ? (raw.triggeredEasterEggs as Record<string, true>)

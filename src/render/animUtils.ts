@@ -1,7 +1,7 @@
 import type * as THREE from "three";
 
 // Shared GLTF / animation helpers used by every skinned-mesh consumer
-// (ModelEnemyMesh, ModelHeroMesh, HQTurret, MechanicPreview, EnemyPreview,
+// (ModelEnemyMesh, ModelRobotMesh, HQTurret, MechanicPreview, EnemyPreview,
 // EasterEggs). Behavior must stay bit-identical to the original copies
 // since visual regressions here propagate everywhere.
 

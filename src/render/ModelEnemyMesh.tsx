@@ -370,11 +370,11 @@ export const ModelEnemyMesh = ({
       // HQ) skip the death anim — they already played the attack pose
       // and despawning them at the gate looks cleaner without a corpse.
       item.wasLeak = leak !== undefined;
-      // Engaged dinos (skirmishing with the hero) also pick the attack
+      // Engaged dinos (skirmishing with the robot) also pick the attack
       // clip — same animation, different driver. Falls back to the
       // walk loop if the GLB has no Attack/Bite/Roar clip.
-      const engagingHero = !leak && e.engagedHeroId !== null;
-      const desiredClip = (leak || engagingHero) && attackClip ? attackClip : activeClip;
+      const engagingRobot = !leak && e.engagedRobotId !== null;
+      const desiredClip = (leak || engagingRobot) && attackClip ? attackClip : activeClip;
       if (item.clip !== desiredClip) {
         item.mixer.stopAllAction();
         if (desiredClip) item.mixer.clipAction(desiredClip).reset().play();
@@ -391,15 +391,15 @@ export const ModelEnemyMesh = ({
       const dir = smoothDirection(path, e.segment, e.segmentT);
       const targetX = e.pos.x;
       const targetZ = -e.pos.y;
-      // Engaged dinos face the hero so the bite/roar reads as an
+      // Engaged dinos face the robot so the bite/roar reads as an
       // attack on them, not at thin air. Falls back to path yaw when
-      // the hero is gone or hero pos coincides with the enemy.
+      // the robot is gone or robot pos coincides with the enemy.
       let pathYaw = dir.x * dir.x + dir.y * dir.y > 1e-6 ? Math.atan2(dir.x, -dir.y) : item.visYaw;
-      if (engagingHero) {
-        const hero = world.hero;
-        if (hero) {
-          const hdx = hero.pos.x - e.pos.x;
-          const hdy = hero.pos.y - e.pos.y;
+      if (engagingRobot) {
+        const robot = world.robot;
+        if (robot) {
+          const hdx = robot.pos.x - e.pos.x;
+          const hdy = robot.pos.y - e.pos.y;
           if (hdx * hdx + hdy * hdy > 1e-6) pathYaw = Math.atan2(hdx, -hdy);
         }
       }
@@ -408,15 +408,15 @@ export const ModelEnemyMesh = ({
       const motionLenSq = motionX * motionX + motionZ * motionZ;
       const pathWorldX = dir.x;
       const pathWorldZ = -dir.y;
-      // Engaged with hero — swivel toward the hero while still marching
+      // Engaged with robot — swivel toward the robot while still marching
       // along the path. Sim doesn't redirect movement (no chase), only
       // the model's facing is overridden so the skirmish reads.
       let targetYaw: number;
-      if (e.engagedWithHero) {
-        const heroDX = world.hero.pos.x - targetX;
-        const heroDZ = -world.hero.pos.y - targetZ;
-        if (heroDX * heroDX + heroDZ * heroDZ > 1e-6) {
-          targetYaw = Math.atan2(heroDX, heroDZ);
+      if (e.engagedWithRobot) {
+        const robotDX = world.robot.pos.x - targetX;
+        const robotDZ = -world.robot.pos.y - targetZ;
+        if (robotDX * robotDX + robotDZ * robotDZ > 1e-6) {
+          targetYaw = Math.atan2(robotDX, robotDZ);
         } else {
           targetYaw = pathYaw;
         }
@@ -610,17 +610,20 @@ export const ModelEnemyMesh = ({
       const sel = state.world.towerById.get(selId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
-    // Hero control outranks dino inspection. When the hero is selected,
+    // Robot control outranks dino inspection. When the robot is selected,
     // left-click on a dino must NOT pop the enemy panel and must NOT
-    // de-select the hero — instead, let the click bubble through to the
-    // placement plane so it becomes an orderHeroMove (treats the dino's
+    // de-select the robot — instead, let the click bubble through to the
+    // placement plane so it becomes an orderRobotMove (treats the dino's
     // ground spot as a waypoint). Right-click on a dino is the dedicated
     // inspect channel below.
-    if (state.world.hero.selected) return;
-    // Hero outranks dino selection: if the hero proxy is among this click's
-    // intersections, yield without stopPropagation so the hero's onClick
+    if (state.world.robot.selected) return;
+    // Robot outranks dino selection: if the robot proxy is among this click's
+    // intersections, yield without stopPropagation so the robot's onClick
     // fires next in the R3F bubbling chain.
-    if (state.world.hero.alive && e.intersections.some((i) => i.object.userData.heroProxy === true))
+    if (
+      state.world.robot.alive &&
+      e.intersections.some((i) => i.object.userData.robotProxy === true)
+    )
       return;
     let obj: THREE.Object3D | null = e.object;
     while (obj && obj.userData.enemyId === undefined) obj = obj.parent;
@@ -635,8 +638,8 @@ export const ModelEnemyMesh = ({
   };
 
   // Right-click on a dino always opens its info panel, regardless of
-  // hero selection. Stop propagation so the placement plane's
-  // contextmenu (which would normally issue an orderHeroMove) doesn't
+  // robot selection. Stop propagation so the placement plane's
+  // contextmenu (which would normally issue an orderRobotMove) doesn't
   // also fire — the player asked for info, not a move order.
   const handleContextMenu = (e: ThreeEvent<MouseEvent>) => {
     const state = useGame.getState();

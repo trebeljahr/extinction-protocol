@@ -82,12 +82,12 @@ export type Enemy = {
   // until world.time crosses this stamp — keeps sustained DPS effective
   // and prevents the "ticked-by-a-feather" stalemate.
   regenPausedUntil: number;
-  // Melee skirmish lock — when set, this dino is engaging the hero. It
+  // Melee skirmish lock — when set, this dino is engaging the robot. It
   // halts forward path movement, plays its attack clip, and ticks
-  // damage onto the hero. Cleared in enemies.ts when the hero leaves
-  // range, dies, or the dino dies. One dino per hero — hero.ts picks
+  // damage onto the robot. Cleared in enemies.ts when the robot leaves
+  // range, dies, or the dino dies. One dino per robot — robot.ts picks
   // the closest in-range candidate each tick.
-  engagedHeroId: EntityId | null;
+  engagedRobotId: EntityId | null;
   // Damage-type adaptation layered via the `resists` chip on EnemySpec.
   // Per-spawn multiplier on top of the base ENEMY_RESIST table — value 0
   // = full immunity to that damage type, 0.4 = 60% reduction, 1.5 = +50%
@@ -127,11 +127,11 @@ export type Enemy = {
     startPos: Vec2;
     attackPos: Vec2;
   };
-  // True while the hero is inside this enemy's engage radius. Doesn't
+  // True while the robot is inside this enemy's engage radius. Doesn't
   // change path progression — the enemy keeps marching forward — but the
-  // render layer reads it to swivel the model toward the hero so the
+  // render layer reads it to swivel the model toward the robot so the
   // skirmish reads visually. Cleared each tick before the engage check.
-  engagedWithHero?: boolean;
+  engagedWithRobot?: boolean;
   // Adaptive-resistance snapshot — set at spawn for the fraction of
   // enemies the herd "adapted" this wave. Mirrors the dominant damage
   // type the player has been leaning on (see world.adaptation) and is
@@ -252,18 +252,18 @@ export type Rock = {
   rot: number;
 };
 
-export type HeroVariant = "george" | "leela" | "mike" | "stan";
+export type RobotVariant = "george" | "leela" | "mike" | "stan";
 
 // Slot index used by the HUD + key bindings (Q/W/E/R). Semantic ability
-// per slot is per-variant (see heroVariants.HERO_SPECS):
+// per slot is per-variant (see robotVariants.ROBOT_SPECS):
 //   slot 0 (Q) = dash, slot 1 (W) = radial burst,
 //   slot 2 (E) = self-buff (variant-flavoured), slot 3 (R) = ultimate.
-export type HeroAbilitySlot = 0 | 1 | 2 | 3;
+export type RobotAbilitySlot = 0 | 1 | 2 | 3;
 
 // Multi-shot payload (Stan's saturation, George's barrage) — one row
 // per missile, each fires at world.time >= when. Carries its own damage
-// to outlive a re-spec or hero variant switch mid-tick.
-export type HeroPendingShot = {
+// to outlive a re-spec or robot variant switch mid-tick.
+export type RobotPendingShot = {
   when: number;
   range: number;
   damage: number;
@@ -272,11 +272,11 @@ export type HeroPendingShot = {
 };
 
 // Ongoing slot-3 effect that ticks per frame. Mark (Leela) buffs the
-// hero's own outgoing damage for the duration AND optionally pulses an
+// robot's own outgoing damage for the duration AND optionally pulses an
 // arc-tick across the marked target list; incinerate (Mike) burns a
 // single locked enemy until the timer ends or the target dies;
 // killshot (George) charges a hitscan that then deletes one enemy.
-export type HeroPayloadState =
+export type RobotPayloadState =
   | {
       kind: "mark";
       endAt: number;
@@ -302,7 +302,7 @@ export type HeroPayloadState =
     }
   | {
       kind: "killshot";
-      // The hero is locked in place during chargeTime; fireAt is when the
+      // The robot is locked in place during chargeTime; fireAt is when the
       // shot lands. End-of-payload happens immediately after fire.
       targetId: EntityId;
       fireAt: number;
@@ -314,9 +314,9 @@ export type HeroPayloadState =
     };
 
 // Slot-2 active self-buff — variant-flavoured stat multiplier window.
-// Distinct from `payload` so a hero can stack the buff with their R
+// Distinct from `payload` so a robot can stack the buff with their R
 // ultimate without one clobbering the other.
-export type HeroSelfBuff = {
+export type RobotSelfBuff = {
   endAt: number;
   damageMul: number;
   fireRateMul: number;
@@ -325,9 +325,9 @@ export type HeroSelfBuff = {
   damageResist: number;
 };
 
-export type Hero = {
+export type Robot = {
   id: EntityId;
-  variant: HeroVariant;
+  variant: RobotVariant;
   pos: Vec2;
   vel: Vec2;
   facing: number;
@@ -337,7 +337,7 @@ export type Hero = {
   range: number;
   fireRate: number;
   // Movement speed (world units / sec). Baseline pulled from
-  // HERO_SPECS[variant].speed and scaled by the mobility skill tree.
+  // ROBOT_SPECS[variant].speed and scaled by the mobility skill tree.
   speed: number;
   // Per-shot splash radius. 0 means single-target projectile, >0 turns
   // each auto-attack into a splash hit so Mike's flames + Stan's shells
@@ -347,7 +347,7 @@ export type Hero = {
   // Cooldown clock on the auto-attack (renamed from `cooldown`).
   attackCooldown: number;
   // Cooldown ready-times for each ability slot — Q/W/E/R = dash, burst,
-  // buff, ultimate. All gated by hero.abilityCooldownMul from the skill tree.
+  // buff, ultimate. All gated by robot.abilityCooldownMul from the skill tree.
   abilityReadyAt: [number, number, number, number];
   // Per-slot active-until window. Slot 0 doubles as dash i-frames; the
   // other slots don't currently consult this, but it's kept symmetric
@@ -367,34 +367,34 @@ export type Hero = {
   // 0..1 fraction of incoming damage absorbed (1 = invuln). Driven by
   // the slot-2 self-buff; 0 when no buff is active.
   damageResist: number;
-  // Enemies this hero personally killed this run. Credited in
-  // applyDamage when the kill source carries this hero's id (auto-shots,
+  // Enemies this robot personally killed this run. Credited in
+  // applyDamage when the kill source carries this robot's id (auto-shots,
   // burst, incinerate ticks, dash coal embers).
   kills: number;
-  // Total damage this hero dealt this run. Clamped to remaining HP per
+  // Total damage this robot dealt this run. Clamped to remaining HP per
   // hit so overkill doesn't inflate the stat.
   damageDealt: number;
   // Slot-3 ongoing effect — mark buff or incinerate burn. Null when no
   // ultimate is currently in flight.
-  payload: HeroPayloadState | null;
+  payload: RobotPayloadState | null;
   // Slot-2 self-buff window. Active while world.time < selfBuff.endAt.
-  selfBuff: HeroSelfBuff | null;
-  pendingShots: HeroPendingShot[];
+  selfBuff: RobotSelfBuff | null;
+  pendingShots: RobotPendingShot[];
   targetId: EntityId | null;
   moveTarget: Vec2 | null;
   // Player-controlled lateral offset along the path — how far off the
-  // centerline the hero stands. Clamped to ±PATH_LANE_HALF. Derived
+  // centerline the robot stands. Clamped to ±PATH_LANE_HALF. Derived
   // from the move-order click position relative to the snapped path
-  // point so clicking near the edge of the lane parks the hero there.
+  // point so clicking near the edge of the lane parks the robot there.
   lateralOffset: number;
-  // Path index the hero is currently bound to. Multi-path levels pick
+  // Path index the robot is currently bound to. Multi-path levels pick
   // the nearest lane on each move order.
   pathIndex: number;
   alive: boolean;
   flashUntil: number;
   shootFlashUntil: number;
   respawnAt: number | null;
-  // world.time when this hero last took damage. Drives the
+  // world.time when this robot last took damage. Drives the
   // out-of-combat HP regen (regen starts 4s after this stamp).
   lastDamagedAt: number;
   // Click-to-select state — when true, the next ground click issues a
@@ -405,13 +405,13 @@ export type Hero = {
   // points so respec is just rewriting ranks.
   xp: number;
   level: number;
-  // Seconds the hero has been failing to make progress toward moveTarget.
+  // Seconds the robot has been failing to make progress toward moveTarget.
   // Resets to 0 whenever forward progress is observed; once it crosses a
   // small threshold the order is dropped so an unreachable target
   // (inside a tree, on the far side of a fully-blocked gap) doesn't pin
-  // the hero into a useless oscillation against the obstacle.
+  // the robot into a useless oscillation against the obstacle.
   stuckTimer: number;
-  // True while the hero is over a liquid surface (lava river/lake,
+  // True while the robot is over a liquid surface (lava river/lake,
   // forest water, alien goo). Render lifts the mesh and spawns jet VFX;
   // sim skips lava DOT. Recomputed each tick from world.lavaFeatures.
   hovering: boolean;
@@ -421,7 +421,7 @@ export type Hero = {
   hoverHeight: number;
   // High-level animation state — render picks the clip based on this.
   motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
-  // world.time when this hero last died (alive transitioned true→false).
+  // world.time when this robot last died (alive transitioned true→false).
   // Drives the death explosion shockwave/flash render window. -1000
   // means never died this run.
   lastDeathAt: number;
@@ -441,8 +441,8 @@ export type Hero = {
 
 // Lingering explosive crater dropped by Stan's Saturation Strike. Ticks
 // AoE explosive damage until expiresAt. Stored on World so render and
-// sim can both iterate without going through hero state.
-export type HeroCrater = {
+// sim can both iterate without going through robot state.
+export type RobotCrater = {
   id: EntityId;
   pos: Vec2;
   expiresAt: number;
@@ -511,10 +511,10 @@ export type Projectile = {
   // applyDamage so kill credit lands on the firing tower even if it
   // was sold or upgraded between fire and impact.
   ownerTowerId: EntityId | null;
-  // True when this projectile came from a hero attack. Carried into
-  // applyDamage so kill + damage credit (and hero XP) lands on the hero
+  // True when this projectile came from a robot attack. Carried into
+  // applyDamage so kill + damage credit (and robot XP) lands on the robot
   // alongside any tower attribution.
-  fromHero: boolean;
+  fromRobot: boolean;
   // Mortar Targeting meta — extra damage applied at splash impact when
   // ≥CLUSTER_THRESHOLD enemies sit inside the splash radius. 0 = no bonus.
   clusterDamageBonus: number;
@@ -693,7 +693,7 @@ export type World = {
   explosions: Explosion[];
   cryoWaves: CryoWave[];
   coalEmbers: CoalEmber[];
-  heroCraters: HeroCrater[];
+  robotCraters: RobotCrater[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
   bossTrickleStreams: ActiveBossTrickle[];
@@ -735,7 +735,7 @@ export type World = {
   // toggle UI is gated by isDebug + dead-codes out).
   invincible: boolean;
   lavaFeatures: import("../lavaGeometry").LavaFeatures | null;
-  hero: Hero;
+  robot: Robot;
   // Per-run challenge-mode tags. Heroic + iron set these from their
   // ModeConfig; normal runs all default to permissive. The sim and HUD
   // read these directly without re-resolving the mode config each tick.

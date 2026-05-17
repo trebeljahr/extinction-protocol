@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGamepadInput } from "../input/gamepad";
 import { LEVELS } from "../levels";
-import {
-  LORE_FRAGMENT_KIND_LABEL,
-  LORE_FRAGMENT_ORDER,
-  LORE_FRAGMENTS,
-} from "../levels/lore";
+import { LORE_FRAGMENT_KIND_LABEL, LORE_FRAGMENT_ORDER, LORE_FRAGMENTS } from "../levels/lore";
 import { getStars, hasEncountered, hasMatriarchEncountered } from "../progress";
 import {
   ENEMY_DESCRIPTION,
@@ -29,7 +25,6 @@ import {
 } from "../sim/towerText";
 import type { BossVariant, DamageType, EnemyKind, TowerKind } from "../sim/types";
 import { UPGRADES } from "../sim/upgrades";
-import type { CompendiumSection } from "../store";
 import {
   BOSS_VARIANT_LABEL,
   BOSS_VARIANT_RESIST,
@@ -48,13 +43,14 @@ import {
   TOWER_LABEL,
   TOWER_STATS,
 } from "../sim/world";
+import type { CompendiumSection } from "../store";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { EnemyIcon } from "./EnemyIcon";
 import { EnemyPreview } from "./EnemyPreview";
-import { HeroCompendiumSection } from "./HeroCompendiumSection";
 import { MechanicIcon } from "./MechanicIcon";
 import { MechanicPreview } from "./MechanicPreview";
+import { RobotCompendiumSection } from "./RobotCompendiumSection";
 import { TowerDiorama } from "./TowerDiorama";
 import { TowerPreview } from "./TowerPreview";
 
@@ -102,12 +98,12 @@ const entryDescription = (e: EnemyEntry): string =>
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
-const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "hero", "lore"];
+const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "robot", "lore"];
 const SECTION_LABEL: Record<Section, string> = {
   enemy: "Enemies",
   tower: "Towers",
   mechanic: "Mechanics",
-  hero: "Heroes",
+  robot: "Robots",
   lore: "Lore",
 };
 
@@ -214,7 +210,7 @@ export const Compendium = () => {
         {section === "mechanic" && (
           <MechanicSectionView selected={selectedMech} setSelected={setSelectedMech} />
         )}
-        {section === "hero" && <HeroCompendiumSection progress={progress} />}
+        {section === "robot" && <RobotCompendiumSection progress={progress} />}
         {section === "lore" && <LoreSectionView progress={progress} />}
       </div>
     </div>

@@ -66,10 +66,10 @@ const seedSaveJs = `
     difficulty: "medium",
     seenIntros: Object.fromEntries(Array.from({length:30},(_,i)=>[i+1,true])),
     metaSkills: {},
-    activeHero: "george",
-    heroUnlocks: {george:true},
-    heroXp: {},
-    heroSkills: {},
+    activeRobot: "george",
+    robotUnlocks: {george:true},
+    robotXp: {},
+    robotSkills: {},
   };
   localStorage.setItem(
     "mesozoic-protocol:slot:1:v1",
@@ -256,7 +256,7 @@ async function capturePanels(browser: Browser): Promise<void> {
   const panels: Array<{ name: string; action: string }> = [
     { name: "compendium", action: "setCompendiumOpen" },
     { name: "achievements", action: "setAchievementsOpen" },
-    { name: "heroes", action: "setHeroShopOpen" },
+    { name: "robots", action: "setRobotShopOpen" },
   ];
   for (const { name, action } of panels) {
     const page = await fresh(browser);

@@ -189,7 +189,7 @@ const placeLayerInBand = (
   levelId: number,
   layerIndex: number,
 ): void => {
-  // Buildings are hero focal points; don't sprinkle them in the corners.
+  // Buildings are robot focal points; don't sprinkle them in the corners.
   if (layer.urls.every((u) => classifyPropUrl(u) === "building")) return;
 
   const targetCount = Math.round(layer.count * BAND_RATIO);

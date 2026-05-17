@@ -3,15 +3,15 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "../store";
 
-// In-world hero markers: pulsing range ring, move-target ping,
+// In-world robot markers: pulsing range ring, move-target ping,
 // translucent ground footprint, death explosion shockwave, and Mike's
 // pre-dash directional arrow. Cheap (a handful of meshes), updated by
 // useFrame.
-const HERO_DEATH_DURATION = 0.85;
-const HERO_DEATH_EXPLOSION_DURATION = 0.7;
-const HERO_DEATH_CORE_DURATION = 0.22;
+const ROBOT_DEATH_DURATION = 0.85;
+const ROBOT_DEATH_EXPLOSION_DURATION = 0.7;
+const ROBOT_DEATH_CORE_DURATION = 0.22;
 
-export const HeroHud = () => {
+export const RobotHud = () => {
   const ringRef = useRef<THREE.Mesh>(null);
   const footRef = useRef<THREE.Mesh>(null);
   const moveRef = useRef<THREE.Mesh>(null);
@@ -33,35 +33,35 @@ export const HeroHud = () => {
     return g;
   }, []);
   // Death shockwave + flash — mirrors the HQ explosion sequence so a
-  // hero wipe feels equally violent.
+  // robot wipe feels equally violent.
   const deathFlashRef = useRef<THREE.Mesh>(null);
   const deathCoreRef = useRef<THREE.Mesh>(null);
   const deathShockRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
     const { world } = useGame.getState();
-    const hero = world.hero;
+    const robot = world.robot;
     if (!ringRef.current || !footRef.current || !moveRef.current || !selRef.current) return;
-    const visible = hero.alive;
+    const visible = robot.alive;
     ringRef.current.visible = visible;
     footRef.current.visible = visible;
     if (visible) {
       const pulse = 1 + Math.sin(world.time * 3.6) * 0.04;
-      ringRef.current.position.set(hero.pos.x, 0.05, -hero.pos.y);
+      ringRef.current.position.set(robot.pos.x, 0.05, -robot.pos.y);
       ringRef.current.scale.setScalar(pulse);
-      footRef.current.position.set(hero.pos.x, 0.045, -hero.pos.y);
+      footRef.current.position.set(robot.pos.x, 0.045, -robot.pos.y);
     }
-    if (hero.moveTarget) {
+    if (robot.moveTarget) {
       moveRef.current.visible = true;
-      moveRef.current.position.set(hero.moveTarget.x, 0.06, -hero.moveTarget.y);
+      moveRef.current.position.set(robot.moveTarget.x, 0.06, -robot.moveTarget.y);
       const spin = world.time * 2.6;
       moveRef.current.rotation.set(-Math.PI / 2, 0, spin);
     } else {
       moveRef.current.visible = false;
     }
-    if (hero.selected && hero.alive) {
+    if (robot.selected && robot.alive) {
       selRef.current.visible = true;
-      selRef.current.position.set(hero.pos.x, 0.06, -hero.pos.y);
+      selRef.current.position.set(robot.pos.x, 0.06, -robot.pos.y);
       const pulse = 1 + Math.sin(world.time * 5.2) * 0.07;
       selRef.current.scale.setScalar(pulse);
     } else {
@@ -71,11 +71,11 @@ export const HeroHud = () => {
     // the "armed and waiting" read while the cursor steers the dir.
     const aim = aimGroupRef.current;
     if (aim) {
-      if (hero.alive && hero.dashAim) {
+      if (robot.alive && robot.dashAim) {
         aim.visible = true;
-        const dir = hero.dashAim.dir;
+        const dir = robot.dashAim.dir;
         const yaw = Math.atan2(dir.x, -dir.y);
-        aim.position.set(hero.pos.x, 0.08, -hero.pos.y);
+        aim.position.set(robot.pos.x, 0.08, -robot.pos.y);
         aim.rotation.set(0, yaw, 0);
         const pulse = 0.92 + Math.sin(world.time * 8) * 0.08;
         aim.scale.setScalar(pulse);
@@ -83,34 +83,34 @@ export const HeroHud = () => {
         aim.visible = false;
       }
     }
-    // Death shockwave/core/flash — visible for HERO_DEATH_DURATION
+    // Death shockwave/core/flash — visible for ROBOT_DEATH_DURATION
     // after lastDeathAt, identical pattern to the HQ death cinematic.
     const flash = deathFlashRef.current;
     const core = deathCoreRef.current;
     const shock = deathShockRef.current;
     if (flash && core && shock) {
-      const elapsed = world.time - hero.lastDeathAt;
-      const explosionAlive = elapsed >= 0 && elapsed < HERO_DEATH_EXPLOSION_DURATION;
-      const coreAlive = elapsed >= 0 && elapsed < HERO_DEATH_CORE_DURATION;
-      const shockAlive = elapsed >= 0 && elapsed < HERO_DEATH_DURATION;
+      const elapsed = world.time - robot.lastDeathAt;
+      const explosionAlive = elapsed >= 0 && elapsed < ROBOT_DEATH_EXPLOSION_DURATION;
+      const coreAlive = elapsed >= 0 && elapsed < ROBOT_DEATH_CORE_DURATION;
+      const shockAlive = elapsed >= 0 && elapsed < ROBOT_DEATH_DURATION;
       flash.visible = explosionAlive;
       core.visible = coreAlive;
       shock.visible = shockAlive;
       if (explosionAlive) {
-        const t = elapsed / HERO_DEATH_EXPLOSION_DURATION;
-        flash.position.set(hero.pos.x, 0.6, -hero.pos.y);
+        const t = elapsed / ROBOT_DEATH_EXPLOSION_DURATION;
+        flash.position.set(robot.pos.x, 0.6, -robot.pos.y);
         flash.scale.setScalar(0.5 + t * 3.5);
         (flash.material as THREE.MeshBasicMaterial).opacity = (1 - t) ** 1.4 * 0.85;
       }
       if (coreAlive) {
-        const t = elapsed / HERO_DEATH_CORE_DURATION;
-        core.position.set(hero.pos.x, 0.6, -hero.pos.y);
+        const t = elapsed / ROBOT_DEATH_CORE_DURATION;
+        core.position.set(robot.pos.x, 0.6, -robot.pos.y);
         core.scale.setScalar(0.35 + t * 2.0);
         (core.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.9;
       }
       if (shockAlive) {
-        const t = elapsed / HERO_DEATH_DURATION;
-        shock.position.set(hero.pos.x, 0.05, -hero.pos.y);
+        const t = elapsed / ROBOT_DEATH_DURATION;
+        shock.position.set(robot.pos.x, 0.05, -robot.pos.y);
         shock.scale.setScalar(0.4 + t * 5.0);
         (shock.material as THREE.MeshBasicMaterial).opacity = (1 - t) ** 1.2 * 0.65;
       }
@@ -131,8 +131,8 @@ export const HeroHud = () => {
       <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
         <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
-      {/* Dash aim arrow — shaft + tip, anchored at hero pos. Hidden
-          unless hero.dashAim is set (Mike + pre-dash window). */}
+      {/* Dash aim arrow — shaft + tip, anchored at robot pos. Hidden
+          unless robot.dashAim is set (Mike + pre-dash window). */}
       <group ref={aimGroupRef} visible={false} renderOrder={4}>
         <mesh geometry={aimShaftGeom} position={[0, 0, -1.7]} rotation={[-Math.PI / 2, 0, 0]}>
           <meshBasicMaterial
@@ -155,7 +155,7 @@ export const HeroHud = () => {
           />
         </mesh>
       </group>
-      {/* Hero death explosion: outer fireball + white-hot core + ground
+      {/* Robot death explosion: outer fireball + white-hot core + ground
           shockwave. Refs hidden by default; useFrame flips them on
           while world.time falls inside the death-cinematic window. */}
       <mesh ref={deathFlashRef} visible={false} renderOrder={3}>

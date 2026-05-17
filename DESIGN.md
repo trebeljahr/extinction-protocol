@@ -256,7 +256,7 @@ Post-EA (M7–M9): content, mod support, endless mode, v1.0.
 
 - Grid-based tower placement, or free-form with snap? (Default: grid, 2m tiles.)
 - Do towers block the path, or only sit adjacent? (Default: adjacent only, like Bloons.)
-- Should the player control a hero unit too? (Default: no — pure TD keeps scope contained.)
+- Should the player control a robot unit too? (Default: no — pure TD keeps scope contained.)
 - How much of the outpost narrative do we need? (Default: environmental + optional audio logs.)
 
 ---

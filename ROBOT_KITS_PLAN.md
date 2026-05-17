@@ -1,10 +1,10 @@
-# Hero Kit Rework — Distinct Identities + In-Game Explanations
+# Robot Kit Rework — Distinct Identities + In-Game Explanations
 
-Playtest 10 / item 6. Heroes feel samey: same dash → burst → buff → ult template, similar VFX, no in-game description of what abilities do. Goal: lock each hero to one combat fantasy (sniper / electric / flame / explosive), make their basic attack + 4 abilities mechanically distinct, and surface a full ability tooltip card for every slot in the shop and HUD.
+Playtest 10 / item 6. Robots feel samey: same dash → burst → buff → ult template, similar VFX, no in-game description of what abilities do. Goal: lock each robot to one combat fantasy (sniper / electric / flame / explosive), make their basic attack + 4 abilities mechanically distinct, and surface a full ability tooltip card for every slot in the shop and HUD.
 
 ## Identity Assignment
 
-| Hero  | Fantasy           | Element     | Range Band     | Fire Cadence | Basic Attack |
+| Robot  | Fantasy           | Element     | Range Band     | Fire Cadence | Basic Attack |
 |-------|-------------------|-------------|----------------|--------------|--------------|
 | George| Sniper            | kinetic     | longest (10.5) | very slow    | piercing tracer-beam, single-target, high-damage |
 | Leela | Electric skirmisher| electric   | mid (5.5)      | very fast    | hitscan zap that chains to 1 nearby on every shot |
@@ -33,13 +33,13 @@ George loses being "the balanced one" and becomes a real sniper. Stan stays arti
 
 ### Leela — Strider (electric)
 - **Q · Phase Step** — *forward dash, i-frames; arc of chain lightning hits 3 closest dinos on dash end (24 dmg each).* (`dash`, on-end chain emit)
-- **W · Tesla Pulse** — *radial discharge at hero (70 dmg) that then chains via beam to 4 additional targets in 6-unit radius (35 dmg per hop, electric).* (existing `burst` + new `chainHops` field)
+- **W · Tesla Pulse** — *radial discharge at robot (70 dmg) that then chains via beam to 4 additional targets in 6-unit radius (35 dmg per hop, electric).* (existing `burst` + new `chainHops` field)
 - **E · Phase Veil** — *buff: +70% speed, +60% fire rate, +15% damage, 80% resist for 3s; same window also tags every hit as chain.* (existing `buff`)
 - **R · Overcharge** — *marks up to 5 nearby enemies for 5s; ongoing chain-lightning arc tags every marked enemy every 0.5s for 22 dmg each (additive on mark).* (re-thematise `mark` as multi-target arc + add tick damage field)
 
 ### Mike — Pyre (flame)
 - **Q · Thruster Burst** — *aimed forward dash with i-frames; drops a coal trail that burns for 2.6s (existing). Trail tick damage 22.* (existing `dash`, retain aim mode)
-- **W · Flame Nova** — *radial flame burst at hero (95 dmg) + applies a 4s burn DoT (40 total) to every enemy hit.* (existing `burst` + new `burnDuration`/`burnTotal` fields)
+- **W · Flame Nova** — *radial flame burst at robot (95 dmg) + applies a 4s burn DoT (40 total) to every enemy hit.* (existing `burst` + new `burnDuration`/`burnTotal` fields)
 - **E · Ignition** — *buff: ×2 fire rate, +30% damage, light plating (35% resist) for 4s. While active, every auto-attack applies a 2s burn DoT (12 total).* (existing `buff` + new `igniteOnHit` flag)
 - **R · Incinerate** — *locks nearest mid-range enemy, sustained flame cone with ground fire that ticks 64 dmg/s for 4.5s; cone width 2.5, range 8.* (existing `incinerate`, expanded visual — keep math, change VFX)
 
@@ -51,9 +51,9 @@ George loses being "the balanced one" and becomes a real sniper. Stan stays arti
 
 ## Distinct Visuals
 
-Hero-specific VFX layered on the existing `spawnParticles` / `createBeam` / `createExplosion` / `createCryoWave` / `createCoalEmber` primitives — no new render systems needed.
+Robot-specific VFX layered on the existing `spawnParticles` / `createBeam` / `createExplosion` / `createCryoWave` / `createCoalEmber` primitives — no new render systems needed.
 
-| Hero  | Auto-attack VFX                                    | Burst VFX                              | Ultimate VFX                                |
+| Robot  | Auto-attack VFX                                    | Burst VFX                              | Ultimate VFX                                |
 |-------|----------------------------------------------------|----------------------------------------|---------------------------------------------|
 | George| thin white tracer-beam to target, faint sparks at muzzle | none yet (Q/W changed)            | long charged beam + impact explosion        |
 | Leela | electric-blue zap beam, sparks at hit + chain hop  | radial beams to each hop                | persistent arcing beams between marked dinos |
@@ -62,7 +62,7 @@ Hero-specific VFX layered on the existing `spawnParticles` / `createBeam` / `cre
 
 Tints stay (George #9fd8ff, Leela #5ad6ff, Mike #ff8a3a, Stan #ffd24a). Burst particle color also keys off variant tint instead of the current hard-coded "#ff8a3a" so an electric burst no longer reads as flame.
 
-## Schema Changes (`heroVariants.ts` + `types.ts`)
+## Schema Changes (`robotVariants.ts` + `types.ts`)
 
 Existing variants stay compatible; add optional fields:
 
@@ -102,7 +102,7 @@ type BuffSpec = {
   fireRateMul: number;
   speedMul: number;
   damageResist: number;
-  // George: also multiplies hero.range while active.
+  // George: also multiplies robot.range while active.
   rangeMul?: number;
   // Mike: every auto-attack applies a short burn DoT while buff active.
   igniteOnHit?: { duration: number; totalDamage: number };
@@ -116,33 +116,33 @@ type PayloadSpec =
   | { type: "killshot"; cooldown; range; chargeTime; damage; splashDamage; splashRadius; damageType };  // George R
 ```
 
-Auto-attack chain-on-hit for Leela goes on the variant (not the ability): new optional `attackChain?: { hops: number; damageMul: number; radius: number }` on `HeroVariantSpec`. `fireHeroShot` reads it.
+Auto-attack chain-on-hit for Leela goes on the variant (not the ability): new optional `attackChain?: { hops: number; damageMul: number; radius: number }` on `RobotVariantSpec`. `fireRobotShot` reads it.
 
 Burn DoT needs a new per-enemy effect store (`enemy.burns: { endAt, nextTickAt, tickDamage, damageType }[]`) ticked once per sim step in `world.ts`. Knockback re-uses the existing `enemy.segmentT` lateral system (or just nudges `segmentT` backwards by N units).
 
 ## Ability Tooltip / Shop UI
 
-Current bugs in `src/ui/HeroShop.tsx`:
+Current bugs in `src/ui/RobotShop.tsx`:
 - `AbilityCard` only maps `[0, 1, 2]` — slot 3 (ultimate) never renders. Fix: map `[0, 1, 2, 3]` and widen `formatAbilityStats`'s `slot` type.
 - `formatAbilityStats` `buff` branch is fine, but the new payload variants (`pierce`, `killshot`, `chainHops`/`crater`/`arcTick` modifiers) need formatter cases.
-- `ABILITY_BLURB` is keyed by `a.type` — too generic, every hero's `burst` shares one line. Replace with per-hero per-slot blurbs sourced from `HeroVariantSpec.abilityBlurbs: [string, string, string, string]` so each card explains what *this* hero's W does.
-- Add a 5th "Auto-Attack" card above the QWER list (collapsed by default) describing basic-attack damage, range, fire rate, damage type, and the per-hero on-hit rider (chain / burn / splash crater).
+- `ABILITY_BLURB` is keyed by `a.type` — too generic, every robot's `burst` shares one line. Replace with per-robot per-slot blurbs sourced from `RobotVariantSpec.abilityBlurbs: [string, string, string, string]` so each card explains what *this* robot's W does.
+- Add a 5th "Auto-Attack" card above the QWER list (collapsed by default) describing basic-attack damage, range, fire rate, damage type, and the per-robot on-hit rider (chain / burn / splash crater).
 
-Same blurb data also feeds `src/ui/HeroSelectionPanel.tsx` as tooltips on the QWER glyph icons in the live HUD — first-time players see what each key does on hover.
+Same blurb data also feeds `src/ui/RobotSelectionPanel.tsx` as tooltips on the QWER glyph icons in the live HUD — first-time players see what each key does on hover.
 
 ## Implementation Order
 
-1. **Schema + data** — extend ability spec union; update `HERO_SPECS` to new identities; add `abilityBlurbs` per hero. Compile clean.
+1. **Schema + data** — extend ability spec union; update `ROBOT_SPECS` to new identities; add `abilityBlurbs` per robot. Compile clean.
 2. **Burn-DoT effect** — `enemy.burns[]`, tick in `world.ts`; reuse `applyDamage` so resists/shields still work.
 3. **Knockback** — single helper that pushes `segmentT` backwards N units (clamped to segment), called from Quake.
-4. **Sim wiring** — `fireHeroShot` reads `attackChain`; `triggerHeroAbility` adds `pierce` / `killshot` branches and applies new optional fields (`endChain`, `landingBlast`, `chainHops`, `burn`, `knockback`, `crater`, `arcTick`, `nextShotCrit`, `igniteOnHit`, `rangeMul`).
+4. **Sim wiring** — `fireRobotShot` reads `attackChain`; `triggerRobotAbility` adds `pierce` / `killshot` branches and applies new optional fields (`endChain`, `landingBlast`, `chainHops`, `burn`, `knockback`, `crater`, `arcTick`, `nextShotCrit`, `igniteOnHit`, `rangeMul`).
 5. **VFX swap** — burst particles read `variant.tint`; George auto-shot draws tracer beam; Leela hit spawns chain-hop beams; Stan auto-shot adds dust + small shake; Mike auto-shot adds ember puff.
-6. **UI** — `formatAbilityStats` handles new types; `AbilityCard` maps all 4 slots + an Auto-Attack card; per-hero `abilityBlurbs`; HUD tooltip on QWER glyphs.
-7. **Smoke-test** — load each hero, fire every ability on a dummy wave, confirm cooldowns, damage types in floating text, and that the shop renders all 5 cards (auto + QWER).
+6. **UI** — `formatAbilityStats` handles new types; `AbilityCard` maps all 4 slots + an Auto-Attack card; per-robot `abilityBlurbs`; HUD tooltip on QWER glyphs.
+7. **Smoke-test** — load each robot, fire every ability on a dummy wave, confirm cooldowns, damage types in floating text, and that the shop renders all 5 cards (auto + QWER).
 
 ## Scope Cut (defer if needed)
 
 - Spotter Drone could spawn an actual flying drone mesh — defer, just use a small particle halo on George.
 - Killshot's pre-fire windup could use a unique sound — out of scope, no audio system touched.
 - Knockback animation curve — start with instant segmentT push; smooth lerp later if it reads bad.
-- Re-baking hero GLB skeletons for new pose variants — not in scope; reuse existing shoot/dash anims.
+- Re-baking robot GLB skeletons for new pose variants — not in scope; reuse existing shoot/dash anims.

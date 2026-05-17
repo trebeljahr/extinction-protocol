@@ -1,12 +1,12 @@
-// Per-mecha variant defaults. The Hero singleton is rebuilt from
-// progress.activeHero each level start, so every change to the variant
+// Per-mecha variant defaults. The Robot singleton is rebuilt from
+// progress.activeRobot each level start, so every change to the variant
 // here (stats, ability params) lands on the next run automatically.
-// Skill-tree ranks layer on top via applyHeroSkillsToHero — variant
+// Skill-tree ranks layer on top via applyRobotSkillsToRobot — variant
 // numbers are the "rank 0" baseline.
 
-import type { DamageType, HeroVariant } from "./types";
+import type { DamageType, RobotVariant } from "./types";
 
-export const HERO_VARIANTS: readonly HeroVariant[] = ["george", "leela", "mike", "stan"];
+export const ROBOT_VARIANTS: readonly RobotVariant[] = ["george", "leela", "mike", "stan"];
 
 // Slot 0 — high-mobility burst that grants i-frames during the lunge.
 // Optional riders give each pilot a distinct dash payoff: George flags
@@ -22,7 +22,7 @@ export type DashSpec = {
   landingBlast?: { radius: number; damage: number; damageType: DamageType };
 };
 
-// Slot 1 — instant radial AoE around the hero. Damage type varies by
+// Slot 1 — instant radial AoE around the robot. Damage type varies by
 // variant so the burst hits its biggest-resist matchup.
 // Optional riders: Leela's burst forks chain lightning beams to extra
 // targets; Mike's burst applies a burn DoT to every enemy hit; Stan's
@@ -38,7 +38,7 @@ export type BurstSpec = {
   knockback?: { pathPush: number };
 };
 
-// Slot 2 — variant-flavoured self-buff. Multiplies the hero's own stats
+// Slot 2 — variant-flavoured self-buff. Multiplies the robot's own stats
 // for a window so each pilot has an identity-fitting "third gear" between
 // dash + burst + ultimate. Damage type isn't carried — the buff just
 // modulates outgoing damage / fire rate / move speed / damage resist.
@@ -59,7 +59,7 @@ export type BuffSpec = {
 
 // Slot 3 — ultimate payload. Discriminated union so the trigger
 // dispatcher can fan out to barrage / mark / incinerate / pierce /
-// killshot without extra control flags on Hero.
+// killshot without extra control flags on Robot.
 export type PayloadSpec =
   | {
       type: "barrage";
@@ -79,7 +79,7 @@ export type PayloadSpec =
       duration: number;
       dmgMul: number;
       // Leela: every interval seconds, arc damage hits every marked
-      // enemy via beam. Marked enemies live in hero.arcTargets[].
+      // enemy via beam. Marked enemies live in robot.arcTargets[].
       arcTick?: { interval: number; damage: number; radius: number; damageType: DamageType };
     }
   | {
@@ -103,9 +103,9 @@ export type PayloadSpec =
       damageType: DamageType;
     };
 
-export type HeroAbilitySpec = DashSpec | BurstSpec | BuffSpec | PayloadSpec;
+export type RobotAbilitySpec = DashSpec | BurstSpec | BuffSpec | PayloadSpec;
 
-// Per-hero auto-attack rider. Each shot can also chain to nearby
+// Per-robot auto-attack rider. Each shot can also chain to nearby
 // enemies (Leela), draw a tracer beam (George), or apply burn DoT
 // during a buff window (Mike — driven by buff.igniteOnHit instead).
 export type AttackChainSpec = {
@@ -114,13 +114,13 @@ export type AttackChainSpec = {
   radius: number;
 };
 
-export type HeroVariantSpec = {
-  variant: HeroVariant;
+export type RobotVariantSpec = {
+  variant: RobotVariant;
   label: string;
   callsign: string;
   blurb: string;
   // Field-report assessment. One line each, terse. Rendered in the
-  // compendium under the hero blurb so the player can read a tactical
+  // compendium under the robot blurb so the player can read a tactical
   // matchup at a glance.
   strengths: string;
   weakness: string;
@@ -137,24 +137,24 @@ export type HeroVariantSpec = {
   // forks lightning beams to up to `hops` nearby enemies for damagePerHop.
   attackChain?: AttackChainSpec;
   // Render hint — when true, every auto-attack draws a hitscan tracer
-  // beam from the hero to the target instead of (or alongside) the
+  // beam from the robot to the target instead of (or alongside) the
   // projectile. George uses this for the sniper read.
   attackTracer?: boolean;
   unlockStars: number;
   abilities: [DashSpec, BurstSpec, BuffSpec, PayloadSpec];
   tint: string;
   // HUD labels per slot (Q/W/E/R). Short ASCII glyph picks up from the
-  // existing hero panel without bringing in icon assets.
+  // existing robot panel without bringing in icon assets.
   abilityLabels: [string, string, string, string];
   abilityGlyphs: [string, string, string, string];
   // Per-slot tooltip blurb shown in the shop and HUD. Length 5: the
   // first entry describes the auto-attack ("Basic Attack"), the next
-  // four describe Q/W/E/R. Hero-specific so each card reads as a
+  // four describe Q/W/E/R. Robot-specific so each card reads as a
   // distinct ability rather than a generic burst/dash/etc.
   abilityBlurbs: [string, string, string, string, string];
 };
 
-export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
+export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
   george: {
     variant: "george",
     label: "George",
@@ -231,7 +231,7 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilityBlurbs: [
       "Hitscan kinetic sniper rifle. Tracer beam draws to target — long range, slow cadence, very high per-shot damage. No splash.",
       "Lateral hop with i-frames. The next auto-attack lands as a piercing crit (×2.5 damage). Use to slip a grapple and answer with a body shot.",
-      "Kinetic shockwave centered on the hero. Heavy single-pulse damage and a short push that knocks enemies back along the path.",
+      "Kinetic shockwave centered on the robot. Heavy single-pulse damage and a short push that knocks enemies back along the path.",
       "Scope-in stance: +60% range, +80% damage, –15% fire rate, –50% speed, 40% resist for 5s. Hold the line and snipe.",
       "Lock the highest-progress enemy in 14 range, charge 1.2s, then delete it. Splash damage detonates at the impact point — clears the escort too.",
     ],
@@ -296,7 +296,7 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
     abilityBlurbs: [
       "Hitscan electric zap. Every shot arcs to one nearby second target for 6 bonus damage. Fast cadence — best inside a pack.",
       "Forward dash with i-frames. On lunge end, lightning arcs to the 3 closest enemies for 24 electric damage each.",
-      "Radial electric blast at the hero (70 dmg). Then forks chain lightning to 4 more enemies in 6 range for 35 dmg per hop.",
+      "Radial electric blast at the robot (70 dmg). Then forks chain lightning to 4 more enemies in 6 range for 35 dmg per hop.",
       "Phase Veil: +70% speed, +60% fire rate, +15% damage, 80% resist for 3s. Use to reposition through a clog.",
       "Marks up to 5 nearby enemies for 5s. Marked targets take +50% damage from all sources and absorb a 22-dmg arc every 0.5s.",
     ],
@@ -433,4 +433,4 @@ export const HERO_SPECS: Record<HeroVariant, HeroVariantSpec> = {
   },
 };
 
-export const heroSpec = (variant: HeroVariant): HeroVariantSpec => HERO_SPECS[variant];
+export const robotSpec = (variant: RobotVariant): RobotVariantSpec => ROBOT_SPECS[variant];

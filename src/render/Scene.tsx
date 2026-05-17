@@ -12,19 +12,19 @@ import { FierceHalos } from "./FierceHalos";
 import { Ground } from "./Ground";
 import { HealAuras } from "./HealAuras";
 import { HealthBars } from "./HealthBars";
-import { HeroHud } from "./HeroHud";
 import { HiveDrones } from "./HiveDrones";
 import { HQBase } from "./HQBase";
 import { HQTurrets } from "./HQTurret";
 import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
-import { ModelHeroMesh } from "./ModelHeroMesh";
+import { ModelRobotMesh } from "./ModelRobotMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
 import { OuterScenery } from "./OuterScenery";
 import { PathLine } from "./PathLine";
 import { Placement } from "./Placement";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { RegenBadges } from "./RegenBadges";
+import { RobotHud } from "./RobotHud";
 import { Rocks } from "./Rocks";
 import { SelectionRing } from "./SelectionRing";
 import { ShaderPrewarm } from "./ShaderPrewarm";
@@ -138,8 +138,8 @@ export const PlayScene = () => {
       <FierceHalos />
       <RegenBadges />
 
-      <ModelHeroMesh />
-      <HeroHud />
+      <ModelRobotMesh />
+      <RobotHud />
       <CoalTrail />
 
       <TowerVfx />

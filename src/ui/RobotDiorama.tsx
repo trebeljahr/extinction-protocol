@@ -4,19 +4,19 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { measureVisibleBox } from "../render/measureModel";
-import type { HeroVariant } from "../sim/types";
+import type { RobotVariant } from "../sim/types";
 
-const HERO_URL: Record<HeroVariant, string> = {
-  george: "/models/heroes/George.glb",
-  leela: "/models/heroes/Leela.glb",
-  mike: "/models/heroes/Mike.glb",
-  stan: "/models/heroes/Stan.glb",
+const ROBOT_URL: Record<RobotVariant, string> = {
+  george: "/models/robots/George.glb",
+  leela: "/models/robots/Leela.glb",
+  mike: "/models/robots/Mike.glb",
+  stan: "/models/robots/Stan.glb",
 };
 
 const TARGET_SIZE = 1.35;
 
-const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
-  const url = HERO_URL[variant];
+const RobotPilotMesh = ({ variant }: { variant: RobotVariant }) => {
+  const url = ROBOT_URL[variant];
   const { scene, animations } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
@@ -71,8 +71,8 @@ const HeroPilotMesh = ({ variant }: { variant: HeroVariant }) => {
   return <group ref={groupRef} />;
 };
 
-// Circular platform under the hero — gives the diorama a "stage"
-// floor so the hero isn't floating in negative space. Subtle gradient
+// Circular platform under the robot — gives the diorama a "stage"
+// floor so the robot isn't floating in negative space. Subtle gradient
 // + radial fade matches the dark cockpit-room aesthetic of the modals.
 const Platform = () => {
   return (
@@ -93,13 +93,13 @@ const Platform = () => {
   );
 };
 
-// Full-sized 3D viewer for the hero detail page. Square aspect with a
+// Full-sized 3D viewer for the robot detail page. Square aspect with a
 // circular platform, soft fog, and a fitted camera that frames the
 // entire pilot. Auto-rotates so the player can see all sides.
-export const HeroDiorama = ({ variant }: { variant: HeroVariant }) => {
+export const RobotDiorama = ({ variant }: { variant: RobotVariant }) => {
   return (
     <Canvas
-      className="hero-diorama-canvas"
+      className="robot-diorama-canvas"
       shadows
       camera={{ position: [3.2, 2.1, 3.2], fov: 40 }}
       onCreated={({ camera }) => {
@@ -124,7 +124,7 @@ export const HeroDiorama = ({ variant }: { variant: HeroVariant }) => {
       <Suspense fallback={null}>
         <Platform />
         <group position={[0, 0.01, 0]}>
-          <HeroPilotMesh variant={variant} />
+          <RobotPilotMesh variant={variant} />
         </group>
       </Suspense>
     </Canvas>

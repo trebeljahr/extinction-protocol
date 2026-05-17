@@ -97,7 +97,7 @@
   --fs-h2: 18px; /* section / panel titles */
   --fs-2xl: 22px; /* modal h1 */
   --fs-h1: 24px; /* full-screen overlay h1 */
-  --fs-display: 28px; /* hero / new-enemy / results title */
+  --fs-display: 28px; /* robot / new-enemy / results title */
 
   /* === Spacing aliases (used by hand-written CSS rules below) === */
   --space-1: 4px;
@@ -3851,7 +3851,7 @@
   }
 
   /* Mobile main menu action button (shown only on `.save-slots-screen--menu`).
-     Anchored low in the viewport so the diorama remains the hero. */
+     Anchored low in the viewport so the diorama remains the robot. */
   .save-slots-menu-actions {
     display: none;
   }
@@ -3871,7 +3871,7 @@
 
   /* On narrower viewports the 3-up bottom row would overflow — fall back
      to a single-column stack centred above the bottom edge. The screen
-     splits into two stages: `--menu` keeps the diorama hero with just a
+     splits into two stages: `--menu` keeps the diorama robot with just a
      Start button; `--slots` swaps in the slot grid + a back affordance.
      Three-pronged query mirrors `useIsMobile()` and adds a short-height
      arm: narrow widths, coarse pointers up to 1024px (iPad portrait +
@@ -3995,9 +3995,9 @@
     outline: 2px solid var(--color-blue);
   }
 
-  /* Hero panel — bottom-left, mecha HP + ability slots. Sits clear of
+  /* Robot panel — bottom-left, mecha HP + ability slots. Sits clear of
      the centered tower picker by anchoring to the left edge. */
-  .hero-panel {
+  .robot-panel {
     position: absolute;
     left: 14px;
     bottom: 12px;
@@ -4013,25 +4013,25 @@
     z-index: 26;
     min-width: 232px;
   }
-  .hero-name {
+  .robot-name {
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--color-blue);
     text-transform: uppercase;
   }
-  .hero-hp-row {
+  .robot-hp-row {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 4px;
   }
-  .hero-hp-label {
+  .robot-hp-label {
     font-size: var(--fs-xs);
     font-weight: 700;
     color: var(--color-red);
   }
-  .hero-hp-bar {
+  .robot-hp-bar {
     flex: 1;
     height: 8px;
     background: rgba(6, 10, 14, 0.7);
@@ -4039,12 +4039,12 @@
     border-radius: 4px;
     overflow: hidden;
   }
-  .hero-hp-fill {
+  .robot-hp-fill {
     height: 100%;
     background: linear-gradient(90deg, #ff5a3a, #ffb054 70%, #ffe080);
     transition: width 0.12s linear;
   }
-  .hero-hp-value {
+  .robot-hp-value {
     font-size: var(--fs-xs);
     font-weight: 700;
     color: var(--color-fg);
@@ -4052,7 +4052,7 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .hero-combat-row {
+  .robot-combat-row {
     margin-top: 4px;
     font-size: var(--fs-xs);
     font-weight: 600;
@@ -4060,11 +4060,11 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
   }
-  .hero-abilities {
+  .robot-abilities {
     display: flex;
     gap: 6px;
   }
-  .hero-ability {
+  .robot-ability {
     position: relative;
     width: 64px;
     height: 50px;
@@ -4082,30 +4082,30 @@
     transition: border-color 0.12s, transform 0.08s;
     font-family: inherit;
   }
-  .hero-ability:hover:not(:disabled) {
+  .robot-ability:hover:not(:disabled) {
     border-color: rgba(180, 220, 255, 0.55);
   }
-  .hero-ability.ready {
+  .robot-ability.ready {
     border-color: var(--color-blue);
     box-shadow: 0 0 12px rgba(159, 216, 255, 0.25);
   }
-  .hero-ability.cooling {
+  .robot-ability.cooling {
     filter: grayscale(0.4) brightness(0.75);
     cursor: not-allowed;
   }
-  .hero-ability-glyph {
+  .robot-ability-glyph {
     font-size: 18px;
     line-height: 1;
     color: var(--color-blue);
     text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
   }
-  .hero-ability-key {
+  .robot-ability-key {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg-soft);
     letter-spacing: 0.06em;
   }
-  .hero-ability-fill {
+  .robot-ability-fill {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -4113,7 +4113,7 @@
     background: var(--color-blue);
     transition: width 0.08s linear;
   }
-  .hero-ability-cd {
+  .robot-ability-cd {
     position: absolute;
     top: 3px;
     right: 5px;
@@ -4126,14 +4126,14 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Hero level / XP bar inside the panel. */
-  .hero-name {
+  /* Robot level / XP bar inside the panel. */
+  .robot-name {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
-  .hero-name-btn {
+  .robot-name-btn {
     background: transparent;
     border: none;
     color: inherit;
@@ -4142,10 +4142,10 @@
     padding: 0;
     width: 100%;
   }
-  .hero-name-btn:hover {
+  .robot-name-btn:hover {
     color: #fff;
   }
-  .hero-level {
+  .robot-level {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg-soft);
@@ -4153,13 +4153,13 @@
     padding: 1px 6px;
     border-radius: 999px;
   }
-  .hero-xp-row {
+  .robot-xp-row {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 4px;
   }
-  .hero-xp-bar {
+  .robot-xp-bar {
     flex: 1;
     height: 4px;
     background: rgba(6, 10, 14, 0.7);
@@ -4167,12 +4167,12 @@
     border-radius: 4px;
     overflow: hidden;
   }
-  .hero-xp-fill {
+  .robot-xp-fill {
     height: 100%;
     background: linear-gradient(90deg, #5ad6ff, #9fd8ff);
     transition: width 0.18s linear;
   }
-  .hero-xp-value {
+  .robot-xp-value {
     font-size: 9px;
     font-weight: 700;
     color: var(--color-fg-muted);
@@ -4180,7 +4180,7 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .hero-swap-btn {
+  .robot-swap-btn {
     background: rgba(14, 20, 28, 0.55);
     border: 1px solid rgba(120, 160, 200, 0.22);
     color: var(--color-fg-soft);
@@ -4190,15 +4190,15 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .hero-swap-btn:hover {
+  .robot-swap-btn:hover {
     border-color: var(--color-blue);
     color: #fff;
   }
 
-  /* Hero mini icon — sits in the hud-top row alongside GOLD/LIVES/WAVE.
-     Clickable shortcut into the hero selection panel; doubles as an
+  /* Robot mini icon — sits in the hud-top row alongside GOLD/LIVES/WAVE.
+     Clickable shortcut into the robot selection panel; doubles as an
      always-visible HP readout. */
-  .hero-mini {
+  .robot-mini {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -4221,45 +4221,45 @@
       box-shadow 0.12s,
       transform 0.08s;
   }
-  .hero-mini > .hero-swatch {
+  .robot-mini > .robot-swatch {
     width: 36px;
     height: 36px;
     border-radius: 6px;
     flex-shrink: 0;
   }
-  .hero-mini:hover {
+  .robot-mini:hover {
     border-color: var(--color-blue);
     box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.32);
   }
-  .hero-mini.active {
+  .robot-mini.active {
     border-color: var(--color-blue);
     box-shadow:
       0 0 0 1px rgba(159, 216, 255, 0.45),
       0 0 18px rgba(159, 216, 255, 0.2);
   }
-  .hero-mini.dead {
+  .robot-mini.dead {
     filter: grayscale(0.5) brightness(0.7);
   }
-  .hero-mini-body {
+  .robot-mini-body {
     display: flex;
     flex-direction: column;
     gap: 3px;
     min-width: 92px;
     text-align: left;
   }
-  .hero-mini-row {
+  .robot-mini-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
   }
-  .hero-mini-label {
+  .robot-mini-label {
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     color: var(--color-blue);
   }
-  .hero-mini-lvl {
+  .robot-mini-lvl {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg-soft);
@@ -4267,44 +4267,44 @@
     padding: 1px 6px;
     border-radius: 999px;
   }
-  .hero-mini-bar {
+  .robot-mini-bar {
     height: 6px;
     background: rgba(6, 10, 14, 0.7);
     border: 1px solid rgba(120, 160, 200, 0.18);
     border-radius: 4px;
     overflow: hidden;
   }
-  .hero-mini-bar-fill {
+  .robot-mini-bar-fill {
     height: 100%;
     background: linear-gradient(90deg, #ff5a3a, #ffb054 70%, #ffe080);
     transition: width 0.12s linear;
   }
-  .hero-mini-hp {
+  .robot-mini-hp {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
 
-  /* Hero selection panel — reuses .tower-panel base styling. Top-right
+  /* Robot selection panel — reuses .tower-panel base styling. Top-right
      slot; mutually exclusive with the tower/tree/enemy panels via the
      store's selection invariant. Pushed below the corner cluster (z:46)
      on desktop via top:64; raised to z:50 so on narrow viewports where
      it still collides horizontally it renders on top of the cluster. */
-  .hero-selection-panel {
+  .robot-selection-panel {
     right: 16px;
     top: 64px;
     z-index: 50;
     background: rgba(14, 18, 26, 0.92);
     border-color: rgba(120, 180, 220, 0.28);
   }
-  .hero-selection-panel .hero-swatch {
+  .robot-selection-panel .robot-swatch {
     width: 56px;
     height: 56px;
     border-radius: 8px;
     flex-shrink: 0;
   }
-  .hero-sel-vitals {
+  .robot-sel-vitals {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -4314,19 +4314,19 @@
     border: 1px solid rgba(120, 160, 200, 0.16);
     border-radius: 6px;
   }
-  .hero-sel-row {
+  .robot-sel-row {
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .hero-sel-label {
+  .robot-sel-label {
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--color-fg-soft);
     min-width: 24px;
   }
-  .hero-sel-value {
+  .robot-sel-value {
     font-size: var(--fs-xs);
     font-weight: 700;
     color: var(--color-fg);
@@ -4334,7 +4334,7 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .hero-sel-section-title {
+  .robot-sel-section-title {
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -4342,13 +4342,13 @@
     text-transform: uppercase;
     margin-bottom: 6px;
   }
-  .hero-sel-abilities {
+  .robot-sel-abilities {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-bottom: 12px;
   }
-  .hero-sel-ability {
+  .robot-sel-ability {
     display: flex;
     align-items: stretch;
     gap: 10px;
@@ -4364,17 +4364,17 @@
       border-color 0.12s,
       transform 0.08s;
   }
-  .hero-sel-ability:hover:not(:disabled) {
+  .robot-sel-ability:hover:not(:disabled) {
     border-color: rgba(180, 220, 255, 0.55);
   }
-  .hero-sel-ability.ready {
+  .robot-sel-ability.ready {
     border-color: rgba(159, 216, 255, 0.55);
   }
-  .hero-sel-ability.cooling {
+  .robot-sel-ability.cooling {
     filter: grayscale(0.4) brightness(0.78);
     cursor: not-allowed;
   }
-  .hero-sel-ability-glyph {
+  .robot-sel-ability-glyph {
     font-size: 22px;
     line-height: 1;
     color: var(--color-blue);
@@ -4383,14 +4383,14 @@
     width: 28px;
     text-align: center;
   }
-  .hero-sel-ability-body {
+  .robot-sel-ability-body {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 3px;
     min-width: 0;
   }
-  .hero-sel-ability-name {
+  .robot-sel-ability-name {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4398,7 +4398,7 @@
     font-weight: 700;
     color: var(--color-fg);
   }
-  .hero-sel-ability-key {
+  .robot-sel-ability-key {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg-soft);
@@ -4407,26 +4407,26 @@
     border-radius: 4px;
     letter-spacing: 0.06em;
   }
-  .hero-sel-ability-meta {
+  .robot-sel-ability-meta {
     font-size: 10px;
     font-weight: 700;
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
   }
-  .hero-sel-ability-bar {
+  .robot-sel-ability-bar {
     height: 3px;
     background: rgba(6, 10, 14, 0.7);
     border-radius: 3px;
     overflow: hidden;
     margin-top: 2px;
   }
-  .hero-sel-ability-bar-fill {
+  .robot-sel-ability-bar-fill {
     height: 100%;
     background: var(--color-blue);
     transition: width 0.08s linear;
   }
-  .hero-sel-blurb {
+  .robot-sel-blurb {
     font-size: 11px;
     line-height: 1.4;
     color: var(--color-fg-muted);
@@ -4436,18 +4436,18 @@
     border-radius: 6px;
   }
 
-  /* Hero shop modal. */
-  .hero-shop-panel {
+  /* Robot shop modal. */
+  .robot-shop-panel {
     max-height: calc(100vh - 180px);
     overflow-y: auto;
     padding-right: 4px;
   }
   @media (max-height: 520px) {
-    .hero-shop-panel {
+    .robot-shop-panel {
       max-height: calc(100vh - 120px);
     }
   }
-  .hero-swatch {
+  .robot-swatch {
     width: 100%;
     height: 100%;
     background: rgba(8, 12, 18, 0.5);
@@ -4458,17 +4458,17 @@
     align-items: center;
     justify-content: center;
   }
-  .hero-icon {
+  .robot-icon {
     width: 100%;
     height: 100%;
   }
-  .hero-icon-pending {
+  .robot-icon-pending {
     background: rgba(120, 160, 200, 0.1);
     width: 80%;
     height: 80%;
     border-radius: 6px;
   }
-  .hero-card-diorama {
+  .robot-card-diorama {
     width: 100%;
     height: 140px;
     background: rgba(4, 8, 12, 0.6);
@@ -4477,31 +4477,31 @@
     overflow: hidden;
     position: relative;
   }
-  .hero-diorama-canvas {
+  .robot-diorama-canvas {
     width: 100% !important;
     height: 100% !important;
   }
 
-  /* Hero roster grid (selector screen). Small cards w/ baked portrait
+  /* Robot roster grid (selector screen). Small cards w/ baked portrait
      + name. Click a card to drill into the detail view. */
-  .hero-roster-grid {
+  .robot-roster-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
   }
   @media (max-width: 900px) {
-    .hero-roster-grid {
+    .robot-roster-grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
     }
   }
   @media (max-width: 640px) {
-    .hero-roster-grid {
+    .robot-roster-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
   }
-  .hero-roster-card {
+  .robot-roster-card {
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: 10px;
@@ -4515,20 +4515,20 @@
     color: inherit;
     text-align: left;
   }
-  .hero-roster-card:hover {
+  .robot-roster-card:hover {
     border-color: rgba(180, 220, 255, 0.55);
     transform: translateY(-1px);
   }
-  .hero-roster-card.active {
+  .robot-roster-card.active {
     border-color: var(--color-blue);
     box-shadow:
       0 0 0 1px var(--color-blue),
       0 0 18px rgba(159, 216, 255, 0.18);
   }
-  .hero-roster-card.locked {
+  .robot-roster-card.locked {
     opacity: 0.78;
   }
-  .hero-roster-portrait {
+  .robot-roster-portrait {
     position: relative;
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -4540,11 +4540,11 @@
     align-items: center;
     justify-content: center;
   }
-  .hero-roster-portrait .hero-swatch {
+  .robot-roster-portrait .robot-swatch {
     border: 0;
     background: transparent;
   }
-  .hero-roster-active-tag {
+  .robot-roster-active-tag {
     position: absolute;
     top: 6px;
     right: 6px;
@@ -4558,7 +4558,7 @@
     padding: 2px 6px;
     border-radius: 4px;
   }
-  .hero-roster-lock {
+  .robot-roster-lock {
     position: absolute;
     inset: 0;
     background: rgba(4, 8, 12, 0.7);
@@ -4571,53 +4571,53 @@
     color: var(--color-fg-muted);
     font-weight: 700;
   }
-  .hero-roster-lock-cost {
+  .robot-roster-lock-cost {
     color: var(--color-blue);
     font-size: 18px;
   }
-  .hero-roster-lock-label {
+  .robot-roster-lock-label {
     font-size: 10px;
     letter-spacing: 0.16em;
   }
-  .hero-roster-meta {
+  .robot-roster-meta {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
   }
-  .hero-roster-name {
+  .robot-roster-name {
     font-size: 14px;
     font-weight: 700;
     color: var(--color-fg);
     line-height: 1.2;
   }
-  .hero-roster-callsign {
+  .robot-roster-callsign {
     font-size: 10px;
     color: var(--color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.12em;
   }
-  .hero-roster-row {
+  .robot-roster-row {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 4px;
   }
-  .hero-roster-level {
+  .robot-roster-level {
     font-size: 10px;
     color: var(--color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  /* Hero detail page (single hero). Square 3D preview on left,
+  /* Robot detail page (single robot). Square 3D preview on left,
      stats + tech tree + actions on right. Mobile stacks vertically. */
-  .hero-detail {
+  .robot-detail {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .hero-detail-back {
+  .robot-detail-back {
     align-self: flex-start;
     font-size: 12px;
     color: var(--color-fg-muted);
@@ -4627,32 +4627,32 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .hero-detail-back:hover {
+  .robot-detail-back:hover {
     color: var(--color-fg);
     border-color: var(--color-blue);
   }
-  .hero-detail-grid {
+  .robot-detail-grid {
     display: grid;
     grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
     gap: 18px;
     align-items: start;
   }
   @media (max-width: 900px) {
-    .hero-detail-grid {
+    .robot-detail-grid {
       grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
       gap: 12px;
     }
   }
   @media (max-width: 640px) {
-    .hero-detail-grid {
+    .robot-detail-grid {
       grid-template-columns: 1fr;
     }
-    .hero-detail-preview {
+    .robot-detail-preview {
       aspect-ratio: auto;
       height: 220px;
     }
   }
-  .hero-detail-preview {
+  .robot-detail-preview {
     width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 12px;
@@ -4664,37 +4664,37 @@
     position: relative;
     box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
   }
-  .hero-detail-info {
+  .robot-detail-info {
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
   }
-  .hero-detail-head {
+  .robot-detail-head {
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .hero-detail-name-row {
+  .robot-detail-name-row {
     display: flex;
     align-items: baseline;
     gap: 10px;
     flex-wrap: wrap;
   }
-  .hero-detail-name {
+  .robot-detail-name {
     font-family: var(--font-display);
     font-size: var(--fs-h2);
     font-weight: 700;
     color: var(--color-fg);
     letter-spacing: 0.02em;
   }
-  .hero-detail-callsign {
+  .robot-detail-callsign {
     font-size: 11px;
     color: var(--color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.16em;
   }
-  .hero-detail-active {
+  .robot-detail-active {
     margin-left: auto;
     font-size: 10px;
     font-weight: 700;
@@ -4705,18 +4705,18 @@
     padding: 2px 6px;
     border-radius: 4px;
   }
-  .hero-detail-tag-row {
+  .robot-detail-tag-row {
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .hero-detail-blurb {
+  .robot-detail-blurb {
     margin: 0;
     font-size: 13px;
     color: #c5cfda;
     line-height: 1.5;
   }
-  .hero-detail-stats {
+  .robot-detail-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
@@ -4724,14 +4724,14 @@
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
-  .hero-detail-stats > div {
+  .robot-detail-stats > div {
     background: rgba(8, 12, 18, 0.5);
     border: 1px solid var(--color-border-faint);
     border-radius: 6px;
     padding: 6px 8px;
     text-align: center;
   }
-  .hero-detail-stats > div > span {
+  .robot-detail-stats > div > span {
     display: block;
     font-size: 9px;
     color: var(--color-fg-dim);
@@ -4739,25 +4739,25 @@
     text-transform: uppercase;
     margin-bottom: 2px;
   }
-  /* Hero ability cards (detail page). Each ability is a toggleable
+  /* Robot ability cards (detail page). Each ability is a toggleable
      summary row that expands to show stats + flavor when clicked. */
-  .hero-ability-list {
+  .robot-ability-list {
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
-  .hero-ability-card {
+  .robot-ability-card {
     background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
     border-radius: 8px;
     overflow: hidden;
     transition: border-color 0.12s, background 0.12s;
   }
-  .hero-ability-card.expanded {
+  .robot-ability-card.expanded {
     border-color: rgba(159, 216, 255, 0.45);
     background: rgba(10, 16, 26, 0.7);
   }
-  .hero-ability-summary {
+  .robot-ability-summary {
     width: 100%;
     background: transparent;
     border: 0;
@@ -4770,13 +4770,13 @@
     cursor: pointer;
     text-align: left;
   }
-  .hero-ability-summary .hero-ability-glyph {
+  .robot-ability-summary .robot-ability-glyph {
     font-size: 14px;
     line-height: 1;
     color: var(--color-blue);
     flex-shrink: 0;
   }
-  .hero-ability-name {
+  .robot-ability-name {
     font-size: 12px;
     font-weight: 700;
     color: var(--color-fg);
@@ -4784,26 +4784,26 @@
     flex: 1;
     min-width: 0;
   }
-  .hero-ability-toggle {
+  .robot-ability-toggle {
     font-size: 14px;
     color: var(--color-fg-muted);
     width: 18px;
     text-align: center;
     flex-shrink: 0;
   }
-  .hero-ability-detail {
+  .robot-ability-detail {
     padding: 0 10px 8px 32px;
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
-  .hero-ability-blurb {
+  .robot-ability-blurb {
     margin: 0;
     font-size: 11px;
     color: #b6c2cf;
     line-height: 1.45;
   }
-  .hero-ability-stats {
+  .robot-ability-stats {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -4811,7 +4811,7 @@
     flex-direction: column;
     gap: 2px;
   }
-  .hero-ability-stats li {
+  .robot-ability-stats li {
     font-size: 10px;
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
@@ -4820,7 +4820,7 @@
 
   /* Level + XP block. Single prominent bar with level and points-per-
      -level callout. Sits above the tech tree. */
-  .hero-level-block {
+  .robot-level-block {
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -4829,45 +4829,45 @@
     background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
   }
-  .hero-level-head {
+  .robot-level-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
   }
-  .hero-level-lvl {
+  .robot-level-lvl {
     font-size: 14px;
     font-weight: 700;
     color: var(--color-fg);
     letter-spacing: 0.04em;
   }
-  .hero-level-max {
+  .robot-level-max {
     color: var(--color-fg-dim);
     font-size: 11px;
     margin-left: 3px;
     font-weight: 600;
   }
-  .hero-level-xp {
+  .robot-level-xp {
     font-size: 11px;
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
   }
-  .hero-level-bar {
+  .robot-level-bar {
     height: 10px;
     background: rgba(6, 10, 14, 0.85);
     border: 1px solid rgba(120, 160, 200, 0.2);
     border-radius: 5px;
     overflow: hidden;
   }
-  .hero-level-fill {
+  .robot-level-fill {
     height: 100%;
     background: linear-gradient(90deg, #5ad6ff, #9fd8ff);
     transition: width 0.2s linear;
   }
-  .hero-level-fill.maxed {
+  .robot-level-fill.maxed {
     background: linear-gradient(90deg, #ffd24a, #ff8a3a);
   }
-  .hero-level-foot {
+  .robot-level-foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -4876,19 +4876,19 @@
     color: var(--color-fg-muted);
     letter-spacing: 0.04em;
   }
-  .hero-level-points {
+  .robot-level-points {
     color: var(--color-blue);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
 
   /* Tech tree skill rows. Bigger icon + bigger rank pips, less text. */
-  .hero-skill-tree {
+  .robot-skill-tree {
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .hero-skill-card {
+  .robot-skill-card {
     display: flex;
     align-items: stretch;
     gap: 10px;
@@ -4898,10 +4898,10 @@
     border: 1px solid var(--color-border-faint);
     transition: border-color 0.12s;
   }
-  .hero-skill-card.invested {
+  .robot-skill-card.invested {
     border-color: rgba(159, 216, 255, 0.35);
   }
-  .hero-skill-icon {
+  .robot-skill-icon {
     width: 36px;
     height: 36px;
     border-radius: 8px;
@@ -4913,36 +4913,36 @@
     color: var(--color-blue);
     flex-shrink: 0;
   }
-  .hero-skill-card.invested .hero-skill-icon {
+  .robot-skill-card.invested .robot-skill-icon {
     color: #9fd8ff;
     border-color: rgba(159, 216, 255, 0.5);
     background: rgba(20, 36, 56, 0.85);
   }
-  .hero-skill-body {
+  .robot-skill-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 3px;
   }
-  .hero-skill-head {
+  .robot-skill-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
-  .hero-skill-name {
+  .robot-skill-name {
     font-size: 12px;
     font-weight: 700;
     color: var(--color-fg);
     letter-spacing: 0.02em;
   }
-  .hero-skill-pips {
+  .robot-skill-pips {
     display: flex;
     gap: 5px;
     flex-shrink: 0;
   }
-  .hero-skill-pip {
+  .robot-skill-pip {
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -4951,26 +4951,26 @@
     cursor: pointer;
     padding: 0;
   }
-  .hero-skill-pip.filled {
+  .robot-skill-pip.filled {
     background: var(--color-blue);
     border-color: var(--color-blue);
     box-shadow: 0 0 6px rgba(159, 216, 255, 0.55);
   }
-  .hero-skill-pip.affordable {
+  .robot-skill-pip.affordable {
     background: transparent;
     border-color: rgba(159, 216, 255, 0.7);
   }
-  .hero-skill-pip.affordable:hover {
+  .robot-skill-pip.affordable:hover {
     background: rgba(159, 216, 255, 0.25);
     transform: scale(1.08);
   }
-  .hero-skill-pip.locked {
+  .robot-skill-pip.locked {
     background: transparent;
     border-color: rgba(120, 160, 200, 0.25);
     cursor: not-allowed;
     opacity: 0.5;
   }
-  .hero-skill-desc {
+  .robot-skill-desc {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -4978,20 +4978,20 @@
     font-variant-numeric: tabular-nums;
     flex-wrap: wrap;
   }
-  .hero-skill-current {
+  .robot-skill-current {
     color: #b6e7c9;
   }
-  .hero-skill-current.dim {
+  .robot-skill-current.dim {
     color: var(--color-fg-dim);
     font-style: italic;
   }
-  .hero-skill-arrow {
+  .robot-skill-arrow {
     color: var(--color-fg-faint);
   }
-  .hero-skill-next {
+  .robot-skill-next {
     color: rgba(159, 216, 255, 0.85);
   }
-  .hero-skill-refund {
+  .robot-skill-refund {
     align-self: flex-start;
     font-size: 10px;
     color: var(--color-fg-muted);
@@ -5003,71 +5003,71 @@
     transition: color 0.12s, border-color 0.12s;
     margin-top: 2px;
   }
-  .hero-skill-refund:hover {
+  .robot-skill-refund:hover {
     color: var(--color-red);
     border-color: var(--color-red);
   }
 
-  .hero-roster-level-max {
+  .robot-roster-level-max {
     color: var(--color-fg-dim);
     margin-left: 2px;
   }
 
   @media (max-width: 640px) {
-    .hero-skill-card {
+    .robot-skill-card {
       padding: 7px 8px;
       gap: 8px;
     }
-    .hero-skill-icon {
+    .robot-skill-icon {
       width: 30px;
       height: 30px;
     }
-    .hero-skill-head {
+    .robot-skill-head {
       flex-direction: column;
       align-items: flex-start;
       gap: 5px;
     }
-    .hero-skill-pip {
+    .robot-skill-pip {
       width: 22px;
       height: 22px;
     }
-    .hero-detail-stats {
+    .robot-detail-stats {
       grid-template-columns: repeat(2, 1fr);
     }
-    .hero-level-foot {
+    .robot-level-foot {
       flex-direction: column;
       align-items: flex-start;
       gap: 2px;
     }
-    .hero-ability-detail {
+    .robot-ability-detail {
       padding: 0 10px 8px 14px;
     }
   }
 
-  /* Compendium hero roster. The outer scroll wrapper makes the section
+  /* Compendium robot roster. The outer scroll wrapper makes the section
      behave like the enemy/tower/mechanic browsers — fill the card's
      remaining height, scroll internally so the header + tab strip stay
      pinned. */
-  .hero-compendium-scroll {
+  .robot-compendium-scroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .hero-compendium-grid {
+  .robot-compendium-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     padding: 18px 22px 22px;
   }
   @media (max-width: 820px) {
-    .hero-compendium-grid {
+    .robot-compendium-grid {
       grid-template-columns: 1fr;
       padding: 14px;
       gap: 12px;
     }
   }
-  .hero-compendium-card {
+  .robot-compendium-card {
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: 12px;
@@ -5076,19 +5076,19 @@
     flex-direction: column;
     transition: border-color var(--t-base);
   }
-  .hero-compendium-card:hover {
+  .robot-compendium-card:hover {
     border-color: rgba(180, 220, 255, 0.4);
   }
-  .hero-compendium-card[data-locked="true"] {
+  .robot-compendium-card[data-locked="true"] {
     opacity: 0.6;
   }
-  .hero-compendium-diorama {
+  .robot-compendium-diorama {
     height: 180px;
     background: rgba(4, 8, 12, 0.55);
     border-bottom: 1px solid var(--color-border-faint);
     position: relative;
   }
-  .hero-compendium-locked {
+  .robot-compendium-locked {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -5098,62 +5098,62 @@
     gap: 4px;
     font-weight: 700;
   }
-  .hero-compendium-locked-label {
+  .robot-compendium-locked-label {
     font-size: var(--fs-xs);
     letter-spacing: 0.16em;
   }
-  .hero-compendium-body {
+  .robot-compendium-body {
     padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
   }
-  .hero-compendium-title {
+  .robot-compendium-title {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: 8px;
   }
-  .hero-compendium-name {
+  .robot-compendium-name {
     font-family: var(--font-display);
     font-size: var(--fs-h2);
     font-weight: 700;
     color: var(--color-fg);
     letter-spacing: 0.02em;
   }
-  .hero-compendium-callsign {
+  .robot-compendium-callsign {
     font-size: var(--fs-xs);
     color: var(--color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.16em;
   }
-  .hero-compendium-dmg {
+  .robot-compendium-dmg {
     font-size: var(--fs-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
   }
-  .hero-compendium-xp {
+  .robot-compendium-xp {
     margin-left: auto;
     font-size: var(--fs-xs);
     color: var(--color-fg-dim);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.08em;
   }
-  .hero-compendium-blurb {
+  .robot-compendium-blurb {
     margin: 0;
     font-size: var(--fs-sm);
     color: var(--color-fg-soft);
     line-height: 1.45;
   }
-  .hero-compendium-report {
+  .robot-compendium-report {
     margin: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
-  .hero-compendium-report-row {
+  .robot-compendium-report-row {
     display: grid;
     grid-template-columns: 78px 1fr;
     gap: 8px;
@@ -5163,34 +5163,34 @@
     border: 1px solid transparent;
     background: rgba(8, 12, 18, 0.4);
   }
-  .hero-compendium-report-row dt {
+  .robot-compendium-report-row dt {
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     margin: 0;
   }
-  .hero-compendium-report-row dd {
+  .robot-compendium-report-row dd {
     margin: 0;
     font-size: var(--fs-sm);
     color: var(--color-fg);
     line-height: 1.4;
   }
-  .hero-compendium-strength {
+  .robot-compendium-strength {
     border-color: rgba(61, 255, 138, 0.22);
     background: rgba(61, 255, 138, 0.06);
   }
-  .hero-compendium-strength dt {
+  .robot-compendium-strength dt {
     color: var(--color-green);
   }
-  .hero-compendium-weakness {
+  .robot-compendium-weakness {
     border-color: rgba(255, 90, 122, 0.22);
     background: rgba(255, 90, 122, 0.06);
   }
-  .hero-compendium-weakness dt {
+  .robot-compendium-weakness dt {
     color: var(--color-pink);
   }
-  .hero-compendium-stats {
+  .robot-compendium-stats {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 6px;
@@ -5198,7 +5198,7 @@
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
-  .hero-compendium-stats > div {
+  .robot-compendium-stats > div {
     background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
     border-radius: 5px;
@@ -5206,7 +5206,7 @@
     text-align: center;
     min-width: 0;
   }
-  .hero-compendium-stats > div > span {
+  .robot-compendium-stats > div > span {
     display: block;
     font-size: var(--fs-xs);
     color: var(--color-fg-dim);
@@ -5215,20 +5215,20 @@
     margin-bottom: 2px;
   }
   @media (max-width: 480px) {
-    .hero-compendium-report-row {
+    .robot-compendium-report-row {
       grid-template-columns: 1fr;
       gap: 2px;
     }
-    .hero-compendium-stats {
+    .robot-compendium-stats {
       grid-template-columns: repeat(3, 1fr);
     }
   }
-  .hero-compendium-abilities {
+  .robot-compendium-abilities {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
   }
-  .hero-compendium-ability {
+  .robot-compendium-ability {
     font-size: var(--fs-xs);
     padding: 4px 8px;
     border-radius: 5px;

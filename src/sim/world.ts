@@ -9,16 +9,16 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
-import {
-  type AllHeroSkills,
-  applyHeroSkillsToHero,
-  levelForXp,
-  xpForEnemyKill,
-} from "./heroSkills";
-import { HERO_SPECS } from "./heroVariants";
 import { prependLeadIn, SMOOTH_PATH_SUBDIVISIONS, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
+import {
+  type AllRobotSkills,
+  applyRobotSkillsToRobot,
+  levelForXp,
+  xpForEnemyKill,
+} from "./robotSkills";
+import { ROBOT_SPECS } from "./robotVariants";
 import type {
   Beam,
   BossVariant,
@@ -32,10 +32,10 @@ import type {
   EntityId,
   Explosion,
   GameEvent,
-  Hero,
-  HeroVariant,
   Projectile,
   ProjectileKind,
+  Robot,
+  RobotVariant,
   Rock,
   Tower,
   TowerKind,
@@ -57,26 +57,26 @@ export const BASE_RANGE = 4.8;
 export const BASE_DAMAGE = 8;
 export const BASE_FIRE_RATE = 1.0;
 
-// Hero unit — single controllable mecha that walks the field, auto-shoots
+// Robot unit — single controllable mecha that walks the field, auto-shoots
 // dinos in range, and fires three activated abilities. Stats now ship
-// from heroVariants.HERO_SPECS so per-mech balance lives there; this
+// from robotVariants.ROBOT_SPECS so per-mech balance lives there; this
 // module keeps only platform constants (collision radius, respawn delay).
-export const HERO_RADIUS = 0.45;
-export const HERO_RESPAWN_DELAY = 6.0;
-// Permanent max-HP bonus the hero earns at every level beyond 1. Level
+export const ROBOT_RADIUS = 0.45;
+export const ROBOT_RESPAWN_DELAY = 6.0;
+// Permanent max-HP bonus the robot earns at every level beyond 1. Level
 // 5 = +60 HP, level 10 = +135 HP. Stacks on top of the Vitality skill
 // node so leveling matters in its own right (the skill node is a
 // player-chosen upside, this is the inherent reward for surviving).
-export const HERO_HP_PER_LEVEL = 15;
+export const ROBOT_HP_PER_LEVEL = 15;
 
-// Bonus max-HP the hero would have at this level (level 1 → 0).
-export const heroLevelHpBonus = (level: number): number =>
-  Math.max(0, (level - 1) * HERO_HP_PER_LEVEL);
+// Bonus max-HP the robot would have at this level (level 1 → 0).
+export const robotLevelHpBonus = (level: number): number =>
+  Math.max(0, (level - 1) * ROBOT_HP_PER_LEVEL);
 
-const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number): Hero => {
-  const spec = HERO_SPECS[variant];
+const robotDefaults = (variant: RobotVariant, pos: Vec2, id: EntityId, xp: number): Robot => {
+  const spec = ROBOT_SPECS[variant];
   const level = levelForXp(xp);
-  const bonusHp = heroLevelHpBonus(level);
+  const bonusHp = robotLevelHpBonus(level);
   return {
     id,
     variant,
@@ -434,13 +434,13 @@ const buildEasterEggSchedule = (
   return [{ defId: def.id, triggerTime: t }];
 };
 
-export type HeroContext = {
-  variant: HeroVariant;
+export type RobotContext = {
+  variant: RobotVariant;
   xp: number;
-  skills: AllHeroSkills;
+  skills: AllRobotSkills;
 };
 
-const DEFAULT_HERO_CONTEXT: HeroContext = {
+const DEFAULT_ROBOT_CONTEXT: RobotContext = {
   variant: "george",
   xp: 0,
   skills: {},
@@ -451,7 +451,7 @@ export const createWorld = (
   mode: LevelMode = "normal",
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
   triggeredEggsOnLevel: ReadonlySet<string> = new Set(),
-  heroCtx: HeroContext = DEFAULT_HERO_CONTEXT,
+  robotCtx: RobotContext = DEFAULT_ROBOT_CONTEXT,
 ): World => {
   const biome = biomeForPos(level.nodePos);
   const modeConfig = resolveLevelMode(level, mode);
@@ -515,9 +515,9 @@ export const createWorld = (
   // life pool. The runtime never tops these up, so this is the only
   // place the value is set per run.
   const startingLives = modeConfig.singleLife ? 1 : STARTING_LIVES;
-  // Hero spawns ON the path, one short step in front of the HQ — she
+  // Robot spawns ON the path, one short step in front of the HQ — she
   // guards the base directly. Multi-entry maps pick the path whose HQ
-  // endpoint sits closest to the centroid of all HQs so the hero lands
+  // endpoint sits closest to the centroid of all HQs so the robot lands
   // on the most central front line.
   const hqEnds: Vec2[] = paths.map((p) => p[p.length - 1] ?? { x: 0, y: 0 });
   let cx = 0;
@@ -546,12 +546,12 @@ export const createWorld = (
   ];
   const endPt = guardPath[guardPath.length - 1] ?? { x: 0, y: 0 };
   // Walk backwards along the path until we've stepped this many world
-  // units away from the HQ. Keeps the hero on the authored lane regardless
+  // units away from the HQ. Keeps the robot on the authored lane regardless
   // of how dense the smoothing subdivisions are.
-  const HERO_FRONT_OFFSET = 2.6;
+  const ROBOT_FRONT_OFFSET = 2.6;
   let spawnX = endPt.x;
   let spawnY = endPt.y;
-  let remaining = HERO_FRONT_OFFSET;
+  let remaining = ROBOT_FRONT_OFFSET;
   for (let i = guardPath.length - 1; i > 0 && remaining > 0; i--) {
     const a = guardPath[i];
     const b = guardPath[i - 1];
@@ -570,18 +570,18 @@ export const createWorld = (
     spawnY = b.y;
     remaining -= segLen;
   }
-  const heroSpawn: Vec2 = { x: spawnX, y: spawnY };
+  const robotSpawn: Vec2 = { x: spawnX, y: spawnY };
   const tx = endPt.x - spawnX;
   const ty = endPt.y - spawnY;
   const tl = Math.hypot(tx, ty) || 1;
   const tdx = tx / tl;
   const tdy = ty / tl;
-  const hero = heroDefaults(heroCtx.variant, heroSpawn, nextId, heroCtx.xp);
-  hero.facing = Math.atan2(-tdx, tdy);
-  applyHeroSkillsToHero(hero, heroCtx.skills);
-  // Snap HP to maxHp post-skills so vitality ranks don't leave the hero
-  // partly damaged. Done after applyHeroSkillsToHero (which bumps both).
-  hero.hp = hero.maxHp;
+  const robot = robotDefaults(robotCtx.variant, robotSpawn, nextId, robotCtx.xp);
+  robot.facing = Math.atan2(-tdx, tdy);
+  applyRobotSkillsToRobot(robot, robotCtx.skills);
+  // Snap HP to maxHp post-skills so vitality ranks don't leave the robot
+  // partly damaged. Done after applyRobotSkillsToRobot (which bumps both).
+  robot.hp = robot.maxHp;
   return {
     time: 0,
     tickCount: 0,
@@ -601,7 +601,7 @@ export const createWorld = (
     explosions: [],
     cryoWaves: [],
     coalEmbers: [],
-    heroCraters: [],
+    robotCraters: [],
     particles: [],
     spawnQueue: [],
     bossTrickleStreams: [],
@@ -619,7 +619,7 @@ export const createWorld = (
     status: "running",
     killingPathIndex: null,
     nextEntityId: nextId + 1,
-    hero,
+    robot,
     events: [],
     shake: { magnitude: 0, decay: 0 },
     selectedTowerId: null,
@@ -758,14 +758,14 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   boss: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
 };
 
-// Per-tick melee damage a dino deals while engaged with the hero. NOT
+// Per-tick melee damage a dino deals while engaged with the robot. NOT
 // the same as `damage` — that drives life-loss on HQ leak (kept tuned
-// to the leak economy). Hero combat needs its own dimension so a
+// to the leak economy). Robot combat needs its own dimension so a
 // titan/t-rex feels devastating in skirmish while swarm chip is a
 // tickle. Scale: ~10× the leak `damage` for big bruisers, much smaller
 // for chaff. Damage is applied per tick (60Hz), so multiply by ~0.0167
 // for a per-second feel: t-rex at 65 → ~1.08 HP/s in solo skirmish.
-export const ENEMY_HERO_DAMAGE: Record<EnemyKind, number> = {
+export const ENEMY_ROBOT_DAMAGE: Record<EnemyKind, number> = {
   swarm: 4,
   raptor: 12,
   para: 18,
@@ -1252,12 +1252,12 @@ export type HitOptions = {
   resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
   regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
   attackerTowerId?: EntityId | null;
-  // Set true on every hero-sourced damage path (auto-shots, burst,
+  // Set true on every robot-sourced damage path (auto-shots, burst,
   // incinerate ticks, dash coal embers). applyDamage uses it to credit
-  // hero kills + damageDealt the same way attackerTowerId credits towers,
-  // and to gate the hero.xp award so tower-only kills no longer drip XP
-  // into the hero.
-  fromHero?: boolean;
+  // robot kills + damageDealt the same way attackerTowerId credits towers,
+  // and to gate the robot.xp award so tower-only kills no longer drip XP
+  // into the robot.
+  fromRobot?: boolean;
   // Mortar Targeting meta — projectile splash applies +bonus damage when
   // ≥CLUSTER_THRESHOLD enemies are in the splash radius. Forwarded to
   // the Projectile and consumed in projectiles.ts:applyHit.
@@ -1307,7 +1307,7 @@ export const applyDamage = (
         const attacker = world.towerById.get(hitOpts.attackerTowerId);
         if (attacker) attacker.damageDealt += dealt;
       }
-      if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
+      if (hitOpts?.fromRobot) world.robot.damageDealt += dealt;
       tallyAdaptiveDamage(world, type, dealt);
       return;
     }
@@ -1347,7 +1347,7 @@ export const applyDamage = (
     const attacker = world.towerById.get(hitOpts.attackerTowerId);
     if (attacker) attacker.damageDealt += dealt;
   }
-  if (hitOpts?.fromHero) world.hero.damageDealt += dealt;
+  if (hitOpts?.fromRobot) world.robot.damageDealt += dealt;
   tallyAdaptiveDamage(world, type, dealt);
   if (enemy.hp <= 0) {
     enemy.alive = false;
@@ -1356,15 +1356,15 @@ export const applyDamage = (
       const attacker = world.towerById.get(hitOpts.attackerTowerId);
       if (attacker) attacker.kills += 1;
     }
-    // Hero XP + kill credit — both gated on the killing blow coming from
-    // the hero (any hero-sourced damage path tags hitOpts.fromHero). XP
-    // persists across runs via the store's tick → progress.heroXp merge.
-    // Tower kills no longer feed hero XP; the hero must do the work
+    // Robot XP + kill credit — both gated on the killing blow coming from
+    // the robot (any robot-sourced damage path tags hitOpts.fromRobot). XP
+    // persists across runs via the store's tick → progress.robotXp merge.
+    // Tower kills no longer feed robot XP; the robot must do the work
     // itself. Killing-blow attribution (vs damage-share weighting) keeps
     // the accounting trivial and matches tower kill-credit semantics.
-    if (hitOpts?.fromHero) {
-      world.hero.kills += 1;
-      world.hero.xp += xpForEnemyKill(enemy.maxHp);
+    if (hitOpts?.fromRobot) {
+      world.robot.kills += 1;
+      world.robot.xp += xpForEnemyKill(enemy.maxHp);
     }
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
     emit(world, { type: "death", pos: enemy.pos });
@@ -1491,7 +1491,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     elite,
     fierce,
     regenPausedUntil: 0,
-    engagedHeroId: null,
+    engagedRobotId: null,
     extraResists: resists ? { ...resists } : {},
     igniteUntil: 0,
     igniteDps: 0,
@@ -1741,7 +1741,7 @@ export const createProjectile = (
     resistStrip: hitOpts?.resistStrip ?? 0,
     regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
     ownerTowerId: hitOpts?.attackerTowerId ?? null,
-    fromHero: hitOpts?.fromHero ?? false,
+    fromRobot: hitOpts?.fromRobot ?? false,
     clusterDamageBonus: hitOpts?.clusterDamageBonus ?? 0,
   };
   world.projectiles.push(p);
@@ -1800,7 +1800,7 @@ export const updateCoalEmbers = (world: World, _dt: number) => {
         const dy = enemy.pos.y - e.pos.y;
         if (dx * dx + dy * dy > r2) continue;
         applyDamage(world, enemy, e.tickDamage, "flame", "#ff8a3a", 3, false, {
-          fromHero: true,
+          fromRobot: true,
         });
       }
       e.nextTickAt = world.time + COAL_TICK_INTERVAL;
@@ -1810,11 +1810,11 @@ export const updateCoalEmbers = (world: World, _dt: number) => {
   world.coalEmbers = remaining;
 };
 
-// Hero-owned burn DoT. Piggybacks on the existing ignite system so
+// Robot-owned burn DoT. Piggybacks on the existing ignite system so
 // enemies render their burn state the same way as flame-tower ignite.
 // Burn duration + total damage are translated to a DPS-style stamp so
 // the existing tick loop in updateEnemies applies the damage.
-export const applyHeroBurn = (
+export const applyRobotBurn = (
   world: World,
   enemy: Enemy,
   duration: number,
@@ -1882,8 +1882,8 @@ export const applyPathKnockback = (world: World, enemy: Enemy, pushUnits: number
 
 // Stan-owned explosive crater. Each instance ticks AoE explosive damage
 // every tickInterval until expiresAt. Distinct from coalEmber so the
-// damage type, color, and tick cadence stay hero-flavoured.
-export const createHeroCrater = (
+// damage type, color, and tick cadence stay robot-flavoured.
+export const createRobotCrater = (
   world: World,
   pos: Vec2,
   radius: number,
@@ -1891,7 +1891,7 @@ export const createHeroCrater = (
   tickInterval: number,
   duration: number,
 ) => {
-  world.heroCraters.push({
+  world.robotCraters.push({
     id: world.nextEntityId++,
     pos: { x: pos.x, y: pos.y },
     expiresAt: world.time + duration,
@@ -1904,10 +1904,10 @@ export const createHeroCrater = (
 };
 
 // Tick every crater: explosive AoE every tickInterval, drop when expired.
-export const updateHeroCraters = (world: World, _dt: number) => {
-  if (world.heroCraters.length === 0) return;
-  const remaining: typeof world.heroCraters = [];
-  for (const c of world.heroCraters) {
+export const updateRobotCraters = (world: World, _dt: number) => {
+  if (world.robotCraters.length === 0) return;
+  const remaining: typeof world.robotCraters = [];
+  for (const c of world.robotCraters) {
     if (world.time >= c.expiresAt) continue;
     if (world.time >= c.nextTickAt) {
       const r2 = c.radius * c.radius;
@@ -1922,7 +1922,7 @@ export const updateHeroCraters = (world: World, _dt: number) => {
     }
     remaining.push(c);
   }
-  world.heroCraters = remaining;
+  world.robotCraters = remaining;
 };
 
 export const createCryoWave = (

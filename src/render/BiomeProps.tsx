@@ -15,7 +15,7 @@ import { LEVELS } from "../levels";
 import { mulberry32 } from "../sim/random";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
-// recognizable little vignette rather than a noisy pile: one hero landmark
+// recognizable little vignette rather than a noisy pile: one robot landmark
 // where the biome supports it, a small trace prop, then trees/rocks.
 
 type PropInstance = {
@@ -36,7 +36,7 @@ type PropRoleBucket = {
   maxRadius: number;
 };
 
-// Hero structure per biome — modular sci-fi research outposts. Every level
+// Robot structure per biome — modular sci-fi research outposts. Every level
 // node anchors on a substantial building (hangar / structure / rocket) so
 // the world map reads as a network of high-tech bases on a hostile planet,
 // not a string of pirate camps. Wooden landmarks (Tent / House / Cabin /
@@ -57,7 +57,7 @@ const BIOME_LANDMARKS: Record<Biome, string[]> = {
 // than a single isolated building. Picked so the silhouette differs from
 // the anchor at a glance — closed structures, large dishes, chimneys, or
 // crashed craft. Models picked from the building-role set so they
-// normalize to the same hero scale as the anchor.
+// normalize to the same robot scale as the anchor.
 const BIOME_MODULES: Record<Biome, string[]> = {
   forest: ["/models/scifi/structure_closed.glb", "/models/scifi/satelliteDish_large.glb"],
   desert: ["/models/scifi/craft_speederA.glb", "/models/scifi/satelliteDish_detailed.glb"],

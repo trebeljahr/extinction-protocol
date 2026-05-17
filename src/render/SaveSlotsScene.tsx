@@ -201,7 +201,7 @@ export const SaveSlotsScene = () => (
       <meshStandardMaterial color="#3a3328" roughness={0.95} />
     </mesh>
 
-    {/* Hero turret on a small raised pad, central. */}
+    {/* Robot turret on a small raised pad, central. */}
     <mesh position={[0, 0.05, 0]} receiveShadow>
       <cylinderGeometry args={[1.8, 2.0, 0.12, 24]} />
       <meshStandardMaterial color="#2a2f38" roughness={0.7} metalness={0.2} />

@@ -42,7 +42,7 @@ const ModePicker = lazy(() => import("./ui/ModePicker").then((m) => ({ default: 
 const SkillTreePanel = lazy(() =>
   import("./ui/SkillTreePanel").then((m) => ({ default: m.SkillTreePanel })),
 );
-const HeroShop = lazy(() => import("./ui/HeroShop").then((m) => ({ default: m.HeroShop })));
+const RobotShop = lazy(() => import("./ui/RobotShop").then((m) => ({ default: m.RobotShop })));
 
 const SceneRoot = () => {
   const screen = useGame((s) => s.screen);
@@ -90,7 +90,7 @@ export const App = () => {
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const modePickerOpen = useGame((s) => s.modePickerLevelId !== null);
   const skillTreeOpen = useGame((s) => s.skillTreeOpen);
-  const heroShopOpen = useGame((s) => s.heroShopOpen);
+  const robotShopOpen = useGame((s) => s.robotShopOpen);
   const selectedKind = useGame((s) => s.selectedKind);
   const paused = useGame((s) => s.ui.status === "paused");
   const newEnemyAlertVisible = useGame((s) => s.newEnemyQueue.length > 0);
@@ -101,7 +101,7 @@ export const App = () => {
     difficultyPickerOpen ||
     modePickerOpen ||
     skillTreeOpen ||
-    heroShopOpen;
+    robotShopOpen;
   const isMobile = useIsMobile();
   useInputModeSignal();
   useAudioBridge();
@@ -227,9 +227,9 @@ export const App = () => {
           <SkillTreePanel />
         </Suspense>
       )}
-      {heroShopOpen && (
+      {robotShopOpen && (
         <Suspense fallback={null}>
-          <HeroShop />
+          <RobotShop />
         </Suspense>
       )}
       {screen === "playing" && levelIntroVisible && <LevelIntro />}

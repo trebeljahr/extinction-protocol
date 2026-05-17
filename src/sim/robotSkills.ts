@@ -1,34 +1,34 @@
-// Per-hero meta-progression. Each kill drips XP into the hero's own
+// Per-robot meta-progression. Each kill drips XP into the robot's own
 // pool; the level milestones gate skill points the player spends in
 // this tree. Mirrors the tower MetaSkill shape (same module conventions,
-// same Ranks storage), just keyed on HeroVariant instead of TowerKind.
+// same Ranks storage), just keyed on RobotVariant instead of TowerKind.
 //
-// Ranks apply at hero spawn (createWorld) so the in-game numbers stay
+// Ranks apply at robot spawn (createWorld) so the in-game numbers stay
 // stable for the whole run. Refunds are free — points aren't consumed
 // in the sense of being burned, just allocated, so the player can
-// re-spec between runs from the hero shop.
+// re-spec between runs from the robot shop.
 
-import type { Hero, HeroVariant } from "./types";
+import type { Robot, RobotVariant } from "./types";
 
-export const HERO_SKILL_MAX_RANK = 3;
-export const HERO_POINTS_PER_LEVEL = 1;
+export const ROBOT_SKILL_MAX_RANK = 3;
+export const ROBOT_POINTS_PER_LEVEL = 1;
 // Level 1 starts at 0 points. Each level past 1 awards
-// HERO_POINTS_PER_LEVEL. The skill tree has 4 nodes × 3 ranks = 12
-// rank points total, so level 13 fully maxes a hero. Levels beyond
+// ROBOT_POINTS_PER_LEVEL. The skill tree has 4 nodes × 3 ranks = 12
+// rank points total, so level 13 fully maxes a robot. Levels beyond
 // that grant nothing the player can spend.
-export const HERO_MAX_LEVEL = 13;
+export const ROBOT_MAX_LEVEL = 13;
 
-export type HeroSkillId = "vitality" | "firepower" | "mobility" | "ultimate";
+export type RobotSkillId = "vitality" | "firepower" | "mobility" | "ultimate";
 
-export type HeroSkillNode = {
-  id: HeroSkillId;
+export type RobotSkillNode = {
+  id: RobotSkillId;
   name: string;
   blurb: string;
   rankDesc: [string, string, string];
-  apply: (hero: Hero, rank: number) => void;
+  apply: (robot: Robot, rank: number) => void;
 };
 
-const VITALITY: HeroSkillNode = {
+const VITALITY: RobotSkillNode = {
   id: "vitality",
   name: "Reinforced Plating",
   blurb: "Permanent maximum HP boost.",
@@ -41,7 +41,7 @@ const VITALITY: HeroSkillNode = {
   },
 };
 
-const FIREPOWER: HeroSkillNode = {
+const FIREPOWER: RobotSkillNode = {
   id: "firepower",
   name: "Targeting Software",
   blurb: "Sustained weapon damage uplift.",
@@ -52,7 +52,7 @@ const FIREPOWER: HeroSkillNode = {
   },
 };
 
-const MOBILITY: HeroSkillNode = {
+const MOBILITY: RobotSkillNode = {
   id: "mobility",
   name: "Servo Tuning",
   blurb: "Walks faster between fights.",
@@ -63,7 +63,7 @@ const MOBILITY: HeroSkillNode = {
   },
 };
 
-const ULTIMATE: HeroSkillNode = {
+const ULTIMATE: RobotSkillNode = {
   id: "ultimate",
   name: "Power Core",
   blurb: "Cuts every ability cooldown.",
@@ -74,64 +74,72 @@ const ULTIMATE: HeroSkillNode = {
   },
 };
 
-export const HERO_SKILL_TREE: readonly HeroSkillNode[] = [VITALITY, FIREPOWER, MOBILITY, ULTIMATE];
+export const ROBOT_SKILL_TREE: readonly RobotSkillNode[] = [
+  VITALITY,
+  FIREPOWER,
+  MOBILITY,
+  ULTIMATE,
+];
 
-export type HeroSkillRanks = Partial<Record<HeroSkillId, number>>;
-export type AllHeroSkills = Partial<Record<HeroVariant, HeroSkillRanks>>;
+export type RobotSkillRanks = Partial<Record<RobotSkillId, number>>;
+export type AllRobotSkills = Partial<Record<RobotVariant, RobotSkillRanks>>;
 
 const norm = (r: unknown): number => {
   if (typeof r !== "number") return 0;
   if (r < 0) return 0;
-  if (r > HERO_SKILL_MAX_RANK) return HERO_SKILL_MAX_RANK;
+  if (r > ROBOT_SKILL_MAX_RANK) return ROBOT_SKILL_MAX_RANK;
   return Math.floor(r);
 };
 
-export const getHeroRank = (skills: AllHeroSkills, variant: HeroVariant, id: HeroSkillId): number =>
-  norm(skills[variant]?.[id]);
+export const getRobotRank = (
+  skills: AllRobotSkills,
+  variant: RobotVariant,
+  id: RobotSkillId,
+): number => norm(skills[variant]?.[id]);
 
-export const applyHeroSkillsToHero = (hero: Hero, skills: AllHeroSkills): void => {
-  const ranks = skills[hero.variant];
+export const applyRobotSkillsToRobot = (robot: Robot, skills: AllRobotSkills): void => {
+  const ranks = skills[robot.variant];
   if (!ranks) return;
-  for (const node of HERO_SKILL_TREE) {
+  for (const node of ROBOT_SKILL_TREE) {
     const r = norm(ranks[node.id]);
     if (r === 0) continue;
-    node.apply(hero, r);
+    node.apply(robot, r);
   }
 };
 
-export const spentHeroPoints = (skills: AllHeroSkills, variant: HeroVariant): number => {
+export const spentRobotPoints = (skills: AllRobotSkills, variant: RobotVariant): number => {
   let n = 0;
   const ranks = skills[variant];
   if (!ranks) return 0;
-  for (const id in ranks) n += norm(ranks[id as HeroSkillId]);
+  for (const id in ranks) n += norm(ranks[id as RobotSkillId]);
   return n;
 };
 
-export const setHeroRank = (
-  skills: AllHeroSkills,
-  variant: HeroVariant,
-  id: HeroSkillId,
+export const setRobotRank = (
+  skills: AllRobotSkills,
+  variant: RobotVariant,
+  id: RobotSkillId,
   rank: number,
-): AllHeroSkills => {
+): AllRobotSkills => {
   const clamped = norm(rank);
   const prev = skills[variant] ?? {};
   if (norm(prev[id]) === clamped) return skills;
-  const next: HeroSkillRanks = { ...prev, [id]: clamped };
+  const next: RobotSkillRanks = { ...prev, [id]: clamped };
   if (clamped === 0) delete next[id];
   return { ...skills, [variant]: next };
 };
 
-export const resetHeroVariantRanks = (
-  skills: AllHeroSkills,
-  variant: HeroVariant,
-): AllHeroSkills => {
+export const resetRobotVariantRanks = (
+  skills: AllRobotSkills,
+  variant: RobotVariant,
+): AllRobotSkills => {
   if (!skills[variant]) return skills;
   const next = { ...skills };
   delete next[variant];
   return next;
 };
 
-export const resetAllHeroRanks = (): AllHeroSkills => ({});
+export const resetAllRobotRanks = (): AllRobotSkills => ({});
 
 // Cumulative XP needed to *be at* level n. Level 1 = 0. Each level gap
 // is 100 × current level: 1→2 = 100, 2→3 = 200, n→n+1 = 100*n. Yields
@@ -144,17 +152,17 @@ export const levelForXp = (xp: number): number => {
   //   n² - n - xp/50 <= 0
   //   n <= (1 + sqrt(1 + 4*xp/50)) / 2
   const n = Math.floor((1 + Math.sqrt(1 + (4 * xp) / 50)) / 2);
-  return Math.max(1, Math.min(HERO_MAX_LEVEL, n));
+  return Math.max(1, Math.min(ROBOT_MAX_LEVEL, n));
 };
 
 export const xpProgressInLevel = (
   xp: number,
 ): { level: number; into: number; need: number; maxed: boolean } => {
   const level = levelForXp(xp);
-  if (level >= HERO_MAX_LEVEL) {
-    const base = xpForLevel(HERO_MAX_LEVEL);
+  if (level >= ROBOT_MAX_LEVEL) {
+    const base = xpForLevel(ROBOT_MAX_LEVEL);
     const into = Math.max(0, xp - base);
-    return { level: HERO_MAX_LEVEL, into, need: into || 1, maxed: true };
+    return { level: ROBOT_MAX_LEVEL, into, need: into || 1, maxed: true };
   }
   const base = xpForLevel(level);
   const next = xpForLevel(level + 1);
@@ -162,15 +170,15 @@ export const xpProgressInLevel = (
 };
 
 // Earned skill points across the run for one variant. Spent points are
-// the sum of rank values in the hero's tree.
-export const heroSkillPointsAvailable = (
+// the sum of rank values in the robot's tree.
+export const robotSkillPointsAvailable = (
   xp: number,
-  ranks: HeroSkillRanks | undefined,
+  ranks: RobotSkillRanks | undefined,
 ): { earned: number; spent: number; available: number } => {
   const lvl = levelForXp(xp);
-  const earned = Math.max(0, (lvl - 1) * HERO_POINTS_PER_LEVEL);
+  const earned = Math.max(0, (lvl - 1) * ROBOT_POINTS_PER_LEVEL);
   let spent = 0;
-  if (ranks) for (const id in ranks) spent += norm(ranks[id as HeroSkillId]);
+  if (ranks) for (const id in ranks) spent += norm(ranks[id as RobotSkillId]);
   return { earned, spent, available: Math.max(0, earned - spent) };
 };
 

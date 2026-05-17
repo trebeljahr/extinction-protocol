@@ -783,7 +783,7 @@ export const classifyPropUrl = (url: string): PropRole => {
   // Large sci-fi structures sit in the building slot so they anchor
   // bases the way houses/cabins anchor nature biomes. Modular pieces
   // (platforms, chimneys, crashed craft) also classify as buildings so
-  // they render at the same hero scale next to a hangar/structure
+  // they render at the same robot scale next to a hangar/structure
   // rather than shrinking to cosmetic size.
   if (
     /hangar_|rocket_|structure_|gate_|platform_|chimney_|craft_|satellitedish_(?:large|detailed)/.test(

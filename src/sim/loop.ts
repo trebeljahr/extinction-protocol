@@ -8,12 +8,12 @@ import {
   updateShake,
 } from "./effects";
 import { updateEnemies } from "./enemies";
-import { updateHero } from "./hero";
 import { updateProjectiles } from "./projectiles";
+import { updateRobot } from "./robot";
 import { checkRunEnd, spawnerTick } from "./spawner";
 import { updateTowers } from "./towers";
 import type { World } from "./types";
-import { updateCoalEmbers, updateEasterEggs, updateHeroCraters } from "./world";
+import { updateCoalEmbers, updateEasterEggs, updateRobotCraters } from "./world";
 
 export const TICK_RATE = 60;
 export const TICK_DT = 1 / TICK_RATE;
@@ -52,7 +52,7 @@ export class Engine {
     world.tickCount += 1;
     spawnerTick(world, TICK_DT);
     updateEnemies(world, TICK_DT);
-    updateHero(world, TICK_DT);
+    updateRobot(world, TICK_DT);
     updateDefensive(world, TICK_DT);
     updateTowers(world, TICK_DT);
     updateBase(world, TICK_DT);
@@ -61,7 +61,7 @@ export class Engine {
     updateExplosions(world);
     updateCryoWaves(world);
     updateCoalEmbers(world, TICK_DT);
-    updateHeroCraters(world, TICK_DT);
+    updateRobotCraters(world, TICK_DT);
     updateParticles(world, TICK_DT);
     updateShake(world, TICK_DT);
     updateEasterEggs(world, TICK_DT);

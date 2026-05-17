@@ -225,20 +225,20 @@ has been densest longest, where the terraform is most complete.
 
 Existing biome order = arc order. No level reordering required.
 
-## Heroes — role only
+## Robots — role only
 
-Heroes stay mechanically what they are. Blurbs stay mechanical (no
+Robots stay mechanically what they are. Blurbs stay mechanical (no
 backstory in the UI). Tactical voice is the right voice for the
 operator running the emplacement, not a war diary.
 
-| Hero | Callsign | Role |
+| Robot | Callsign | Role |
 |---|---|---|
 | George | Vanguard | Balanced kinetic sniper. Midrange suppression. |
 | Leela | Strider | Fast electric skirmisher. Strips shields, marks targets. |
 | Mike | Pyre | Close-range flame. Per-shot splash, area-clear ultimate. |
 | Stan | Mauler | Heavy explosive artillery. Slow, tanky, every shell detonates. |
 
-Hero-arc fit is carried by the *world*, not by hero text: rovers,
+Robot-arc fit is carried by the *world*, not by robot text: rovers,
 generators, comm dishes, lab debris, hardware-laced specimen
 silhouettes. Shown, not told.
 
@@ -273,11 +273,11 @@ silhouettes. Shown, not told.
 4. **`src/index.css`** — `.level-intro-sitrep` styling (monospace
    block, muted, divider rules) so the SITREP reads as a different
    document type than the operator field report above it.
-5. **`src/sim/heroVariants.ts`** — no changes.
+5. **`src/sim/robotVariants.ts`** — no changes.
 
 ## What does not change
 
-- Hero stats, abilities, costs, blurbs.
+- Robot stats, abilities, costs, blurbs.
 - Level node positions, wave content, difficulty curves.
 - Biome boundaries (y-bands).
 - World map layout.

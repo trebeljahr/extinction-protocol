@@ -3,10 +3,10 @@ import type { BossVariant, EnemyKind } from "./types";
 // Field-note subtitles — observational, terse, scientist's voice.
 // Avoid flavor adjectives. Stick to mass, behavior, count, observed risk.
 export const ENEMY_SUBTITLE: Record<EnemyKind, string> = {
-  raptor: "~80 kg theropod. Travels in groups.",
+  raptor: "~80 kg trobotpod. Travels in groups.",
   swarm: "Juveniles. Disperse on contact, regroup within seconds.",
   para: "Cursor. Sustained sprint observed at 8+ m/s.",
-  allosaur: "Adult theropod. Aggressive on sight.",
+  allosaur: "Adult trobotpod. Aggressive on sight.",
   stego: "Plated dorsal armor. Slow gait.",
   armored: "Ceratopsian. Reinforced frill, charges through cover.",
   titan: "Sauropod-class. Mass ~12 t. Inertia is the threat.",
@@ -31,7 +31,7 @@ export const MATRIARCH_SUBTITLE: Record<BossVariant, string> = {
   raptor: "Forest-adapted. Sheds juvenile bursts on the move.",
   stego: "Cold-tolerant. Plates intact below freezing.",
   para: "Crest resonates audibly. Amplifies adjacent impact damage.",
-  allosaur: "Largest theropod observed. No environmental specialization.",
+  allosaur: "Largest trobotpod observed. No environmental specialization.",
   armored: "Heat-tolerant. Continues function above 800 °C.",
   apex: "Origin unclear. Earth-biology priors do not apply.",
 };

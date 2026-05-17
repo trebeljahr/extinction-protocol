@@ -155,7 +155,7 @@ export type PathAdvance = {
 
 // Closest point on a polyline to `p` plus a signed lateral offset
 // (right-hand normal convention — positive = right side of forward
-// travel). Drives hero path-bound movement so the move-order click
+// travel). Drives robot path-bound movement so the move-order click
 // derives both target progress and which side of the lane to stand on.
 export const projectOnPath = (
   path: Vec2[],
@@ -189,7 +189,7 @@ export const projectOnPath = (
       const len = Math.sqrt(lenSq);
       // Right-hand normal of (abx, aby) is (-aby, abx)/len, matching the
       // sign convention used by `enemy.lateralOffset` so the swarm lanes
-      // and hero positioning share the same axis.
+      // and robot positioning share the same axis.
       const nx = -aby / len;
       const ny = abx / len;
       bestLat = dx * nx + dy * ny;
@@ -199,7 +199,7 @@ export const projectOnPath = (
 };
 
 // Picks the closest path lane in a multi-path level and projects `p`
-// onto it. Used so the hero binds to whichever path the player clicked
+// onto it. Used so the robot binds to whichever path the player clicked
 // nearest, not always path[0].
 export const pickNearestPathProjection = (
   paths: Vec2[][],
@@ -222,7 +222,7 @@ export const pickNearestPathProjection = (
 
 // Cumulative arc length from the start of the polyline to (segment, t).
 // Cheap O(n) recompute — paths are short (<200 segments) and only the
-// hero calls this per tick.
+// robot calls this per tick.
 export const pathProgress = (path: Vec2[], segment: number, segmentT: number): number => {
   let acc = 0;
   for (let i = 0; i < segment; i++) acc += segmentLength(path, i);

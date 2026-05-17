@@ -81,7 +81,7 @@ export const Rocks = () => {
   const selectedKind = useGame((s) => s.selectedKind);
   const selectedTowerId = useGame((s) => s.world.selectedTowerId);
   const selectedBase = useGame((s) => s.world.selectedBase);
-  const heroSelected = useGame((s) => s.world.hero.selected);
+  const robotSelected = useGame((s) => s.world.robot.selected);
   const inspectedEnemyId = useGame((s) => s.inspectedEnemy.id);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
@@ -96,7 +96,7 @@ export const Rocks = () => {
       selectedTowerId !== null ||
       selectedTreeId !== null ||
       selectedBase ||
-      heroSelected ||
+      robotSelected ||
       inspectedEnemyId !== null ||
       (selectedRockId !== null && selectedRockId !== hoveredId);
     if (externalSelectionActive) setHoveredId(null);
@@ -108,7 +108,7 @@ export const Rocks = () => {
     selectedRockId,
     selectedTowerId,
     selectedTreeId,
-    heroSelected,
+    robotSelected,
   ]);
 
   const running = status === "running";

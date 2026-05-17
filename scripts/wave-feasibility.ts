@@ -4,10 +4,10 @@
  *   npx tsx scripts/wave-feasibility.ts                  # all levels
  *   npx tsx scripts/wave-feasibility.ts 15               # single level
  *   npx tsx scripts/wave-feasibility.ts 15 --detail      # show top-3 tower picks
- *   npx tsx scripts/wave-feasibility.ts --no-hero        # ignore hero contribution
- *   npx tsx scripts/wave-feasibility.ts --hero=stan      # force a specific hero variant
+ *   npx tsx scripts/wave-feasibility.ts --no-robot        # ignore robot contribution
+ *   npx tsx scripts/wave-feasibility.ts --robot=stan      # force a specific robot variant
  *   npx tsx scripts/wave-feasibility.ts --stars=0        # zero tower meta-skill investment
- *   npx tsx scripts/wave-feasibility.ts --hero-skills=0  # zero hero skill investment
+ *   npx tsx scripts/wave-feasibility.ts --robot-skills=0  # zero robot skill investment
  *   npx tsx scripts/wave-feasibility.ts --no-base-upgrades # skip HQ-laser upgrade search
  *   npx tsx scripts/wave-feasibility.ts --soft           # flag easy waves only
  *
@@ -17,19 +17,19 @@
  *   achievableDps = bestTowerKind × count-buildable-from-remainingBudget
  *                   × weighted-average resist-vs-this-mix × aoe-multiplier
  *                   + baseDps (HQ laser at the chosen upgrade state)
- *                   + heroDps (variant-specific auto + abilities, with skill tree)
+ *                   + robotDps (variant-specific auto + abilities, with skill tree)
  *
  *   feasibility = achievableDps × combatWindow / totalWaveHp
  *
  * Assumes perfect play: every tower fully upgraded (both branches, all tiers),
- * meta-skill ranks invested optimally for the chosen tower kind, hero
+ * meta-skill ranks invested optimally for the chosen tower kind, robot
  * present and engaging when in range, HQ-laser upgrades bought when worth
  * the gold trade-off. A feasibility >= 1.0 means the wave is clearable in
  * theory; <1.0 means the budget genuinely can't produce enough DPS.
  *
  * Star budgets default to one-perfect-3-star-clear-of-prior-levels:
  *   tower meta:   min(9, 3 × (level.id - 1)) per kind (3 nodes × 3 ranks)
- *   hero skills:  min(12, 3 × (level.id - 1)) per active hero (4 nodes × 3 ranks)
+ *   robot skills:  min(12, 3 × (level.id - 1)) per active robot (4 nodes × 3 ranks)
  *
  * Budget per wave = startGold + sum(bounties, waves 1..N-1) + sum(5+wave, 1..N-1).
  * Tower + HQ-upgrade costs both pull from this pool — the optimizer picks
@@ -39,8 +39,6 @@
 
 import { LEVELS, levelHasMode, resolveLevelMode } from "../src/levels";
 import { LEVEL_MODES, type LevelMode } from "../src/progress";
-import { type AllHeroSkills, applyHeroSkillsToHero } from "../src/sim/heroSkills";
-import { HERO_SPECS, type HeroVariantSpec } from "../src/sim/heroVariants";
 import {
   type AllMetaSkills,
   applyMetaSkillsToTower,
@@ -52,14 +50,16 @@ import {
   MAX_TIER,
 } from "../src/sim/metaSkills";
 import { pathLength } from "../src/sim/path";
+import { type AllRobotSkills, applyRobotSkillsToRobot } from "../src/sim/robotSkills";
+import { ROBOT_SPECS, type RobotVariantSpec } from "../src/sim/robotVariants";
 import { FLAME_ACTIVE_DUTY, flameThroughputCapacity } from "../src/sim/towers";
 import type {
   Base,
   DamageType,
   EnemyKind,
   EnemySpec,
-  Hero,
-  HeroVariant,
+  Robot,
+  RobotVariant,
   Tower,
   TowerKind,
   Vec2,
@@ -76,7 +76,7 @@ import {
   ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_STATS,
-  HERO_RESPAWN_DELAY,
+  ROBOT_RESPAWN_DELAY,
   TOWER_DAMAGE_TYPE,
   TOWER_STATS,
   type TowerBaseStats,
@@ -212,10 +212,10 @@ const summarizeMeta = (meta: AllMetaSkills, kind: TowerKind): string => {
 const defaultTowerStarBudget = (levelId: number): number =>
   Math.min(21, Math.max(0, 5 * (levelId - 1)));
 
-// Hero skill tree has 4 nodes × 3 ranks = 12 max. Player needs to LEVEL
-// the hero to spend these, which happens during run; between-run
+// Robot skill tree has 4 nodes × 3 ranks = 12 max. Player needs to LEVEL
+// the robot to spend these, which happens during run; between-run
 // allocation comes from prior-run stars. Same budget heuristic as towers.
-const defaultHeroSkillBudget = (levelId: number): number =>
+const defaultRobotSkillBudget = (levelId: number): number =>
   Math.min(12, Math.max(0, 3 * (levelId - 1)));
 
 /**
@@ -246,26 +246,26 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
   return 1;
 };
 
-// ------- Hero modeling -------
+// ------- Robot modeling -------
 //
-// Each hero variant has its own (HP, damage, range, fire rate, damageType,
+// Each robot variant has its own (HP, damage, range, fire rate, damageType,
 // attackSplashRadius) plus three abilities (dash/burst/payload). Skill
-// tree adds +HP, +damage%, +speed, -cooldowns% via applyHeroSkillsToHero.
+// tree adds +HP, +damage%, +speed, -cooldowns% via applyRobotSkillsToRobot.
 //
 // Uptime accounts for respawn delay (6s downtime per death) and time
 // outside engagement range. Death rate scales with combat-window length —
-// long waves give enemies more chip on the hero.
+// long waves give enemies more chip on the robot.
 
-const HERO_BASE_UPTIME = 0.85;
+const ROBOT_BASE_UPTIME = 0.85;
 
 /**
- * Build a hero with the given variant + skills allocation applied. Mirrors
- * heroDefaults in src/sim/world.ts so the numbers come straight from the
+ * Build a robot with the given variant + skills allocation applied. Mirrors
+ * robotDefaults in src/sim/world.ts so the numbers come straight from the
  * source instead of duplicating constants.
  */
-const buildHero = (variant: HeroVariant, skills: AllHeroSkills): Hero => {
-  const spec = HERO_SPECS[variant];
-  const hero = {
+const buildRobot = (variant: RobotVariant, skills: AllRobotSkills): Robot => {
+  const spec = ROBOT_SPECS[variant];
+  const robot = {
     id: 0,
     variant,
     pos: { x: 0, y: 0 },
@@ -298,9 +298,9 @@ const buildHero = (variant: HeroVariant, skills: AllHeroSkills): Hero => {
     level: 1,
     stuckTimer: 0,
     motionState: "idle" as const,
-  } as unknown as Hero;
-  applyHeroSkillsToHero(hero, skills);
-  return hero;
+  } as unknown as Robot;
+  applyRobotSkillsToRobot(robot, skills);
+  return robot;
 };
 
 /** Splash-hits estimate: 1 primary + 0.8 × splashRadius secondaries. */
@@ -308,12 +308,12 @@ const splashHits = (splashRadius: number, enemiesOnScreen: number): number =>
   Math.min(1 + 0.8 * splashRadius, enemiesOnScreen);
 
 /**
- * Average DPS contribution of one hero ability slot. Damage divided by
+ * Average DPS contribution of one robot ability slot. Damage divided by
  * (cooldown × cooldownMul). Cooldown reduction from the Ultimate skill
  * speeds every ability up uniformly — that's its whole job.
  */
-const heroAbilityRawDps = (
-  variant: HeroVariantSpec,
+const robotAbilityRawDps = (
+  variant: RobotVariantSpec,
   slot: 0 | 1 | 2,
   enemiesOnScreen: number,
   cooldownMul: number,
@@ -363,7 +363,7 @@ const heroAbilityRawDps = (
 
 /**
  * Weighted-by-HP average resist of the wave mix vs a given damage type.
- * Reused for hero auto-attack and each ability slot.
+ * Reused for robot auto-attack and each ability slot.
  */
 const waveResistVs = (spec: WaveSpec, dmgType: DamageType, longestPath: number): number => {
   let weighted = 0;
@@ -390,51 +390,51 @@ const waveResistVs = (spec: WaveSpec, dmgType: DamageType, longestPath: number):
 };
 
 /**
- * Hero effective DPS vs a wave's resist mix. Sums:
+ * Robot effective DPS vs a wave's resist mix. Sums:
  *   auto-attack  (variant.damageType, splash if attackSplashRadius>0)
  *   slot 1 burst (per variant damage type)
  *   slot 2 payload (per variant damage type)
  *
  * Each component is multiplied by its weighted resist and a shared uptime
  * factor. Death penalty subtracts a fraction proportional to combat-window
- * length, capped at 50% — long waves give enemies more chip on the hero.
+ * length, capped at 50% — long waves give enemies more chip on the robot.
  */
-const heroEffectiveDpsVsWave = (
-  variant: HeroVariantSpec,
-  hero: Hero,
+const robotEffectiveDpsVsWave = (
+  variant: RobotVariantSpec,
+  robot: Robot,
   spec: WaveSpec,
   enemiesOnScreen: number,
   longestPath: number,
   combatDur: number,
 ): number => {
-  // Auto-attack DPS uses the SKILL-ADJUSTED hero (damage/fireRate after
+  // Auto-attack DPS uses the SKILL-ADJUSTED robot (damage/fireRate after
   // firepower rank) so we don't double-count the variant baseline.
   const autoSplash = splashHits(variant.attackSplashRadius, enemiesOnScreen);
   const autoResist = waveResistVs(spec, variant.damageType, longestPath);
-  const autoDps = hero.damage * hero.fireRate * autoSplash * autoResist;
+  const autoDps = robot.damage * robot.fireRate * autoSplash * autoResist;
 
-  const cdMul = hero.abilityCooldownMul;
-  const burst = heroAbilityRawDps(variant, 1, enemiesOnScreen, cdMul);
-  const payload = heroAbilityRawDps(variant, 2, enemiesOnScreen, cdMul);
+  const cdMul = robot.abilityCooldownMul;
+  const burst = robotAbilityRawDps(variant, 1, enemiesOnScreen, cdMul);
+  const payload = robotAbilityRawDps(variant, 2, enemiesOnScreen, cdMul);
   const burstDps = burst.dps * waveResistVs(spec, burst.damageType, longestPath);
   const payloadDps = payload.dps * waveResistVs(spec, payload.damageType, longestPath);
 
   const raw = autoDps + burstDps + payloadDps;
-  const deathPenalty = Math.min(0.5, (combatDur / 25) * (HERO_RESPAWN_DELAY / combatDur));
-  return raw * HERO_BASE_UPTIME * (1 - deathPenalty);
+  const deathPenalty = Math.min(0.5, (combatDur / 25) * (ROBOT_RESPAWN_DELAY / combatDur));
+  return raw * ROBOT_BASE_UPTIME * (1 - deathPenalty);
 };
 
 /**
- * Enumerate hero-skill rank allocations (4 nodes × 4 ranks = 256) that fit
+ * Enumerate robot-skill rank allocations (4 nodes × 4 ranks = 256) that fit
  * the star budget. With budget 12 every combo is valid; with 0 only the
- * empty allocation. Returned as AllHeroSkills keyed on the active variant.
+ * empty allocation. Returned as AllRobotSkills keyed on the active variant.
  */
-const enumerateHeroSkillAllocations = (
-  variant: HeroVariant,
+const enumerateRobotSkillAllocations = (
+  variant: RobotVariant,
   skillBudget: number,
-): AllHeroSkills[] => {
+): AllRobotSkills[] => {
   const ids = ["vitality", "firepower", "mobility", "ultimate"] as const;
-  const out: AllHeroSkills[] = [];
+  const out: AllRobotSkills[] = [];
   for (let v = 0; v <= 3; v++) {
     for (let f = 0; f <= 3; f++) {
       for (let m = 0; m <= 3; m++) {
@@ -454,25 +454,25 @@ const enumerateHeroSkillAllocations = (
 };
 
 /**
- * Pick the best hero-skill allocation for a given variant + wave. The hero
+ * Pick the best robot-skill allocation for a given variant + wave. The robot
  * is a fixed (free) contribution once selected — there's no gold trade-off
  * — so we maximise DPS unconditionally within the skill-point budget.
  */
-const bestHeroDps = (
-  variant: HeroVariant,
+const bestRobotDps = (
+  variant: RobotVariant,
   skillBudget: number,
   spec: WaveSpec,
   enemiesOnScreen: number,
   longestPath: number,
   combatDur: number,
 ): number => {
-  const variantSpec = HERO_SPECS[variant];
+  const variantSpec = ROBOT_SPECS[variant];
   let best = 0;
-  for (const skills of enumerateHeroSkillAllocations(variant, skillBudget)) {
-    const hero = buildHero(variant, skills);
-    const dps = heroEffectiveDpsVsWave(
+  for (const skills of enumerateRobotSkillAllocations(variant, skillBudget)) {
+    const robot = buildRobot(variant, skills);
+    const dps = robotEffectiveDpsVsWave(
       variantSpec,
-      hero,
+      robot,
       spec,
       enemiesOnScreen,
       longestPath,
@@ -678,13 +678,13 @@ type TowerPick = {
   unitCost: number;
   perTowerDps: number;
   count: number;
-  /** Tower-only DPS (excludes base + hero). */
+  /** Tower-only DPS (excludes base + robot). */
   towerDps: number;
   /** Base-laser tier "a/b" string for this pick's chosen HQ allocation. */
   baseLabel: string;
   baseDps: number;
   baseCost: number;
-  /** (towers + base + hero) DPS × dur — the metric the picker maximises. */
+  /** (towers + base + robot) DPS × dur — the metric the picker maximises. */
   potentialDamage: number;
 };
 
@@ -696,7 +696,7 @@ type WaveRow = {
   durationSec: number;
   goldBudget: number;
   requiredDps: number;
-  heroDps: number;
+  robotDps: number;
   best: TowerPick | null;
   top3: TowerPick[];
 };
@@ -704,17 +704,17 @@ type WaveRow = {
 type AnalysisOpts = {
   /** Per-tower-kind meta-skill star budget. */
   towerStarBudget?: number;
-  /** Hero skill-point budget for the active hero variant. */
-  heroSkillBudget?: number;
-  /** Active hero variant, or null to disable hero contribution. */
-  heroVariant: HeroVariant | null;
+  /** Robot skill-point budget for the active robot variant. */
+  robotSkillBudget?: number;
+  /** Active robot variant, or null to disable robot contribution. */
+  robotVariant: RobotVariant | null;
   /** False to lock HQ laser at 0/0; true searches all 16 upgrade states. */
   searchBaseUpgrades: boolean;
 };
 
 /**
  * Find the best (towers + HQ upgrades) split that maximises (tower DPS +
- * baseDps + heroDps) × combatDur. Hero DPS is constant across picks for a
+ * baseDps + robotDps) × combatDur. Robot DPS is constant across picks for a
  * given wave (no gold trade-off), so it's added uniformly inside the
  * picker so the soft-spot threshold reflects the player's full toolkit.
  */
@@ -726,7 +726,7 @@ const bestSetup = (
   dur: number,
   paths: Vec2[][],
   longestPath: number,
-  heroDps: number,
+  robotDps: number,
   baseConfigs: BaseConfig[],
   coverageCache: Map<number, number>,
   modeCfg?: { forbiddenTowers?: TowerKind[]; lockedLoadout?: TowerKind[] },
@@ -757,7 +757,7 @@ const bestSetup = (
       }
       const covFrac = coverageFraction(count, covPer, paths.length);
       const towerDps = perTowerDps * count * covFrac;
-      const totalDps = towerDps + baseDps + heroDps;
+      const totalDps = towerDps + baseDps + robotDps;
       picks.push({
         kind: cfg.kind,
         tierA: cfg.tierA,
@@ -792,7 +792,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
   const hpScale = level.hpScale ?? 1;
   const longestPath = Math.max(...level.paths.map(pathLength));
   const towerStarBudget = opts.towerStarBudget ?? defaultTowerStarBudget(level.id);
-  const heroSkillBudget = opts.heroSkillBudget ?? defaultHeroSkillBudget(level.id);
+  const robotSkillBudget = opts.robotSkillBudget ?? defaultRobotSkillBudget(level.id);
   const configs = buildAllConfigs(towerStarBudget);
   const baseConfigs = opts.searchBaseUpgrades ? ALL_BASE_CONFIGS : [ZERO_BASE_CONFIG];
 
@@ -808,11 +808,11 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
     const dur = combatWindow(spec, waveNumber, wave, longestPath);
     const budget = cfg.startGold + cumulativeBounty + cumulativeBonus;
     const requiredDps = wave.totalHp / dur;
-    const heroDps =
-      opts.heroVariant !== null
-        ? bestHeroDps(
-            opts.heroVariant,
-            heroSkillBudget,
+    const robotDps =
+      opts.robotVariant !== null
+        ? bestRobotDps(
+            opts.robotVariant,
+            robotSkillBudget,
             spec,
             Math.min(wave.totalEnemies, 10),
             longestPath,
@@ -827,7 +827,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
       dur,
       level.paths,
       longestPath,
-      heroDps,
+      robotDps,
       baseConfigs,
       coverageCache,
       cfg,
@@ -841,7 +841,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
       durationSec: dur,
       goldBudget: budget,
       requiredDps,
-      heroDps,
+      robotDps,
       best: top[0] ?? null,
       top3: top,
     });
@@ -850,7 +850,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
     cumulativeBonus += 5 + waveNumber;
   }
 
-  return { level, mode, cfg, rows, longestPath, towerStarBudget, heroSkillBudget };
+  return { level, mode, cfg, rows, longestPath, towerStarBudget, robotSkillBudget };
 };
 
 // ------- Output -------
@@ -879,7 +879,7 @@ const printLevel = (
   opts: AnalysisOpts,
   mode: LevelMode = "normal",
 ) => {
-  const { level, cfg, rows, longestPath, towerStarBudget, heroSkillBudget } = analyzeLevel(
+  const { level, cfg, rows, longestPath, towerStarBudget, robotSkillBudget } = analyzeLevel(
     levelIdx,
     opts,
     mode,
@@ -893,7 +893,7 @@ const printLevel = (
     { f: Number.POSITIVE_INFINITY, wave: 0 },
   );
 
-  const heroLabel = opts.heroVariant ? `${opts.heroVariant}(${heroSkillBudget}sp)` : "off";
+  const robotLabel = opts.robotVariant ? `${opts.robotVariant}(${robotSkillBudget}sp)` : "off";
   const baseLabel = opts.searchBaseUpgrades ? "searched" : "rank0/0";
   const modeTag =
     mode === "normal"
@@ -911,10 +911,10 @@ const printLevel = (
     `\n${C.bold}═══ L${level.id}: ${level.name}${modeTag}${C.reset}${rulesTag}` +
       `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
       ` ${C.dim}startGold=${cfg.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u, ` +
-      `hero=${heroLabel}, towerStars=${towerStarBudget}, base=${baseLabel}${C.reset}`,
+      `robot=${robotLabel}, towerStars=${towerStarBudget}, base=${baseLabel}${C.reset}`,
   );
   console.log(
-    `${C.dim}${pad("W", 3)} ${pad("arch", 7)} ${pad("enemies", 7)} ${pad("totalHp", 8)} ${pad("sec", 6)} ${pad("gold", 6)} ${pad("reqDPS", 7)} ${pad("hero", 6)} ${pad("base", 6)} ${pad("bestT", 8)} ${pad("×N", 4)} ${pad("twrDPS", 7)} ${pad("feas", 6)}${C.reset}`,
+    `${C.dim}${pad("W", 3)} ${pad("arch", 7)} ${pad("enemies", 7)} ${pad("totalHp", 8)} ${pad("sec", 6)} ${pad("gold", 6)} ${pad("reqDPS", 7)} ${pad("robot", 6)} ${pad("base", 6)} ${pad("bestT", 8)} ${pad("×N", 4)} ${pad("twrDPS", 7)} ${pad("feas", 6)}${C.reset}`,
   );
   for (const r of rows) {
     const feas = r.best ? r.best.potentialDamage / r.totalHp : 0;
@@ -923,7 +923,7 @@ const printLevel = (
       `${pad(r.wave, 3)} ${pad(r.archetype, 7)} ${pad(r.totalEnemies, 7)} ` +
         `${pad(fmt(r.totalHp, 0), 8)} ${pad(fmt(r.durationSec, 1), 6)} ` +
         `${pad(r.goldBudget, 6)} ${pad(fmt(r.requiredDps, 0), 7)} ` +
-        `${pad(fmt(r.heroDps, 0), 6)} ` +
+        `${pad(fmt(r.robotDps, 0), 6)} ` +
         `${pad(fmt(best?.baseDps ?? 0, 0), 6)} ` +
         `${pad(best?.kind ?? "—", 8)} ${pad(best?.count ?? 0, 4)} ` +
         `${pad(fmt(best?.towerDps ?? 0, 0), 7)} ` +
@@ -935,7 +935,7 @@ const printLevel = (
         const metaTag = p.metaLabel === "—" ? "" : ` meta:${p.metaLabel}`;
         const baseTag = p.baseLabel === "0/0" ? "" : ` base:${p.baseLabel}(${p.baseCost}g)`;
         console.log(
-          `    ${C.dim}↳ ${pad(p.kind, 8)} a${p.tierA}/b${p.tierB}${metaTag} @${p.unitCost}g ×${p.count} = ${fmt(p.towerDps, 0)} twr +${fmt(p.baseDps, 0)} base +${fmt(r.heroDps, 0)} hero${baseTag} → feas ${fmt(f, 2)}${C.reset}`,
+          `    ${C.dim}↳ ${pad(p.kind, 8)} a${p.tierA}/b${p.tierB}${metaTag} @${p.unitCost}g ×${p.count} = ${fmt(p.towerDps, 0)} twr +${fmt(p.baseDps, 0)} base +${fmt(r.robotDps, 0)} robot${baseTag} → feas ${fmt(f, 2)}${C.reset}`,
         );
       }
     }
@@ -1019,11 +1019,11 @@ const printSoftSpots = (
     }
   }
 
-  const heroLbl = opts.heroVariant ?? "off";
+  const robotLbl = opts.robotVariant ?? "off";
   console.log(
     `\n${C.bold}═══ Soft-spot scan — levels ${fromLevel}+, abs>${absThreshold}×, pacing>${ratio}× tightest${C.reset}` +
-      ` ${C.dim}(hero=${heroLbl}, towerStars=${opts.towerStarBudget ?? "auto"}, ` +
-      `heroSp=${opts.heroSkillBudget ?? "auto"}, base=${opts.searchBaseUpgrades ? "searched" : "rank0"})${C.reset}`,
+      ` ${C.dim}(robot=${robotLbl}, towerStars=${opts.towerStarBudget ?? "auto"}, ` +
+      `robotSp=${opts.robotSkillBudget ?? "auto"}, base=${opts.searchBaseUpgrades ? "searched" : "rank0"})${C.reset}`,
   );
 
   // Group by level
@@ -1069,14 +1069,14 @@ declare const process: { argv: string[]; exit(code: number): never };
 const args = process.argv.slice(2);
 const detail = args.includes("--detail");
 const softMode = args.includes("--soft");
-const noHero = args.includes("--no-hero");
+const noRobot = args.includes("--no-robot");
 const noBaseUpgrades = args.includes("--no-base-upgrades");
 const fromArg = args.find((a: string) => a.startsWith("--from="));
 const absArg = args.find((a: string) => a.startsWith("--abs="));
 const ratioArg = args.find((a: string) => a.startsWith("--ratio="));
 const starsArg = args.find((a: string) => a.startsWith("--stars="));
-const heroSkillsArg = args.find((a: string) => a.startsWith("--hero-skills="));
-const heroArg = args.find((a: string) => a.startsWith("--hero="));
+const robotSkillsArg = args.find((a: string) => a.startsWith("--robot-skills="));
+const robotArg = args.find((a: string) => a.startsWith("--robot="));
 // --mode=normal|heroic|iron|all — pick which modes the report iterates.
 // Default is "all" so authors get feasibility for every defined variant
 // in one pass, with normal always shown first per level.
@@ -1095,25 +1095,25 @@ const modesForLevel = (levelIdx: number): LevelMode[] => {
 };
 const levelArg = args.find((a: string) => /^\d+$/.test(a));
 
-const parseHeroVariant = (value: string | undefined): HeroVariant => {
+const parseRobotVariant = (value: string | undefined): RobotVariant => {
   const v = value ?? "george";
   if (v === "george" || v === "leela" || v === "mike" || v === "stan") return v;
-  console.error(`Hero variant must be one of: george, leela, mike, stan (got "${v}")`);
+  console.error(`Robot variant must be one of: george, leela, mike, stan (got "${v}")`);
   process.exit(1);
 };
 
 const baseOpts: AnalysisOpts = {
-  heroVariant: noHero ? null : parseHeroVariant(heroArg?.split("=")[1]),
+  robotVariant: noRobot ? null : parseRobotVariant(robotArg?.split("=")[1]),
   towerStarBudget: starsArg ? Number(starsArg.split("=")[1]) : undefined,
-  heroSkillBudget: heroSkillsArg ? Number(heroSkillsArg.split("=")[1]) : undefined,
+  robotSkillBudget: robotSkillsArg ? Number(robotSkillsArg.split("=")[1]) : undefined,
   searchBaseUpgrades: !noBaseUpgrades,
 };
 
 if (softMode) {
   const fromLevel = fromArg ? Number(fromArg.split("=")[1]) : 6;
-  // Default raised from 20 → 35 because hero + meta + HQ upgrades all
+  // Default raised from 20 → 35 because robot + meta + HQ upgrades all
   // lift achievable DPS for every wave. Use --abs=20 to restore old
-  // sensitivity, or --no-hero --stars=0 --hero-skills=0 --no-base-upgrades
+  // sensitivity, or --no-robot --stars=0 --robot-skills=0 --no-base-upgrades
   // to reproduce the legacy towers-only model exactly.
   const abs = absArg ? Number(absArg.split("=")[1]) : 35;
   const ratio = ratioArg ? Number(ratioArg.split("=")[1]) : 5;
@@ -1162,9 +1162,9 @@ if (softMode) {
       console.log(`  ${C.red}Below 1.0×: ${problemWaves.join(", ")}${C.reset}`);
     }
   }
-  const heroLbl = baseOpts.heroVariant ?? "off";
+  const robotLbl = baseOpts.robotVariant ?? "off";
   console.log(
-    `${C.dim}— hero=${heroLbl}, towerStars=${baseOpts.towerStarBudget ?? "auto"}, ` +
-      `heroSp=${baseOpts.heroSkillBudget ?? "auto"}, base=${baseOpts.searchBaseUpgrades ? "searched" : "rank0"}${C.reset}`,
+    `${C.dim}— robot=${robotLbl}, towerStars=${baseOpts.towerStarBudget ?? "auto"}, ` +
+      `robotSp=${baseOpts.robotSkillBudget ?? "auto"}, base=${baseOpts.searchBaseUpgrades ? "searched" : "rank0"}${C.reset}`,
   );
 }

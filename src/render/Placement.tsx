@@ -210,9 +210,9 @@ export const Placement = () => {
 
   const updateDashAim = (pos: Vec2) => {
     const state = useGame.getState();
-    const hero = state.world.hero;
-    if (!hero.dashAim) return;
-    state.setHeroDashAimDir({ x: pos.x - hero.pos.x, y: pos.y - hero.pos.y });
+    const robot = state.world.robot;
+    if (!robot.dashAim) return;
+    state.setRobotDashAimDir({ x: pos.x - robot.pos.x, y: pos.y - robot.pos.y });
   };
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -332,33 +332,33 @@ export const Placement = () => {
     const state = useGame.getState();
     // Dash aim active (Mike): a ground click commits the dash in the
     // current aim direction and swallows the click so we don't also
-    // re-order the hero to walk somewhere.
-    if (state.world.hero.dashAim) {
-      state.setHeroDashAimDir({
-        x: pos.x - state.world.hero.pos.x,
-        y: pos.y - state.world.hero.pos.y,
+    // re-order the robot to walk somewhere.
+    if (state.world.robot.dashAim) {
+      state.setRobotDashAimDir({
+        x: pos.x - state.world.robot.pos.x,
+        y: pos.y - state.world.robot.pos.y,
       });
-      state.triggerHeroAbility(0);
+      state.triggerRobotAbility(0);
       return;
     }
-    // Click-after-select: while the hero is selected, every ground click
-    // is a move order (snapped to the path inside orderHeroMove). Hero
-    // stays selected — click the hero again to deselect.
-    if (state.world.hero.selected && state.selectedKind === null) {
-      state.orderHeroMove(pos);
+    // Click-after-select: while the robot is selected, every ground click
+    // is a move order (snapped to the path inside orderRobotMove). Robot
+    // stays selected — click the robot again to deselect.
+    if (state.world.robot.selected && state.selectedKind === null) {
+      state.orderRobotMove(pos);
       return;
     }
     if (state.towerAtPos(pos)) audio.ui("select");
     state.tryPlaceOrSelect(pos);
   };
 
-  // Right-click = move-order for the hero. Falls back to mouse-button
+  // Right-click = move-order for the robot. Falls back to mouse-button
   // detection on contextmenu because R3F surfaces it as a plain MouseEvent.
   const onContextMenu = (e: ThreeEvent<MouseEvent>) => {
     e.nativeEvent.preventDefault();
     e.stopPropagation();
     const pos = eventPoint(e);
-    useGame.getState().orderHeroMove(pos);
+    useGame.getState().orderRobotMove(pos);
   };
 
   // Suppress browser's native context menu on the canvas so right-click

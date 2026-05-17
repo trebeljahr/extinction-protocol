@@ -9,7 +9,7 @@ import { useGame } from "../store";
 import { bakeObjectToGeometry, type FractureChunk, fractureGeometry } from "./fractureMesh";
 import { measureVisibleBox } from "./measureModel";
 
-// The Plasma Turret is the hero model from the title-screen diorama. It
+// The Plasma Turret is the robot model from the title-screen diorama. It
 // doesn't appear as a buildable in gameplay; instead one instance per path
 // endpoint stands in for the player's HQ — that's where enemy leaks land,
 // and that's what the player is defending. When `world.lives` decreases the

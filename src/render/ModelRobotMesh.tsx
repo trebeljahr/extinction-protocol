@@ -9,27 +9,27 @@ import { useGame } from "../store";
 import { cloneAndCaptureBase, findClip } from "./animUtils";
 import { measureVisibleBox } from "./measureModel";
 
-const HERO_URL: Record<string, string> = {
-  george: "/models/heroes/George.glb",
-  leela: "/models/heroes/Leela.glb",
-  mike: "/models/heroes/Mike.glb",
-  stan: "/models/heroes/Stan.glb",
+const ROBOT_URL: Record<string, string> = {
+  george: "/models/robots/George.glb",
+  leela: "/models/robots/Leela.glb",
+  mike: "/models/robots/Mike.glb",
+  stan: "/models/robots/Stan.glb",
 };
 
 const TARGET_SIZE = 1.8;
 const POS_HALFLIFE = 0.04;
 const YAW_HALFLIFE = 0.08;
 // Reference hover lift used to normalize jet opacity. Stays in sync
-// with HERO_HOVER_HEIGHT in sim/hero.ts; render reads hero.hoverHeight
+// with ROBOT_HOVER_HEIGHT in sim/robot.ts; render reads robot.hoverHeight
 // directly and divides by this to get a 0..1 intensity.
 const HOVER_HEIGHT_FULL = 0.55;
 const JET_COLOR = new THREE.Color("#9fd8ff");
 
 const FLASH_COLOR = new THREE.Color("#ff8a4a");
 
-export const ModelHeroMesh = () => {
-  const variant = useGame((s) => s.world.hero.variant);
-  const url = HERO_URL[variant] ?? HERO_URL.george;
+export const ModelRobotMesh = () => {
+  const variant = useGame((s) => s.world.robot.variant);
+  const url = ROBOT_URL[variant] ?? ROBOT_URL.george;
   const { scene, animations } = useGLTF(url);
 
   const groupRef = useRef<THREE.Group>(null);
@@ -135,23 +135,23 @@ export const ModelHeroMesh = () => {
     const mixer = mixerRef.current;
     if (!obj || !mixer) return;
     const { world } = useGame.getState();
-    const hero = world.hero;
+    const robot = world.robot;
     const frozen = world.status !== "running";
 
     // Pick clip by state. Shoot stamps a quick flash; dash + walk are
     // looping; death pinned to last frame.
     let pick: THREE.AnimationClip | null = null;
     let key = "idle";
-    if (hero.motionState === "dead") {
+    if (robot.motionState === "dead") {
       pick = clips.death ?? clips.idle;
       key = "death";
-    } else if (hero.motionState === "dash") {
+    } else if (robot.motionState === "dash") {
       pick = clips.run ?? clips.walk ?? clips.idle;
       key = "run";
-    } else if (hero.motionState === "walk") {
+    } else if (robot.motionState === "walk") {
       pick = clips.walk ?? clips.run ?? clips.idle;
       key = "walk";
-    } else if (hero.motionState === "shoot") {
+    } else if (robot.motionState === "shoot") {
       pick = clips.shoot ?? clips.idle;
       key = "shoot";
     } else {
@@ -171,36 +171,36 @@ export const ModelHeroMesh = () => {
       }
       currentClipRef.current = key;
     }
-    mixer.timeScale = hero.motionState === "dash" ? 1.45 : 1;
+    mixer.timeScale = robot.motionState === "dash" ? 1.45 : 1;
     if (!frozen) mixer.update(delta);
 
-    // Smoothed visual transform. Source-of-truth pos stays on hero.pos.
+    // Smoothed visual transform. Source-of-truth pos stays on robot.pos.
     const vis = visRef.current;
-    const targetX = hero.pos.x;
-    const targetZ = -hero.pos.y;
+    const targetX = robot.pos.x;
+    const targetZ = -robot.pos.y;
     if (!vis.init) {
       vis.x = targetX;
       vis.z = targetZ;
-      vis.yaw = hero.facing;
+      vis.yaw = robot.facing;
       vis.init = true;
     } else {
       const kp = dampFactor(delta, POS_HALFLIFE);
       vis.x += (targetX - vis.x) * kp;
       vis.z += (targetZ - vis.z) * kp;
       const ky = dampFactor(delta, YAW_HALFLIFE);
-      vis.yaw += shortAngleDelta(vis.yaw, hero.facing) * ky;
+      vis.yaw += shortAngleDelta(vis.yaw, robot.facing) * ky;
     }
 
-    obj.position.set(vis.x - centerXZ.x, -scaledMinY + hero.hoverHeight, vis.z - centerXZ.z);
+    obj.position.set(vis.x - centerXZ.x, -scaledMinY + robot.hoverHeight, vis.z - centerXZ.z);
     obj.rotation.set(0, vis.yaw, 0);
-    obj.visible = hero.alive || hero.motionState === "dead";
+    obj.visible = robot.alive || robot.motionState === "dead";
 
     // Jetpack jet visual — two downward thrust cones beneath the
-    // hero whose opacity tracks the hover engagement so they fade in
-    // as the hero lifts off and out as she touches dry ground.
+    // robot whose opacity tracks the hover engagement so they fade in
+    // as the robot lifts off and out as she touches dry ground.
     const jet = jetRef.current;
     if (jet) {
-      const lift = hero.hoverHeight;
+      const lift = robot.hoverHeight;
       const intensity = clamp01(lift / HOVER_HEIGHT_FULL);
       jet.visible = intensity > 0.02;
       if (jet.visible) {
@@ -213,7 +213,7 @@ export const ModelHeroMesh = () => {
     }
 
     // Flash tint: hurt + muzzle flare share a warm emissive pop.
-    const flashing = world.time < hero.flashUntil || world.time < hero.shootFlashUntil;
+    const flashing = world.time < robot.flashUntil || world.time < robot.shootFlashUntil;
     for (const m of matsRef.current) {
       const base = m.userData.baseEmissive as THREE.Color | undefined;
       if (!base) continue;
@@ -222,7 +222,7 @@ export const ModelHeroMesh = () => {
     }
   });
 
-  // Click target — invisible sphere above the hero so a single click
+  // Click target — invisible sphere above the robot so a single click
   // is enough to "select" her (then the next ground click moves).
   const proxyRadius = TARGET_SIZE * 0.6;
   const proxyGeom = useMemo(() => new THREE.SphereGeometry(proxyRadius, 8, 6), [proxyRadius]);
@@ -230,7 +230,7 @@ export const ModelHeroMesh = () => {
     () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     [],
   );
-  // Jetpack thrust cone — open end down, tapers toward the hero's feet.
+  // Jetpack thrust cone — open end down, tapers toward the robot's feet.
   // ConeGeometry's default orientation points +Y, so rotate it so the
   // wide end faces the ground (-Y) for a plausible exhaust shape.
   const jetGeom = useMemo(() => {
@@ -263,14 +263,14 @@ export const ModelHeroMesh = () => {
   useFrame(() => {
     const mesh = proxyRef.current;
     if (!mesh) return;
-    const hero = useGame.getState().world.hero;
-    mesh.visible = hero.alive;
-    mesh.position.set(hero.pos.x, proxyRadius * 0.9, -hero.pos.y);
+    const robot = useGame.getState().world.robot;
+    mesh.visible = robot.alive;
+    mesh.position.set(robot.pos.x, proxyRadius * 0.9, -robot.pos.y);
   });
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     const state = useGame.getState();
-    // Tower placement / mortar spot mode wins over hero selection.
+    // Tower placement / mortar spot mode wins over robot selection.
     if (state.selectedKind !== null) return;
     const selId = state.world.selectedTowerId;
     if (selId !== null) {
@@ -278,7 +278,7 @@ export const ModelHeroMesh = () => {
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
     e.stopPropagation();
-    state.selectHeroUnit(!state.world.hero.selected);
+    state.selectRobotUnit(!state.world.robot.selected);
   };
 
   return (
@@ -288,14 +288,14 @@ export const ModelHeroMesh = () => {
         geometry={proxyGeom}
         material={proxyMat}
         onClick={onClick}
-        userData={{ heroProxy: true }}
+        userData={{ robotProxy: true }}
       />
       <mesh ref={jetRef} geometry={jetGeom} material={jetMat} visible={false} />
     </group>
   );
 };
 
-useGLTF.preload("/models/heroes/George.glb");
-useGLTF.preload("/models/heroes/Leela.glb");
-useGLTF.preload("/models/heroes/Mike.glb");
-useGLTF.preload("/models/heroes/Stan.glb");
+useGLTF.preload("/models/robots/George.glb");
+useGLTF.preload("/models/robots/Leela.glb");
+useGLTF.preload("/models/robots/Mike.glb");
+useGLTF.preload("/models/robots/Stan.glb");

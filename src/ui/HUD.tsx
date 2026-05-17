@@ -11,12 +11,12 @@ import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { EnemyPanel } from "./EnemyPanel";
-import { HeroMiniIcon } from "./HeroMiniIcon";
-import { HeroPanel } from "./HeroPanel";
-import { HeroSelectionPanel } from "./HeroSelectionPanel";
 import { IconCog } from "./MenuIcons";
 import { PauseMenu } from "./PauseMenu";
 import { QuickSettings } from "./QuickSettings";
+import { RobotMiniIcon } from "./RobotMiniIcon";
+import { RobotPanel } from "./RobotPanel";
+import { RobotSelectionPanel } from "./RobotSelectionPanel";
 import { TowerPanel } from "./TowerPanel";
 import { prewarmTowerIcons, TowerPreview } from "./TowerPreview";
 import { TreePanel } from "./TreePanel";
@@ -24,9 +24,9 @@ import { useKeyboardHintsVisible } from "./useInputMode";
 import { useIsMobile } from "./useMediaQuery";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
-// "1" is reserved for hero select — towers shift up by one so the row
-// reads "1 = hero, 2..7 = towers" left-to-right.
-const HERO_HOTKEY = "1";
+// "1" is reserved for robot select — towers shift up by one so the row
+// reads "1 = robot, 2..7 = towers" left-to-right.
+const ROBOT_HOTKEY = "1";
 const HOTKEYS: Record<TowerKind, string> = {
   pulse: "2",
   chain: "3",
@@ -156,8 +156,8 @@ export const HUD = () => {
       if (e.code === "Escape") {
         e.preventDefault();
         const s = useGame.getState();
-        if (s.world.hero.dashAim) {
-          s.cancelHeroDashAim();
+        if (s.world.robot.dashAim) {
+          s.cancelRobotDashAim();
           return;
         }
         if (
@@ -166,8 +166,8 @@ export const HUD = () => {
           s.inspectedEnemy.kind !== null ||
           s.selectedTreeId !== null ||
           s.selectedRockId !== null ||
-          s.world.hero.selected ||
-          s.heroPanelOpen
+          s.world.robot.selected ||
+          s.robotPanelOpen
         ) {
           s.clearSelection();
           (document.activeElement as HTMLElement | null)?.blur();
@@ -179,28 +179,28 @@ export const HUD = () => {
       }
       if (e.code === "KeyQ") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility(0);
+        useGame.getState().triggerRobotAbility(0);
         return;
       }
       if (e.code === "KeyW") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility(1);
+        useGame.getState().triggerRobotAbility(1);
         return;
       }
       if (e.code === "KeyE") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility(2);
+        useGame.getState().triggerRobotAbility(2);
         return;
       }
       if (e.code === "KeyR") {
         e.preventDefault();
-        useGame.getState().triggerHeroAbility(3);
+        useGame.getState().triggerRobotAbility(3);
         return;
       }
       const digit = e.key;
-      if (digit === HERO_HOTKEY) {
+      if (digit === ROBOT_HOTKEY) {
         const s = useGame.getState();
-        s.selectHeroUnit(!s.world.hero.selected);
+        s.selectRobotUnit(!s.world.robot.selected);
         return;
       }
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find((k) => HOTKEYS[k] === digit);
@@ -213,7 +213,7 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
-        <HeroMiniIcon />
+        <RobotMiniIcon />
         <Stat label="GOLD" value={gold} accentClass="text-gold" />
         <Stat label="LIVES" value={lives} accentClass="text-red" />
         <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accentClass="text-blue" />
@@ -426,8 +426,8 @@ export const HUD = () => {
       <BasePanel />
       <EnemyPanel />
       <TreePanel />
-      <HeroSelectionPanel />
-      <HeroPanel />
+      <RobotSelectionPanel />
+      <RobotPanel />
       <BossBanner />
 
       {paused && !compendiumOpen && !levelIntroVisible && !newEnemyAlertVisible && (

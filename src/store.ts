@@ -30,24 +30,6 @@ import {
   totalStars,
   triggeredEasterEggIdsForLevel,
 } from "./progress";
-import {
-  cancelHeroDashAim as simCancelHeroDashAim,
-  orderHeroMove as simOrderHeroMove,
-  selectHero as simSelectHero,
-  setHeroDashAimDir as simSetHeroDashAimDir,
-  triggerHeroAbility as simTriggerHeroAbility,
-} from "./sim/hero";
-import {
-  applyHeroSkillsToHero,
-  type HeroSkillId,
-  heroSkillPointsAvailable,
-  levelForXp,
-  resetAllHeroRanks,
-  resetHeroVariantRanks,
-  setHeroRank,
-  xpProgressInLevel,
-} from "./sim/heroSkills";
-import { HERO_SPECS } from "./sim/heroVariants";
 import { Engine } from "./sim/loop";
 import type { MechanicId } from "./sim/mechanicsText";
 import {
@@ -61,6 +43,24 @@ import {
 } from "./sim/metaSkills";
 import { segmentLength } from "./sim/path";
 import {
+  cancelRobotDashAim as simCancelRobotDashAim,
+  orderRobotMove as simOrderRobotMove,
+  selectRobot as simSelectRobot,
+  setRobotDashAimDir as simSetRobotDashAimDir,
+  triggerRobotAbility as simTriggerRobotAbility,
+} from "./sim/robot";
+import {
+  applyRobotSkillsToRobot,
+  levelForXp,
+  type RobotSkillId,
+  resetAllRobotRanks,
+  resetRobotVariantRanks,
+  robotSkillPointsAvailable,
+  setRobotRank,
+  xpProgressInLevel,
+} from "./sim/robotSkills";
+import { ROBOT_SPECS } from "./sim/robotVariants";
+import {
   canCallEarly,
   earlyCallGoldReward,
   earlyCallTimerSec,
@@ -73,9 +73,9 @@ import type {
   DamageType,
   EnemyKind,
   GameEvent,
-  HeroAbilitySlot,
-  HeroVariant,
   NewSightingId,
+  RobotAbilitySlot,
+  RobotVariant,
   Rock,
   RunStatus,
   TargetingMode,
@@ -92,11 +92,11 @@ import {
   createWorld,
   emit,
   HIVE_MAX_DRONES_PER_TOWER,
-  heroLevelHpBonus,
   isTowerKindAllowed,
   meshXZRadii,
   ROCK_FOOTPRINT,
   ROCK_REMOVE_COST,
+  robotLevelHpBonus,
   spawnEnemy,
   spawnMovingEasterEgg,
   spawnParticles,
@@ -107,7 +107,7 @@ import {
 
 export type Screen = "splash" | "slots" | "worldMap" | "playing" | "results";
 
-export type CompendiumSection = "enemy" | "tower" | "mechanic" | "hero" | "lore";
+export type CompendiumSection = "enemy" | "tower" | "mechanic" | "robot" | "lore";
 
 export type AchievementToast = { id: AchievementId; key: number };
 
@@ -160,29 +160,29 @@ type UiSnapshot = {
   // Resists chip — per-damage-type adaptation multipliers. Empty when
   // the inspected enemy has no resist chip applied.
   inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
-  heroVariant: HeroVariant;
-  heroLabel: string;
-  heroSelected: boolean;
-  heroHp: number;
-  heroMaxHp: number;
-  heroAlive: boolean;
-  heroRespawnRemaining: number;
-  heroLevel: number;
-  heroXp: number;
-  heroXpInto: number;
-  heroXpNeed: number;
+  robotVariant: RobotVariant;
+  robotLabel: string;
+  robotSelected: boolean;
+  robotHp: number;
+  robotMaxHp: number;
+  robotAlive: boolean;
+  robotRespawnRemaining: number;
+  robotLevel: number;
+  robotXp: number;
+  robotXpInto: number;
+  robotXpNeed: number;
   // Cooldowns per ability slot (Q/W/E/R = 0..3). Rounded to 0.1s so the
   // HUD doesn't thrash on every frame for the same on-screen text.
-  heroAbilityCooldowns: [number, number, number, number];
-  heroAbilityMaxCooldowns: [number, number, number, number];
-  heroAbilityLabels: [string, string, string, string];
-  heroAbilityGlyphs: [string, string, string, string];
+  robotAbilityCooldowns: [number, number, number, number];
+  robotAbilityMaxCooldowns: [number, number, number, number];
+  robotAbilityLabels: [string, string, string, string];
+  robotAbilityGlyphs: [string, string, string, string];
   // Run-scoped combat stats — mirror Tower kill/damage tracking. DPS is
   // theoretical (base damage × base fireRate) so the readout doesn't
   // thrash when slot-2 buffs flicker on/off.
-  heroKills: number;
-  heroDps: number;
-  heroDamageDealt: number;
+  robotKills: number;
+  robotDps: number;
+  robotDamageDealt: number;
 };
 
 const snapshot = (
@@ -247,35 +247,35 @@ const snapshot = (
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
     inspectedEnemyExtraResists: extraResists,
-    heroVariant: w.hero.variant,
-    heroLabel: HERO_SPECS[w.hero.variant].label,
-    heroSelected: w.hero.selected,
-    heroHp: Math.max(0, Math.round(w.hero.hp)),
-    heroMaxHp: w.hero.maxHp,
-    heroAlive: w.hero.alive,
-    heroRespawnRemaining:
-      w.hero.respawnAt !== null ? Math.max(0, Math.ceil(w.hero.respawnAt - w.time)) : 0,
-    heroLevel: levelForXp(w.hero.xp),
-    heroXp: w.hero.xp,
-    heroXpInto: xpProgressInLevel(w.hero.xp).into,
-    heroXpNeed: xpProgressInLevel(w.hero.xp).need,
-    heroAbilityCooldowns: [
-      Math.max(0, Math.round((w.hero.abilityReadyAt[0] - w.time) * 10) / 10),
-      Math.max(0, Math.round((w.hero.abilityReadyAt[1] - w.time) * 10) / 10),
-      Math.max(0, Math.round((w.hero.abilityReadyAt[2] - w.time) * 10) / 10),
-      Math.max(0, Math.round((w.hero.abilityReadyAt[3] - w.time) * 10) / 10),
+    robotVariant: w.robot.variant,
+    robotLabel: ROBOT_SPECS[w.robot.variant].label,
+    robotSelected: w.robot.selected,
+    robotHp: Math.max(0, Math.round(w.robot.hp)),
+    robotMaxHp: w.robot.maxHp,
+    robotAlive: w.robot.alive,
+    robotRespawnRemaining:
+      w.robot.respawnAt !== null ? Math.max(0, Math.ceil(w.robot.respawnAt - w.time)) : 0,
+    robotLevel: levelForXp(w.robot.xp),
+    robotXp: w.robot.xp,
+    robotXpInto: xpProgressInLevel(w.robot.xp).into,
+    robotXpNeed: xpProgressInLevel(w.robot.xp).need,
+    robotAbilityCooldowns: [
+      Math.max(0, Math.round((w.robot.abilityReadyAt[0] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.robot.abilityReadyAt[1] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.robot.abilityReadyAt[2] - w.time) * 10) / 10),
+      Math.max(0, Math.round((w.robot.abilityReadyAt[3] - w.time) * 10) / 10),
     ],
-    heroAbilityMaxCooldowns: [
-      HERO_SPECS[w.hero.variant].abilities[0].cooldown * w.hero.abilityCooldownMul,
-      HERO_SPECS[w.hero.variant].abilities[1].cooldown * w.hero.abilityCooldownMul,
-      HERO_SPECS[w.hero.variant].abilities[2].cooldown * w.hero.abilityCooldownMul,
-      HERO_SPECS[w.hero.variant].abilities[3].cooldown * w.hero.abilityCooldownMul,
+    robotAbilityMaxCooldowns: [
+      ROBOT_SPECS[w.robot.variant].abilities[0].cooldown * w.robot.abilityCooldownMul,
+      ROBOT_SPECS[w.robot.variant].abilities[1].cooldown * w.robot.abilityCooldownMul,
+      ROBOT_SPECS[w.robot.variant].abilities[2].cooldown * w.robot.abilityCooldownMul,
+      ROBOT_SPECS[w.robot.variant].abilities[3].cooldown * w.robot.abilityCooldownMul,
     ],
-    heroAbilityLabels: HERO_SPECS[w.hero.variant].abilityLabels,
-    heroAbilityGlyphs: HERO_SPECS[w.hero.variant].abilityGlyphs,
-    heroKills: w.hero.kills,
-    heroDps: w.hero.damage * w.hero.fireRate,
-    heroDamageDealt: w.hero.damageDealt,
+    robotAbilityLabels: ROBOT_SPECS[w.robot.variant].abilityLabels,
+    robotAbilityGlyphs: ROBOT_SPECS[w.robot.variant].abilityGlyphs,
+    robotKills: w.robot.kills,
+    robotDps: w.robot.damage * w.robot.fireRate,
+    robotDamageDealt: w.robot.damageDealt,
   };
 };
 
@@ -306,21 +306,21 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
   a.inspectedEnemyElite === b.inspectedEnemyElite &&
   a.inspectedEnemyFierce === b.inspectedEnemyFierce &&
-  a.heroVariant === b.heroVariant &&
-  a.heroSelected === b.heroSelected &&
-  a.heroHp === b.heroHp &&
-  a.heroMaxHp === b.heroMaxHp &&
-  a.heroAlive === b.heroAlive &&
-  a.heroRespawnRemaining === b.heroRespawnRemaining &&
-  a.heroLevel === b.heroLevel &&
-  a.heroXp === b.heroXp &&
-  a.heroAbilityCooldowns[0] === b.heroAbilityCooldowns[0] &&
-  a.heroAbilityCooldowns[1] === b.heroAbilityCooldowns[1] &&
-  a.heroAbilityCooldowns[2] === b.heroAbilityCooldowns[2] &&
-  a.heroAbilityCooldowns[3] === b.heroAbilityCooldowns[3] &&
-  a.heroKills === b.heroKills &&
-  a.heroDps === b.heroDps &&
-  a.heroDamageDealt === b.heroDamageDealt;
+  a.robotVariant === b.robotVariant &&
+  a.robotSelected === b.robotSelected &&
+  a.robotHp === b.robotHp &&
+  a.robotMaxHp === b.robotMaxHp &&
+  a.robotAlive === b.robotAlive &&
+  a.robotRespawnRemaining === b.robotRespawnRemaining &&
+  a.robotLevel === b.robotLevel &&
+  a.robotXp === b.robotXp &&
+  a.robotAbilityCooldowns[0] === b.robotAbilityCooldowns[0] &&
+  a.robotAbilityCooldowns[1] === b.robotAbilityCooldowns[1] &&
+  a.robotAbilityCooldowns[2] === b.robotAbilityCooldowns[2] &&
+  a.robotAbilityCooldowns[3] === b.robotAbilityCooldowns[3] &&
+  a.robotKills === b.robotKills &&
+  a.robotDps === b.robotDps &&
+  a.robotDamageDealt === b.robotDamageDealt;
 
 const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
   const r2 = clearance * clearance;
@@ -491,27 +491,27 @@ type GameStore = {
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
 
-  orderHeroMove: (pos: Vec2) => void;
-  triggerHeroAbility: (slot: HeroAbilitySlot) => void;
-  selectHeroUnit: (on: boolean) => void;
-  setHeroDashAimDir: (dir: Vec2) => void;
-  cancelHeroDashAim: () => void;
-  // Hero shop modal.
-  heroShopOpen: boolean;
-  setHeroShopOpen: (open: boolean) => void;
-  // Hero overview overlay (stats / abilities / vitals). Decoupled from
-  // `hero.selected` so the player can keep commanding the hero (move/
+  orderRobotMove: (pos: Vec2) => void;
+  triggerRobotAbility: (slot: RobotAbilitySlot) => void;
+  selectRobotUnit: (on: boolean) => void;
+  setRobotDashAimDir: (dir: Vec2) => void;
+  cancelRobotDashAim: () => void;
+  // Robot shop modal.
+  robotShopOpen: boolean;
+  setRobotShopOpen: (open: boolean) => void;
+  // Robot overview overlay (stats / abilities / vitals). Decoupled from
+  // `robot.selected` so the player can keep commanding the robot (move/
   // target) without the info panel covering the canvas.
-  heroPanelOpen: boolean;
-  setHeroPanelOpen: (open: boolean) => void;
-  // Persistent hero progression actions. Reads/writes ProgressData
-  // (heroUnlocks / activeHero / heroSkills). XP is mutated via the sim
+  robotPanelOpen: boolean;
+  setRobotPanelOpen: (open: boolean) => void;
+  // Persistent robot progression actions. Reads/writes ProgressData
+  // (robotUnlocks / activeRobot / robotSkills). XP is mutated via the sim
   // tick → progress sync inside `tick`.
-  unlockHero: (variant: HeroVariant) => void;
-  setActiveHero: (variant: HeroVariant) => void;
-  setHeroSkillRank: (variant: HeroVariant, id: HeroSkillId, rank: number) => void;
-  resetHeroSkills: (variant: HeroVariant) => void;
-  resetAllHeroSkills: () => void;
+  unlockRobot: (variant: RobotVariant) => void;
+  setActiveRobot: (variant: RobotVariant) => void;
+  setRobotSkillRank: (variant: RobotVariant, id: RobotSkillId, rank: number) => void;
+  resetRobotSkills: (variant: RobotVariant) => void;
+  resetAllRobotSkills: () => void;
   setPendingTouchPlacement: (pos: Vec2 | null) => void;
   confirmTouchPlacement: () => void;
 
@@ -621,9 +621,9 @@ const buildWorldForLevel = (
 ) => {
   const triggeredEggs = triggeredEasterEggIdsForLevel(progress, level.id);
   const world = createWorld(level, mode, DIFFICULTY_MULTIPLIERS[difficulty], triggeredEggs, {
-    variant: progress.activeHero,
-    xp: progress.heroXp[progress.activeHero] ?? 0,
-    skills: progress.heroSkills,
+    variant: progress.activeRobot,
+    xp: progress.robotXp[progress.activeRobot] ?? 0,
+    skills: progress.robotSkills,
   });
   return {
     world,
@@ -1145,28 +1145,28 @@ export const useGame = create<GameStore>((set, get) => ({
       lastResult = { ...lastResult, unlockedAchievements: unlockedThisRun };
     }
 
-    // Sync hero XP back into the persistent slot so kills count even
+    // Sync robot XP back into the persistent slot so kills count even
     // mid-run. Mid-tick re-spec / variant swaps read off progress, so
     // the latest XP must land here before the next tick can use it.
-    const variant = s.world.hero.variant;
-    const liveXp = s.world.hero.xp;
-    const storedXp = progress.heroXp[variant] ?? 0;
+    const variant = s.world.robot.variant;
+    const liveXp = s.world.robot.xp;
+    const storedXp = progress.robotXp[variant] ?? 0;
     if (liveXp !== storedXp) {
       progress = {
         ...progress,
-        heroXp: { ...progress.heroXp, [variant]: liveXp },
+        robotXp: { ...progress.robotXp, [variant]: liveXp },
       };
-      const prevLevel = s.world.hero.level;
+      const prevLevel = s.world.robot.level;
       const nextLevel = levelForXp(liveXp);
       if (nextLevel > prevLevel) {
         // Mid-run level-up: bump maxHp by the per-level inherent bonus
         // and top off current HP by the same delta so leveling reads as
         // a real reward, not just a number tick.
-        const bonus = heroLevelHpBonus(nextLevel) - heroLevelHpBonus(prevLevel);
-        s.world.hero.maxHp += bonus;
-        s.world.hero.hp = Math.min(s.world.hero.maxHp, s.world.hero.hp + bonus);
+        const bonus = robotLevelHpBonus(nextLevel) - robotLevelHpBonus(prevLevel);
+        s.world.robot.maxHp += bonus;
+        s.world.robot.hp = Math.min(s.world.robot.maxHp, s.world.robot.hp + bonus);
       }
-      s.world.hero.level = nextLevel;
+      s.world.robot.level = nextLevel;
     }
 
     if (progress !== s.progress) persistProgress(s.activeSlot, progress);
@@ -1197,7 +1197,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Picking up a tower implicitly cancels a pending Mike dash aim
       // so the next ground click places the tower instead of firing
       // the dash. Cooldown wasn't consumed by the aim stage.
-      if (world.hero.dashAim) world.hero.dashAim = null;
+      if (world.robot.dashAim) world.robot.dashAim = null;
     }
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = kind !== null ? null : s.selectedTreeId;
@@ -1218,44 +1218,44 @@ export const useGame = create<GameStore>((set, get) => ({
 
   towerAtPos: (pos) => towerAt(get().world, pos),
 
-  orderHeroMove: (pos) => {
+  orderRobotMove: (pos) => {
     const s = get();
     if (s.world.status !== "running") return;
-    // Forward the raw click — simOrderHeroMove projects to the path
+    // Forward the raw click — simOrderRobotMove projects to the path
     // each tick and derives a lane-clamped lateral offset, so clicking
-    // near the edge of the painted lane parks the hero on that side.
-    simOrderHeroMove(s.world, pos);
+    // near the edge of the painted lane parks the robot on that side.
+    simOrderRobotMove(s.world, pos);
   },
 
-  triggerHeroAbility: (slot) => {
+  triggerRobotAbility: (slot) => {
     const s = get();
     if (s.world.status !== "running") return;
-    if (!simTriggerHeroAbility(s.world, slot)) return;
+    if (!simTriggerRobotAbility(s.world, slot)) return;
     // Snapshot so the HUD reflects the freshly-triggered cooldown
     // immediately, not on the next tick. Cheap because uiEqual culls
     // no-op renders.
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
-  setHeroDashAimDir: (dir) => {
+  setRobotDashAimDir: (dir) => {
     const s = get();
-    simSetHeroDashAimDir(s.world, dir);
+    simSetRobotDashAimDir(s.world, dir);
   },
 
-  cancelHeroDashAim: () => {
+  cancelRobotDashAim: () => {
     const s = get();
-    if (!s.world.hero.dashAim) return;
-    simCancelHeroDashAim(s.world);
+    if (!s.world.robot.dashAim) return;
+    simCancelRobotDashAim(s.world);
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
-  selectHeroUnit: (on) => {
+  selectRobotUnit: (on) => {
     const s = get();
-    simSelectHero(s.world, on);
+    simSelectRobot(s.world, on);
     if (on) {
-      // Hero selection is mutually exclusive with the other detail panels —
+      // Robot selection is mutually exclusive with the other detail panels —
       // mirror tryPlaceOrSelect's invariant so only one panel renders at a
-      // time and clicking the hero implicitly dismisses the prior selection.
+      // time and clicking the robot implicitly dismisses the prior selection.
       s.world.selectedTowerId = null;
       s.world.selectedBase = false;
       const inspectedEnemy = emptyInspect;
@@ -1271,79 +1271,79 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
   },
 
-  heroShopOpen: false,
-  setHeroShopOpen: (open) => {
+  robotShopOpen: false,
+  setRobotShopOpen: (open) => {
     const s = get();
     const w = s.world;
     // Open behaves like the difficulty picker — auto-pause running
     // levels so the player can browse without a wave eating their HP.
     if (open && w.status === "running") w.status = "paused";
     set({
-      heroShopOpen: open,
+      robotShopOpen: open,
       ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy),
     });
   },
 
-  heroPanelOpen: false,
-  setHeroPanelOpen: (open) => {
-    set({ heroPanelOpen: open });
+  robotPanelOpen: false,
+  setRobotPanelOpen: (open) => {
+    set({ robotPanelOpen: open });
   },
 
-  unlockHero: (variant) => {
+  unlockRobot: (variant) => {
     const s = get();
-    if (s.progress.heroUnlocks[variant]) return;
-    const cost = HERO_SPECS[variant].unlockStars;
+    if (s.progress.robotUnlocks[variant]) return;
+    const cost = ROBOT_SPECS[variant].unlockStars;
     const earned = totalStars(s.progress);
     const spent = spentMetaStars(s.progress.metaSkills);
-    const heroUnlockCost = Object.entries(HERO_SPECS)
-      .filter(([v]) => v !== "george" && s.progress.heroUnlocks[v as HeroVariant])
+    const robotUnlockCost = Object.entries(ROBOT_SPECS)
+      .filter(([v]) => v !== "george" && s.progress.robotUnlocks[v as RobotVariant])
       .reduce((acc, [, sp]) => acc + sp.unlockStars, 0);
-    if (earned - spent - heroUnlockCost < cost) return;
+    if (earned - spent - robotUnlockCost < cost) return;
     const progress: ProgressData = {
       ...s.progress,
-      heroUnlocks: { ...s.progress.heroUnlocks, [variant]: true },
+      robotUnlocks: { ...s.progress.robotUnlocks, [variant]: true },
     };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
 
-  setActiveHero: (variant) => {
+  setActiveRobot: (variant) => {
     const s = get();
-    if (!s.progress.heroUnlocks[variant] && variant !== "george") return;
-    if (s.progress.activeHero === variant) return;
-    const progress: ProgressData = { ...s.progress, activeHero: variant };
+    if (!s.progress.robotUnlocks[variant] && variant !== "george") return;
+    if (s.progress.activeRobot === variant) return;
+    const progress: ProgressData = { ...s.progress, activeRobot: variant };
     persistProgress(s.activeSlot, progress);
-    // If the player is mid-run, swap the live hero too so the change
+    // If the player is mid-run, swap the live robot too so the change
     // takes effect immediately (otherwise it'd wait until next level).
     // Preserves position so the swap feels in-place.
     const w = s.world;
     if (s.screen === "playing") {
-      const old = w.hero;
-      const spec = HERO_SPECS[variant];
-      w.hero.variant = variant;
-      w.hero.maxHp = spec.maxHp;
-      w.hero.hp = spec.maxHp;
-      w.hero.damage = spec.damage;
-      w.hero.range = spec.range;
-      w.hero.fireRate = spec.fireRate;
-      w.hero.speed = spec.speed;
-      w.hero.attackSplashRadius = spec.attackSplashRadius;
-      w.hero.damageType = spec.damageType;
-      w.hero.abilityCooldownMul = 1;
-      w.hero.payload = null;
-      w.hero.selfBuff = null;
-      w.hero.pendingShots.length = 0;
-      w.hero.abilityReadyAt = [0, 0, 0, 0];
-      w.hero.abilityActiveUntil = [0, 0, 0, 0];
-      w.hero.attackCooldown = 0;
-      w.hero.damageMul = 1;
-      w.hero.fireRateMul = 1;
-      w.hero.speedMul = 1;
-      w.hero.damageResist = 0;
-      w.hero.xp = progress.heroXp[variant] ?? 0;
-      applyHeroSkillsToHero(w.hero, progress.heroSkills);
-      w.hero.hp = w.hero.maxHp;
-      // Preserve pos / facing / selected from old hero — feels like a
+      const old = w.robot;
+      const spec = ROBOT_SPECS[variant];
+      w.robot.variant = variant;
+      w.robot.maxHp = spec.maxHp;
+      w.robot.hp = spec.maxHp;
+      w.robot.damage = spec.damage;
+      w.robot.range = spec.range;
+      w.robot.fireRate = spec.fireRate;
+      w.robot.speed = spec.speed;
+      w.robot.attackSplashRadius = spec.attackSplashRadius;
+      w.robot.damageType = spec.damageType;
+      w.robot.abilityCooldownMul = 1;
+      w.robot.payload = null;
+      w.robot.selfBuff = null;
+      w.robot.pendingShots.length = 0;
+      w.robot.abilityReadyAt = [0, 0, 0, 0];
+      w.robot.abilityActiveUntil = [0, 0, 0, 0];
+      w.robot.attackCooldown = 0;
+      w.robot.damageMul = 1;
+      w.robot.fireRateMul = 1;
+      w.robot.speedMul = 1;
+      w.robot.damageResist = 0;
+      w.robot.xp = progress.robotXp[variant] ?? 0;
+      applyRobotSkillsToRobot(w.robot, progress.robotSkills);
+      w.robot.hp = w.robot.maxHp;
+      // Preserve pos / facing / selected from old robot — feels like a
       // pilot swap, not a teleport-respawn.
       void old;
     }
@@ -1353,37 +1353,37 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
-  setHeroSkillRank: (variant, id, rank) => {
+  setRobotSkillRank: (variant, id, rank) => {
     const s = get();
-    const xp = s.progress.heroXp[variant] ?? 0;
-    const ranks = s.progress.heroSkills[variant];
-    const next = setHeroRank(s.progress.heroSkills, variant, id, rank);
-    if (next === s.progress.heroSkills) return;
-    // Reject if spending more points than the hero's level grants. Use
+    const xp = s.progress.robotXp[variant] ?? 0;
+    const ranks = s.progress.robotSkills[variant];
+    const next = setRobotRank(s.progress.robotSkills, variant, id, rank);
+    if (next === s.progress.robotSkills) return;
+    // Reject if spending more points than the robot's level grants. Use
     // the next ranks' spent total against the available pool.
     const nextRanks = next[variant];
     let nextSpent = 0;
-    if (nextRanks) for (const k in nextRanks) nextSpent += nextRanks[k as HeroSkillId] ?? 0;
-    const { earned } = heroSkillPointsAvailable(xp, ranks);
+    if (nextRanks) for (const k in nextRanks) nextSpent += nextRanks[k as RobotSkillId] ?? 0;
+    const { earned } = robotSkillPointsAvailable(xp, ranks);
     if (nextSpent > earned) return;
-    const progress: ProgressData = { ...s.progress, heroSkills: next };
+    const progress: ProgressData = { ...s.progress, robotSkills: next };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
 
-  resetHeroSkills: (variant) => {
+  resetRobotSkills: (variant) => {
     const s = get();
-    const next = resetHeroVariantRanks(s.progress.heroSkills, variant);
-    if (next === s.progress.heroSkills) return;
-    const progress: ProgressData = { ...s.progress, heroSkills: next };
+    const next = resetRobotVariantRanks(s.progress.robotSkills, variant);
+    if (next === s.progress.robotSkills) return;
+    const progress: ProgressData = { ...s.progress, robotSkills: next };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
 
-  resetAllHeroSkills: () => {
+  resetAllRobotSkills: () => {
     const s = get();
-    if (Object.keys(s.progress.heroSkills).length === 0) return;
-    const progress: ProgressData = { ...s.progress, heroSkills: resetAllHeroRanks() };
+    if (Object.keys(s.progress.robotSkills).length === 0) return;
+    const progress: ProgressData = { ...s.progress, robotSkills: resetAllRobotRanks() };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
@@ -1392,14 +1392,14 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     world.selectedBase = false;
-    if (world.hero.selected) world.hero.selected = false;
+    if (world.robot.selected) world.robot.selected = false;
     set({
       selectedKind: null,
       selectedTreeId: null,
       selectedRockId: null,
       pendingTouchPlacement: null,
       inspectedEnemy: emptyInspect,
-      heroPanelOpen: false,
+      robotPanelOpen: false,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },
@@ -1419,7 +1419,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const { world, towerVersion, treeVersion } = get();
     world.selectedTowerId = null;
     world.selectedBase = false;
-    // Intentionally preserve hero.selected — hero control outranks
+    // Intentionally preserve robot.selected — robot control outranks
     // dino-info inspection so the player can keep issuing move orders
     // while reading a passing dino's stats.
     const inspect: InspectState = { id, kind, maxHp, bossVariant };
@@ -1482,7 +1482,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!tree) return;
     w.selectedTowerId = null;
     w.selectedBase = false;
-    if (w.hero.selected) w.hero.selected = false;
+    if (w.robot.selected) w.robot.selected = false;
     const nextCount = (s.treeClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.treeClickCounts, [id]: nextCount };
     const unlock =
@@ -1542,7 +1542,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!rock) return;
     w.selectedTowerId = null;
     w.selectedBase = false;
-    if (w.hero.selected) w.hero.selected = false;
+    if (w.robot.selected) w.robot.selected = false;
     const nextCount = (s.rockClickCounts[id] ?? 0) + 1;
     const nextCounts = { ...s.rockClickCounts, [id]: nextCount };
     const unlock =
@@ -1703,7 +1703,7 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       w.selectedTowerId = hit.id;
       w.selectedBase = false;
-      if (w.hero.selected) w.hero.selected = false;
+      if (w.robot.selected) w.robot.selected = false;
       set({
         selectedKind: null,
         selectedTreeId: null,
@@ -1721,7 +1721,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.selectedKind === null && !s.assigningDroneSlot && hqAt(w, pos)) {
       w.selectedTowerId = null;
       w.selectedBase = true;
-      if (w.hero.selected) w.hero.selected = false;
+      if (w.robot.selected) w.robot.selected = false;
       set({
         selectedTreeId: null,
         selectedRockId: null,
@@ -1814,11 +1814,11 @@ export const useGame = create<GameStore>((set, get) => ({
     placed.totalSpent = cost;
     autoAssignDroneToNewTower(w, placed);
     emit(w, { type: "tower-placed", towerKind: s.selectedKind });
-    // Placing a tower is a deliberate "I'm not driving the hero right
+    // Placing a tower is a deliberate "I'm not driving the robot right
     // now" action — mirror the tower-select branch above and de-select
-    // the hero so the next click drops a tower or selects, not a move
-    // order for the hero.
-    if (w.hero.selected) w.hero.selected = false;
+    // the robot so the next click drops a tower or selects, not a move
+    // order for the robot.
+    if (w.robot.selected) w.robot.selected = false;
     // Keep the currently-picked tower kind selected (so the player can
     // keep placing more of the same) and *don't* auto-select the tower
     // we just dropped — being thrown into the upgrade panel after every
