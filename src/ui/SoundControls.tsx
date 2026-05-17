@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { audio } from "../audio/AudioManager";
 import {
   type AudioPrefs,
@@ -26,8 +26,21 @@ const applyBus = (key: BusKey, v: number) => {
   else audio.setBusVolume(key, v);
 };
 
+// While dragging a slider we throttle the live preview so it isn't a
+// constant stream of overlapping samples. On release we fire a final
+// confirmation cue at the committed level.
+const PREVIEW_THROTTLE_MS = 220;
+
 export const SoundControls = () => {
   const [prefs, setPrefs] = useState<AudioPrefs>(() => readAudioPrefs());
+  const lastPreviewAt = useRef<Record<BusKey, number>>({
+    master: 0,
+    music: 0,
+    ui: 0,
+    towers: 0,
+    enemies: 0,
+    notifications: 0,
+  });
 
   useEffect(() => {
     const persisted = loadAudioPrefs();
@@ -48,6 +61,16 @@ export const SoundControls = () => {
       saveAudioPrefs(next);
       return next;
     });
+    const now = performance.now();
+    if (now - lastPreviewAt.current[key] >= PREVIEW_THROTTLE_MS) {
+      lastPreviewAt.current[key] = now;
+      audio.previewBus(key);
+    }
+  };
+
+  const commitPreview = (key: BusKey) => {
+    lastPreviewAt.current[key] = performance.now();
+    audio.previewBus(key);
   };
 
   const toggleMute = () => {
@@ -90,6 +113,8 @@ export const SoundControls = () => {
             step={0.01}
             value={prefs[key]}
             onChange={(e) => updateBus(key, Number(e.target.value))}
+            onPointerUp={() => commitPreview(key)}
+            onKeyUp={() => commitPreview(key)}
             className="flex-1 accent-cyan"
           />
           <Value value={prefs[key]} />

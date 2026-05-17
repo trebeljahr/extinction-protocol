@@ -696,6 +696,62 @@ export class AudioManager {
     return this.musicVolume;
   }
 
+  // Plays a short representative sample on the right channel so a user
+  // dragging a volume slider hears the level change in real time.
+  previewBus(key: "master" | "music" | SfxBus) {
+    if (!this.ctx || this.muted) return;
+    switch (key) {
+      case "master":
+        // Master gates every channel; route through ui (short, non-musical).
+        this.play("ui-click", "ui", 0.5, 0);
+        break;
+      case "music":
+        this.playMusicPreview();
+        break;
+      case "ui":
+        this.play("ui-click", "ui", 0.5, 0);
+        break;
+      case "towers":
+        this.play("shoot-pulse", "towers", 0.45, 0, 0.4);
+        break;
+      case "enemies":
+        this.playSplat(0.55);
+        break;
+      case "notifications":
+        this.play("wave-start", "notifications", 0.5, 0, 0.6);
+        break;
+    }
+  }
+
+  private lastMusicPreviewAt = 0;
+  private playMusicPreview() {
+    if (!this.ctx || !this.musicGain || this.muted) return;
+    const sample = this.samples.get("music");
+    if (!sample?.loaded || !sample.buffer) return;
+    const wallNow = performance.now();
+    if (wallNow - this.lastMusicPreviewAt < 120) return;
+    this.lastMusicPreviewAt = wallNow;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const duration = 0.55;
+    const maxOffset = Math.max(0, sample.buffer.duration - duration - 0.1);
+    const offset = Math.random() * maxOffset;
+    const src = ctx.createBufferSource();
+    src.buffer = sample.buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.7, now + 0.04);
+    g.gain.setValueAtTime(0.7, now + duration - 0.12);
+    g.gain.linearRampToValueAtTime(0, now + duration);
+    src.connect(g).connect(this.musicGain);
+    src.start(now, offset);
+    try {
+      src.stop(now + duration + 0.05);
+    } catch {
+      /* ok */
+    }
+  }
+
   destroy() {
     this.stopMusic();
     this.stopAllSfx();
