@@ -10,6 +10,15 @@ const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Q" | "W" | "E" | "R" }> = 
   { slot: 3, key: "R" },
 ];
 
+// Compact number formatter — same shape as TowerPanel's so a hero
+// dealing tens of thousands of damage reads as "12k" instead of bloating
+// the HUD strip.
+const fmtCompact = (n: number): string => {
+  if (n < 1000) return Math.round(n).toString();
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
+  return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0)}M`;
+};
+
 // In-game HUD strip: HP/XP bar plus the four ability buttons. The hero
 // menu (HeroShop) is opened from the top-left banner only — not from
 // this panel, not from the hero name. Clicking an ability triggers it
@@ -27,6 +36,9 @@ export const HeroPanel = () => {
   const maxCooldowns = useGame((s) => s.ui.heroAbilityMaxCooldowns);
   const labels = useGame((s) => s.ui.heroAbilityLabels);
   const glyphs = useGame((s) => s.ui.heroAbilityGlyphs);
+  const kills = useGame((s) => s.ui.heroKills);
+  const dps = useGame((s) => s.ui.heroDps);
+  const damageDealt = useGame((s) => s.ui.heroDamageDealt);
   const trigger = useGame((s) => s.triggerHeroAbility);
 
   const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
@@ -55,6 +67,9 @@ export const HeroPanel = () => {
           <span className="hero-hp-value">
             {alive ? `${hp}/${maxHp}` : respawnRemaining > 0 ? `respawn ${respawnRemaining}s` : "—"}
           </span>
+        </div>
+        <div className="hero-combat-row">
+          DPS {dps.toFixed(1)} · KILLS {kills} · DEALT {fmtCompact(damageDealt)}
         </div>
       </div>
       <div className="hero-abilities">

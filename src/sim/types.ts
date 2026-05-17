@@ -455,9 +455,9 @@ export type Projectile = {
   // applyDamage so kill credit lands on the firing tower even if it
   // was sold or upgraded between fire and impact.
   ownerTowerId: EntityId | null;
-  // Set when the projectile came from a hero attack (shot or ability
-  // mortar). Forwarded into applyDamage so hero XP attribution survives
-  // the projectile's flight time.
+  // True when this projectile came from a hero attack. Carried into
+  // applyDamage so kill + damage credit (and hero XP) lands on the hero
+  // alongside any tower attribution.
   fromHero: boolean;
   // Mortar Targeting meta — extra damage applied at splash impact when
   // ≥CLUSTER_THRESHOLD enemies sit inside the splash radius. 0 = no bonus.

@@ -4052,6 +4052,14 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
+  .hero-combat-row {
+    margin-top: 4px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--color-fg-muted, #a8b4c0);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
   .hero-abilities {
     display: flex;
     gap: 6px;

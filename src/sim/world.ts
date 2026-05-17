@@ -1090,10 +1090,11 @@ export type HitOptions = {
   resistStrip?: number; // Chain T3: permanently strip own-type resist toward 1
   regenSuppressOnHit?: number; // Pyre T3: extends regen pause after each hit
   attackerTowerId?: EntityId | null;
-  // Killing-blow attribution for hero XP. Set true on every hero-sourced
-  // damage path (hero shots, payload ticks, burst abilities, coal embers,
-  // dash trails). The kill branch in applyDamage gates the hero.xp award
-  // on this flag so tower-only kills no longer drip XP into the hero.
+  // Set true on every hero-sourced damage path (auto-shots, burst,
+  // incinerate ticks, dash coal embers). applyDamage uses it to credit
+  // hero kills + damageDealt the same way attackerTowerId credits towers,
+  // and to gate the hero.xp award so tower-only kills no longer drip XP
+  // into the hero.
   fromHero?: boolean;
   // Mortar Targeting meta — projectile splash applies +bonus damage when
   // ≥CLUSTER_THRESHOLD enemies are in the splash radius. Forwarded to
@@ -1203,12 +1204,12 @@ export const applyDamage = (
       const attacker = world.towerById.get(hitOpts.attackerTowerId);
       if (attacker) attacker.kills += 1;
     }
-    // Hero XP + kill credit — only awarded when the killing blow came
-    // from the hero (any hero-sourced damage path tags hitOpts.fromHero).
-    // XP persists across runs via the store's tick → progress.heroXp
-    // merge. Tower kills no longer feed hero XP; the hero must do the
-    // work itself. Killing-blow attribution (vs damage-share weighting)
-    // keeps the accounting trivial and matches tower kill-credit semantics.
+    // Hero XP + kill credit — both gated on the killing blow coming from
+    // the hero (any hero-sourced damage path tags hitOpts.fromHero). XP
+    // persists across runs via the store's tick → progress.heroXp merge.
+    // Tower kills no longer feed hero XP; the hero must do the work
+    // itself. Killing-blow attribution (vs damage-share weighting) keeps
+    // the accounting trivial and matches tower kill-credit semantics.
     if (hitOpts?.fromHero) {
       world.hero.kills += 1;
       world.hero.xp += xpForEnemyKill(enemy.maxHp);

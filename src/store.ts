@@ -177,6 +177,12 @@ type UiSnapshot = {
   heroAbilityMaxCooldowns: [number, number, number, number];
   heroAbilityLabels: [string, string, string, string];
   heroAbilityGlyphs: [string, string, string, string];
+  // Run-scoped combat stats — mirror Tower kill/damage tracking. DPS is
+  // theoretical (base damage × base fireRate) so the readout doesn't
+  // thrash when slot-2 buffs flicker on/off.
+  heroKills: number;
+  heroDps: number;
+  heroDamageDealt: number;
 };
 
 const snapshot = (
@@ -267,6 +273,9 @@ const snapshot = (
     ],
     heroAbilityLabels: HERO_SPECS[w.hero.variant].abilityLabels,
     heroAbilityGlyphs: HERO_SPECS[w.hero.variant].abilityGlyphs,
+    heroKills: w.hero.kills,
+    heroDps: w.hero.damage * w.hero.fireRate,
+    heroDamageDealt: w.hero.damageDealt,
   };
 };
 
@@ -308,7 +317,10 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.heroAbilityCooldowns[0] === b.heroAbilityCooldowns[0] &&
   a.heroAbilityCooldowns[1] === b.heroAbilityCooldowns[1] &&
   a.heroAbilityCooldowns[2] === b.heroAbilityCooldowns[2] &&
-  a.heroAbilityCooldowns[3] === b.heroAbilityCooldowns[3];
+  a.heroAbilityCooldowns[3] === b.heroAbilityCooldowns[3] &&
+  a.heroKills === b.heroKills &&
+  a.heroDps === b.heroDps &&
+  a.heroDamageDealt === b.heroDamageDealt;
 
 const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
   const abx = b.x - a.x;
