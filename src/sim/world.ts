@@ -1266,6 +1266,10 @@ export type HitOptions = {
   // and to gate the robot.xp award so tower-only kills no longer drip XP
   // into the robot.
   fromRobot?: boolean;
+  // Suppress per-impact screenshake on splash projectiles. Set by robot
+  // normal-attack splash (Mike, Stan) so every shot doesn't kick the
+  // camera. Forwarded to Projectile and consumed in projectiles.ts.
+  suppressShake?: boolean;
   // Mortar Targeting meta — projectile splash applies +bonus damage when
   // ≥CLUSTER_THRESHOLD enemies are in the splash radius. Forwarded to
   // the Projectile and consumed in projectiles.ts:applyHit.
@@ -1750,6 +1754,7 @@ export const createProjectile = (
     regenSuppressOnHit: hitOpts?.regenSuppressOnHit ?? 0,
     ownerTowerId: hitOpts?.attackerTowerId ?? null,
     fromRobot: hitOpts?.fromRobot ?? false,
+    suppressShake: hitOpts?.suppressShake ?? false,
     clusterDamageBonus: hitOpts?.clusterDamageBonus ?? 0,
   };
   world.projectiles.push(p);

@@ -519,6 +519,9 @@ export type Projectile = {
   // applyDamage so kill + damage credit (and robot XP) lands on the robot
   // alongside any tower attribution.
   fromRobot: boolean;
+  // Robot normal-attack splash sets this so the per-impact screenshake
+  // is skipped. Specials (Stan Saturation barrage) leave it false.
+  suppressShake: boolean;
   // Mortar Targeting meta — extra damage applied at splash impact when
   // ≥CLUSTER_THRESHOLD enemies sit inside the splash radius. 0 = no bonus.
   clusterDamageBonus: number;

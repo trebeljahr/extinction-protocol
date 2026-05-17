@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { dampFactor, shortAngleDelta } from "../sim/angle";
+import { ROBOT_SPECS } from "../sim/robotVariants";
 import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { cloneAndCaptureBase, findClip } from "./animUtils";
@@ -23,13 +24,12 @@ const YAW_HALFLIFE = 0.08;
 // with ROBOT_HOVER_HEIGHT in sim/robot.ts; render reads robot.hoverHeight
 // directly and divides by this to get a 0..1 intensity.
 const HOVER_HEIGHT_FULL = 0.55;
-const JET_COLOR = new THREE.Color("#9fd8ff");
-
 const FLASH_COLOR = new THREE.Color("#ff8a4a");
 
 export const ModelRobotMesh = () => {
   const variant = useGame((s) => s.world.robot.variant);
   const url = ROBOT_URL[variant] ?? ROBOT_URL.george;
+  const jetColor = useMemo(() => new THREE.Color(ROBOT_SPECS[variant].tint), [variant]);
   const { scene, animations } = useGLTF(url);
 
   const groupRef = useRef<THREE.Group>(null);
@@ -241,13 +241,13 @@ export const ModelRobotMesh = () => {
   const jetMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: JET_COLOR,
+        color: jetColor,
         transparent: true,
         opacity: 0,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
-    [],
+    [jetColor],
   );
   useEffect(
     () => () => {

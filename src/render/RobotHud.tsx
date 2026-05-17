@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { ROBOT_SPECS } from "../sim/robotVariants";
 import { useGame } from "../store";
 
 // In-world robot markers: pulsing range ring, move-target ping,
@@ -12,6 +13,8 @@ const ROBOT_DEATH_EXPLOSION_DURATION = 0.7;
 const ROBOT_DEATH_CORE_DURATION = 0.22;
 
 export const RobotHud = () => {
+  const variant = useGame((s) => s.world.robot.variant);
+  const tint = ROBOT_SPECS[variant].tint;
   const ringRef = useRef<THREE.Mesh>(null);
   const footRef = useRef<THREE.Mesh>(null);
   const moveRef = useRef<THREE.Mesh>(null);
@@ -120,13 +123,13 @@ export const RobotHud = () => {
   return (
     <group>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} geometry={ringGeom}>
-        <meshBasicMaterial color="#9fd8ff" transparent opacity={0.55} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={tint} transparent opacity={0.55} side={THREE.DoubleSide} />
       </mesh>
       <mesh ref={footRef} rotation={[-Math.PI / 2, 0, 0]} geometry={footGeom}>
-        <meshBasicMaterial color="#5ad6ff" transparent opacity={0.12} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={tint} transparent opacity={0.12} side={THREE.DoubleSide} />
       </mesh>
       <mesh ref={moveRef} geometry={moveGeom}>
-        <meshBasicMaterial color="#9fd8ff" transparent opacity={0.85} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={tint} transparent opacity={0.85} side={THREE.DoubleSide} />
       </mesh>
       <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
         <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
@@ -136,7 +139,7 @@ export const RobotHud = () => {
       <group ref={aimGroupRef} visible={false} renderOrder={4}>
         <mesh geometry={aimShaftGeom} position={[0, 0, -1.7]} rotation={[-Math.PI / 2, 0, 0]}>
           <meshBasicMaterial
-            color="#ff8a3a"
+            color={tint}
             transparent
             opacity={0.92}
             toneMapped={false}
@@ -146,7 +149,7 @@ export const RobotHud = () => {
         </mesh>
         <mesh geometry={aimHeadGeom} position={[0, 0, -3.1]} rotation={[0, 0, 0]}>
           <meshBasicMaterial
-            color="#ffd07a"
+            color={tint}
             transparent
             opacity={0.98}
             toneMapped={false}

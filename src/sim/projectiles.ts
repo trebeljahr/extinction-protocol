@@ -22,7 +22,10 @@ const applyHit = (world: World, p: Projectile) => {
 
   if (p.kind === "splash") {
     createExplosion(world, p.pos, p.splashRadius, 0.35);
-    addShake(world, 0.25);
+    // Hero normal-attack splash (Mike, Stan) sets suppressShake — every
+    // shot shaking the camera felt annoying. Hero specials (Stan
+    // Saturation barrage) leave it false so the ult still kicks.
+    if (!p.suppressShake) addShake(world, 0.25);
     spawnParticles(world, p.pos, 14, "#ffb266", [3, 7], 0.45);
     spawnParticles(world, p.pos, 8, "#fff2c8", [4, 9], 0.22);
     const rSq = p.splashRadius * p.splashRadius;

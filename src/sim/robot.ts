@@ -176,7 +176,6 @@ const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
     createBeam(world, [robot.pos, target.pos], crit ? "#ffe9a0" : "#cfe8ff", 0.12);
     spawnParticles(world, robot.pos, 4, "#cfe8ff", [2, 5], 0.18);
     spawnParticles(world, target.pos, crit ? 14 : 6, crit ? "#ffe9a0" : "#cfe8ff", [3, 7], 0.3);
-    if (crit) addShake(world, 0.3, 5);
   } else if (robot.attackSplashRadius > 0) {
     createProjectile(
       world,
@@ -188,7 +187,7 @@ const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
       robot.attackSplashRadius,
       ROBOT_PROJECTILE_SPEED,
       false,
-      { fromRobot: true },
+      { fromRobot: true, suppressShake: true },
     );
   } else {
     createProjectile(
@@ -347,7 +346,7 @@ const respawnRobot = (world: World, robot: Robot) => {
   robot.moveTarget = null;
   robot.dashAim = null;
   robot.stuckTimer = 0;
-  spawnParticles(world, robot.pos, 24, "#9fd8ff", [2, 5], 0.5);
+  spawnParticles(world, robot.pos, 24, ROBOT_SPECS[robot.variant].tint, [2, 5], 0.5);
 };
 
 // Forward-corridor blocker bypass. When a tower/tree/rock sits in the
@@ -1008,7 +1007,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       }
       createExplosion(world, lbPos, spec.landingBlast.radius, 0.45);
       spawnParticles(world, lbPos, 24, "#ffb04a", [3, 7], 0.5);
-      spawnParticles(world, lbPos, 14, "#ff8a3a", [4, 9], 0.4);
+      spawnParticles(world, lbPos, 14, variant.tint, [4, 9], 0.4);
       addShake(world, 0.5, 5);
       emit(world, { type: "impact", pos: lbPos });
     }
