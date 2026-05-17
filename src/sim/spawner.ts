@@ -135,7 +135,17 @@ export const startWave = (world: World) => {
   // reap stale buckets so the Map doesn't grow unbounded across a
   // full run. See docs/adaptive-resistance.md.
   if (ADAPTIVE_RESISTANCE_ENABLED) {
-    world.adaptation.dominantNext = computeAdaptiveDominant(world);
+    const prev = world.adaptation.dominantNext;
+    const { type, share } = computeAdaptiveDominant(world);
+    // Streak only ticks while a real dominant was found. A wave with
+    // zero recorded damage (e.g. pre-trigger or a fresh run) leaves
+    // streak at 0 so the boost ramp doesn't start until the player
+    // has actually committed to a damage type.
+    if (type === null) world.adaptation.dominantStreak = 0;
+    else if (type === prev) world.adaptation.dominantStreak += 1;
+    else world.adaptation.dominantStreak = 1;
+    world.adaptation.dominantNext = type;
+    world.adaptation.dominantShare = share;
     if (!world.adaptation.perWave.has(world.wave)) {
       world.adaptation.perWave.set(world.wave, emptyAdaptBucket());
     }

@@ -161,6 +161,10 @@ type UiSnapshot = {
   // Resists chip — per-damage-type adaptation multipliers. Empty when
   // the inspected enemy has no resist chip applied.
   inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
+  // Adaptive-resistance snapshot type — set at spawn for enemies the
+  // herd adapted this wave. Drives the badge color in EnemyPanel so
+  // the badge matches the dino's body tint instead of a fixed amber.
+  inspectedEnemyAdaptiveType: DamageType | null;
   robotVariant: RobotVariant;
   robotLabel: string;
   robotSelected: boolean;
@@ -206,6 +210,7 @@ const snapshot = (
   let elite = false;
   let fierce = false;
   let extraResists: Partial<Record<DamageType, number>> = {};
+  let adaptiveType: DamageType | null = null;
   if (inspect.id !== null) {
     const e = w.enemyById.get(inspect.id);
     if (e?.alive) {
@@ -218,6 +223,7 @@ const snapshot = (
       elite = e.elite;
       fierce = e.fierce;
       extraResists = e.extraResists;
+      adaptiveType = e.adaptiveResistType ?? null;
     }
   }
   return {
@@ -248,6 +254,7 @@ const snapshot = (
     inspectedEnemyElite: elite,
     inspectedEnemyFierce: fierce,
     inspectedEnemyExtraResists: extraResists,
+    inspectedEnemyAdaptiveType: adaptiveType,
     robotVariant: w.robot.variant,
     robotLabel: ROBOT_SPECS[w.robot.variant].label,
     robotSelected: w.robot.selected,
@@ -307,6 +314,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
   a.inspectedEnemyElite === b.inspectedEnemyElite &&
   a.inspectedEnemyFierce === b.inspectedEnemyFierce &&
+  a.inspectedEnemyAdaptiveType === b.inspectedEnemyAdaptiveType &&
   a.robotVariant === b.robotVariant &&
   a.robotSelected === b.robotSelected &&
   a.robotHp === b.robotHp &&

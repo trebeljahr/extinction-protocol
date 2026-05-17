@@ -2,6 +2,7 @@ import { ENEMY_DESCRIPTION, MATRIARCH_DESCRIPTION } from "../sim/enemyText";
 import type { DamageType, EnemyChip } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import {
+  ADAPTIVE_TINT_BY_TYPE,
   BOSS_VARIANT_LABEL,
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_SLOW_RESIST,
@@ -79,6 +80,7 @@ export const EnemyPanel = () => {
   const elite = useGame((s) => s.ui.inspectedEnemyElite);
   const fierce = useGame((s) => s.ui.inspectedEnemyFierce);
   const extraResists = useGame((s) => s.ui.inspectedEnemyExtraResists);
+  const adaptiveType = useGame((s) => s.ui.inspectedEnemyAdaptiveType);
 
   if (kind === null) return null;
 
@@ -166,6 +168,18 @@ export const EnemyPanel = () => {
           })}
           {hasAdaptation &&
             (() => {
+              // Adapted-spawn badge: hue matches the dino's body tint so
+              // the chip and the on-screen creature read as one signal.
+              // Falls back to the first non-1 extraResists key when the
+              // resist is from a level-script chip rather than the
+              // adaptive snapshot (no adaptiveType set).
+              const fallbackType =
+                (Object.keys(extraResists) as DamageType[]).find((t) => extraResists[t] !== 1) ??
+                null;
+              const tintType = adaptiveType ?? fallbackType;
+              const tintHex = tintType
+                ? (ADAPTIVE_TINT_BY_TYPE[tintType] ?? DAMAGE_TYPE_COLOR[tintType])
+                : "#9be079";
               const adaptLines = DAMAGE_TYPE_ORDER.flatMap((t) => {
                 const extra = extraResists[t];
                 if (extra === undefined || extra === 1) return [];
@@ -178,11 +192,11 @@ export const EnemyPanel = () => {
                 <span
                   className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
                   style={{
-                    color: "#ffb266",
-                    borderColor: "rgba(255,178,102,0.5)",
-                    background: "rgba(255,178,102,0.10)",
+                    color: tintHex,
+                    borderColor: tintHex,
+                    background: "rgba(255,255,255,0.04)",
                   }}
-                  title={`Adapted — evolved resistance to specific damage types. ${adaptLines}`}
+                  title={`Adapted — herd has bumped resistance to ${tintType ? DAMAGE_TYPE_LABEL[tintType].toLowerCase() : "specific"} damage. Stays adapted as long as the player keeps leaning on the same type. ${adaptLines}`}
                 >
                   Adapted · {adaptLines}
                 </span>

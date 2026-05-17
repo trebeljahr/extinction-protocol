@@ -658,7 +658,12 @@ export const createWorld = (
     // Adaptive-resistance state — empty until applyDamage starts
     // tallying. dominantNext stays null until startWave picks it
     // from the trailing buckets.
-    adaptation: { perWave: new Map(), dominantNext: null },
+    adaptation: {
+      perWave: new Map(),
+      dominantNext: null,
+      dominantStreak: 0,
+      dominantShare: 0,
+    },
   };
 };
 
@@ -680,20 +685,27 @@ export const spawnMovingEasterEgg = (world: World, defId: string) => {
   const rng = Math.random;
   // Pick a side (0: left, 1: right, 2: top, 3: bottom) and a perpendicular offset.
   const side = Math.floor(rng() * 4);
-  const margin = 3;
+  // Spawn well outside the most-zoomed-out camera frustum so the model
+  // slides into view rather than popping in. CameraRig fits to roughly
+  // ±(MAP_WIDTH/2 + 4) on x and ±(MAP_HEIGHT/2 + 6) on z (mobile),
+  // plus a model half-extent. 12 covers the largest moving-egg model
+  // (rover, targetSize=1.8) with headroom for camera shake.
+  const margin = 12;
+  // Keep the perpendicular offset inside the visible playfield. 0.7
+  // widens the spread vs the prior 0.6 without clipping screen edges.
   let start: Vec2;
   let dir: Vec2;
   if (side === 0) {
-    start = { x: -MAP_WIDTH / 2 - margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.6 };
+    start = { x: -MAP_WIDTH / 2 - margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.7 };
     dir = { x: 1, y: 0 };
   } else if (side === 1) {
-    start = { x: MAP_WIDTH / 2 + margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.6 };
+    start = { x: MAP_WIDTH / 2 + margin, y: (rng() - 0.5) * MAP_HEIGHT * 0.7 };
     dir = { x: -1, y: 0 };
   } else if (side === 2) {
-    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.6, y: MAP_HEIGHT / 2 + margin };
+    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.7, y: MAP_HEIGHT / 2 + margin };
     dir = { x: 0, y: -1 };
   } else {
-    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.6, y: -MAP_HEIGHT / 2 - margin };
+    start = { x: (rng() - 0.5) * MAP_WIDTH * 0.7, y: -MAP_HEIGHT / 2 - margin };
     dir = { x: 0, y: 1 };
   }
   const speed = def.motion.speed;
@@ -701,7 +713,11 @@ export const spawnMovingEasterEgg = (world: World, defId: string) => {
     id: world.nextEntityId++,
     defId: def.id,
     pos: { x: start.x, y: start.y },
-    rotY: Math.atan2(dir.x, dir.y),
+    // Model-forward at rotY=0 is -z_world; game-y maps to -z_world, so
+    // heading angle = atan2(dx, -dy). Matches ModelEnemyMesh.
+    // Prior atan2(dir.x, dir.y) faced models 180° backwards — most
+    // visible on ghost_trike walking across the wasteland.
+    rotY: Math.atan2(dir.x, -dir.y),
     clickCount: 0,
     triggered: false,
     vel: { x: dir.x * speed, y: dir.y * speed },
@@ -939,49 +955,90 @@ export const ADAPT_BOSS_BOOST_SCALE = 0.5;
 // instead of pinging for 6% damage. Non-bosses only.
 export const ADAPT_IMMUNITY_FLOOR = 0.1;
 
+// Concentration share at which adaptation starts amplifying. Below
+// this the player is judged "diversified enough" — adaptation still
+// applies but the share-multiplier contributes 0. At share=1 (single
+// tower) the player gets the full punishment.
+export const ADAPT_CONCENTRATION_FLOOR = 0.5;
+
 // Multiplicative reduction applied to extraResists[type] for the
-// dominant type, per adapted spawn. Grows roughly linearly past the
-// trigger; capped at 0.75 so even L30+ leaves the highest-base-resist
-// enemies with a hairline of damage taken.
-export const adaptiveBoost = (level: number): number => {
+// dominant type, per adapted spawn. Three terms compose:
+//   - levelTerm: slow calendar-based ramp from trigger level.
+//   - streakTerm: per-consecutive-wave punishment for staying on the
+//     same damage type.
+//   - concTerm: punishment for *concentration* — share of damage from
+//     the dominant type above ADAPT_CONCENTRATION_FLOOR.
+// Capped at 0.95 so a single-tower player at L20+ with a long streak
+// hits effectively-immune for any kind with non-trivial base resist
+// (and snaps to true 0 via ADAPT_IMMUNITY_FLOOR for the soft kinds).
+// A diversified player at the same level sees only the level term and
+// a small streak bump, keeping adaptation a tilt rather than a wall.
+export const adaptiveBoost = (level: number, streak: number, share: number): number => {
   if (level < ADAPT_TRIGGER_LEVEL) return 0;
   const t = level - ADAPT_TRIGGER_LEVEL;
-  return Math.min(0.75, 0.2 + t * 0.04);
+  const levelTerm = 0.12 + t * 0.025;
+  const streakTerm = Math.min(0.4, Math.max(0, streak - 1) * 0.07);
+  const concTerm = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.6;
+  return Math.min(0.95, levelTerm + streakTerm + concTerm);
 };
 
-// Per-spawn probability the spawn is one of the adapted variants. The
-// early ramp keeps the "some specimens are adapting" reading on
-// screen; reaches saturation at L22 so late game is uniformly adapted.
-export const adaptiveCoverage = (level: number): number => {
+// Per-spawn probability the spawn is one of the adapted variants.
+// Same three-term shape as the boost so a player parked on one type
+// sees both *more* adapted spawns and *harder* resistance per spawn
+// over time, while a diversified player gets a slow level-only ramp.
+export const adaptiveCoverage = (level: number, streak: number, share: number): number => {
   if (level < ADAPT_TRIGGER_LEVEL) return 0;
   const t = level - ADAPT_TRIGGER_LEVEL;
-  return Math.min(1, 0.3 + t * 0.07);
+  const base = 0.25 + t * 0.05;
+  const streakBonus = Math.min(0.4, Math.max(0, streak - 1) * 0.08);
+  const concBonus = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.6;
+  return Math.min(1, base + streakBonus + concBonus);
 };
 
 // Material tint lerp amount for the adapted body color. Kept below
-// ELITE_TINT_AMOUNT (0.55 in ModelEnemyMesh) at every level so an
-// adapted-but-not-elite enemy never out-saturates an elite silhouette.
-// Stepped instead of continuous so the visual change between bands
-// reads on screen.
-export const adaptiveTintAmount = (level: number): number => {
+// ELITE_TINT_AMOUNT (0.55 in ModelEnemyMesh) at the base; a long
+// streak adds a small bump on top so a player who refuses to swap
+// towers visually watches the herd's hide deepen wave over wave.
+// Stepped level base instead of continuous so the band changes read
+// on screen.
+export const adaptiveTintAmount = (level: number, streak: number): number => {
   if (level < ADAPT_TRIGGER_LEVEL) return 0;
-  if (level <= 14) return 0.1;
-  if (level <= 17) return 0.18;
-  if (level <= 20) return 0.28;
-  if (level <= 25) return 0.38;
-  return 0.48;
+  let base = 0.15;
+  if (level >= 15) base = 0.22;
+  if (level >= 18) base = 0.3;
+  if (level >= 21) base = 0.4;
+  if (level >= 26) base = 0.5;
+  const streakBonus = Math.min(0.15, Math.max(0, streak - 1) * 0.03);
+  return Math.min(0.65, base + streakBonus);
 };
 
-// Adaptive tint hex per resisted damage type. Reuses the existing
-// DAMAGE_TYPE_COLOR palette so the player learns one color → type
-// mapping that's already on screen via the damage-type pips. Read by
-// ModelEnemyMesh.tsx for the body lerp.
+// Adaptive tint hex per resisted damage type. Decoupled from the UI
+// DAMAGE_TYPE_COLOR palette: those pastels are tuned to read as text
+// on a dark HUD background, but they wash out completely when lerped
+// onto a textured dino body at 30% blend. The values below are the
+// same hues bumped to higher saturation / lower luminance so the
+// off-color body tint stays legible across all five types — kinetic
+// reads as gunmetal not bone-white, cold as deep ice not pastel mist.
+// Each picked to stay visually distinct from the others *and* from
+// the ELITE_TINT_BY_KIND palette so an elite/adapted overlap on the
+// kind tints can still tell them apart at a glance.
 export const ADAPTIVE_TINT_BY_TYPE: Record<DamageType, string> = {
-  kinetic: DAMAGE_TYPE_COLOR.kinetic,
-  electric: DAMAGE_TYPE_COLOR.electric,
-  cold: DAMAGE_TYPE_COLOR.cold,
-  explosive: DAMAGE_TYPE_COLOR.explosive,
-  flame: DAMAGE_TYPE_COLOR.flame,
+  kinetic: "#5a6478", // gunmetal slate — bullet-glanced steel
+  electric: "#a040ff", // saturated violet — arc-charged hide
+  cold: "#3ec0ff", // deep ice blue — frost-laminated
+  explosive: "#ff8a1f", // burnt orange — blast-hardened plate
+  flame: "#ff2a14", // hot crimson — char-resistant
+};
+
+// Optional emissive tint per type. Multiplied by a level/streak
+// scalar in ModelEnemyMesh so heavy late-game adaptation reads with
+// a subtle inner glow (without competing with frost/matriarch/elite).
+export const ADAPTIVE_EMISSIVE_BY_TYPE: Record<DamageType, string> = {
+  kinetic: "#2a2f3a",
+  electric: "#6a18cf",
+  cold: "#1880c0",
+  explosive: "#a04408",
+  flame: "#b01408",
 };
 
 export const emptyAdaptBucket = (): Record<DamageType, number> => ({
@@ -1013,8 +1070,10 @@ export const tallyAdaptiveDamage = (world: World, type: DamageType, dealt: numbe
   bucket[type] += dealt;
 };
 
-export const computeAdaptiveDominant = (world: World): DamageType | null => {
-  if (!ADAPTIVE_RESISTANCE_ENABLED) return null;
+export const computeAdaptiveDominant = (
+  world: World,
+): { type: DamageType | null; share: number } => {
+  if (!ADAPTIVE_RESISTANCE_ENABLED) return { type: null, share: 0 };
   const totals = emptyAdaptBucket();
   const fromWave = Math.max(1, world.wave - ADAPT_WINDOW);
   for (let w = fromWave; w <= world.wave; w++) {
@@ -1026,13 +1085,16 @@ export const computeAdaptiveDominant = (world: World): DamageType | null => {
   const order: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
   let best: DamageType | null = null;
   let bestVal = 0;
+  let sum = 0;
   for (const k of order) {
+    sum += totals[k];
     if (totals[k] > bestVal) {
       best = k;
       bestVal = totals[k];
     }
   }
-  return best;
+  const share = sum > 0 ? bestVal / sum : 0;
+  return { type: best, share };
 };
 
 export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; clip?: string }> = {
@@ -1524,10 +1586,12 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     world.levelId >= ADAPT_TRIGGER_LEVEL
   ) {
     const lvl = world.levelId;
-    if (Math.random() < adaptiveCoverage(lvl)) {
+    const streak = world.adaptation.dominantStreak;
+    const share = world.adaptation.dominantShare;
+    if (Math.random() < adaptiveCoverage(lvl, streak, share)) {
       const type = world.adaptation.dominantNext;
       const boostScale = enemy.kind === "boss" ? ADAPT_BOSS_BOOST_SCALE : 1;
-      const boost = adaptiveBoost(lvl) * boostScale;
+      const boost = adaptiveBoost(lvl, streak, share) * boostScale;
       // baseMul matches what applyDamage will look up for the dominant
       // type — keeps the "snap to immune" floor in sync with the real
       // damage path.
@@ -1540,7 +1604,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
       if (enemy.kind !== "boss" && baseMul * next <= ADAPT_IMMUNITY_FLOOR) next = 0;
       enemy.extraResists[type] = next;
       enemy.adaptiveResistType = type;
-      enemy.adaptiveResistAmount = adaptiveTintAmount(lvl);
+      enemy.adaptiveResistAmount = adaptiveTintAmount(lvl, streak);
     }
   }
   world.enemies.push(enemy);

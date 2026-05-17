@@ -8,6 +8,7 @@ import { smoothDirection } from "../sim/path";
 import type { BossVariant, DamageType, EnemyKind, World } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import {
+  ADAPTIVE_EMISSIVE_BY_TYPE,
   ADAPTIVE_TINT_BY_TYPE,
   BOSS_VARIANT_MATERIAL,
   BOSS_VARIANT_TINT,
@@ -126,6 +127,20 @@ export const ModelEnemyMesh = ({
       cold: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.cold),
       explosive: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.explosive),
       flame: new THREE.Color(ADAPTIVE_TINT_BY_TYPE.flame),
+    }),
+    [],
+  );
+  // Matching emissive palette — same useMemo pattern as the tints so
+  // the inner loop never allocates a THREE.Color. Multiplied by the
+  // adaptive lerp amount so the inner glow only kicks in once the
+  // body tint is already visible.
+  const adaptiveEmissiveByType = useMemo<Record<DamageType, THREE.Color>>(
+    () => ({
+      kinetic: new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE.kinetic),
+      electric: new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE.electric),
+      cold: new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE.cold),
+      explosive: new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE.explosive),
+      flame: new THREE.Color(ADAPTIVE_EMISSIVE_BY_TYPE.flame),
     }),
     [],
   );
@@ -477,6 +492,7 @@ export const ModelEnemyMesh = ({
       const adaptiveType = e.adaptiveResistType;
       const adaptiveAmount = e.adaptiveResistAmount ?? 0;
       const adaptiveTint = adaptiveType ? adaptiveTintByType[adaptiveType] : null;
+      const adaptiveEmissive = adaptiveType ? adaptiveEmissiveByType[adaptiveType] : null;
       item.obj.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -519,6 +535,11 @@ export const ModelEnemyMesh = ({
             // Inner rim glow in the kind's elite color — sells the
             // tint as a metallic / energized look rather than a dye job.
             mm.emissive.copy(eliteTint).multiplyScalar(ELITE_EMISSIVE_AMOUNT);
+          } else if (adaptiveEmissive && adaptiveAmount > 0) {
+            // Subtle adaptive inner glow scaled to the body tint
+            // amount so heavy late-game / high-streak adaptation pops
+            // visibly without ever competing with frost/matriarch/elite.
+            mm.emissive.copy(adaptiveEmissive).multiplyScalar(adaptiveAmount * 0.6);
           } else {
             mm.emissive.setRGB(0, 0, 0);
           }

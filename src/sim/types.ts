@@ -770,6 +770,17 @@ export type AdaptiveResistanceState = {
   // wave so mid-wave tower swaps don't re-tune in flight. Null while
   // pre-trigger or before any damage has been dealt.
   dominantNext: DamageType | null;
+  // Consecutive waves the same damage type has remained dominant.
+  // Drives the per-wave boost amplifier: a player leaning on one
+  // tower for many waves running sees adaptation accelerate until the
+  // herd is effectively immune. Resets to 1 when dominant flips,
+  // 0 when no damage tallied yet.
+  dominantStreak: number;
+  // Share (0..1) of the dominant damage type within the trailing
+  // window. High share = player ignoring diversification, fed back
+  // into the boost so concentration is what triggers hard adaptation,
+  // not just calendar level.
+  dominantShare: number;
 };
 
 export type EasterEgg = {
