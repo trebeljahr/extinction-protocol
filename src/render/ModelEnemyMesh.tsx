@@ -65,6 +65,7 @@ type Item = {
   dyingStart: number;
   dyingDuration: number;
   dyingBaseRotX: number;
+  dyingBaseY: number;
 };
 
 // Exp-damp half-life (seconds). Lower = snappier, higher = floatier.
@@ -159,6 +160,11 @@ export const ModelEnemyMesh = ({
   // How long the dying mesh lingers before pooling when no Death clip
   // is available. A real Death clip plays to its full duration instead.
   const DEATH_FALLBACK_SEC = 0.6;
+  // Death anims flatten the skeleton — bones swing below the rest-pose
+  // bounding-box floor that `scaledMinY` was measured against, so the
+  // corpse clips into the ground. Lift the corpse by a small fraction
+  // of its visible size as the anim progresses to absorb the dip.
+  const deathGroundLift = targetSize * 0.06;
 
   // Invisible, oversized tap target. Lets users hit the enemy even when
   // their finger lands next to the silhouette — critical on touch. The
@@ -249,6 +255,7 @@ export const ModelEnemyMesh = ({
           recycled.dyingStart = 0;
           recycled.dyingDuration = 0;
           recycled.dyingBaseRotX = 0;
+          recycled.dyingBaseY = 0;
           recycled.obj.rotation.x = 0;
           recycled.obj.rotation.z = 0;
           item = recycled;
@@ -308,6 +315,7 @@ export const ModelEnemyMesh = ({
             dyingStart: 0,
             dyingDuration: 0,
             dyingBaseRotX: 0,
+            dyingBaseY: 0,
           };
         }
         itemsRef.current.set(e.id, item);
@@ -505,10 +513,14 @@ export const ModelEnemyMesh = ({
         if (!frozen) item.mixer.update(delta);
         const elapsed = world.time - item.dyingStart;
         const t = Math.max(0, Math.min(1, elapsed / item.dyingDuration));
+        const eased = 1 - (1 - t) ** 2;
         if (item.clip === null) {
-          const eased = 1 - (1 - t) ** 2;
           item.obj.rotation.x = item.dyingBaseRotX - eased * (Math.PI / 2);
         }
+        // Ramp ground lift so the corpse rises just enough to cancel
+        // the rest-pose bbox dip as the skeleton flattens. Eased so the
+        // first frame doesn't pop and the held-final-pose stays lifted.
+        item.obj.position.y = item.dyingBaseY + deathGroundLift * eased;
         if (t >= 1) {
           recycleOrDispose(item);
           itemsRef.current.delete(id);
@@ -529,6 +541,7 @@ export const ModelEnemyMesh = ({
       item.dying = true;
       item.dyingStart = world.time;
       item.dyingBaseRotX = item.obj.rotation.x;
+      item.dyingBaseY = item.obj.position.y;
       // Strip click affordance immediately — corpse mid-fall is not a
       // valid inspect target.
       item.obj.userData.enemyId = undefined;
