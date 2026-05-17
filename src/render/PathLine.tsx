@@ -6,22 +6,37 @@ import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 
+const VISUAL_EXIT_EXTENSION = 12;
+const extendPathExit = (path: Vec2[]): Vec2[] => {
+  if (path.length < 2) return path;
+  const last = path[path.length - 1];
+  const prev = path[path.length - 2];
+  const dx = last.x - prev.x;
+  const dy = last.y - prev.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return path;
+  return [
+    ...path,
+    {
+      x: last.x + (dx / len) * VISUAL_EXIT_EXTENSION,
+      y: last.y + (dy / len) * VISUAL_EXIT_EXTENSION,
+    },
+  ];
+};
+
 export const PathLine = () => {
   const paths = useGame((s) => s.world.paths);
   const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const biome = useGame((s) => s.world.biome);
   const pathDebug = useGame((s) => s.pathDebug);
   const style = BIOME_STYLE[biome];
-  // Strip the off-map lead-in so the painted ribbon still begins at the
-  // playfield border even though the sim path extends past it for the
-  // dinosaur entry march. Enemies traverse the full `paths[i]`; only the
-  // rendered ribbon/start ring uses the trimmed slice.
   const pathsWithIds = useMemo(
     () =>
       paths.map((path, i) => ({
         id: nanoid(),
         path,
-        renderPath: path.slice(pathRibbonStart[i] ?? 0),
+        renderPath: extendPathExit(path),
+        ringIndex: pathRibbonStart[i] ?? 0,
       })),
     [paths, pathRibbonStart],
   );
@@ -48,10 +63,11 @@ export const PathLine = () => {
         ))}
       </group>
       <group>
-        {pathsWithIds.map(({ id, renderPath }) => (
+        {pathsWithIds.map(({ id, path, renderPath, ringIndex }) => (
           <PathInner
             key={`in-${id}`}
             path={renderPath}
+            ringPos={path[ringIndex]}
             pathColor={style.pathColor}
             startColor={style.startRing}
           />
@@ -271,10 +287,12 @@ const PathOutline = ({ path, color }: { path: Vec2[]; color: string }) => {
 
 const PathInner = ({
   path,
+  ringPos,
   pathColor,
   startColor,
 }: {
   path: Vec2[];
+  ringPos: Vec2;
   pathColor: string;
   startColor: string;
 }) => {
@@ -286,7 +304,7 @@ const PathInner = ({
       <mesh geometry={geometry} receiveShadow>
         <meshStandardMaterial color={pathColor} roughness={1} />
       </mesh>
-      <mesh position={[path[0].x, 0.04, -path[0].y]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[ringPos.x, 0.04, -ringPos.y]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.6, 1.0, 24]} />
         <meshBasicMaterial color={startColor} transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>

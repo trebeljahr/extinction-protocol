@@ -501,7 +501,7 @@ export const createWorld = (
   // see CameraRig.tsx DECOR_MARGIN_X (4) — leaving ~2 units of margin
   // so enemies fade in by walking from off-screen rather than appearing
   // at the visible edge. Higher zoom levels naturally extend this.
-  const PATH_LEAD_IN_DISTANCE = 6;
+  const PATH_LEAD_IN_DISTANCE = 12;
   const extendedAuthored = level.paths.map((p) => prependLeadIn(p, PATH_LEAD_IN_DISTANCE));
   const paths = extendedAuthored.map((p) => smoothPath(p));
   // smoothPath emits `subdivisions` points per input segment (the final
