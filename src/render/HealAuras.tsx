@@ -1,9 +1,9 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { EnemyKind } from "../sim/types";
 import { HEAL_AURA_RANGE } from "../sim/world";
 import { useGame } from "../store";
+import { HEAL_HUG_RADIUS_BY_KIND } from "./HealAuras.constants";
 
 const MAX_HEALERS = 64;
 // Waves per healer — three phased rings keep at least one ring mid-flight
@@ -13,20 +13,6 @@ const WAVES_PER_HEALER = 3;
 const WAVE_PERIOD = 1.6;
 const MAX_WAVES = MAX_HEALERS * WAVES_PER_HEALER;
 const AURA_COLOR = new THREE.Color("#7eff8a");
-
-// Tight body-hug radius per kind — sized to sit just outside the
-// silhouette, distinct from the broad HEAL_AURA_RANGE which is the
-// actual gameplay heal range and now reads as the wave's terminal arc.
-export const HEAL_HUG_RADIUS_BY_KIND: Record<EnemyKind, number> = {
-  raptor: 0.6,
-  swarm: 0.35,
-  para: 0.85,
-  allosaur: 1.0,
-  stego: 1.0,
-  armored: 1.05,
-  titan: 2.6,
-  boss: 4.2,
-};
 
 export const HealAuras = () => {
   const hugRef = useRef<THREE.InstancedMesh>(null);

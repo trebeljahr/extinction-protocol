@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "../store";
+import { buildPlusGeometry, buildPlusMaterial } from "./RegenBadges.geometry";
 
 const MAX_REGEN = 128;
 // Mint-green 3D "+" floating above any enemy with the regen chip.
@@ -13,52 +14,7 @@ const MAX_REGEN = 128;
 //
 // Hides when regen is paused (just took damage) so the badge tracks the
 // actual healing state — players see the icon go dark right after a
-// hit and come back once regen resumes. Built as ExtrudeGeometry rather
-// than a billboarded plane so the cross reads from any orbit angle in
-// the compendium (the old plane flattened to invisible from straight
-// above).
-
-// Exported for the compendium preview so the in-game cross and the
-// preview share the same geometry/material — one set of tweaks updates
-// both surfaces.
-export const buildPlusGeometry = (): THREE.BufferGeometry => {
-  const shape = new THREE.Shape();
-  const arm = 0.42;
-  const half = 0.14;
-  shape.moveTo(-half, -arm);
-  shape.lineTo(half, -arm);
-  shape.lineTo(half, -half);
-  shape.lineTo(arm, -half);
-  shape.lineTo(arm, half);
-  shape.lineTo(half, half);
-  shape.lineTo(half, arm);
-  shape.lineTo(-half, arm);
-  shape.lineTo(-half, half);
-  shape.lineTo(-arm, half);
-  shape.lineTo(-arm, -half);
-  shape.lineTo(-half, -half);
-  shape.closePath();
-  const geom = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.22,
-    bevelEnabled: true,
-    bevelSize: 0.04,
-    bevelThickness: 0.04,
-    bevelSegments: 2,
-    curveSegments: 1,
-  });
-  geom.center();
-  return geom;
-};
-
-export const buildPlusMaterial = (): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({
-    color: new THREE.Color("#2a9a3a"),
-    emissive: new THREE.Color("#6dff8e"),
-    emissiveIntensity: 1.4,
-    metalness: 0.3,
-    roughness: 0.35,
-    toneMapped: false,
-  });
+// hit and come back once regen resumes.
 
 export const RegenBadges = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);

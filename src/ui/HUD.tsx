@@ -9,7 +9,7 @@ import { BasePanel } from "./BasePanel";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
 import { DifficultyTag } from "./DifficultyTag";
-import { prewarmEnemyIcons } from "./EnemyIcon";
+import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { EnemyPanel } from "./EnemyPanel";
 import { HeroMiniIcon } from "./HeroMiniIcon";
 import { HeroPanel } from "./HeroPanel";

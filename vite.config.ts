@@ -1,6 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type PluginOption } from "vite";
+import { createLogger, defineConfig, loadEnv, type PluginOption } from "vite";
 
 const DEV_PORT = 3286;
 const HATCHKIT_VITE_PLUGIN = "@hatchkit/dev-plugin-vite";
@@ -58,6 +58,19 @@ export default defineConfig(async ({ command, mode }) => {
   const hatchkitPlugins =
     command === "serve" && env.HATCHKIT_LOCAL_DEV !== "0" ? await loadHatchkitLocalDev() : [];
 
+  // Quiet logger for dev: silence routine HMR chatter (hmr update,
+  // hmr invalidate, page reload) so the terminal stays clean. Warnings
+  // and errors still print — those go through warn/error, not info.
+  const quietLogger = createLogger();
+  const baseInfo = quietLogger.info.bind(quietLogger);
+  const HMR_NOISE = /\b(hmr update|hmr invalidate|page reload)\b/;
+  quietLogger.info = (msg, opts) => {
+    if (typeof msg === "string") {
+      if (HMR_NOISE.test(msg)) return;
+    }
+    baseInfo(msg, opts);
+  };
+
   // Re-add the Network: <tailscale/LAN IP> banner that the hatchkit
   // plugin strips. Wraps `server.printUrls` after hatchkit's override
   // so we still get Local (vite) → Network (this) → Tailscale (hatchkit,
@@ -100,9 +113,17 @@ export default defineConfig(async ({ command, mode }) => {
       networkUrlsPlugin,
     ] as PluginOption[],
     clearScreen: false,
+    customLogger: command === "serve" ? quietLogger : undefined,
     server: {
       port: DEV_PORT,
       strictPort: true,
+      watch: {
+        // Other Claude Code worktrees live under `.claude/worktrees/*`
+        // and trigger spurious `page reload` + `changed tsconfig`
+        // full-reloads in this main dev server whenever any agent
+        // edits its own copy. Ignore everything under there.
+        ignored: ["**/.claude/worktrees/**"],
+      },
       // Bind to all interfaces so LAN + Tailscale peers can hit the dev
       // server by IP / MagicDNS hostname. `--host` on the CLI flips the
       // same switch.

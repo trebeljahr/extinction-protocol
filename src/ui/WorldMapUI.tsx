@@ -19,7 +19,7 @@ import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
-import { prewarmEnemyIcons } from "./EnemyIcon";
+import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { FullscreenToggle } from "./FullscreenToggle";
 import {
   IconBook,
