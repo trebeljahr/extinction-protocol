@@ -288,9 +288,11 @@ export const WorldMapUI = () => {
 
       {hovered && (
         <div className="world-map-hover-card absolute left-6 bottom-24 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
-          <div className="flex gap-2.5 items-baseline mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
-            <span className="text-xs font-bold text-gold tracking-mid">#{hovered.id}</span>
-            <span className="text-[15px] font-bold text-fg flex-1">{hovered.name}</span>
+          <div className="flex flex-col gap-0.5 mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
+            <span className="text-[10px] font-bold text-gold tracking-mid uppercase">
+              Outpost {hovered.id}
+            </span>
+            <span className="text-[15px] font-bold text-fg leading-tight">{hovered.name}</span>
           </div>
           {hoveredUnlocked && LEVEL_BRIEFING[hovered.id] && (
             <p className="text-[11px] leading-snug text-fg-muted italic mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
