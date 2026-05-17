@@ -88,7 +88,8 @@ export class AudioManager {
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       )();
-    } catch {
+    } catch (err) {
+      console.warn("[AudioManager] init failed — all audio calls will no-op", err);
       return;
     }
     this.master = this.ctx.createGain();
@@ -694,6 +695,36 @@ export class AudioManager {
   getMusicVolume() {
     return this.musicVolume;
   }
+
+  destroy() {
+    this.stopMusic();
+    this.stopAllSfx();
+    this.activeSplats.clear();
+    this.samples.clear();
+    this.trimmedKeys.clear();
+    this.lastPlayedAt.clear();
+    this.activeVoices.clear();
+    this.musicUrls = null;
+    this.music = null;
+    this.currentMusicKey = null;
+    this.musicPendingKey = null;
+    const ctx = this.ctx;
+    this.master = null;
+    this.output = null;
+    this.limiter = null;
+    this.musicGain = null;
+    this.busGains = { ui: null, towers: null, enemies: null, notifications: null };
+    this.ctx = null;
+    if (ctx && ctx.state !== "closed") {
+      ctx.close().catch(() => {
+        /* ok */
+      });
+    }
+  }
 }
 
 export const audio = new AudioManager();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => audio.destroy());
+}
