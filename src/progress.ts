@@ -2,6 +2,15 @@ import type { AllHeroSkills } from "./sim/heroSkills";
 import { type AllMetaSkills, migrateLegacyMetaSkills } from "./sim/metaSkills";
 import type { BossVariant, EnemyKind, HeroVariant } from "./sim/types";
 
+const withLocalStorage = <T>(fn: (ls: Storage) => T, fallback: T): T => {
+  if (typeof window === "undefined" || !window.localStorage) return fallback;
+  try {
+    return fn(window.localStorage);
+  } catch {
+    return fallback;
+  }
+};
+
 export type Stars = 0 | 1 | 2 | 3;
 export type SlotId = 1 | 2 | 3;
 
@@ -274,10 +283,9 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
 
 type SlotPayload = { meta: SlotMeta; progress: ProgressData };
 
-const readSlotRaw = (id: SlotId): SlotPayload | null => {
-  if (typeof window === "undefined" || !window.localStorage) return null;
-  try {
-    const raw = window.localStorage.getItem(slotKey(id));
+const readSlotRaw = (id: SlotId): SlotPayload | null =>
+  withLocalStorage((ls) => {
+    const raw = ls.getItem(slotKey(id));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { meta?: SlotMeta; progress?: Partial<ProgressData> };
     if (!parsed.progress || !isProgressLike(parsed.progress)) return null;
@@ -290,18 +298,12 @@ const readSlotRaw = (id: SlotId): SlotPayload | null => {
       lastPlayed: typeof parsed.meta?.lastPlayed === "number" ? parsed.meta.lastPlayed : 0,
     };
     return { meta, progress: normalizeProgress(parsed.progress) };
-  } catch {
-    return null;
-  }
-};
+  }, null);
 
 const writeSlotRaw = (id: SlotId, payload: SlotPayload): void => {
-  if (typeof window === "undefined" || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(slotKey(id), JSON.stringify(payload));
-  } catch {
-    // storage full or disabled — silently ignore
-  }
+  withLocalStorage<void>((ls) => {
+    ls.setItem(slotKey(id), JSON.stringify(payload));
+  }, undefined);
 };
 
 // Promote a pre-slot save (single-key v1 schema) into slot 1 the first
@@ -309,27 +311,24 @@ const writeSlotRaw = (id: SlotId, payload: SlotPayload): void => {
 // has already started fresh on the new system, so the legacy blob is
 // dropped without overwriting their slot 1.
 const migrateLegacyToSlot1 = (): void => {
-  if (typeof window === "undefined" || !window.localStorage) return;
-  try {
-    const legacy = window.localStorage.getItem(LEGACY_KEY);
+  withLocalStorage<void>((ls) => {
+    const legacy = ls.getItem(LEGACY_KEY);
     if (!legacy) return;
-    if (window.localStorage.getItem(slotKey(1))) {
-      window.localStorage.removeItem(LEGACY_KEY);
+    if (ls.getItem(slotKey(1))) {
+      ls.removeItem(LEGACY_KEY);
       return;
     }
     const parsed = JSON.parse(legacy) as Partial<ProgressData>;
     if (!isProgressLike(parsed)) {
-      window.localStorage.removeItem(LEGACY_KEY);
+      ls.removeItem(LEGACY_KEY);
       return;
     }
     writeSlotRaw(1, {
       meta: { name: defaultName(1), lastPlayed: Date.now() },
       progress: normalizeProgress(parsed),
     });
-    window.localStorage.removeItem(LEGACY_KEY);
-  } catch {
-    // ignore
-  }
+    ls.removeItem(LEGACY_KEY);
+  }, undefined);
 };
 
 let migrationRun = false;
