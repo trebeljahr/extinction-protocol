@@ -179,27 +179,41 @@ const BASE_PRIMITIVES: PrimitiveDef[] = [
 ];
 
 // Authored dead-dinosaur corpse slots ringing each HQ pad — pad-local
-// (right, fwd) like BASE_PROPS. Picked to sit around the perimeter (mostly
-// just outside the fence, a couple front-corner spots) so the corpses read
-// as "mayhem from prior waves" without crowding the turret or blocking
-// the path. Per-HQ RNG samples a subset; species are mixed per HQ so two
-// neighbouring bases don't both get a wall of Trex carcasses.
+// (right, fwd) like BASE_PROPS. Picked to sit OUTSIDE the fence perimeter
+// (sides at ±4.4, back beyond fwd ≈ -3.6, front beyond fwd ≈ 3.4) so the
+// corpse silhouettes never clip into fences, buildings, or the pad rim.
+// Per-HQ RNG draws from this pool with a runtime collision check that
+// rejects any slot overlapping a path, building prop, pad rect, or
+// previously-placed corpse — so two neighbouring corpses can't stack
+// poses and a curved approach can't shave a carcass with the walking lane.
 const HQ_CORPSE_SLOTS: { right: number; fwd: number }[] = [
-  { right: -3.8, fwd: -0.6 },
-  { right: 3.8, fwd: -0.6 },
-  { right: -3.2, fwd: 3.1 },
-  { right: 3.2, fwd: 3.1 },
-  { right: 0, fwd: -3.6 },
-  { right: -3.6, fwd: -3.0 },
-  { right: 3.6, fwd: -3.0 },
-  { right: -3.5, fwd: 2.4 },
+  { right: -4.4, fwd: -0.5 },
+  { right: 4.4, fwd: -0.5 },
+  { right: -4.4, fwd: 1.6 },
+  { right: 4.4, fwd: 1.6 },
+  { right: -4.4, fwd: -2.2 },
+  { right: 4.4, fwd: -2.2 },
+  { right: -3.4, fwd: 3.6 },
+  { right: 3.4, fwd: 3.6 },
+  { right: 0, fwd: -4.2 },
+  { right: -2.6, fwd: -3.8 },
+  { right: 2.6, fwd: -3.8 },
 ];
 
 // Corpses normalize to their species footprint (3.6–4.6 world units) which
-// is way too large for a 6.5×4.5 fence box — scale down so a Trex carcass
-// sits at ~2 units long, fitting between fence segments.
-const HQ_CORPSE_SCALE_MIN = 0.42;
-const HQ_CORPSE_SCALE_MAX = 0.56;
+// is way too large for the ground around the fence box — scale down so a
+// Trex carcass sits at ~1.7 units long. Tighter than the old 0.42–0.56
+// range so the slots farther out from the fence still feel anchored to
+// the HQ vignette rather than dropped in open field.
+const HQ_CORPSE_SCALE_MIN = 0.32;
+const HQ_CORPSE_SCALE_MAX = 0.4;
+
+// Pad rectangle (HQBasePad mesh: 6.7×5.0 box at local (0, -0.1)).
+// Slot-vs-pad rejection uses pad-local distance from the slot to the rect
+// edge, so a corpse footprint can never poke into the HQ pad itself.
+const HQ_PAD_HALF_RIGHT = 3.35;
+const HQ_PAD_HALF_FWD = 2.5;
+const HQ_PAD_FWD_CENTER = -0.1;
 
 const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
 const noRaycast: THREE.Mesh["raycast"] = () => {};
@@ -509,9 +523,16 @@ export const HQBase = () => {
   // always shows the same aftermath, but per-path RNG so two HQs in the
   // same level get different species and slot subsets. Many levels get
   // zero corpses (clean base) — the player should still occasionally see
-  // a base scrubbed and intact.
+  // a base scrubbed and intact. Slots are filtered at runtime so a corpse
+  // never overlaps a path, building, pad rim, or another corpse.
   const corpseGroups = useMemo(() => {
+    const pathHalf = PATH_WIDTH * 0.5;
+    // Building clearRadius is conservative for gameplay placement; for
+    // visual corpse-vs-prop checks, shrink it so the carcass can sit
+    // believably close without false rejects on every slot.
+    const propVisualScale = 0.7;
     const byUrl = new Map<string, DeadDinoItem[]>();
+
     for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
       const path = paths[pathIndex];
       if (path.length < 2) continue;
@@ -530,8 +551,8 @@ export const HQBase = () => {
       // visual most of the time; the mayhem reads strongest when not
       // every base looks the same.
       const roll = rng();
-      const count = roll < 0.45 ? 0 : roll < 0.8 ? 2 : 3;
-      if (count === 0) continue;
+      const wanted = roll < 0.45 ? 0 : roll < 0.8 ? 2 : 3;
+      if (wanted === 0) continue;
 
       // Fisher–Yates the slot pool so picks are distinct.
       const slotOrder = HQ_CORPSE_SLOTS.map((_, i) => i);
@@ -545,15 +566,69 @@ export const HQBase = () => {
         [speciesOrder[i], speciesOrder[j]] = [speciesOrder[j], speciesOrder[i]];
       }
 
-      for (let i = 0; i < count; i++) {
-        const slot = HQ_CORPSE_SLOTS[slotOrder[i]];
-        const spec = DEAD_DINO_SPECS[speciesOrder[i % DEAD_DINO_SPECS.length]];
-        const wx = last.x + slot.right * rightX + slot.fwd * faceX;
-        const wy = last.y + slot.right * rightY + slot.fwd * faceY;
+      const placedHere: { x: number; y: number; r: number }[] = [];
+      let placedCount = 0;
+      for (let si = 0; si < slotOrder.length && placedCount < wanted; si++) {
+        const slot = HQ_CORPSE_SLOTS[slotOrder[si]];
+        const spec = DEAD_DINO_SPECS[speciesOrder[placedCount % DEAD_DINO_SPECS.length]];
         const scale = HQ_CORPSE_SCALE_MIN + rng() * (HQ_CORPSE_SCALE_MAX - HQ_CORPSE_SCALE_MIN);
         const rotY = rng() * Math.PI * 2;
+        const corpseR = spec.footprint * scale * 0.5;
+        const wx = last.x + slot.right * rightX + slot.fwd * faceX;
+        const wy = last.y + slot.right * rightY + slot.fwd * faceY;
+        const here: Vec2 = { x: wx, y: wy };
+
+        // Pad rect (pad-local). Slot is already in pad-local coords, so
+        // reject if the corpse circle reaches inside the rect.
+        const padDx = Math.max(0, Math.abs(slot.right) - HQ_PAD_HALF_RIGHT);
+        const padDy = Math.max(0, Math.abs(slot.fwd - HQ_PAD_FWD_CENTER) - HQ_PAD_HALF_FWD);
+        if (padDx * padDx + padDy * padDy < corpseR * corpseR) continue;
+
+        // Walking corridor — any path on the map.
+        let blocked = false;
+        const pathLim = corpseR + pathHalf + 0.05;
+        const pathLimSq = pathLim * pathLim;
+        for (const p of paths) {
+          for (let i = 0; i < p.length - 1; i++) {
+            if (distToSegmentSq(here, p[i], p[i + 1]) < pathLimSq) {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) break;
+        }
+        if (blocked) continue;
+
+        // Base building props. Fence/light primitives are thin enough
+        // visually that we don't bother checking them — slots are
+        // authored well clear of the fence ring.
+        for (const inst of instances) {
+          const ix = inst.pos.x - wx;
+          const iy = inst.pos.y - wy;
+          const lim = corpseR + inst.clearRadius * propVisualScale;
+          if (ix * ix + iy * iy < lim * lim) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) continue;
+
+        // Other corpses on the same HQ — primary fix for the "stacked
+        // poses" bug. 0.2u extra slack so silhouettes don't kiss.
+        for (const c of placedHere) {
+          const cx = c.x - wx;
+          const cy = c.y - wy;
+          const lim = corpseR + c.r + 0.2;
+          if (cx * cx + cy * cy < lim * lim) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) continue;
+
+        placedHere.push({ x: wx, y: wy, r: corpseR });
         const item: DeadDinoItem = {
-          id: `hq-${levelId}-${pathIndex}-${i}-${spec.url}`,
+          id: `hq-${levelId}-${pathIndex}-${si}-${spec.url}`,
           pos: new THREE.Vector3(wx, 0, -wy),
           rotY,
           scale,
@@ -561,10 +636,11 @@ export const HQBase = () => {
         const list = byUrl.get(spec.url) ?? [];
         list.push(item);
         byUrl.set(spec.url, list);
+        placedCount++;
       }
     }
     return Array.from(byUrl.entries());
-  }, [paths, levelId]);
+  }, [paths, levelId, instances]);
 
   return (
     <>

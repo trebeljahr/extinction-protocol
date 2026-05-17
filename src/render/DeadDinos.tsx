@@ -1,7 +1,8 @@
 import { useGLTF } from "@react-three/drei";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { mulberry32 } from "../sim/random";
 import { findClip } from "./animUtils";
 import { measureVisibleBox } from "./measureModel";
 
@@ -37,6 +38,48 @@ export type DeadDinoItem = {
 
 const noRaycast: THREE.Mesh["raycast"] = () => {};
 
+// Pale-grey corpse multiplier. GLB materials usually have white base color
+// modulating a texture; copying this color into the cloned material drains
+// the texture toward a desaturated undertone — the visual cue for "dead
+// and drained" instead of "alive". Emissives are wiped so glowing skin
+// patches (alien dino variants) go dark on death.
+const DEATH_TINT = new THREE.Color(0.56, 0.53, 0.5);
+
+const tintCorpseMaterial = (mat: THREE.Material): THREE.Material => {
+  const std = mat as THREE.MeshStandardMaterial;
+  if (!std.color) return mat;
+  const cloned = std.clone();
+  cloned.color.copy(DEATH_TINT);
+  if (cloned.emissive) cloned.emissive.setRGB(0, 0, 0);
+  if ("metalness" in cloned) cloned.metalness = 0;
+  if ("roughness" in cloned) cloned.roughness = 1;
+  return cloned;
+};
+
+// Splat color palette: muted blood reds plus a couple of biome goo greens.
+// Kept dark and low-saturation so a splat reads as "stain on ground"
+// instead of "bright sticker".
+const SPLAT_COLORS = ["#3a0808", "#4a0c0c", "#2b0606", "#1d3a18", "#23381a"];
+
+type Splat = {
+  x: number;
+  z: number;
+  radius: number;
+  color: string;
+  opacity: number;
+};
+
+type Corpse = { id: string; obj: THREE.Object3D; splats: Splat[] };
+
+const hashString = (s: string): number => {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
 export const DeadDinoInstancer = ({ url, items }: { url: string; items: DeadDinoItem[] }) => {
   const gltf = useGLTF(url);
   const footprint = DEAD_DINO_FOOTPRINT[url] ?? 2.0;
@@ -45,7 +88,7 @@ export const DeadDinoInstancer = ({ url, items }: { url: string; items: DeadDino
   // left static. Memoized on the source scene + url so HMR rebuilds the
   // clones if the asset reloads but instances aren't re-cloned on every
   // render.
-  const clones = useMemo(() => {
+  const clones = useMemo<Corpse[]>(() => {
     return items.map((it) => {
       const obj = cloneSkinned(gltf.scene);
       // Bake the Death-clip end pose. All shipped dino GLBs include
@@ -84,15 +127,63 @@ export const DeadDinoInstancer = ({ url, items }: { url: string; items: DeadDino
         m.castShadow = true;
         m.receiveShadow = true;
         m.raycast = noRaycast;
+        if (Array.isArray(m.material)) m.material = m.material.map(tintCorpseMaterial);
+        else m.material = tintCorpseMaterial(m.material);
       });
-      return { id: it.id, obj };
+
+      // Blood / goo splats — small dark ground decals around the corpse.
+      // ~65% of corpses get 1–3 splats; the rest stay clean so the trail
+      // doesn't read as a wall of red. Deterministic per corpse id so the
+      // splats survive HMR and React re-renders.
+      const rng = mulberry32(hashString(it.id));
+      const splats: Splat[] = [];
+      if (rng() < 0.65) {
+        const count = 1 + Math.floor(rng() * 3);
+        const corpseHalf = footprint * it.scale * 0.5;
+        for (let i = 0; i < count; i++) {
+          const angle = rng() * Math.PI * 2;
+          const off = corpseHalf * (0.2 + rng() * 0.55);
+          const radius = corpseHalf * (0.22 + rng() * 0.28);
+          const colorIdx = Math.floor(rng() * SPLAT_COLORS.length);
+          splats.push({
+            x: it.pos.x + Math.cos(angle) * off,
+            z: it.pos.z + Math.sin(angle) * off,
+            radius,
+            color: SPLAT_COLORS[colorIdx],
+            opacity: 0.5 + rng() * 0.25,
+          });
+        }
+      }
+      return { id: it.id, obj, splats };
     });
   }, [gltf.scene, gltf.animations, items, footprint]);
 
   return (
     <group>
       {clones.map((c) => (
-        <primitive key={c.id} object={c.obj} />
+        <Fragment key={c.id}>
+          <primitive object={c.obj} />
+          {c.splats.map((s, i) => (
+            <mesh
+              // biome-ignore lint/suspicious/noArrayIndexKey: deterministic per corpse id
+              key={i}
+              position={[s.x, 0.012, s.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              raycast={noRaycast}
+            >
+              <circleGeometry args={[s.radius, 14]} />
+              <meshBasicMaterial
+                color={s.color}
+                transparent
+                opacity={s.opacity}
+                depthWrite={false}
+                polygonOffset
+                polygonOffsetFactor={-2}
+                polygonOffsetUnits={-2}
+              />
+            </mesh>
+          ))}
+        </Fragment>
       ))}
     </group>
   );
