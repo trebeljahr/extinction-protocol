@@ -9,6 +9,7 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
+import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage";
 import { prependLeadIn, SMOOTH_PATH_SUBDIVISIONS, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
@@ -507,10 +508,16 @@ export const createWorld = (
   // means the rest of the sim doesn't need to know about difficulty.
   const baseHpScale = (level.hpScale ?? 1) * difficulty.hp;
   const modeWaves = modeConfig.waves;
-  const plannedWaves =
+  const scaledWaves =
     baseHpScale === 1
       ? modeWaves
       : modeWaves.map((w) => ({ ...w, hpMul: (w.hpMul ?? 1) * baseHpScale }));
+  const modeForbidden = new Set<TowerKind>(modeConfig.forbiddenTowers ?? []);
+  const modeLocked = modeConfig.lockedLoadout ?? null;
+  const plannedWaves = ensureImmunityCoverage(
+    scaledWaves,
+    availableDamageTypes(modeForbidden, modeLocked),
+  );
   // Iron mode caps lives at 1; every other mode starts at the full HQ
   // life pool. The runtime never tops these up, so this is the only
   // place the value is set per run.
