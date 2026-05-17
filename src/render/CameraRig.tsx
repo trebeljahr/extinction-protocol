@@ -152,6 +152,18 @@ export const CameraRig = () => {
     const curStatus = world.status;
     if (curStatus === "lost" && prevStatusRef.current !== "lost") {
       lossShakeStartRef.current = performance.now();
+      // Snap the orbit back to the base pose so any yaw/pitch the player
+      // dialed in during the run doesn't reappear under the death rumble.
+      // Without this, the rumble's world-space XZ jitter on a rotated
+      // camera reads as a spinning/tilting map. Also resets the shake
+      // accumulator so the next delta computes off the clean base pose.
+      cam.position.set(...CAMERA_BASE_POSITION);
+      if (ctrls) {
+        ctrls.target.set(0, 0, 0);
+        ctrls.update();
+      }
+      shakeOffsetRef.current.x = 0;
+      shakeOffsetRef.current.z = 0;
     }
     if (curStatus === "running") lossShakeStartRef.current = null;
     prevStatusRef.current = curStatus;
