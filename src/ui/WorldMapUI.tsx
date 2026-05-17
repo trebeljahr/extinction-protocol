@@ -10,6 +10,7 @@ import {
   DIFFICULTY_ACCENT,
   DIFFICULTY_LABEL,
   getStars,
+  hasUnlockedChallengeModes,
   isLevelUnlocked,
   totalStars,
 } from "../progress";
@@ -33,6 +34,7 @@ import {
   IconTrophy,
 } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
+import { ModesUnlockedModal } from "./ModesUnlockedModal";
 import { QuickSettings } from "./QuickSettings";
 import { SoundControls } from "./SoundControls";
 import { StarDisplay } from "./StarDisplay";
@@ -66,6 +68,10 @@ export const WorldMapUI = () => {
   const setRobotShopOpen = useGame((s) => s.setRobotShopOpen);
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
+  // One-shot explainer for Heroic + Iron once the player has earned 3
+  // stars on any level. Skipped if the slot has already dismissed it.
+  const showModesUnlocked =
+    !progress.seenModesUnlockExplainer && hasUnlockedChallengeModes(progress);
   const difficulty = progress.difficulty;
   const navRepeatRef = useRef<{ direction: -1 | 1 | 0; nextAt: number }>({
     direction: 0,
@@ -308,6 +314,8 @@ export const WorldMapUI = () => {
       )}
 
       {isDebug && <DebugWorldMapPanel />}
+
+      {showModesUnlocked && <ModesUnlockedModal />}
     </div>
   );
 };

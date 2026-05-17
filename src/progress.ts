@@ -145,6 +145,11 @@ export type ProgressData = {
   // a given map it never spawns there again, even before the achievement
   // unlocks globally. Keyed `${levelId}:${eggId}`.
   triggeredEasterEggs: Record<string, true>;
+  // One-shot flag for the "you unlocked Heroic + Iron modes" world-map
+  // explainer. Heroic + Iron are gated per-level by a normal 3-star
+  // clear, but the explanation only needs to surface the first time the
+  // player crosses that gate on any level.
+  seenModesUnlockExplainer?: true;
 };
 
 export type SlotMeta = {
@@ -302,6 +307,7 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
       raw.triggeredEasterEggs && typeof raw.triggeredEasterEggs === "object"
         ? (raw.triggeredEasterEggs as Record<string, true>)
         : {},
+    seenModesUnlockExplainer: raw.seenModesUnlockExplainer === true ? true : undefined,
   };
 };
 
@@ -457,6 +463,16 @@ export const levelTotalStars = (p: ProgressData, levelId: number): number => {
   const m = getModeStars(p, levelId);
   return m.normal + m.heroic + m.iron;
 };
+
+// True once the player has earned 3 normal-mode stars on any level —
+// the moment Heroic + Iron become available somewhere.
+export const hasUnlockedChallengeModes = (p: ProgressData): boolean => {
+  for (const m of Object.values(p.starsByLevel)) if (m.normal >= 3) return true;
+  return false;
+};
+
+export const markModesUnlockExplainerSeen = (p: ProgressData): ProgressData =>
+  p.seenModesUnlockExplainer ? p : { ...p, seenModesUnlockExplainer: true };
 
 export const isLevelUnlocked = (levelId: number, p: ProgressData): boolean => {
   if (levelId <= 1) return true;

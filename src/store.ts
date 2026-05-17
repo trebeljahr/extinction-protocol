@@ -22,6 +22,7 @@ import {
   markEasterEggTriggered,
   markEncountered,
   markMatriarchsEncountered,
+  markModesUnlockExplainerSeen,
   minDifficulty,
   recordLevelResult,
   saveSlot,
@@ -466,6 +467,11 @@ type GameStore = {
   clearCompendiumInitialSection: () => void;
   setAchievementsOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
+  // One-shot "you unlocked Heroic + Iron modes" world-map dialog.
+  // Visibility is derived in WorldMapUI (any normal-3-star clear AND
+  // !progress.seenModesUnlockExplainer); this setter persists the
+  // dismissed flag so the dialog never reappears on this slot.
+  dismissModesUnlockedExplainer: () => void;
   setSkillTreeOpen: (open: boolean) => void;
   setMetaSkillTier: (kind: TowerKind, branch: MetaBranchId, tier: number) => void;
   resetMetaSkillsForKind: (kind: TowerKind) => void;
@@ -541,7 +547,7 @@ type GameStore = {
   clearSelectedRock: () => void;
   confirmRemoveRock: () => void;
 
-  clickEasterEgg: (id: number) => void;
+  clickEasterEgg: (id: number, hitPos?: Vec2) => void;
 
   inspectEnemy: (
     id: number,
@@ -849,6 +855,14 @@ export const useGame = create<GameStore>((set, get) => ({
   setAchievementsOpen: (open) => set({ achievementsOpen: open }),
 
   setCreditsOpen: (open) => set({ creditsOpen: open }),
+
+  dismissModesUnlockedExplainer: () => {
+    const s = get();
+    const progress = markModesUnlockExplainerSeen(s.progress);
+    if (progress === s.progress) return;
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
 
   setSkillTreeOpen: (open) => set({ skillTreeOpen: open }),
 
