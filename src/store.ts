@@ -448,6 +448,16 @@ type GameStore = {
   deferredNewEnemyQueue: NewSightingId[];
   autoPausedForNewEnemy: boolean;
   levelIntroVisible: boolean;
+  // Tracks whether the heavy level-scene shaders (towers + dinos) have
+  // been compiled into the WebGL context. Set true by either the
+  // worldmap idle prewarm or the PlayScene ShaderPrewarm. Drives the
+  // LevelLoadOverlay — when true at level start the overlay is skipped.
+  assetsPrewarmed: boolean;
+  markAssetsPrewarmed: () => void;
+  // GLB / texture download progress reported by THREE.DefaultLoadingManager
+  // while the LevelLoadOverlay is on screen. null when nothing is in-flight.
+  levelLoadProgress: { loaded: number; total: number } | null;
+  setLevelLoadProgress: (p: { loaded: number; total: number } | null) => void;
   treeClickCounts: Record<number, number>;
   rockClickCounts: Record<number, number>;
 
@@ -717,6 +727,8 @@ export const useGame = create<GameStore>((set, get) => ({
   deferredNewEnemyQueue: [],
   autoPausedForNewEnemy: false,
   levelIntroVisible: false,
+  assetsPrewarmed: false,
+  levelLoadProgress: null,
   treeClickCounts: {},
   rockClickCounts: {},
 
@@ -1485,6 +1497,15 @@ export const useGame = create<GameStore>((set, get) => ({
       inspectedEnemy: emptyInspect,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
+  },
+
+  markAssetsPrewarmed: () => {
+    if (get().assetsPrewarmed) return;
+    set({ assetsPrewarmed: true });
+  },
+
+  setLevelLoadProgress: (p) => {
+    set({ levelLoadProgress: p });
   },
 
   dismissLevelIntro: () => {

@@ -13,6 +13,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import type * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { useGame } from "../store";
 
 const PREWARM_URLS = [
   "/models/Velociraptor.glb",
@@ -45,7 +46,9 @@ export const ShaderPrewarm = () => {
   const gl = useThree((s) => s.gl);
   const sceneRoot = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
-  const [done, setDone] = useState(false);
+  const alreadyWarm = useGame((s) => s.assetsPrewarmed);
+  const markWarm = useGame((s) => s.markAssetsPrewarmed);
+  const [done, setDone] = useState(alreadyWarm);
 
   useEffect(() => {
     if (done) return;
@@ -54,9 +57,12 @@ export const ShaderPrewarm = () => {
     gl.compile(sceneRoot, camera);
     // One RAF buffer so the compile pass actually completes before we
     // strip the meshes back out.
-    const id = requestAnimationFrame(() => setDone(true));
+    const id = requestAnimationFrame(() => {
+      markWarm();
+      setDone(true);
+    });
     return () => cancelAnimationFrame(id);
-  }, [gl, sceneRoot, camera, done]);
+  }, [gl, sceneRoot, camera, done, markWarm]);
 
   if (done) return null;
   return (

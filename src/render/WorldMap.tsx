@@ -12,6 +12,7 @@ import { BiomeProps } from "./BiomeProps";
 import { LevelNode } from "./LevelNode";
 import { MapRoute } from "./MapRoute";
 import { MapOrbitControls } from "./useMapGestures";
+import { WorldMapPrewarm } from "./WorldMapPrewarm";
 
 // Level node bounds span x: [-24, 22], y: [-14, 26] — content grew taller
 // after the 6-biome-band layout (alien band tops out at y=26).
@@ -240,6 +241,8 @@ export const WorldMapScene = () => {
       {LEVELS.map((level) => (
         <LevelNode key={level.id} level={level} />
       ))}
+
+      <WorldMapPrewarm />
     </>
   );
 };

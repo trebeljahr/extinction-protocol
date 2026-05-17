@@ -12,12 +12,14 @@ import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { HUD } from "./ui/HUD";
 import { LandscapeNudge } from "./ui/LandscapeNudge";
 import { LevelIntro } from "./ui/LevelIntro";
+import { LevelLoadOverlay } from "./ui/LevelLoadOverlay";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { SaveSlots } from "./ui/SaveSlots";
 import { Splash } from "./ui/Splash";
 import { enterFullscreen, isFullscreen, loadFullscreenPref } from "./ui/useFullscreen";
 import { useInputModeSignal } from "./ui/useInputMode";
+import { useLevelLoadProgress } from "./ui/useLevelLoadProgress";
 import { useIsMobile } from "./ui/useMediaQuery";
 import { WorldMapUI } from "./ui/WorldMapUI";
 
@@ -105,6 +107,7 @@ export const App = () => {
   const isMobile = useIsMobile();
   useInputModeSignal();
   useAudioBridge();
+  useLevelLoadProgress();
   useGamepadMenuNavigation(
     (screen !== "playing" && screen !== "worldMap") ||
       modalOpen ||
@@ -232,6 +235,7 @@ export const App = () => {
           <RobotShop />
         </Suspense>
       )}
+      <LevelLoadOverlay />
       {screen === "playing" && levelIntroVisible && <LevelIntro />}
       {screen === "playing" && !modalOpen && <NewEnemyAlert />}
       <AchievementToast />
