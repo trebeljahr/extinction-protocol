@@ -3,7 +3,10 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { dampFactor, shortAngleDelta } from "../sim/angle";
+import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
+import { cloneAndCaptureBase, findClip } from "./animUtils";
 import { measureVisibleBox } from "./measureModel";
 
 const HERO_URL: Record<string, string> = {
@@ -22,35 +25,7 @@ const YAW_HALFLIFE = 0.08;
 const HOVER_HEIGHT_FULL = 0.55;
 const JET_COLOR = new THREE.Color("#9fd8ff");
 
-const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
-
-const shortAngleDelta = (from: number, to: number) => {
-  let d = (to - from) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return d;
-};
-
 const FLASH_COLOR = new THREE.Color("#ff8a4a");
-
-const findClip = (clips: THREE.AnimationClip[], names: string[]): THREE.AnimationClip | null => {
-  for (const n of names) {
-    const hit = clips.find((c) => c.name.toLowerCase() === n.toLowerCase());
-    if (hit) return hit;
-  }
-  for (const n of names) {
-    const hit = clips.find((c) => c.name.toLowerCase().includes(n.toLowerCase()));
-    if (hit) return hit;
-  }
-  return null;
-};
-
-const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
-  const c = mat.clone();
-  const std = c as THREE.MeshStandardMaterial;
-  if (std.emissive) std.userData.baseEmissive = std.emissive.clone();
-  return c;
-};
 
 export const ModelHeroMesh = () => {
   const variant = useGame((s) => s.world.hero.variant);
@@ -226,7 +201,7 @@ export const ModelHeroMesh = () => {
     const jet = jetRef.current;
     if (jet) {
       const lift = hero.hoverHeight;
-      const intensity = Math.max(0, Math.min(1, lift / HOVER_HEIGHT_FULL));
+      const intensity = clamp01(lift / HOVER_HEIGHT_FULL);
       jet.visible = intensity > 0.02;
       if (jet.visible) {
         jet.position.set(vis.x, lift * 0.55, vis.z);

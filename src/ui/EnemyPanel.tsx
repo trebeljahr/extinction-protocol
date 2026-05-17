@@ -1,5 +1,6 @@
 import { ENEMY_DESCRIPTION, MATRIARCH_DESCRIPTION } from "../sim/enemyText";
 import type { DamageType, EnemyChip } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import {
   BOSS_VARIANT_LABEL,
   BOSS_VARIANT_RESIST,
@@ -93,9 +94,8 @@ export const EnemyPanel = () => {
   const label = isMatriarch ? BOSS_VARIANT_LABEL[bossVariant] : ENEMY_LABEL[kind];
   const description = isMatriarch ? MATRIARCH_DESCRIPTION[bossVariant] : ENEMY_DESCRIPTION[kind];
 
-  const hpPct = hp !== null && maxHp ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-  const shieldPct =
-    shield !== null && maxShield > 0 ? Math.max(0, Math.min(1, shield / maxShield)) : 0;
+  const hpPct = hp !== null && maxHp ? clamp01(hp / maxHp) : 0;
+  const shieldPct = shield !== null && maxShield > 0 ? clamp01(shield / maxShield) : 0;
   // Elite chip flattens the resist spread toward 1×, then the resists
   // chip multiplies on top. Mirrors applyDamage so the panel reflects
   // the real damage taken in-flight.

@@ -3,6 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { dampFactor, shortAngleDelta } from "../sim/angle";
+import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { bakeObjectToGeometry, type FractureChunk, fractureGeometry } from "./fractureMesh";
 import { measureVisibleBox } from "./measureModel";
@@ -48,13 +50,6 @@ const BARREL_FORWARD = 0.85;
 const BARREL_HEIGHT = 1.05;
 const BARREL_SIDE = 0.34;
 const LASER_RADIUS = 0.055;
-const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
-const shortAngleDelta = (from: number, to: number) => {
-  let d = (to - from) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return d;
-};
 // Number of voronoi cells the turret shatters into. Kept modest because
 // fracture is N×N CSG (each cell intersects N-1 halfspaces and then the
 // source mesh) and is deferred to an idle callback so it must finish
@@ -403,7 +398,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     // will arrive once the run ends, so flashUntilRef stays cold.
     if (!shouldExplode) {
       const flashAge = flashUntilRef.current - now;
-      const flashLevel = Math.max(0, Math.min(1, flashAge / FLASH_DURATION));
+      const flashLevel = clamp01(flashAge / FLASH_DURATION);
       const emissiveR = flashLevel * 1.1;
       const emissiveG = flashLevel * 0.25;
       const emissiveB = flashLevel * 0.15;

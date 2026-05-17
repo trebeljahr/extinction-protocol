@@ -86,7 +86,7 @@ import type {
   World,
 } from "./sim/types";
 import { applyBaseUpgrade, applyUpgrade, sellTower } from "./sim/upgrades";
-import { distSq } from "./sim/vec2";
+import { distSq, distToSegmentSq } from "./sim/vec2";
 import {
   createTower,
   createWorld,
@@ -321,20 +321,6 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.heroKills === b.heroKills &&
   a.heroDps === b.heroDps &&
   a.heroDamageDealt === b.heroDamageDealt;
-
-const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2) => {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const apx = p.x - a.x;
-  const apy = p.y - a.y;
-  const lenSq = abx * abx + aby * aby;
-  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
-  const cx = a.x + t * abx;
-  const cy = a.y + t * aby;
-  const dx = p.x - cx;
-  const dy = p.y - cy;
-  return dx * dx + dy * dy;
-};
 
 const isOnPath = (world: World, pos: Vec2, clearance: number): boolean => {
   const r2 = clearance * clearance;

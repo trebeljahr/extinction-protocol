@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { findClip } from "../render/animUtils";
 import { measureVisibleBox } from "../render/measureModel";
 import type { BossVariant, EnemyKind } from "../sim/types";
 import {
@@ -20,9 +21,6 @@ type Props = {
   bossVariant?: BossVariant;
   size?: number;
 };
-
-const findClip = (clips: THREE.AnimationClip[], needle: string) =>
-  clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
 const Creature = ({
   kind,

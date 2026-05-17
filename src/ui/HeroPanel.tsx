@@ -1,4 +1,5 @@
 import type { HeroAbilitySlot } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { fmtCompact } from "./format";
 
@@ -33,8 +34,8 @@ export const HeroPanel = () => {
   const damageDealt = useGame((s) => s.ui.heroDamageDealt);
   const trigger = useGame((s) => s.triggerHeroAbility);
 
-  const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-  const xpPct = xpNeed > 0 ? Math.max(0, Math.min(1, xpInto / xpNeed)) : 0;
+  const hpPct = maxHp > 0 ? clamp01(hp / maxHp) : 0;
+  const xpPct = xpNeed > 0 ? clamp01(xpInto / xpNeed) : 0;
 
   return (
     <div className="hero-panel">
@@ -69,7 +70,7 @@ export const HeroPanel = () => {
           const cd = cooldowns[slot];
           const max = maxCooldowns[slot];
           const ready = cd === 0 && alive;
-          const fillPct = max > 0 ? Math.max(0, Math.min(1, 1 - cd / max)) : 1;
+          const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
           return (
             <button
               key={key}

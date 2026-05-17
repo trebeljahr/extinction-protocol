@@ -1,5 +1,6 @@
 import { isOnLavaSurface } from "../lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { dampFactor, shortAngleDelta } from "./angle";
 import { isEnemyTargetable } from "./enemyState";
 import { HERO_SPECS, type HeroVariantSpec } from "./heroVariants";
 import { pathProgress, projectOnPath, smoothDirection } from "./path";
@@ -72,18 +73,20 @@ const COAL_TICK_DAMAGE = 16;
 const COAL_RADIUS = 0.85;
 const COAL_LIFETIME = 2.6;
 
-const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
-
-const shortAngleDelta = (from: number, to: number) => {
-  let d = (to - from) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return d;
+// Single source of truth for the hero blocker set. Trees / rocks /
+// towers each carry their own footprint constant; iterating them via
+// this helper keeps resolveOverlap, avoidObstacles, and any future
+// hero-vs-static check from drifting if a footprint is retuned. Lava
+// is intentionally not included — mecha treats it as crossable terrain
+// and applies DoT separately (see updateHero).
+const forHeroBlockers = (world: World, fn: (bx: number, by: number, br: number) => void): void => {
+  for (const t of world.trees) fn(t.pos.x, t.pos.y, TREE_FOOTPRINT * t.scale);
+  for (const r of world.rocks) fn(r.pos.x, r.pos.y, ROCK_FOOTPRINT * r.scale);
+  for (const t of world.towers) fn(t.pos.x, t.pos.y, TOWER_FOOTPRINT * 0.6);
 };
 
 // Push position out of any overlapping blocker by the smallest displacement
-// along the connecting normal. Trees / rocks / towers all treated as
-// disks; lava is sampled point-wise. Iterating 2-3× lets the hero squeeze
+// along the connecting normal. Iterating 2-3× lets the hero squeeze
 // between paired blockers instead of jittering against the first one we
 // resolved.
 const resolveOverlap = (world: World, pos: Vec2, radius: number): Vec2 => {
@@ -91,10 +94,10 @@ const resolveOverlap = (world: World, pos: Vec2, radius: number): Vec2 => {
   let y = pos.y;
   for (let iter = 0; iter < HERO_PUSH_ITERATIONS; iter++) {
     let moved = false;
-    for (const tr of world.trees) {
-      const r = TREE_FOOTPRINT * tr.scale + radius;
-      const dx = x - tr.pos.x;
-      const dy = y - tr.pos.y;
+    forHeroBlockers(world, (bx, by, br) => {
+      const r = br + radius;
+      const dx = x - bx;
+      const dy = y - by;
       const d2 = dx * dx + dy * dy;
       if (d2 < r * r && d2 > 1e-8) {
         const d = Math.sqrt(d2);
@@ -103,37 +106,7 @@ const resolveOverlap = (world: World, pos: Vec2, radius: number): Vec2 => {
         y += dy * push;
         moved = true;
       }
-    }
-    for (const rk of world.rocks) {
-      const r = ROCK_FOOTPRINT * rk.scale + radius;
-      const dx = x - rk.pos.x;
-      const dy = y - rk.pos.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < r * r && d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        const push = (r - d) / d;
-        x += dx * push;
-        y += dy * push;
-        moved = true;
-      }
-    }
-    for (const t of world.towers) {
-      const r = TOWER_FOOTPRINT * 0.6 + radius;
-      const dx = x - t.pos.x;
-      const dy = y - t.pos.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < r * r && d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        const push = (r - d) / d;
-        x += dx * push;
-        y += dy * push;
-        moved = true;
-      }
-    }
-    // Lava is intentionally not a positional blocker — mecha treats it
-    // as crossable terrain. The lava biome applies damage-over-time via
-    // a separate per-tick check (see updateHero) so the player feels the
-    // burn without the resolver pinning her at the shore.
+    });
     if (!moved) break;
   }
   const halfW = MAP_WIDTH / 2 - radius;
@@ -436,9 +409,7 @@ const avoidObstacles = (world: World, hero: Hero, dx: number, dy: number): Vec2 
     pushX += px * sign * strength;
     pushY += py * sign * strength;
   };
-  for (const t of world.trees) consider(t.pos.x, t.pos.y, TREE_FOOTPRINT * t.scale);
-  for (const r of world.rocks) consider(r.pos.x, r.pos.y, ROCK_FOOTPRINT * r.scale);
-  for (const t of world.towers) consider(t.pos.x, t.pos.y, TOWER_FOOTPRINT * 0.6);
+  forHeroBlockers(world, consider);
   return { x: dx + pushX, y: dy + pushY };
 };
 

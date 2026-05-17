@@ -3,8 +3,10 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { dampFactor, shortAngleDelta } from "../sim/angle";
 import { smoothDirection } from "../sim/path";
 import type { BossVariant, DamageType, EnemyKind, World } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import {
   ADAPTIVE_TINT_BY_TYPE,
   BOSS_VARIANT_MATERIAL,
@@ -12,6 +14,7 @@ import {
   ELITE_TINT_BY_KIND,
 } from "../sim/world";
 import { useGame } from "../store";
+import { cloneAndCaptureBase, findClip } from "./animUtils";
 import { measureVisibleBox } from "./measureModel";
 
 type Props = {
@@ -40,12 +43,6 @@ const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
 // authoring + UI can share them.
 const ELITE_TINT_AMOUNT = 0.55;
 const ELITE_EMISSIVE_AMOUNT = 0.35;
-const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
-  const c = mat.clone();
-  const std = c as THREE.MeshStandardMaterial;
-  if (std.color) std.userData.baseColor = std.color.clone();
-  return c;
-};
 
 type Item = {
   obj: THREE.Object3D;
@@ -81,22 +78,10 @@ type Item = {
 const POS_HALFLIFE = 0.02;
 const YAW_HALFLIFE = 0.06;
 
-const dampFactor = (dt: number, halflife: number) => 1 - 0.5 ** (dt / halflife);
-
-const shortAngleDelta = (from: number, to: number) => {
-  let d = (to - from) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return d;
-};
-
 // Soft cap on pooled clones per kind. Beyond this we let GC reclaim them
 // so a single oversized swarm doesn't pin a permanent ceiling of skinned
 // meshes in the scene graph.
 const POOL_LIMIT = 16;
-
-const findClip = (clips: THREE.AnimationClip[], needle: string) =>
-  clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
 
 export const ModelEnemyMesh = ({
   kind,
@@ -396,7 +381,7 @@ export const ModelEnemyMesh = ({
         item.clip = desiredClip;
       }
       const leakProgress = leak
-        ? Math.max(0, Math.min(1, (world.time - leak.startedAt) / (leak.impactAt - leak.startedAt)))
+        ? clamp01((world.time - leak.startedAt) / (leak.impactAt - leak.startedAt))
         : 0;
       const slowed = world.time < e.slowUntil;
       item.mixer.timeScale = (leak && !attackClip ? 0.45 : slowed ? e.slowFactor : 1) * timeScale;
@@ -453,7 +438,7 @@ export const ModelEnemyMesh = ({
         item.visYaw += shortAngleDelta(item.visYaw, targetYaw) * ky;
       }
 
-      const poseT = leak ? Math.max(0, Math.min(1, (leakProgress - 0.35) / 0.65)) : 0;
+      const poseT = leak ? clamp01((leakProgress - 0.35) / 0.65) : 0;
       const attackPose = Math.sin(poseT * Math.PI);
       const bobY = bob ? Math.sin(world.time * 3 + e.id) * 0.12 : 0;
       item.obj.position.set(
@@ -553,7 +538,7 @@ export const ModelEnemyMesh = ({
         // so a pause mid-fall holds the pose until the player resumes.
         if (!frozen) item.mixer.update(delta);
         const elapsed = world.time - item.dyingStart;
-        const t = Math.max(0, Math.min(1, elapsed / item.dyingDuration));
+        const t = clamp01(elapsed / item.dyingDuration);
         const eased = 1 - (1 - t) ** 2;
         if (item.clip === null) {
           item.obj.rotation.x = item.dyingBaseRotX - eased * (Math.PI / 2);

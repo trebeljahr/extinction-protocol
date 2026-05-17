@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
+import { distToSegmentSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
 import { type GroupItem, InstancedGroup } from "./InstancedGroup";
@@ -147,20 +148,6 @@ const BASE_PRIMITIVES: PrimitiveDef[] = [
 
 const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
 const noRaycast: THREE.Mesh["raycast"] = () => {};
-
-const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2): number => {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const apx = p.x - a.x;
-  const apy = p.y - a.y;
-  const lenSq = abx * abx + aby * aby;
-  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
-  const cx = a.x + t * abx;
-  const cy = a.y + t * aby;
-  const dx = p.x - cx;
-  const dy = p.y - cy;
-  return dx * dx + dy * dy;
-};
 
 type Instance = GroupItem & { url: string; clearRadius: number };
 type PrimitiveInstance = {

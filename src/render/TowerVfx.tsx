@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Tower } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 
 // Overlay VFX for towers. Drives "charge up" visuals off `cooldown` progress:
@@ -17,7 +18,7 @@ const chargeProgress = (tower: Tower): number => {
   if (tower.fireRate <= 0) return 0;
   const interval = 1 / tower.fireRate;
   if (interval <= 0) return 1;
-  return Math.max(0, Math.min(1, 1 - tower.cooldown / interval));
+  return clamp01(1 - tower.cooldown / interval);
 };
 
 export const TowerVfx = () => {

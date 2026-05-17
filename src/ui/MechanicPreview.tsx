@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { cloneAndCaptureBase, findClip } from "../render/animUtils";
 import { HEAL_HUG_RADIUS_BY_KIND } from "../render/HealAuras.constants";
 import { measureVisibleBox } from "../render/measureModel";
 import { buildPlusGeometry, buildPlusMaterial } from "../render/RegenBadges.geometry";
@@ -55,16 +56,6 @@ const PREVIEW_KIND: Record<MechanicId, EnemyKind> = {
   fierce: "allosaur",
   slow: "raptor",
   resists: "armored",
-};
-
-const findClip = (clips: THREE.AnimationClip[], needle: string) =>
-  clips.find((c) => c.name.toLowerCase().includes(needle.toLowerCase())) ?? null;
-
-const cloneAndCaptureBase = (mat: THREE.Material): THREE.Material => {
-  const c = mat.clone();
-  const std = c as THREE.MeshStandardMaterial;
-  if (std.color) std.userData.baseColor = std.color.clone();
-  return c;
 };
 
 // === Creature ===

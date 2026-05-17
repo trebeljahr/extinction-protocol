@@ -7,6 +7,8 @@ export const sub = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x - b.x, y: a.y - b.y });
 export const scale = (a: Vec2, s: number): Vec2 => ({ x: a.x * s, y: a.y * s });
 export const len = (a: Vec2): number => Math.hypot(a.x, a.y);
 export const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
+export const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+
 export const distSq = (a: Vec2, b: Vec2): number => {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -46,3 +48,8 @@ export const distPointToSegSq = (
   const dy = py - cy;
   return dx * dx + dy * dy;
 };
+
+// Vec2-typed convenience wrapper around distPointToSegSq for callers that
+// already carry Vec2 objects (path-clearance checks, base-prop scatter).
+export const distToSegmentSq = (p: Vec2, a: Vec2, b: Vec2): number =>
+  distPointToSegSq(p.x, p.y, a.x, a.y, b.x, b.y);

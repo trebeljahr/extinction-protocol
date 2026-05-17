@@ -1,5 +1,5 @@
 import type { Vec2 } from "./types";
-import { dist, lerp } from "./vec2";
+import { clamp01, dist, lerp } from "./vec2";
 
 // Default smoothPath subdivision count. Exposed as a const so callers
 // that need to map a raw-waypoint index to its smoothed-output index
@@ -174,7 +174,7 @@ export const projectOnPath = (
     const aby = b.y - a.y;
     const lenSq = abx * abx + aby * aby;
     if (lenSq === 0) continue;
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq));
+    const t = clamp01(((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq);
     const cx = a.x + t * abx;
     const cy = a.y + t * aby;
     const dx = p.x - cx;

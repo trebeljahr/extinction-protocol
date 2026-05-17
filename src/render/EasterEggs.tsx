@@ -11,14 +11,10 @@ import {
   PRELOAD_URLS,
 } from "../easterEggs";
 import type { EasterEgg } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import { EASTER_EGG_DESPAWN_FADE, useGame } from "../store";
+import { findClip } from "./animUtils";
 import { measureVisibleBox } from "./measureModel";
-
-const findClip = (clips: THREE.AnimationClip[], needle: string | undefined) => {
-  if (!needle) return null;
-  const lower = needle.toLowerCase();
-  return clips.find((c) => c.name.toLowerCase().includes(lower)) ?? null;
-};
 
 // Apply tint + opacity to every material under the clone. Each material is
 // itself cloned first so we don't mutate the cached GLB used by other
@@ -377,7 +373,7 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
     ) {
       const worldTime = useGame.getState().world.time;
       const remaining = egg.despawnAt - worldTime;
-      fade = Math.max(0, Math.min(1, remaining / EASTER_EGG_DESPAWN_FADE));
+      fade = clamp01(remaining / EASTER_EGG_DESPAWN_FADE);
     }
 
     // Apply pop to the visible (inner) group only — the outer hit sphere

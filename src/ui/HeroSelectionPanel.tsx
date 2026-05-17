@@ -1,5 +1,6 @@
 import { HERO_SPECS } from "../sim/heroVariants";
 import type { HeroAbilitySlot } from "../sim/types";
+import { clamp01 } from "../sim/vec2";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
@@ -37,8 +38,8 @@ export const HeroSelectionPanel = () => {
   const spec = HERO_SPECS[variant];
   const damageType = hero.damageType;
   const dps = hero.damage * hero.fireRate;
-  const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-  const xpPct = xpNeed > 0 ? Math.max(0, Math.min(1, xpInto / xpNeed)) : 0;
+  const hpPct = maxHp > 0 ? clamp01(hp / maxHp) : 0;
+  const xpPct = xpNeed > 0 ? clamp01(xpInto / xpNeed) : 0;
 
   return (
     <div className="tower-panel hero-selection-panel">
@@ -102,7 +103,7 @@ export const HeroSelectionPanel = () => {
           const cd = cooldowns[slot];
           const max = maxCooldowns[slot];
           const ready = cd === 0 && alive;
-          const fillPct = max > 0 ? Math.max(0, Math.min(1, 1 - cd / max)) : 1;
+          const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
           return (
             <button
               key={key}

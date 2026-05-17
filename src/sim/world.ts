@@ -1133,6 +1133,23 @@ export const BOSS_VARIANT_RESIST: Record<BossVariant, Record<DamageType, number>
   apex: { kinetic: 0.45, electric: 0.85, cold: 1.5, explosive: 0.3, flame: 0.3 },
 };
 
+// Combined resist multiplier for a damage hit. Walks the same three
+// inputs (base species/variant resist, elite flatten, per-spawn resist
+// chip with armor-pierce override) that applyDamage and the damage
+// estimator both need. Previously inlined in three places — keep the
+// math here so tuning a boss-variant resist or armor-pierce semantics
+// doesn't require updating multiple call sites.
+export const computeResistMul = (enemy: Enemy, type: DamageType, armorPierce: boolean): number => {
+  const baseMul =
+    enemy.kind === "boss" && enemy.bossVariant !== undefined
+      ? BOSS_VARIANT_RESIST[enemy.bossVariant][type]
+      : ENEMY_RESIST[enemy.kind][type];
+  const flattened = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
+  const rawExtra = enemy.extraResists[type] ?? 1;
+  const extraMul = armorPierce && rawExtra < 1 ? 1 : rawExtra;
+  return flattened * extraMul;
+};
+
 export const BOSS_VARIANT_SLOW_RESIST: Record<BossVariant, number> = {
   raptor: 0.4,
   stego: 0.55,
@@ -1296,23 +1313,11 @@ export const applyDamage = (
     }
   }
 
-  // Bosses route through the variant resist table so each biome-themed
-  // matriarch has her own hard counter / hard resist. Falls back to the
-  // base ENEMY_RESIST for everyone else.
-  const baseMul =
-    enemy.kind === "boss" && enemy.bossVariant !== undefined
-      ? BOSS_VARIANT_RESIST[enemy.bossVariant][type]
-      : ENEMY_RESIST[enemy.kind][type];
-  // Elite chip flattens the resist spread toward 1.0 — fewer hard
-  // counters, fewer free wins. A stego with the elite chip still
-  // resists kinetic, just less.
-  let mul = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
-  // Resists chip — per-spawn multiplier on the damage type. Pulse T3
-  // (Annihilator) clamps modifier-induced resists below 1 to 1, undoing
-  // adaptation entirely for kinetic hits.
+  // Combined boss-variant / elite-flatten / resist-chip / armor-pierce
+  // multiplier — shared with the tower-side damage estimator so tuning
+  // one branch can't desync the other. See computeResistMul.
+  const mul = computeResistMul(enemy, type, hitOpts?.armorPierce ?? false);
   const rawExtra = enemy.extraResists[type] ?? 1;
-  const extraMul = hitOpts?.armorPierce && rawExtra < 1 ? 1 : rawExtra;
-  mul *= extraMul;
   const hpDmg = dmg * mul;
   // Clamp the attributed portion to remaining HP so a 1k-damage shot
   // into a 50-HP enemy reads as 50 dealt, not 1k — overkill shouldn't

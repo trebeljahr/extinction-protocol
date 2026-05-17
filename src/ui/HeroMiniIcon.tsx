@@ -1,3 +1,4 @@
+import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { HeroPreview } from "./HeroPreview";
 
@@ -17,7 +18,7 @@ export const HeroMiniIcon = () => {
 
   if (status !== "running" && status !== "paused") return null;
 
-  const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+  const hpPct = maxHp > 0 ? clamp01(hp / maxHp) : 0;
 
   return (
     <button

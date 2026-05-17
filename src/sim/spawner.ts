@@ -1,4 +1,5 @@
 import type { BossVariant, DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
+import { clamp01 } from "./vec2";
 import {
   ADAPT_WINDOW,
   ADAPTIVE_RESISTANCE_ENABLED,
@@ -228,11 +229,11 @@ export const earlyCallBonus = (world: World): number => {
   if (base <= 0) return 0;
   if (!world.waveActive) {
     if (WAVE_GAP_SECONDS <= 0) return 0;
-    const frac = Math.max(0, Math.min(1, world.nextWaveIn / WAVE_GAP_SECONDS));
+    const frac = clamp01(world.nextWaveIn / WAVE_GAP_SECONDS);
     return Math.ceil(base * frac);
   }
   if (world.midwaveTimerMax <= 0) return 0;
-  const frac = Math.max(0, Math.min(1, world.midwaveTimer / world.midwaveTimerMax));
+  const frac = clamp01(world.midwaveTimer / world.midwaveTimerMax);
   return Math.ceil(base * frac);
 };
 

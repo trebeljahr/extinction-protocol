@@ -1,6 +1,7 @@
 import { advanceAlongPath, samplePath, segmentLength, smoothDirection } from "./path";
 import { IGNITE_TICK_INTERVAL } from "./towers";
 import type { Enemy, EnemyKind, Vec2, World } from "./types";
+import { clamp01 } from "./vec2";
 import {
   addShake,
   applyDamage,
@@ -20,8 +21,6 @@ const LEAK_TRIGGER_MAX_DISTANCE = 0.75;
 // visual lead-in so the model swivels just before it starts gnawing.
 const HERO_ENGAGE_RADIUS = 1.6;
 const HERO_ENGAGE_R2 = HERO_ENGAGE_RADIUS * HERO_ENGAGE_RADIUS;
-
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
 const remainingPathDistance = (path: Vec2[], segment: number, segmentT: number): number => {
   if (path.length < 2) return 0;
@@ -118,7 +117,7 @@ const plantEnemyOnPath = (
   }
 
   child.segment = nextSegment;
-  child.segmentT = Math.max(0, Math.min(1, nextT));
+  child.segmentT = clamp01(nextT);
   const basePos = samplePath(path, child.segment, child.segmentT);
   const dir = smoothDirection(path, child.segment, child.segmentT);
   if (dir.x * dir.x + dir.y * dir.y > 1e-12) {

@@ -4,12 +4,10 @@ import { distSq } from "./vec2";
 import {
   applyDamage,
   applySlow,
-  BOSS_VARIANT_RESIST,
+  computeResistMul,
   createBeam,
   createCryoWave,
   createProjectile,
-  ELITE_RESIST_FLATTEN,
-  ENEMY_RESIST,
   emit,
   HIVE_MAX_DRONES,
   HIVE_MAX_DRONES_PER_TOWER,
@@ -59,18 +57,8 @@ const applyIgnite = (world: World, t: Tower, e: Enemy) => {
 
 const enemyProgress = (e: Enemy): number => e.segment + e.segmentT;
 
-const resistMulForTower = (tower: Tower, e: Enemy): number => {
-  const dmgType = TOWER_DAMAGE_TYPE[tower.kind];
-  const baseMul =
-    e.kind === "boss" && e.bossVariant !== undefined
-      ? BOSS_VARIANT_RESIST[e.bossVariant][dmgType]
-      : ENEMY_RESIST[e.kind][dmgType];
-  let mul = e.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
-  const rawExtra = e.extraResists[dmgType] ?? 1;
-  const extraMul = tower.armorPierce && rawExtra < 1 ? 1 : rawExtra;
-  mul *= extraMul;
-  return mul;
-};
+const resistMulForTower = (tower: Tower, e: Enemy): number =>
+  computeResistMul(e, TOWER_DAMAGE_TYPE[tower.kind], tower.armorPierce);
 
 type DamageEstimate = {
   totalDealt: number;
