@@ -1057,31 +1057,27 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: -23, y: 2 },
     hpScale: 1.18,
     waves: [
-      intro(16, 12),
-      mixed({ raptor: 18, swarm: 14, allosaur: 5, stego: 2 }),
-      // First taste of shields: a small raptor shielded pack. The 10pt
-      // bubble breaks fast — the lesson is "shield first, body second."
-      shielded({ raptor: 12 }, 0.55),
-      rush(80, 14),
+      intro(20, 14),
+      // First taste of shields: denser raptor pack — the bubble breaks
+      // fast, the lesson is "shield first, body second."
+      shielded({ raptor: 14 }, 0.5),
       // Shielded raptors mixed into a regular pack so the player has to
       // notice mid-wave which targets are still buffered.
-      partShielded({ raptor: 8 }, { raptor: 14, swarm: 16, allosaur: 5 }, 0.5),
-      heavy({ armored: 7, stego: 4, allosaur: 3 }),
-      rush(120, 24),
-      mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 4, armored: 2 }),
-      // Apatosaurus debut: a single titan slipped into a heavy push so the
-      // player meets him alongside familiar armored/stego pressure before
-      // the finale doubles up. Moved here from level 10's boss wave so the
-      // Stegosaur Matriarch keeps her solo spotlight.
-      heavy({ armored: 12, stego: 7, allosaur: 5, titan: 1 }),
+      partShielded({ raptor: 10 }, { raptor: 18, swarm: 22, allosaur: 7 }, 0.45),
+      heavy({ armored: 9, stego: 5, allosaur: 4 }),
+      rush(150, 30),
+      // Apatosaurus debut: titans slipped into a dense heavy push so the
+      // player meets them alongside familiar armored/stego pressure
+      // before the finale doubles up.
+      heavy({ armored: 14, stego: 8, allosaur: 6, titan: 2 }),
       // Specialist finale: a small block of kinetic-resistant armored
       // ("Ironplate" hide) ride the chaos so pulse-only spam stalls on
       // the holdouts. Chain/cryo/mortar still cut through cleanly.
       withSpecialist(
-        chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 5, titan: 2 }),
+        chaos({ raptor: 32, swarm: 44, allosaur: 14, stego: 9, armored: 7, titan: 3 }),
         {
           kind: "armored",
-          count: 3,
+          count: 4,
           resists: RESIST_KINETIC_95,
         },
       ),
@@ -1158,61 +1154,48 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: -13, y: 5 },
     hpScale: 1.2,
     waves: [
-      split("intro", 0.85, [0, { raptor: 10 }], [1, { raptor: 10 }]),
+      split("intro", 0.85, [0, { raptor: 12 }], [1, { raptor: 12 }]),
       split(
         "mixed",
-        0.55,
-        [0, { raptor: 12, swarm: 8, allosaur: 3 }],
-        [1, { raptor: 12, swarm: 8, allosaur: 3 }],
+        0.5,
+        [0, { raptor: 14, swarm: 10, allosaur: 4 }],
+        [1, { raptor: 14, swarm: 10, allosaur: 4 }],
       ),
-      split("swarm", 0.1, [0, { swarm: 50 }], [1, { swarm: 50 }]),
+      split("swarm", 0.09, [0, { swarm: 70 }], [1, { swarm: 70 }]),
       // First armored shields: focus-fire pressure on a tank that
       // already eats kinetic only. Splash bounces off the bubble — the
       // wave teaches that DoT and chip damage are the answer.
       {
         archetype: "heavy",
-        spacing: 0.9,
+        spacing: 0.85,
         spawns: [
-          ...toSpawns({ armored: 3, stego: 2 }, 0, { shielded: true }),
-          ...toSpawns({ armored: 3, stego: 2 }, 1, { shielded: true }),
+          ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
+          ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
         ],
       },
-      split(
-        "mixed",
-        0.5,
-        [0, { raptor: 14, swarm: 10, allosaur: 4, stego: 2 }],
-        [1, { raptor: 14, swarm: 10, allosaur: 4, stego: 2 }],
-      ),
-      split(
-        "chaos",
-        0.3,
-        [0, { raptor: 12, swarm: 14, allosaur: 4, stego: 2, armored: 1 }],
-        [1, { raptor: 12, swarm: 14, allosaur: 4, stego: 2, armored: 1 }],
-      ),
-      split("swarm", 0.09, [0, { swarm: 55 }], [1, { swarm: 55, raptor: 10 }]),
       // Shielded armored convoy on both lanes — the punctuation wave for
       // L12. Each shielded armored is effectively a 420hp brick.
       {
         archetype: "heavy",
-        spacing: 0.85,
+        spacing: 0.8,
         spawns: [
-          ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
-          ...toSpawns({ allosaur: 3 }, 0),
-          ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
-          ...toSpawns({ allosaur: 3 }, 1),
+          ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
+          ...toSpawns({ allosaur: 4 }, 0),
+          ...toSpawns({ armored: 5, stego: 3 }, 1, { shielded: true }),
+          ...toSpawns({ allosaur: 4 }, 1),
         ],
       },
       split(
         "chaos",
-        0.28,
-        [0, { raptor: 14, swarm: 18, allosaur: 5, stego: 3, armored: 2 }],
-        [1, { raptor: 14, swarm: 18, allosaur: 5, stego: 3, armored: 2 }],
+        0.27,
+        [0, { raptor: 20, swarm: 26, allosaur: 8, stego: 5, armored: 4, titan: 1 }],
+        [1, { raptor: 20, swarm: 26, allosaur: 8, stego: 5, armored: 4, titan: 1 }],
       ),
       split(
         "chaos",
-        0.25,
-        [0, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
-        [1, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
+        0.23,
+        [0, { raptor: 24, swarm: 32, allosaur: 12, stego: 10, armored: 8, titan: 3 }],
+        [1, { raptor: 24, swarm: 32, allosaur: 12, stego: 10, armored: 8, titan: 3 }],
       ),
     ],
     heroic: {
@@ -1378,55 +1361,52 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: -3, y: 0 },
     hpScale: 1.22,
     waves: [
-      mixed({ raptor: 18, swarm: 14, allosaur: 5 }),
-      rush(75, 14),
-      // First healing encounter: 3 paras with the healAura chip,
-      // escorted by raptors. Paras are fast — sentinel-mode hive or
-      // strong single-target burst is the answer. Convoy archetype
-      // keeps the healers sandwiched.
+      mixed({ raptor: 22, swarm: 18, allosaur: 7, stego: 2 }),
+      rush(115, 24),
+      // First healing encounter: paras with the healAura chip, escorted
+      // by raptors. Paras are fast — sentinel-mode hive or strong
+      // single-target burst is the answer. Convoy archetype keeps the
+      // healers sandwiched.
       {
         archetype: "convoy",
-        spacing: 0.55,
+        spacing: 0.5,
         spawns: [
-          { kind: "raptor", count: 6, pathIndex: 0 },
-          ...toSpawns({ para: 3 }, 0, { healAura: true }),
-          { kind: "raptor", count: 6, pathIndex: 0 },
+          { kind: "raptor", count: 8, pathIndex: 0 },
+          ...toSpawns({ para: 4 }, 0, { healAura: true }),
+          { kind: "raptor", count: 8, pathIndex: 0 },
         ],
       },
-      heavy({ armored: 7, stego: 4, allosaur: 3 }),
-      // Healing-supported armored push — the aura turns 4 armored into
-      // a chip war if the healers aren't picked off.
+      // Healing-supported armored push — the aura turns the armored core
+      // into a chip war if the healers aren't picked off.
       {
         archetype: "heavy",
-        spacing: 0.9,
+        spacing: 0.85,
         spawns: [
-          ...toSpawns({ armored: 4, stego: 3, allosaur: 3 }),
-          ...toSpawns({ para: 2 }, 0, { healAura: true }),
+          ...toSpawns({ armored: 6, stego: 4, allosaur: 4 }),
+          ...toSpawns({ para: 3 }, 0, { healAura: true }),
         ],
       },
       // Electric-resistant ("Insulated") para minority — paras normally
       // ring through chain at 1.7×, this batch flips the script so chain
       // spam can't melt them. The vanilla chaos still teaches the regular
       // mid-wave; the holdouts demand a second damage type to finish.
-      withSpecialist(chaos({ raptor: 18, swarm: 24, allosaur: 8, stego: 4, armored: 2 }), {
+      withSpecialist(chaos({ raptor: 22, swarm: 30, allosaur: 10, stego: 6, armored: 3 }), {
         kind: "para",
-        count: 4,
+        count: 5,
         resists: RESIST_ELECTRIC_95,
       }),
-      rush(120, 26),
-      heavy({ armored: 13, stego: 7, allosaur: 5, titan: 1 }),
+      heavy({ armored: 18, stego: 10, allosaur: 8, titan: 2 }),
       // Healing paras mixed into a chaos pack — the heal trickle keeps
       // swarm stragglers alive long enough to break through.
       {
         archetype: "chaos",
-        spacing: 0.3,
+        spacing: 0.27,
         spawns: [
-          ...toSpawns({ raptor: 22, swarm: 24, allosaur: 9, stego: 5, armored: 3 }),
-          ...toSpawns({ para: 3 }, 0, { healAura: true }),
+          ...toSpawns({ raptor: 26, swarm: 30, allosaur: 11, stego: 7, armored: 5, titan: 1 }),
+          ...toSpawns({ para: 4 }, 0, { healAura: true }),
         ],
       },
-      heavy({ armored: 16, stego: 8, allosaur: 6, titan: 2 }),
-      chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 8, armored: 7, titan: 2 }),
+      chaos({ raptor: 32, swarm: 44, allosaur: 14, stego: 10, armored: 9, titan: 3 }),
     ],
     heroic: {
       startGold: 450,
@@ -1531,10 +1511,9 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 9, y: 4 },
     hpScale: 1.25,
     waves: [
-      intro(18, 14),
-      mixed({ raptor: 20, swarm: 14, allosaur: 6, stego: 2 }),
-      rush(80, 16),
-      heavy({ armored: 8, stego: 4, allosaur: 4 }),
+      intro(22, 18),
+      mixed({ raptor: 24, swarm: 18, allosaur: 8, stego: 3 }),
+      rush(125, 26),
       // Regen debut: a small group of regen stegos. Slow self-heal so
       // chip-damage towers (cryo cold tick, hive drones, flame DoT)
       // can't whittle from a distance — sustained burst is required.
@@ -1542,56 +1521,54 @@ export const LEVELS: LevelConfig[] = [
       // gives them time to recover between shots.
       {
         archetype: "trickle",
-        spacing: 1.6,
-        spawns: [...toSpawns({ stego: 4 }, 0, { regen: true })],
+        spacing: 1.5,
+        spawns: [...toSpawns({ stego: 5 }, 0, { regen: true })],
       },
-      echelon([{ raptor: 22, swarm: 18 }, { allosaur: 8, stego: 4 }, { armored: 4 }]),
+      echelon([{ raptor: 26, swarm: 22 }, { allosaur: 10, stego: 5 }, { armored: 5 }]),
       // Shielded healing paras behind raptor cover — both chips on the
       // same enemy. Shield blunts focus fire, aura props the cover up.
       // Hive's sentinel upgrade carves through this; nothing else
       // really does.
       {
         archetype: "convoy",
-        spacing: 0.5,
+        spacing: 0.45,
         spawns: [
-          { kind: "raptor", count: 8, pathIndex: 0 },
-          ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
-          { kind: "raptor", count: 8, pathIndex: 0 },
+          { kind: "raptor", count: 10, pathIndex: 0 },
+          ...toSpawns({ para: 4 }, 0, { shielded: true, healAura: true }),
+          { kind: "raptor", count: 10, pathIndex: 0 },
         ],
       },
-      chaos({ raptor: 20, swarm: 26, allosaur: 9, stego: 5, armored: 3, titan: 1 }),
-      rush(125, 26),
       // Regen armored — the brick-that-heals. Anything not bursting
       // hard enough to keep regen paused gives them HP back. Ideal
       // place to teach "burst > sustain on this target."
       {
         archetype: "heavy",
-        spacing: 1.0,
+        spacing: 0.95,
         spawns: [
-          ...toSpawns({ armored: 4 }, 0, { regen: true }),
-          ...toSpawns({ stego: 5, allosaur: 5, titan: 1 }),
+          ...toSpawns({ armored: 5 }, 0, { regen: true }),
+          ...toSpawns({ stego: 6, allosaur: 6, titan: 2 }),
         ],
       },
       // Shielded armored escort plus shielded healing paras — break an
       // armored shield, watch a healer top it right back up.
       {
         archetype: "heavy",
-        spacing: 0.85,
+        spacing: 0.8,
         spawns: [
-          ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
-          ...toSpawns({ para: 2 }, 0, { shielded: true, healAura: true }),
-          ...toSpawns({ allosaur: 5 }),
+          ...toSpawns({ armored: 6, stego: 4 }, 0, { shielded: true }),
+          ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
+          ...toSpawns({ allosaur: 6 }),
         ],
       },
-      heavy({ armored: 16, stego: 9, allosaur: 6, titan: 2 }),
+      heavy({ armored: 20, stego: 11, allosaur: 8, titan: 3 }),
       // Flame-resistant ("Asbestos") allosaur minority — DoT pyre spam
       // slides off them, so the player needs kinetic/explosive burst to
       // finish or watches them barrel through with full HP.
       withSpecialist(
-        chaos({ raptor: 30, swarm: 40, allosaur: 9, stego: 7, armored: 6, titan: 2 }),
+        chaos({ raptor: 34, swarm: 48, allosaur: 11, stego: 9, armored: 8, titan: 3 }),
         {
           kind: "allosaur",
-          count: 3,
+          count: 4,
           resists: RESIST_FLAME_95,
         },
       ),
@@ -1725,52 +1702,50 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 20, y: 1 },
     hpScale: 1.45,
     waves: [
-      mixed({ raptor: 16, swarm: 12, para: 4, allosaur: 4, stego: 1 }),
-      rush(90, 18),
-      heavy({ armored: 8, stego: 5, allosaur: 4 }),
-      mixed({ raptor: 24, swarm: 20, para: 6, allosaur: 7, stego: 4 }),
-      chaos({ raptor: 20, swarm: 26, para: 5, allosaur: 8, stego: 5, armored: 3 }),
-      rush(130, 28),
+      mixed({ raptor: 20, swarm: 16, para: 5, allosaur: 6, stego: 2 }),
+      heavy({ armored: 10, stego: 6, allosaur: 5 }),
+      chaos({ raptor: 24, swarm: 32, para: 7, allosaur: 10, stego: 6, armored: 4 }),
+      rush(155, 32),
       // Elite debut: a single elite stego leads, plain pack trails.
       // The kind-specific jade tint on its plates pops the silhouette
       // mid-pack, and flattened resists mean explosive isn't free.
       {
         archetype: "vanguard",
-        spacing: 0.55,
+        spacing: 0.5,
         spawns: [
-          ...toSpawns({ stego: 1 }, 0, { elite: true }),
-          ...toSpawns({ raptor: 18, allosaur: 6, stego: 4 }),
+          ...toSpawns({ stego: 2 }, 0, { elite: true }),
+          ...toSpawns({ raptor: 22, allosaur: 8, stego: 5 }),
         ],
       },
-      mixed({ raptor: 28, swarm: 24, para: 8, allosaur: 12, stego: 7, armored: 3 }),
       // Fierce raptor swarm — the red halo crowd. Each raptor hits 40%
       // harder, so a leak is much more punishing.
       {
         archetype: "swarm",
-        spacing: 0.13,
-        spawns: [...toSpawns({ raptor: 30, swarm: 22 }, 0, { fierce: true })],
+        spacing: 0.12,
+        spawns: [...toSpawns({ raptor: 36, swarm: 28 }, 0, { fierce: true })],
       },
-      // Elite armored breach — two of them, glacial-blue chrome plate.
+      // Elite armored breach — glacial-blue chrome plate, riding a
+      // dense tank pack.
       {
         archetype: "heavy",
-        spacing: 0.9,
+        spacing: 0.85,
         spawns: [
-          ...toSpawns({ armored: 2 }, 0, { elite: true }),
-          ...toSpawns({ stego: 5, allosaur: 6, titan: 1 }),
+          ...toSpawns({ armored: 3 }, 0, { elite: true }),
+          ...toSpawns({ stego: 7, allosaur: 7, titan: 2 }),
         ],
       },
-      heavy({ armored: 16, stego: 9, allosaur: 7, titan: 2 }),
+      heavy({ armored: 20, stego: 11, allosaur: 8, titan: 3 }),
       // Mixed-defense penultimate: shielded healing paras + plain push +
       // a small explosive-resistant ("Bunker") stego pocket. Mortar spam
       // bounces off the bunker stegos, so the wave demands a second hard
       // counter alongside the anti-shield/anti-heal answers.
       {
         archetype: "chaos",
-        spacing: 0.3,
+        spacing: 0.27,
         spawns: [
-          ...toSpawns({ para: 3 }, 0, { shielded: true, healAura: true }),
-          ...toSpawns({ raptor: 24, swarm: 30, allosaur: 10, stego: 4, armored: 4, titan: 1 }),
-          ...toSpawns({ stego: 3 }, 0, { resists: RESIST_EXPLOSIVE_95 }),
+          ...toSpawns({ para: 4 }, 0, { shielded: true, healAura: true }),
+          ...toSpawns({ raptor: 28, swarm: 36, allosaur: 12, stego: 5, armored: 5, titan: 2 }),
+          ...toSpawns({ stego: 4 }, 0, { resists: RESIST_EXPLOSIVE_95 }),
         ],
       },
       // Boss wave: the Parasaur Matriarch. Crested resonator — chain
@@ -1912,52 +1887,33 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 23, y: 9 },
     hpScale: 1.55,
     waves: [
-      split("intro", 0.9, [0, { raptor: 12 }], [1, { raptor: 12 }]),
-      split("mixed", 0.55, [0, { raptor: 14, swarm: 10 }], [1, { raptor: 14, swarm: 10 }]),
-      split("swarm", 0.1, [0, { swarm: 55 }], [1, { swarm: 55 }]),
-      split("heavy", 0.9, [0, { armored: 6, stego: 2 }], [1, { armored: 6, stego: 2 }]),
-      split(
-        "mixed",
-        0.5,
-        [0, { raptor: 16, swarm: 12, allosaur: 5, stego: 2 }],
-        [1, { raptor: 16, swarm: 12, allosaur: 5, stego: 2 }],
-      ),
-      split(
-        "chaos",
-        0.3,
-        [0, { raptor: 14, swarm: 18, allosaur: 5, stego: 3, armored: 2 }],
-        [1, { raptor: 14, swarm: 18, allosaur: 5, stego: 3, armored: 2 }],
-      ),
-      split("swarm", 0.08, [0, { swarm: 90, raptor: 10 }], [1, { swarm: 90, raptor: 10 }]),
-      split(
-        "heavy",
-        0.85,
-        [0, { armored: 9, stego: 4, allosaur: 4, titan: 1 }],
-        [1, { armored: 9, stego: 4, allosaur: 4 }],
-      ),
-      split(
-        "mixed",
-        0.45,
-        [0, { raptor: 18, swarm: 14, allosaur: 8, stego: 5, armored: 2 }],
-        [1, { raptor: 18, swarm: 14, allosaur: 8, stego: 5, armored: 2 }],
-      ),
-      split(
-        "heavy",
-        0.8,
-        [0, { armored: 12, stego: 7, allosaur: 5, titan: 1 }],
-        [1, { armored: 12, stego: 7, allosaur: 5, titan: 1 }],
-      ),
+      split("intro", 0.85, [0, { raptor: 14 }], [1, { raptor: 14 }]),
+      split("swarm", 0.09, [0, { swarm: 70 }], [1, { swarm: 70 }]),
+      split("heavy", 0.85, [0, { armored: 8, stego: 3 }], [1, { armored: 8, stego: 3 }]),
       split(
         "chaos",
         0.28,
-        [0, { raptor: 18, swarm: 22, allosaur: 8, stego: 5, armored: 4, titan: 1 }],
-        [1, { raptor: 18, swarm: 22, allosaur: 8, stego: 5, armored: 4, titan: 1 }],
+        [0, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
+        [1, { raptor: 18, swarm: 22, allosaur: 7, stego: 4, armored: 3 }],
+      ),
+      split("swarm", 0.07, [0, { swarm: 110, raptor: 14 }], [1, { swarm: 110, raptor: 14 }]),
+      split(
+        "heavy",
+        0.8,
+        [0, { armored: 14, stego: 8, allosaur: 6, titan: 2 }],
+        [1, { armored: 14, stego: 8, allosaur: 6, titan: 2 }],
       ),
       split(
         "chaos",
-        0.25,
-        [0, { raptor: 22, swarm: 26, allosaur: 10, stego: 8, armored: 7, titan: 3 }],
-        [1, { raptor: 22, swarm: 26, allosaur: 10, stego: 8, armored: 7, titan: 3 }],
+        0.26,
+        [0, { raptor: 22, swarm: 28, allosaur: 10, stego: 6, armored: 5, titan: 2 }],
+        [1, { raptor: 22, swarm: 28, allosaur: 10, stego: 6, armored: 5, titan: 2 }],
+      ),
+      split(
+        "chaos",
+        0.22,
+        [0, { raptor: 26, swarm: 32, allosaur: 12, stego: 10, armored: 9, titan: 4 }],
+        [1, { raptor: 26, swarm: 32, allosaur: 12, stego: 10, armored: 9, titan: 4 }],
       ),
     ],
     // Heroic — no cryo, no hive. Lose the slow + the support drones,
@@ -2140,29 +2096,25 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 12, y: 12 },
     hpScale: 1.7,
     waves: [
-      mixed({ raptor: 20, swarm: 14, allosaur: 6, stego: 2 }),
-      rush(90, 18),
-      mixed({ raptor: 24, swarm: 20, allosaur: 8, stego: 4 }),
-      heavy({ armored: 10, stego: 6, allosaur: 4 }),
-      chaos({ raptor: 22, swarm: 28, allosaur: 8, stego: 4, armored: 2 }),
-      rush(105, 22),
-      heavy({ armored: 14, stego: 7, allosaur: 6, titan: 1 }),
-      trickle({ stego: 6, armored: 4, allosaur: 8 }),
-      chaos({ raptor: 24, swarm: 32, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
-      heavy({ armored: 18, stego: 9, allosaur: 7, titan: 2 }),
-      rush(120, 28),
+      mixed({ raptor: 24, swarm: 20, allosaur: 8, stego: 3 }),
+      rush(120, 25),
+      heavy({ armored: 12, stego: 7, allosaur: 5 }),
+      chaos({ raptor: 26, swarm: 34, allosaur: 10, stego: 5, armored: 3 }),
+      heavy({ armored: 18, stego: 10, allosaur: 8, titan: 2 }),
+      trickle({ stego: 6, armored: 5, allosaur: 8 }),
+      rush(155, 36),
       // Cold-resistant ("Thermal") swarm minority — cryo spam can no
       // longer freeze-and-melt the whole hatchling stream. Player needs
       // chain or flame to mop up the thermal swarm specifically.
       withSpecialist(
-        chaos({ raptor: 34, swarm: 32, allosaur: 14, stego: 9, armored: 7, titan: 3 }),
+        chaos({ raptor: 36, swarm: 38, allosaur: 16, stego: 11, armored: 9, titan: 3 }),
         {
           kind: "swarm",
-          count: 12,
+          count: 14,
           resists: RESIST_COLD_95,
         },
       ),
-      chaos({ raptor: 38, swarm: 48, allosaur: 16, stego: 12, armored: 10, titan: 4 }),
+      chaos({ raptor: 44, swarm: 56, allosaur: 18, stego: 14, armored: 12, titan: 5 }),
     ],
     // Heroic — no pulse, no hive. The kinetic workhorse and the drone
     // support both gone. Chain handles swarm waves, cryo + mortar must
@@ -2252,19 +2204,15 @@ export const LEVELS: LevelConfig[] = [
     nodePos: { x: 1, y: 7 },
     hpScale: 1.9,
     waves: [
-      intro(22, 18),
-      mixed({ raptor: 24, swarm: 18, allosaur: 7, stego: 3 }),
-      rush(100, 22),
+      intro(26, 22),
+      rush(130, 28),
       convoy("allosaur", 14, "armored", 6),
-      mixed({ raptor: 28, swarm: 24, allosaur: 10, stego: 6 }),
-      chaos({ raptor: 24, swarm: 32, allosaur: 10, stego: 6, armored: 4, titan: 1 }),
-      rush(120, 28),
-      heavy({ armored: 16, stego: 8, allosaur: 7, titan: 1 }),
-      mixed({ raptor: 32, swarm: 28, allosaur: 12, stego: 8 }),
-      heavy({ armored: 20, stego: 10, allosaur: 8, titan: 2 }),
-      chaos({ raptor: 34, swarm: 46, allosaur: 14, stego: 9, armored: 7, titan: 2 }),
-      chaos({ raptor: 38, swarm: 50, allosaur: 16, stego: 12, armored: 9, titan: 3 }),
-      chaos({ raptor: 42, swarm: 54, allosaur: 18, stego: 14, armored: 11, titan: 5 }),
+      chaos({ raptor: 28, swarm: 36, allosaur: 12, stego: 7, armored: 5, titan: 2 }),
+      rush(150, 34),
+      heavy({ armored: 18, stego: 10, allosaur: 8, titan: 2 }),
+      heavy({ armored: 22, stego: 12, allosaur: 10, titan: 3 }),
+      chaos({ raptor: 40, swarm: 52, allosaur: 18, stego: 13, armored: 10, titan: 4 }),
+      chaos({ raptor: 48, swarm: 60, allosaur: 20, stego: 16, armored: 13, titan: 6 }),
     ],
     // Heroic — no chain, no flame. The crowd-clear staples are gone:
     // no electric bounce against swarms or shields, no DoT for regen
@@ -2357,47 +2305,17 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       split(
         "mixed",
-        0.6,
-        [0, { raptor: 10, swarm: 5 }],
-        [1, { raptor: 10, swarm: 5 }],
-        [2, { raptor: 10, swarm: 5 }],
+        0.55,
+        [0, { raptor: 12, swarm: 8, allosaur: 2 }],
+        [1, { raptor: 12, swarm: 8, allosaur: 2 }],
+        [2, { raptor: 12, swarm: 8, allosaur: 2 }],
       ),
-      split("swarm", 0.12, [0, { swarm: 40 }], [1, { swarm: 40 }], [2, { swarm: 40 }]),
-      split(
-        "heavy",
-        0.95,
-        [0, { armored: 4, stego: 2 }],
-        [1, { armored: 4, stego: 2 }],
-        [2, { armored: 4, stego: 2 }],
-      ),
-      split(
-        "mixed",
-        0.5,
-        [0, { raptor: 14, swarm: 10, allosaur: 3 }],
-        [1, { raptor: 14, swarm: 10, allosaur: 3 }],
-        [2, { raptor: 14, swarm: 10, allosaur: 3 }],
-      ),
-      split(
-        "chaos",
-        0.3,
-        [0, { raptor: 12, swarm: 14, allosaur: 4, stego: 2 }],
-        [1, { raptor: 12, swarm: 14, allosaur: 4, stego: 2 }],
-        [2, { raptor: 12, swarm: 14, allosaur: 4, stego: 2 }],
-      ),
-      split("swarm", 0.1, [0, { swarm: 50 }], [1, { swarm: 50 }], [2, { swarm: 50 }]),
       split(
         "heavy",
         0.9,
-        [0, { armored: 7, stego: 3, allosaur: 3 }],
-        [1, { armored: 7, stego: 3, allosaur: 3 }],
-        [2, { armored: 7, stego: 3, allosaur: 3 }],
-      ),
-      split(
-        "mixed",
-        0.48,
-        [0, { raptor: 16, swarm: 12, allosaur: 5, stego: 3 }],
-        [1, { raptor: 16, swarm: 12, allosaur: 5, stego: 3 }],
-        [2, { raptor: 16, swarm: 12, allosaur: 5, stego: 3 }],
+        [0, { armored: 5, stego: 3 }],
+        [1, { armored: 5, stego: 3 }],
+        [2, { armored: 5, stego: 3 }],
       ),
       split(
         "chaos",
@@ -2409,11 +2327,10 @@ export const LEVELS: LevelConfig[] = [
       split(
         "heavy",
         0.85,
-        [0, { armored: 10, stego: 5, allosaur: 4 }],
-        [1, { armored: 10, stego: 5, allosaur: 4 }],
-        [2, { armored: 10, stego: 5, allosaur: 4, titan: 1 }],
+        [0, { armored: 9, stego: 4, allosaur: 4, titan: 1 }],
+        [1, { armored: 9, stego: 4, allosaur: 4, titan: 1 }],
+        [2, { armored: 9, stego: 4, allosaur: 4, titan: 1 }],
       ),
-      split("swarm", 0.08, [0, { swarm: 60 }], [1, { swarm: 60 }], [2, { swarm: 60 }]),
       split(
         "chaos",
         0.26,
@@ -2422,18 +2339,26 @@ export const LEVELS: LevelConfig[] = [
         [2, { raptor: 18, swarm: 22, allosaur: 7, stego: 5, armored: 4, titan: 1 }],
       ),
       split(
+        "heavy",
+        0.78,
+        [0, { armored: 13, stego: 7, allosaur: 5, titan: 1 }],
+        [1, { armored: 13, stego: 7, allosaur: 5, titan: 1 }],
+        [2, { armored: 13, stego: 7, allosaur: 5, titan: 2 }],
+      ),
+      split("swarm", 0.07, [0, { swarm: 80 }], [1, { swarm: 80 }], [2, { swarm: 80 }]),
+      split(
         "chaos",
         0.24,
-        [0, { raptor: 20, swarm: 24, allosaur: 8, stego: 6, armored: 5, titan: 2 }],
-        [1, { raptor: 20, swarm: 24, allosaur: 8, stego: 6, armored: 5, titan: 2 }],
-        [2, { raptor: 20, swarm: 24, allosaur: 8, stego: 6, armored: 5, titan: 2 }],
+        [0, { raptor: 22, swarm: 28, allosaur: 10, stego: 7, armored: 6, titan: 2 }],
+        [1, { raptor: 22, swarm: 28, allosaur: 10, stego: 7, armored: 6, titan: 2 }],
+        [2, { raptor: 22, swarm: 28, allosaur: 10, stego: 7, armored: 6, titan: 2 }],
       ),
       split(
         "chaos",
-        0.22,
-        [0, { raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }],
-        [1, { raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }],
-        [2, { raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }],
+        0.21,
+        [0, { raptor: 28, swarm: 34, allosaur: 12, stego: 10, armored: 9, titan: 4 }],
+        [1, { raptor: 28, swarm: 34, allosaur: 12, stego: 10, armored: 9, titan: 4 }],
+        [2, { raptor: 28, swarm: 34, allosaur: 12, stego: 10, armored: 9, titan: 4 }],
       ),
     ],
     // Heroic: no mortar. Three converging lanes already make splash
@@ -2686,67 +2611,53 @@ export const LEVELS: LevelConfig[] = [
     waves: [
       split(
         "intro",
-        0.85,
-        [0, { raptor: 12, swarm: 6, para: 2 }],
-        [1, { raptor: 12, swarm: 6, para: 2 }],
+        0.8,
+        [0, { raptor: 14, swarm: 8, para: 3 }],
+        [1, { raptor: 14, swarm: 8, para: 3 }],
       ),
-      split(
-        "mixed",
-        0.5,
-        [0, { raptor: 14, swarm: 12, para: 3, allosaur: 4 }],
-        [1, { raptor: 14, swarm: 12, para: 3, allosaur: 4 }],
-      ),
-      split("swarm", 0.1, [0, { swarm: 60 }], [1, { swarm: 60 }]),
-      split("heavy", 0.9, [0, { armored: 7, stego: 3, titan: 1 }], [1, { armored: 7, stego: 3 }]),
-      split(
-        "mixed",
-        0.48,
-        [0, { raptor: 16, swarm: 14, para: 5, allosaur: 5, stego: 3 }],
-        [1, { raptor: 16, swarm: 14, para: 5, allosaur: 5, stego: 3 }],
-      ),
-      split(
-        "chaos",
-        0.3,
-        [0, { raptor: 14, swarm: 18, para: 4, allosaur: 5, stego: 3, armored: 2 }],
-        [1, { raptor: 14, swarm: 18, para: 4, allosaur: 5, stego: 3, armored: 2 }],
-      ),
-      split("swarm", 0.08, [0, { swarm: 75 }], [1, { swarm: 75, raptor: 14 }]),
+      split("swarm", 0.09, [0, { swarm: 75 }], [1, { swarm: 75 }]),
       split(
         "heavy",
         0.85,
-        [0, { armored: 10, stego: 5, allosaur: 4, titan: 1 }],
-        [1, { armored: 10, stego: 5, allosaur: 4, titan: 1 }],
-      ),
-      split(
-        "mixed",
-        0.45,
-        [0, { raptor: 18, swarm: 16, para: 6, allosaur: 7, stego: 4 }],
-        [1, { raptor: 18, swarm: 16, para: 6, allosaur: 7, stego: 4 }],
+        [0, { armored: 9, stego: 4, titan: 1 }],
+        [1, { armored: 9, stego: 4, titan: 1 }],
       ),
       split(
         "chaos",
-        0.28,
-        [0, { raptor: 16, swarm: 22, para: 5, allosaur: 7, stego: 4, armored: 3, titan: 1 }],
-        [1, { raptor: 16, swarm: 22, para: 5, allosaur: 7, stego: 4, armored: 3, titan: 1 }],
+        0.27,
+        [0, { raptor: 18, swarm: 24, para: 6, allosaur: 7, stego: 4, armored: 3, titan: 1 }],
+        [1, { raptor: 18, swarm: 24, para: 6, allosaur: 7, stego: 4, armored: 3, titan: 1 }],
       ),
       split(
         "heavy",
         0.8,
-        [0, { armored: 14, stego: 8, allosaur: 5, titan: 2 }],
-        [1, { armored: 14, stego: 8, allosaur: 5, titan: 2 }],
+        [0, { armored: 13, stego: 7, allosaur: 6, titan: 2 }],
+        [1, { armored: 13, stego: 7, allosaur: 6, titan: 2 }],
       ),
-      flamebreakSplit(0.07, [0, { swarm: 85 }], [1, { swarm: 85, raptor: 18 }]),
       split(
         "chaos",
-        0.26,
-        [0, { raptor: 20, swarm: 28, para: 8, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
-        [1, { raptor: 20, swarm: 28, para: 8, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
+        0.25,
+        [0, { raptor: 22, swarm: 28, para: 8, allosaur: 10, stego: 6, armored: 4, titan: 2 }],
+        [1, { raptor: 22, swarm: 28, para: 8, allosaur: 10, stego: 6, armored: 4, titan: 2 }],
       ),
+      split(
+        "heavy",
+        0.75,
+        [0, { armored: 16, stego: 9, allosaur: 6, titan: 3 }],
+        [1, { armored: 16, stego: 9, allosaur: 6, titan: 3 }],
+      ),
+      flamebreakSplit(0.06, [0, { swarm: 100 }], [1, { swarm: 100, raptor: 22 }]),
       split(
         "chaos",
         0.24,
         [0, { raptor: 24, swarm: 32, para: 10, allosaur: 12, stego: 9, armored: 7, titan: 3 }],
         [1, { raptor: 24, swarm: 32, para: 10, allosaur: 12, stego: 9, armored: 7, titan: 3 }],
+      ),
+      split(
+        "chaos",
+        0.22,
+        [0, { raptor: 28, swarm: 38, para: 12, allosaur: 14, stego: 11, armored: 9, titan: 4 }],
+        [1, { raptor: 28, swarm: 38, para: 12, allosaur: 14, stego: 11, armored: 9, titan: 4 }],
       ),
       // Penultimate: vanilla chaos plus a brace of kinetic-resistant
       // titans per lane ("Ironplate" titans). Pulse spam barely scrapes
@@ -2754,14 +2665,14 @@ export const LEVELS: LevelConfig[] = [
       // titans before the matriarchs land next wave.
       {
         archetype: "chaos",
-        spacing: 0.22,
+        spacing: 0.2,
         spawns: [
           ...toSpawns(
-            { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 3 },
+            { raptor: 32, swarm: 42, para: 14, allosaur: 16, stego: 13, armored: 11, titan: 4 },
             0,
           ),
           ...toSpawns(
-            { raptor: 28, swarm: 36, para: 12, allosaur: 14, stego: 12, armored: 9, titan: 3 },
+            { raptor: 32, swarm: 42, para: 14, allosaur: 16, stego: 13, armored: 11, titan: 4 },
             1,
           ),
           ...toSpawns({ titan: 1 }, 0, { resists: RESIST_KINETIC_95 }),
