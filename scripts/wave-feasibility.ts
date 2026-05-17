@@ -9,6 +9,8 @@
  *   npx tsx scripts/wave-feasibility.ts --stars=0        # zero tower meta-skill investment
  *   npx tsx scripts/wave-feasibility.ts --robot-skills=0  # zero robot skill investment
  *   npx tsx scripts/wave-feasibility.ts --no-base-upgrades # skip HQ-laser upgrade search
+ *   npx tsx scripts/wave-feasibility.ts --no-adapt        # disable adaptive-resistance penalty
+ *   npx tsx scripts/wave-feasibility.ts --no-immunity-coverage # skip 0× injection pass
  *   npx tsx scripts/wave-feasibility.ts --soft           # flag easy waves only
  *
  * For each wave, the tool compares two numbers:
@@ -16,6 +18,7 @@
  *   requiredDps  = totalWaveHp / combatWindow
  *   achievableDps = bestTowerKind × count-buildable-from-remainingBudget
  *                   × weighted-average resist-vs-this-mix × aoe-multiplier
+ *                   × adaptive-resistance penalty (level >= ADAPT_TRIGGER_LEVEL)
  *                   + baseDps (HQ laser at the chosen upgrade state)
  *                   + robotDps (variant-specific auto + abilities, with skill tree)
  *
@@ -35,10 +38,33 @@
  * Tower + HQ-upgrade costs both pull from this pool — the optimizer picks
  * the split that maximises end-of-wave damage. Does NOT include early-call
  * bonuses (variable) or assume surviving towers from earlier waves.
+ *
+ * Runtime spawn-time mutations modeled:
+ *   - ensureImmunityCoverage (src/sim/immunityCoverage.ts) — replays the same
+ *     0× resist injection the real game runs at run start, so the analyzer
+ *     sees the immunity holdouts that punish single-tower spam. Disable with
+ *     --no-immunity-coverage.
+ *   - adaptiveBoost / adaptiveCoverage (src/sim/world.ts) — for levels >=
+ *     ADAPT_TRIGGER_LEVEL the herd retunes against the dominant damage type
+ *     the player relies on. Modeled here as a multiplicative DPS penalty
+ *     against the picked tower's damage type:
+ *       penalty = 1 − adaptiveCoverage(level) × adaptiveBoost(level)
+ *     Disable with --no-adapt to compare against the legacy "static
+ *     resists only" baseline.
+ *
+ * Limitations (still optimistic):
+ *   - Hive support tower returns 0 DPS — drone buffs not simulated, so
+ *     hive-centric strategies are under-estimated.
+ *   - Single-path coverage assumes every placed tower hits every enemy
+ *     with no fire-rate saturation or overkill waste; spam strategies on
+ *     a one-lane map look ideal even when in-game the extra towers idle.
+ *   - Robot uptime fixed at ROBOT_BASE_UPTIME with a wave-length-scaled
+ *     death penalty; real engagement depends on positioning + ability cycling.
  */
 
 import { LEVELS, levelHasMode, resolveLevelMode } from "../src/levels";
 import { LEVEL_MODES, type LevelMode } from "../src/progress";
+import { availableDamageTypes, ensureImmunityCoverage } from "../src/sim/immunityCoverage";
 import {
   type AllMetaSkills,
   applyMetaSkillsToTower,
@@ -67,6 +93,9 @@ import type {
 } from "../src/sim/types";
 import { BASE_UPGRADES, UPGRADES } from "../src/sim/upgrades";
 import {
+  ADAPT_TRIGGER_LEVEL,
+  adaptiveBoost,
+  adaptiveCoverage,
   BASE_DAMAGE,
   BASE_FIRE_RATE,
   BASE_RANGE,
@@ -710,6 +739,23 @@ type AnalysisOpts = {
   robotVariant: RobotVariant | null;
   /** False to lock HQ laser at 0/0; true searches all 16 upgrade states. */
   searchBaseUpgrades: boolean;
+  /** False to skip the ensureImmunityCoverage 0× injection pass. */
+  applyImmunityCoverage: boolean;
+  /** False to skip the adaptive-resistance dominant-type penalty. */
+  applyAdaptivePenalty: boolean;
+};
+
+/**
+ * Multiplicative DPS penalty for the dominant damage type once the herd's
+ * adaptation kicks in (level >= ADAPT_TRIGGER_LEVEL). Mirrors world.ts —
+ * a fraction `adaptiveCoverage(level)` of spawns gets resist boosted by
+ * `adaptiveBoost(level)` against whatever the player has been leaning on.
+ * Static feasibility doesn't track dominant-type per wave; we assume the
+ * player's picked tower IS the dominant type (worst case for that pick).
+ */
+const adaptivePenalty = (levelId: number): number => {
+  if (levelId < ADAPT_TRIGGER_LEVEL) return 1;
+  return Math.max(0.1, 1 - adaptiveCoverage(levelId) * adaptiveBoost(levelId));
 };
 
 /**
@@ -729,6 +775,7 @@ const bestSetup = (
   robotDps: number,
   baseConfigs: BaseConfig[],
   coverageCache: Map<number, number>,
+  adaptPenalty: number,
   modeCfg?: { forbiddenTowers?: TowerKind[]; lockedLoadout?: TowerKind[] },
 ): TowerPick[] => {
   const forbidden = new Set(modeCfg?.forbiddenTowers ?? []);
@@ -756,7 +803,7 @@ const bestSetup = (
         coverageCache.set(rangeKey, covPer);
       }
       const covFrac = coverageFraction(count, covPer, paths.length);
-      const towerDps = perTowerDps * count * covFrac;
+      const towerDps = perTowerDps * count * covFrac * adaptPenalty;
       const totalDps = towerDps + baseDps + robotDps;
       picks.push({
         kind: cfg.kind,
@@ -796,13 +843,26 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
   const configs = buildAllConfigs(towerStarBudget);
   const baseConfigs = opts.searchBaseUpgrades ? ALL_BASE_CONFIGS : [ZERO_BASE_CONFIG];
 
+  // Replay the runtime spawn-mutation that injects a 0× resist holdout per
+  // damage type the player can reach. Mode forbidden/locked sets gate
+  // which types qualify, so heroic/iron with reduced rosters get only the
+  // immunities they can actually crack.
+  const waves = opts.applyImmunityCoverage
+    ? ensureImmunityCoverage(
+        cfg.waves,
+        availableDamageTypes(new Set(cfg.forbiddenTowers ?? []), cfg.lockedLoadout ?? null),
+      )
+    : cfg.waves;
+
+  const adaptPenalty = opts.applyAdaptivePenalty ? adaptivePenalty(level.id) : 1;
+
   const rows: WaveRow[] = [];
   let cumulativeBounty = 0;
   let cumulativeBonus = 0;
   const coverageCache = new Map<number, number>();
 
-  for (let i = 0; i < cfg.waves.length; i++) {
-    const spec = cfg.waves[i];
+  for (let i = 0; i < waves.length; i++) {
+    const spec = waves[i];
     const waveNumber = i + 1;
     const wave = analyzeWave(spec, hpScale, longestPath);
     const dur = combatWindow(spec, waveNumber, wave, longestPath);
@@ -830,6 +890,7 @@ const analyzeLevel = (levelIdx: number, opts: AnalysisOpts, mode: LevelMode = "n
       robotDps,
       baseConfigs,
       coverageCache,
+      adaptPenalty,
       cfg,
     );
 
@@ -895,6 +956,11 @@ const printLevel = (
 
   const robotLabel = opts.robotVariant ? `${opts.robotVariant}(${robotSkillBudget}sp)` : "off";
   const baseLabel = opts.searchBaseUpgrades ? "searched" : "rank0/0";
+  const adaptLabel =
+    opts.applyAdaptivePenalty && level.id >= ADAPT_TRIGGER_LEVEL
+      ? `adapt:${fmt(adaptivePenalty(level.id), 2)}×`
+      : "adapt:off";
+  const immunityLabel = opts.applyImmunityCoverage ? "immunity:on" : "immunity:off";
   const modeTag =
     mode === "normal"
       ? ""
@@ -911,7 +977,7 @@ const printLevel = (
     `\n${C.bold}═══ L${level.id}: ${level.name}${modeTag}${C.reset}${rulesTag}` +
       `${level.hpScale ? ` ${C.dim}(hpScale ${level.hpScale}×)${C.reset}` : ""}` +
       ` ${C.dim}startGold=${cfg.startGold}, paths=${level.paths.length}, longestPath=${fmt(longestPath, 1)}u, ` +
-      `robot=${robotLabel}, towerStars=${towerStarBudget}, base=${baseLabel}${C.reset}`,
+      `robot=${robotLabel}, towerStars=${towerStarBudget}, base=${baseLabel}, ${adaptLabel}, ${immunityLabel}${C.reset}`,
   );
   console.log(
     `${C.dim}${pad("W", 3)} ${pad("arch", 7)} ${pad("enemies", 7)} ${pad("totalHp", 8)} ${pad("sec", 6)} ${pad("gold", 6)} ${pad("reqDPS", 7)} ${pad("robot", 6)} ${pad("base", 6)} ${pad("bestT", 8)} ${pad("×N", 4)} ${pad("twrDPS", 7)} ${pad("feas", 6)}${C.reset}`,
@@ -1023,7 +1089,8 @@ const printSoftSpots = (
   console.log(
     `\n${C.bold}═══ Soft-spot scan — levels ${fromLevel}+, abs>${absThreshold}×, pacing>${ratio}× tightest${C.reset}` +
       ` ${C.dim}(robot=${robotLbl}, towerStars=${opts.towerStarBudget ?? "auto"}, ` +
-      `robotSp=${opts.robotSkillBudget ?? "auto"}, base=${opts.searchBaseUpgrades ? "searched" : "rank0"})${C.reset}`,
+      `robotSp=${opts.robotSkillBudget ?? "auto"}, base=${opts.searchBaseUpgrades ? "searched" : "rank0"}, ` +
+      `adapt=${opts.applyAdaptivePenalty ? "on" : "off"}, immunity=${opts.applyImmunityCoverage ? "on" : "off"})${C.reset}`,
   );
 
   // Group by level
@@ -1071,6 +1138,8 @@ const detail = args.includes("--detail");
 const softMode = args.includes("--soft");
 const noRobot = args.includes("--no-robot");
 const noBaseUpgrades = args.includes("--no-base-upgrades");
+const noAdapt = args.includes("--no-adapt");
+const noImmunity = args.includes("--no-immunity-coverage");
 const fromArg = args.find((a: string) => a.startsWith("--from="));
 const absArg = args.find((a: string) => a.startsWith("--abs="));
 const ratioArg = args.find((a: string) => a.startsWith("--ratio="));
@@ -1107,6 +1176,8 @@ const baseOpts: AnalysisOpts = {
   towerStarBudget: starsArg ? Number(starsArg.split("=")[1]) : undefined,
   robotSkillBudget: robotSkillsArg ? Number(robotSkillsArg.split("=")[1]) : undefined,
   searchBaseUpgrades: !noBaseUpgrades,
+  applyImmunityCoverage: !noImmunity,
+  applyAdaptivePenalty: !noAdapt,
 };
 
 if (softMode) {
@@ -1165,6 +1236,7 @@ if (softMode) {
   const robotLbl = baseOpts.robotVariant ?? "off";
   console.log(
     `${C.dim}— robot=${robotLbl}, towerStars=${baseOpts.towerStarBudget ?? "auto"}, ` +
-      `robotSp=${baseOpts.robotSkillBudget ?? "auto"}, base=${baseOpts.searchBaseUpgrades ? "searched" : "rank0"}${C.reset}`,
+      `robotSp=${baseOpts.robotSkillBudget ?? "auto"}, base=${baseOpts.searchBaseUpgrades ? "searched" : "rank0"}, ` +
+      `adapt=${baseOpts.applyAdaptivePenalty ? "on" : "off"}, immunity=${baseOpts.applyImmunityCoverage ? "on" : "off"}${C.reset}`,
   );
 }

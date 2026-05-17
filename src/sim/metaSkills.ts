@@ -114,12 +114,12 @@ const PULSE: MetaTowerTree = {
     label: "Logistics",
     blurb: "Cheaper rifles, longer scopes.",
     tiers: [
-      tier("Surplus Stockpile", "-3g build cost", 0, () => {}),
-      tier("Bulk Order", "-4g build cost (-7g total)", 1, () => {}),
+      tier("Surplus Stockpile", "-2g build cost", 0, () => {}),
+      tier("Bulk Order", "-2g build cost (-4g total)", 1, () => {}),
       tier("Long Scope", "+0.6 range", 2, (t) => {
         t.range += 0.6;
       }),
-      tier("Munitions Depot", "-5g (-12g total), +0.4 range", 3, (t) => {
+      tier("Munitions Depot", "-3g (-7g total), +0.4 range", 3, (t) => {
         t.range += 0.4;
       }),
     ],
@@ -173,12 +173,12 @@ const CHAIN: MetaTowerTree = {
     label: "Coilworks",
     blurb: "Cheaper coils, longer reach.",
     tiers: [
-      tier("Surplus Coils", "-3g build cost", 0, () => {}),
-      tier("Bulk Order", "-4g build cost (-7g total)", 1, () => {}),
+      tier("Surplus Coils", "-2g build cost", 0, () => {}),
+      tier("Bulk Order", "-2g build cost (-4g total)", 1, () => {}),
       tier("Lensed Antenna", "+0.5 range", 2, (t) => {
         t.range += 0.5;
       }),
-      tier("Reclamation", "-5g (-12g total), +0.1 falloff", 3, (t) => {
+      tier("Reclamation", "-3g (-7g total), +0.1 falloff", 3, (t) => {
         t.chainFalloff = Math.min(1, t.chainFalloff + 0.1);
       }),
     ],
@@ -231,12 +231,12 @@ const CRYO: MetaTowerTree = {
     label: "Cryoworks",
     blurb: "Cheaper coolant, sharper chill.",
     tiers: [
-      tier("Surplus Cryo", "-5g build cost", 0, () => {}),
-      tier("Bulk Coolant", "-5g build cost (-10g total)", 1, () => {}),
+      tier("Surplus Cryo", "-3g build cost", 0, () => {}),
+      tier("Bulk Coolant", "-3g build cost (-6g total)", 1, () => {}),
       tier("Insulated Cores", "+0.3 range", 2, (t) => {
         t.range += 0.3;
       }),
-      tier("Industrial Chill", "-5g (-15g total), slow -0.02", 3, (t) => {
+      tier("Industrial Chill", "-4g (-10g total), slow -0.02", 3, (t) => {
         t.slowFactor = Math.max(0, t.slowFactor - 0.02);
       }),
     ],
@@ -288,12 +288,12 @@ const MORTAR: MetaTowerTree = {
     label: "Depot",
     blurb: "Cheaper shells, bigger boom.",
     tiers: [
-      tier("Surplus Shells", "-8g build cost", 0, () => {}),
-      tier("Bulk Order", "-7g build cost (-15g total)", 1, () => {}),
+      tier("Surplus Shells", "-5g build cost", 0, () => {}),
+      tier("Bulk Order", "-5g build cost (-10g total)", 1, () => {}),
       tier("Spotting Rig", "+0.4 range", 2, (t) => {
         t.range += 0.4;
       }),
-      tier("Munitions Reserve", "-10g (-25g total), +6% splash", 3, (t) => {
+      tier("Munitions Reserve", "-8g (-18g total), +6% splash", 3, (t) => {
         t.splashRadius *= 1.06;
       }),
     ],
@@ -348,12 +348,12 @@ const FLAME: MetaTowerTree = {
     label: "Refinery",
     blurb: "Cheaper fuel, longer reach.",
     tiers: [
-      tier("Surplus Fuel", "-5g build cost", 0, () => {}),
-      tier("Bulk Mix", "-5g build cost (-10g total)", 1, () => {}),
+      tier("Surplus Fuel", "-3g build cost", 0, () => {}),
+      tier("Bulk Mix", "-3g build cost (-6g total)", 1, () => {}),
       tier("Pre-Heater", "+0.3 range", 2, (t) => {
         t.range += 0.3;
       }),
-      tier("Pyrolytic Stills", "-8g (-18g total), +5% damage", 3, (t) => {
+      tier("Pyrolytic Stills", "-6g (-12g total), +5% damage", 3, (t) => {
         t.damage *= 1.05;
       }),
     ],
@@ -406,12 +406,12 @@ const HIVE: MetaTowerTree = {
     label: "Workshop",
     blurb: "Cheaper hives, extra polish.",
     tiers: [
-      tier("Surplus", "-10g build cost", 0, () => {}),
-      tier("Bulk Order", "-10g build cost (-20g total)", 1, () => {}),
+      tier("Surplus", "-6g build cost", 0, () => {}),
+      tier("Bulk Order", "-6g build cost (-12g total)", 1, () => {}),
       tier("Refit Crew", "+3% buff per drone", 2, (t) => {
         if (t.kind === "hive") t.serviceBuff += 0.03;
       }),
-      tier("Industrial Hive", "-15g (-35g total), +5% buff", 3, (t) => {
+      tier("Industrial Hive", "-10g (-22g total), +5% buff", 3, (t) => {
         if (t.kind === "hive") t.serviceBuff += 0.05;
       }),
     ],
@@ -422,14 +422,28 @@ const HIVE: MetaTowerTree = {
 // tier apply functions deliberately don't touch t.totalSpent — the
 // discount is reflected at placement time via effectiveTowerCost so
 // the player sees the cheaper price before clicking build.
+//
+// Discounts capped so meta-spam never beats upgrading. Pre-trim values
+// were [3,7,7,12] on pulse/chain which yielded 38g base towers — wide
+// spam of T0 chain dominated every wave except dense-HP heavies. Trim
+// brings max discount down to ~14% of base cost; c-branch keeps its
+// perk slots (range, falloff) untouched so investment still pays off.
 const COST_DISCOUNT: Record<TowerKind, readonly number[]> = {
-  pulse: [3, 7, 7, 12],
-  chain: [3, 7, 7, 12],
-  cryo: [5, 10, 10, 15],
-  mortar: [8, 15, 15, 25],
-  flame: [5, 10, 10, 18],
-  hive: [10, 20, 20, 35],
+  pulse: [2, 4, 4, 7],
+  chain: [2, 4, 4, 7],
+  cryo: [3, 6, 6, 10],
+  mortar: [5, 10, 10, 18],
+  flame: [3, 6, 6, 12],
+  hive: [6, 12, 12, 22],
 };
+
+// Minimum fraction of base cost the player still pays after every c-branch
+// tier is bought. Keeps upgrade-gold competitive even at max meta — a
+// fully-discounted tower never undercuts its own first in-game upgrade.
+// Pulse/chain base is 50g; 0.7 floor lands at 35g which sits above the
+// 30g first-upgrade so reinforcing an existing tower stays the cheaper
+// per-DPS move than buying another T0.
+const COST_FLOOR_FRACTION = 0.7;
 
 export const META_SKILL_TREE: Record<TowerKind, MetaTowerTree> = {
   pulse: PULSE,
@@ -487,12 +501,16 @@ export const applyMetaSkillsToTower = (tower: Tower, meta: AllMetaSkills): void 
   }
 };
 
-// Effective placement cost after the c-branch Surplus discount. Clamped
-// at 1g so an over-invested player still pays a token amount.
+// Effective placement cost after the c-branch Surplus discount. Floored
+// at COST_FLOOR_FRACTION × base so spam-buying meta-discounted towers
+// never undercuts the price of upgrading an existing one — keeps the
+// "more towers vs upgrade what you have" decision honest.
 export const effectiveTowerCost = (kind: TowerKind, meta: AllMetaSkills): number => {
+  const base = TOWER_COST[kind];
   const cTier = clampTier(meta[kind]?.c);
   const discount = cTier > 0 ? COST_DISCOUNT[kind][cTier - 1] : 0;
-  return Math.max(1, TOWER_COST[kind] - discount);
+  const floor = Math.ceil(base * COST_FLOOR_FRACTION);
+  return Math.max(floor, base - discount);
 };
 
 // Total stars allocated across the whole tree. Used by the panel header
