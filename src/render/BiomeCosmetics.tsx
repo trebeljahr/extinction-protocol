@@ -22,6 +22,7 @@ import { distPointToSegSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { createWorleyField } from "../sim/worley";
 import { useGame } from "../store";
+import { BIOME_STORY_TRACE_STYLE } from "./biomeColors";
 import { InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
 
@@ -43,18 +44,6 @@ const PATH_CLEARANCE = PATH_WIDTH / 2 + 1.2;
 const PROP_MIN_SPACING = 1.6;
 const PROP_MAX_SPACING = 3.0;
 const STORY_SIDE = PATH_WIDTH / 2 + 0.25;
-
-const STORY_TRACE_STYLE: Record<
-  Biome,
-  { trace: string; traceOpacity: number; marker: string; markerAccent: string }
-> = {
-  forest: { trace: "#2f271f", traceOpacity: 0.24, marker: "#f1c94b", markerAccent: "#2b3038" },
-  desert: { trace: "#6a3f24", traceOpacity: 0.28, marker: "#f3b23f", markerAccent: "#35271e" },
-  snow: { trace: "#5f7180", traceOpacity: 0.3, marker: "#9bdcff", markerAccent: "#2e4050" },
-  wasteland: { trace: "#221a16", traceOpacity: 0.3, marker: "#ffb04a", markerAccent: "#2b2020" },
-  lava: { trace: "#120b08", traceOpacity: 0.36, marker: "#ff7a3d", markerAccent: "#32130d" },
-  alien: { trace: "#46ffd2", traceOpacity: 0.22, marker: "#8dffdc", markerAccent: "#32205a" },
-};
 
 const STORY_TARGET_HEIGHT = new Map<string, number>([
   ["/models/landmarks/desert/Tent.glb", 0.62],
@@ -203,7 +192,7 @@ const buildStoryDetails = (
   lava: LavaFeatures | null,
 ): { instances: Instance[]; traces: TraceMark[]; markers: WarningMarker[] } => {
   const urls = BIOME_STORY_PROPS[biome];
-  const style = STORY_TRACE_STYLE[biome];
+  const style = BIOME_STORY_TRACE_STYLE[biome];
   const instances: Instance[] = [];
   const traces: TraceMark[] = [];
   const markers: WarningMarker[] = [];
@@ -337,7 +326,7 @@ const STORY_MATERIALS: Partial<
 const storyMaterialsFor = (biome: Biome) => {
   const cached = STORY_MATERIALS[biome];
   if (cached) return cached;
-  const style = STORY_TRACE_STYLE[biome];
+  const style = BIOME_STORY_TRACE_STYLE[biome];
   const built = {
     trace: traceMaterial(style.trace, style.traceOpacity),
     pole: markerPoleMaterial(style.markerAccent),
