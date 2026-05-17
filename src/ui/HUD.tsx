@@ -71,8 +71,13 @@ export const HUD = () => {
   // On the final wave the label embeds the n/m count, so the value
   // slot is free to show the wave state ("ACTIVE") rather than just
   // re-stating the same count. The non-final path keeps the original
-  // ACTIVE/countdown semantics.
-  const waveStatus = waveActive ? "ACTIVE" : `${nextWaveIn}s`;
+  // ACTIVE/countdown semantics. Spawner clears waveActive once the
+  // spawn queue empties even though stragglers may still be on the
+  // field; on the final wave there is no next-wave countdown, so the
+  // value would otherwise stick at "0s" until game-won fires. Keep
+  // showing "ACTIVE" through that tail so the readout matches normal
+  // waves.
+  const waveStatus = waveActive || wave >= totalWaves ? "ACTIVE" : `${nextWaveIn}s`;
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
