@@ -805,22 +805,20 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyBaseStats> = {
   boss: { kind: "boss", hp: 4200, maxHp: 4200, speed: 0.5, bounty: 200, damage: 10 },
 };
 
-// Per-tick melee damage a dino deals while engaged with the robot. NOT
+// Per-second melee damage a dino deals while engaged with the robot. NOT
 // the same as `damage` — that drives life-loss on HQ leak (kept tuned
 // to the leak economy). Robot combat needs its own dimension so a
 // titan/t-rex feels devastating in skirmish while swarm chip is a
-// tickle. Scale: ~10× the leak `damage` for big bruisers, much smaller
-// for chaff. Damage is applied per tick (60Hz), so multiply by ~0.0167
-// for a per-second feel: t-rex at 65 → ~1.08 HP/s in solo skirmish.
+// tickle. Values are HP/sec; the caller multiplies by dt.
 export const ENEMY_ROBOT_DAMAGE: Record<EnemyKind, number> = {
-  swarm: 4,
-  raptor: 12,
-  para: 18,
-  allosaur: 65,
-  stego: 38,
-  armored: 30,
-  titan: 95,
-  boss: 140,
+  swarm: 2,
+  raptor: 6,
+  para: 10,
+  allosaur: 32,
+  stego: 20,
+  armored: 16,
+  titan: 48,
+  boss: 70,
 };
 
 // Per-kind shield pool used when a spec marks an enemy as shielded.

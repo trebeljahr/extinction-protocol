@@ -58,41 +58,51 @@ export type BuffSpec = {
 };
 
 // Slot 3 — ultimate payload. Discriminated union so the trigger
-// dispatcher can fan out to barrage / mark / incinerate / pierce /
-// killshot without extra control flags on Robot.
+// dispatcher can fan out to storm / flameRings / frenzy / killshot
+// without extra control flags on Robot.
 export type PayloadSpec =
   | {
-      type: "barrage";
-      cooldown: number;
-      count: number;
-      range: number;
-      damage: number;
-      splashRadius: number;
-      damageType: DamageType;
-      // Stan: each shell leaves a lingering crater (tickDamage every
-      // tickInterval seconds for `duration`).
-      crater?: { duration: number; tickDamage: number; radius: number; tickInterval: number };
-    }
-  | {
-      type: "mark";
+      // Leela R — Storm Surge. AoE chain-lightning storm centered on the
+      // robot for `duration` seconds. Every `tickInterval`, picks up to
+      // `boltsPerTick` nearest enemies inside `radius` and zaps each.
+      type: "storm";
       cooldown: number;
       duration: number;
-      dmgMul: number;
-      // Leela: every interval seconds, arc damage hits every marked
-      // enemy via beam. Marked enemies live in robot.arcTargets[].
-      arcTick?: { interval: number; damage: number; radius: number; damageType: DamageType };
-    }
-  | {
-      type: "incinerate";
-      cooldown: number;
-      range: number;
-      totalDamage: number;
-      duration: number;
+      radius: number;
+      tickInterval: number;
+      boltsPerTick: number;
+      damagePerBolt: number;
       damageType: DamageType;
     }
   | {
-      // George R — locks the highest-progress enemy in range, charges
-      // for chargeTime seconds, then deletes it with splash at impact.
+      // Mike R — Inferno Ring. Spawns `ringCount` flame rings at the
+      // robot's position, one every `ringInterval`. Each ring expands
+      // from 0 to `maxRadius` at `expandSpeed` units/sec, damaging any
+      // enemy newly inside the ring band (once per ring).
+      type: "flameRings";
+      cooldown: number;
+      ringCount: number;
+      ringInterval: number;
+      maxRadius: number;
+      expandSpeed: number;
+      damagePerRing: number;
+      damageType: DamageType;
+      burn?: { duration: number; totalDamage: number };
+    }
+  | {
+      // George R — Bullet Storm. Time-limited frenzy that multiplies
+      // outgoing damage AND fire rate. Auto-attacks naturally pump
+      // through the buffed cadence during the window.
+      type: "frenzy";
+      cooldown: number;
+      duration: number;
+      damageMul: number;
+      fireRateMul: number;
+    }
+  | {
+      // Stan R — Annihilator Missile. Locks the highest-progress enemy
+      // in range, charges for `chargeTime`, then drops a single huge
+      // explosive payload with massive splash at impact.
       type: "killshot";
       cooldown: number;
       range: number;
@@ -163,14 +173,14 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     callsign: "Vanguard",
     blurb: "Long-range kinetic sniper. Slow, deliberate, every shot a tracer that pierces armor.",
     strengths:
-      "Longest engagement range. Massive single-shot damage. Killshot deletes priority threats.",
+      "Longest engagement range. Massive single-shot damage. Bullet Storm unleashes an absurd-cadence frenzy on demand.",
     weakness:
-      "Slow fire cadence — packs of swarmers slip past between shots. Kinetic-resistant armored chassis shrug body hits.",
-    maxHp: 200,
+      "Slow base fire cadence — packs of swarmers slip past between shots. Kinetic-resistant armored chassis shrug body hits.",
+    maxHp: 220,
     speed: 4.0,
-    range: 10.5,
-    damage: 42,
-    fireRate: 0.8,
+    range: 11.0,
+    damage: 44,
+    fireRate: 0.85,
     damageType: "kinetic",
     attackSplashRadius: 0,
     attackTracer: true,
@@ -185,16 +195,8 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         speed: 12.0,
         nextShotCrit: { mul: 2.5, pierce: true },
       },
-      // W — Pierce Shot: kinetic lance through a long thin rectangle.
-      // Stored under "burst" slot but is a directional pierce, not radial.
-      // We use the pierce payload type but in slot 1.
-      // (Schema-wise still a Burst slot — but we re-purpose with the
-      // pierce payload type by storing it as a new burst-shaped entry
-      // is awkward; instead leave slot 1 as the kinetic shockwave that
-      // briefly knocks back, and route the pierce shot into slot 3 R.)
-      //
-      // Decision: keep W as a radial kinetic shockwave for synergy with
-      // Sidestep's i-frame ringout. Pierce becomes the R slot.
+      // W — Shockwave: radial kinetic pulse + small path push. Synergy
+      // with Sidestep's i-frame ringout when packs close in.
       {
         type: "burst",
         cooldown: 9.0,
@@ -214,46 +216,44 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         damageResist: 0.4,
         rangeMul: 1.6,
       },
-      // R — Killshot: locks the strongest enemy in range, charges, then
-      // deletes them with massive damage + splash at impact.
+      // R — Bullet Storm: time-limited frenzy. ×7 fire rate + ×1.5
+      // damage for 3.5s. Tracer beams pour out as continuous bullet
+      // hell on whatever the auto-aim picks.
       {
-        type: "killshot",
+        type: "frenzy",
         cooldown: 18.0,
-        range: 14.0,
-        chargeTime: 1.2,
-        damage: 600,
-        splashDamage: 200,
-        splashRadius: 2.5,
-        damageType: "kinetic",
+        duration: 3.5,
+        damageMul: 1.5,
+        fireRateMul: 7.0,
       },
     ],
     tint: "#9fd8ff",
-    abilityLabels: ["Sidestep", "Shockwave", "Spotter Drone", "Killshot"],
+    abilityLabels: ["Sidestep", "Shockwave", "Spotter Drone", "Bullet Storm"],
     abilityGlyphs: ["»", "✺", "◎", "✦"],
     abilityBlurbs: [
       "Hitscan kinetic sniper rifle. Tracer beam draws to target — long range, slow cadence, very high per-shot damage. No splash.",
       "Lateral hop with i-frames. The next auto-attack lands as a piercing crit (×2.5 damage). Use to slip a grapple and answer with a body shot.",
       "Kinetic shockwave centered on the robot. Heavy single-pulse damage and a short push that knocks enemies back along the path.",
       "Scope-in stance: +60% range, +80% damage, –15% fire rate, –50% speed, 40% resist for 5s. Hold the line and snipe.",
-      "Lock the highest-progress enemy in 14 range, charge 1.2s, then delete it. Splash damage detonates at the impact point — clears the escort too.",
+      "Bullet Storm: ×7 fire rate, +50% damage for 3.5s. Auto-attacks erupt as a torrent of tracer hits — chew through whole columns in one window.",
     ],
   },
   leela: {
     variant: "leela",
     label: "Leela",
     callsign: "Strider",
-    blurb: "Electric skirmisher. Every shot chains. Marks light up the field with persistent arcs.",
+    blurb: "Electric skirmisher. Every shot chains. Storms tear apart anything that gets close.",
     strengths:
-      "Highest mobility. Auto-attacks chain to a nearby second target. Overcharge mark hits up to 5 enemies on a steady tick.",
+      "Highest mobility. Auto-attacks chain to two nearby targets. Storm Surge zaps every enemy in a wide ring for several seconds.",
     weakness: "Thin armor — eats hits at midrange. Electric-resistant titans absorb the kit.",
-    maxHp: 170,
+    maxHp: 200,
     speed: 6.0,
-    range: 5.5,
-    damage: 9,
-    fireRate: 4.5,
+    range: 6.5,
+    damage: 7,
+    fireRate: 5.5,
     damageType: "electric",
     attackSplashRadius: 0,
-    attackChain: { hops: 1, damagePerHop: 6, radius: 2.4 },
+    attackChain: { hops: 2, damagePerHop: 5, radius: 2.6 },
     unlockBolts: 250,
     abilities: [
       // Q — Phase Step: forward dash, on lunge end arcs to 3 closest dinos.
@@ -283,24 +283,28 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         speedMul: 1.7,
         damageResist: 0.8,
       },
-      // R — Overcharge: marks up to 5 nearby dinos for 5s; tick arcs each.
+      // R — Storm Surge: ring of lightning around the robot for 5s.
+      // Every 0.2s, lashes the 4 nearest enemies in 7 range.
       {
-        type: "mark",
-        cooldown: 14.0,
+        type: "storm",
+        cooldown: 16.0,
         duration: 5.0,
-        dmgMul: 1.5,
-        arcTick: { interval: 0.5, damage: 22, radius: 8.0, damageType: "electric" },
+        radius: 7.0,
+        tickInterval: 0.2,
+        boltsPerTick: 4,
+        damagePerBolt: 26,
+        damageType: "electric",
       },
     ],
     tint: "#5ad6ff",
-    abilityLabels: ["Phase Step", "Tesla Pulse", "Phase Veil", "Overcharge"],
+    abilityLabels: ["Phase Step", "Tesla Pulse", "Phase Veil", "Storm Surge"],
     abilityGlyphs: ["»", "⚡", "◈", "✺"],
     abilityBlurbs: [
-      "Hitscan electric zap. Every shot arcs to one nearby second target for 6 bonus damage. Fast cadence — best inside a pack.",
+      "Hitscan electric zap. Every shot arcs to two nearby targets for 5 bonus damage each. Fast cadence — best inside a pack.",
       "Forward dash with i-frames. On lunge end, lightning arcs to the 3 closest enemies for 24 electric damage each.",
       "Radial electric blast at the robot (70 dmg). Then forks chain lightning to 4 more enemies in 6 range for 35 dmg per hop.",
       "Phase Veil: +70% speed, +60% fire rate, +15% damage, 80% resist for 3s. Use to reposition through a clog.",
-      "Marks up to 5 nearby enemies for 5s. Marked targets take +50% damage from all sources and absorb a 22-dmg arc every 0.5s.",
+      "Storm Surge: a 7-radius lightning storm engulfs the robot for 5s. Every 0.2s, 4 of the nearest enemies eat 26 electric damage.",
     ],
   },
   mike: {
@@ -308,17 +312,17 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     label: "Mike",
     callsign: "Pyre",
     blurb:
-      "Close-range flame mech. Splash plus burn DoT per shot — lights packs on fire and walks away.",
+      "Close-range flame mech. Heavy per-shot splash plus burn DoT — turns packs into bonfires.",
     strengths:
-      "Per-shot splash and a 3s burn DoT clears packs. Ignition doubles fire rate. Incinerate deletes whole waves at midrange.",
-    weakness: "Short engagement range. Para and armored matriarchs vent flame at ≤0.5×.",
-    maxHp: 210,
+      "Biggest auto-attack splash of any robot. Ignition doubles fire rate. Inferno Ring washes flame waves out in every direction.",
+    weakness: "Shortest engagement range. Para and armored matriarchs vent flame at ≤0.5×.",
+    maxHp: 220,
     speed: 4.2,
-    range: 5.5,
-    damage: 9,
-    fireRate: 4.5,
+    range: 4.5,
+    damage: 14,
+    fireRate: 3.6,
     damageType: "flame",
-    attackSplashRadius: 0.8,
+    attackSplashRadius: 1.1,
     unlockBolts: 600,
     abilities: [
       // Q — Thruster Burst (kept). Forward dash with coal trail.
@@ -343,25 +347,29 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         damageResist: 0.35,
         igniteOnHit: { duration: 2.0, totalDamage: 12 },
       },
-      // R — Incinerate (kept). Sustained flame on locked target.
+      // R — Inferno Ring: 3 expanding flame rings wash out from the
+      // robot in sequence, each damaging anything caught in its band.
       {
-        type: "incinerate",
-        cooldown: 16.0,
-        range: 8.0,
-        totalDamage: 320,
-        duration: 4.5,
+        type: "flameRings",
+        cooldown: 17.0,
+        ringCount: 3,
+        ringInterval: 0.7,
+        maxRadius: 6.5,
+        expandSpeed: 9.0,
+        damagePerRing: 95,
         damageType: "flame",
+        burn: { duration: 3.0, totalDamage: 36 },
       },
     ],
     tint: "#ff8a3a",
-    abilityLabels: ["Thruster Burst", "Flame Nova", "Ignition", "Incinerate"],
+    abilityLabels: ["Thruster Burst", "Flame Nova", "Ignition", "Inferno Ring"],
     abilityGlyphs: ["»", "🔥", "✱", "✷"],
     abilityBlurbs: [
-      "Short-range flame splash (0.8 radius) — every shot hits a group. Fast cadence stacks DPS on clumped enemies.",
+      "Heavy short-range flame splash (1.1 radius) — every shot hits a group. Slower cadence than Leela, way more pop per hit.",
       "Forward dash with i-frames. Drops a 2.6s burning coal trail (22 dps tick) behind you — ideal for running through a marching column.",
       "Radial flame burst (4.5 radius, 95 dmg) plus a 4-second burn (40 total) on every enemy hit.",
       "Ignition: ×2 fire rate, +30% damage, 35% resist for 4s. While active, every auto-attack adds a 2s burn DoT (12 total).",
-      "Lock the most-advanced enemy within 8 range; sustained flame ticks 320 total over 4.5s, no matter where they walk.",
+      "Inferno Ring: 3 expanding rings of flame wash out from the robot, each dealing 95 flame damage + a 3s burn to anything caught in its band.",
     ],
   },
   stan: {
@@ -369,12 +377,12 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     label: "Stan",
     callsign: "Mauler",
     blurb:
-      "Explosive artillery. Every shell detonates; ground pounds and saturation craters chunk packs.",
+      "Explosive artillery. Every shell detonates; ground pounds and giant warheads chunk packs.",
     strengths:
-      "Every auto-attack is a splash. Ground Pound lands a 110-dmg blast. Saturation leaves burning craters that linger.",
+      "Every auto-attack is a splash. Ground Pound lands a 110-dmg blast. Annihilator drops a single warhead that flattens the lane.",
     weakness:
       "Slowest mobility — positioning drift hurts. Explosive resist on armored matriarchs softens the kit.",
-    maxHp: 290,
+    maxHp: 300,
     speed: 3.3,
     range: 9.0,
     damage: 34,
@@ -410,27 +418,29 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         speedMul: 0.5,
         damageResist: 0.75,
       },
-      // R — Saturation Strike: barrage + every shell leaves a crater.
+      // R — Annihilator Missile: locks the highest-progress enemy in
+      // range, charges, then drops a single huge warhead with massive
+      // splash at impact.
       {
-        type: "barrage",
-        cooldown: 14.0,
-        count: 10,
-        range: 11.0,
-        damage: 32,
-        splashRadius: 1.6,
+        type: "killshot",
+        cooldown: 18.0,
+        range: 12.0,
+        chargeTime: 0.9,
+        damage: 700,
+        splashDamage: 320,
+        splashRadius: 4.0,
         damageType: "explosive",
-        crater: { duration: 3.0, tickDamage: 18, radius: 2.0, tickInterval: 0.4 },
       },
     ],
     tint: "#ffd24a",
-    abilityLabels: ["Ground Pound", "Quake", "Bulwark", "Saturation"],
+    abilityLabels: ["Ground Pound", "Quake", "Bulwark", "Annihilator"],
     abilityGlyphs: ["»", "✺", "▣", "❖"],
     abilityBlurbs: [
       "Every shell explodes on impact (1.5 splash). Slow cadence, long range — pre-aim a clump and watch the whole row go up.",
       "Short dash with i-frames. On landing, detonates a 3.5-radius explosion for 110 explosive damage.",
       "Radial explosive blast (5 radius, 160 dmg). Knocks every enemy hit backwards 1.6 units along the path.",
       "Bulwark: roots Stan (×0.5 speed), +40% damage, 75% damage resist for 5s. Brace and bombard.",
-      "Saturation Strike: 10 shells over 9s area. Every shell leaves a 2-radius crater that ticks 18 explosive dmg every 0.4s for 3s.",
+      "Annihilator Missile: locks the most-advanced enemy within 12 range, charges 0.9s, then drops a 700-dmg warhead with a 4-radius, 320-dmg splash.",
     ],
   },
 };

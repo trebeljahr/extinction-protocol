@@ -218,32 +218,31 @@ export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): s
     }
     return lines;
   }
-  if (a.type === "barrage") {
+  if (a.type === "storm") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Duration ${a.duration.toFixed(1)}s · Radius ${a.radius.toFixed(1)}`,
+      `${a.boltsPerTick} bolts every ${a.tickInterval.toFixed(2)}s, ${a.damagePerBolt} ${DAMAGE_TYPE_LABEL[a.damageType]} each`,
+    ];
+  }
+  if (a.type === "flameRings") {
     const lines = [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Shells ${a.count}`,
-      `Damage ${a.damage} × splash ${a.splashRadius.toFixed(1)}`,
-      `Range ${a.range.toFixed(1)} · ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+      `${a.ringCount} rings · ${a.ringInterval.toFixed(1)}s apart`,
+      `Each ring expands to ${a.maxRadius.toFixed(1)} at ${a.expandSpeed.toFixed(1)} u/s`,
+      `Damage ${a.damagePerRing} ${DAMAGE_TYPE_LABEL[a.damageType]} per ring`,
     ];
-    if (a.crater) {
-      lines.push(
-        `Each shell leaves a crater (${a.crater.tickDamage}/tick, ${a.crater.duration.toFixed(1)}s)`,
-      );
+    if (a.burn) {
+      lines.push(`Burn ${a.burn.totalDamage} over ${a.burn.duration.toFixed(1)}s`);
     }
     return lines;
   }
-  if (a.type === "mark") {
-    const lines = [
+  if (a.type === "frenzy") {
+    return [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
       `Duration ${a.duration.toFixed(1)}s`,
-      `Marked targets take +${Math.round((a.dmgMul - 1) * 100)}% damage`,
+      `Damage ×${a.damageMul.toFixed(2)} · Fire rate ×${a.fireRateMul.toFixed(1)}`,
     ];
-    if (a.arcTick) {
-      lines.push(
-        `Arc tick every ${a.arcTick.interval.toFixed(1)}s: ${a.arcTick.damage} ${DAMAGE_TYPE_LABEL[a.arcTick.damageType]}`,
-      );
-    }
-    return lines;
   }
   if (a.type === "buff") {
     const lines = [`Cooldown ${a.cooldown.toFixed(1)}s`, `Duration ${a.duration.toFixed(1)}s`];
@@ -258,14 +257,6 @@ export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): s
       );
     }
     return lines;
-  }
-  if (a.type === "incinerate") {
-    return [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Total damage ${a.totalDamage}`,
-      `Duration ${a.duration.toFixed(1)}s · Range ${a.range.toFixed(1)}`,
-      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
-    ];
   }
   if (a.type === "killshot") {
     return [

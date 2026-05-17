@@ -277,34 +277,49 @@ export type RobotPendingShot = {
   damageType: DamageType;
 };
 
-// Ongoing slot-3 effect that ticks per frame. Mark (Leela) buffs the
-// robot's own outgoing damage for the duration AND optionally pulses an
-// arc-tick across the marked target list; incinerate (Mike) burns a
-// single locked enemy until the timer ends or the target dies;
-// killshot (George) charges a hitscan that then deletes one enemy.
+// Ongoing slot-3 effect that ticks per frame.
+// - storm (Leela): self-AoE lightning storm; zaps the N nearest enemies
+//   in radius every tickInterval until endAt.
+// - flameRings (Mike): spawns N expanding rings sequentially; each ring
+//   walks outward at expandSpeed, damaging enemies as it passes them.
+// - frenzy (George): time-windowed damage + fire-rate multipliers
+//   stacked on top of the slot-2 self-buff.
+// - killshot (Stan): charges then drops a single high-damage projectile
+//   with splash at the locked target.
 export type RobotPayloadState =
   | {
-      kind: "mark";
-      endAt: number;
-      dmgMul: number;
-      // Optional arc-tick (Leela Overcharge). Empty targetIds list means
-      // no arc — just a pure damage multiplier.
-      arc?: {
-        targetIds: EntityId[];
-        nextTickAt: number;
-        interval: number;
-        damage: number;
-        radius: number;
-        damageType: DamageType;
-      };
-    }
-  | {
-      kind: "incinerate";
-      targetId: EntityId;
+      kind: "storm";
       endAt: number;
       nextTickAt: number;
-      tickDamage: number;
+      tickInterval: number;
+      radius: number;
+      boltsPerTick: number;
+      damagePerBolt: number;
       damageType: DamageType;
+    }
+  | {
+      kind: "flameRings";
+      endAt: number;
+      // Time the next ring should be spawned (or Infinity when all rings
+      // have been spawned and we're just waiting on the last to finish).
+      nextRingAt: number;
+      ringsRemaining: number;
+      ringInterval: number;
+      maxRadius: number;
+      expandSpeed: number;
+      damagePerRing: number;
+      damageType: DamageType;
+      burn?: { duration: number; totalDamage: number };
+      // Active expanding rings. Each carries its current radius and the
+      // ids of enemies already damaged by this ring, so a unit only eats
+      // the hit once per ring even at low frame rates.
+      rings: { radius: number; hitIds: Set<EntityId> }[];
+    }
+  | {
+      kind: "frenzy";
+      endAt: number;
+      damageMul: number;
+      fireRateMul: number;
     }
   | {
       kind: "killshot";
@@ -694,7 +709,7 @@ export type GameEvent =
   | { type: "flame-stop"; towerId: number }
   | {
       type: "robot-ability";
-      kind: "dash-aim" | "dash" | "burst" | "buff" | "barrage" | "mark" | "incinerate" | "killshot";
+      kind: "dash-aim" | "dash" | "burst" | "buff" | "storm" | "flameRings" | "frenzy" | "killshot";
       pos: Vec2;
     };
 

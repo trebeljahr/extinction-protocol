@@ -24,7 +24,6 @@ import {
   createCoalEmber,
   createExplosion,
   createProjectile,
-  createRobotCrater,
   ENEMY_ROBOT_DAMAGE,
   emit,
   ROBOT_RADIUS,
@@ -41,8 +40,8 @@ const ROBOT_ARRIVE_RADIUS = 0.25;
 const ROBOT_PUSH_ITERATIONS = 3;
 const ROBOT_PROJECTILE_SPEED = 26;
 // Seconds after the last damage tick before regen kicks back in.
-const ROBOT_REGEN_DELAY = 4.0;
-const ROBOT_REGEN_PER_SEC = 22;
+const ROBOT_REGEN_DELAY = 2.5;
+const ROBOT_REGEN_PER_SEC = 38;
 // Look-ahead steering — distance the robot "sees" ahead of their motion
 // for trees/rocks/towers. Anything inside the lateral clearance band
 // applies a sideways nudge so the robot arcs around it instead of
@@ -445,80 +444,129 @@ const dashDir = (robot: Robot): Vec2 => {
 };
 
 // Mid-tick payload servicing for slot 3 ongoing effects (ultimate).
-// Mark drives a damage multiplier (and optionally arcs to a list of
-// marked targets); incinerate ticks flame on a locked target;
-// killshot waits for the charge timer then deletes a target with splash.
+// - storm (Leela): every tickInterval, lash the N nearest enemies in
+//   radius with chain beams.
+// - flameRings (Mike): spawn rings on cadence, advance each ring's
+//   radius and damage any enemy newly inside the circle.
+// - frenzy (George): pure stat multipliers, no per-tick effect of its
+//   own — auto-attacks naturally pump through the buffed cadence.
+// - killshot (Stan): charge timer, then delete the locked target with
+//   splash at impact.
 // The slot-2 self-buff is its own tick pass (tickBuff) — they stack.
-const tickPayload = (world: World, robot: Robot) => {
+const tickPayload = (
+  world: World,
+  robot: Robot,
+  dt: number,
+): { dmgMul: number; rateMul: number } => {
   const p = robot.payload;
-  if (!p) return 1;
+  const idle = { dmgMul: 1, rateMul: 1 };
+  if (!p) return idle;
   if (p.kind === "killshot") {
     if (world.time >= p.fireAt) {
       const target = world.enemyById.get(p.targetId);
       if (target && isEnemyTargetable(target)) {
         createBeam(world, [robot.pos, target.pos], "#ffe9a0", 0.25);
-        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 24);
+        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 28);
         // Splash at impact point so escorts die with the priority target.
         const r2 = p.splashRadius * p.splashRadius;
         for (const e of world.enemies) {
           if (!isEnemyTargetable(e)) continue;
           if (e === target) continue;
           if (distSq(e.pos, target.pos) > r2) continue;
-          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 8);
+          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 10);
         }
-        createExplosion(world, target.pos, p.splashRadius, 0.45);
-        spawnParticles(world, target.pos, 36, "#ffe9a0", [4, 9], 0.6);
-        addShake(world, 0.5, 4);
+        createExplosion(world, target.pos, p.splashRadius, 0.55);
+        spawnParticles(world, target.pos, 48, "#ffb04a", [4, 10], 0.7);
+        spawnParticles(world, target.pos, 28, "#ffe9a0", [3, 7], 0.5);
+        addShake(world, 0.7, 5);
         emit(world, { type: "impact", pos: target.pos });
       }
       robot.payload = null;
     }
-    return 1;
+    return idle;
   }
-  if (world.time >= p.endAt) {
-    robot.payload = null;
-    return 1;
-  }
-  if (p.kind === "mark") {
-    // Arc-tick (Leela Overcharge) — chain damage across the marked
-    // targets at a steady interval. Filters out dead targets between ticks.
-    if (p.arc && world.time >= p.arc.nextTickAt) {
-      const live: EntityId[] = [];
-      for (const id of p.arc.targetIds) {
-        const t = world.enemyById.get(id);
-        if (t && isEnemyTargetable(t)) live.push(id);
-      }
-      p.arc.targetIds = live;
-      let from: { pos: Vec2 } = robot;
-      for (const id of live) {
-        const t = world.enemyById.get(id);
-        if (!t) continue;
-        applyDamage(world, t, p.arc.damage, p.arc.damageType, "#cfe8ff", 4);
-        createBeam(world, [from.pos, t.pos], "#7ee0ff", 0.12);
-        from = t;
-      }
-      p.arc.nextTickAt = world.time + p.arc.interval;
-    }
-    return p.dmgMul;
-  }
-  if (p.kind === "incinerate") {
-    const target = world.enemyById.get(p.targetId);
-    if (!target || !isEnemyTargetable(target)) {
+  if (p.kind === "frenzy") {
+    if (world.time >= p.endAt) {
       robot.payload = null;
-      return 1;
+      return idle;
+    }
+    return { dmgMul: p.damageMul, rateMul: p.fireRateMul };
+  }
+  if (p.kind === "storm") {
+    if (world.time >= p.endAt) {
+      robot.payload = null;
+      return idle;
     }
     if (world.time >= p.nextTickAt) {
-      applyDamage(world, target, p.tickDamage, p.damageType, "#ffb054", 4, false, {
-        fromRobot: true,
-      });
-      target.flashUntil = world.time + 0.1;
-      spawnParticles(world, target.pos, 4, "#ff8a3a", [2, 5], 0.3);
-      // Beam from robot to target reads as a sustained flame cone.
-      createBeam(world, [robot.pos, target.pos], "#ff8a3a", 0.45);
-      p.nextTickAt = world.time + 0.5;
+      // Pick the N nearest targetable enemies inside radius, lash each.
+      const r2 = p.radius * p.radius;
+      const pool: { e: Enemy; d2: number }[] = [];
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        const d2 = distSq(e.pos, robot.pos);
+        if (d2 > r2) continue;
+        pool.push({ e, d2 });
+      }
+      pool.sort((a, b) => a.d2 - b.d2);
+      const n = Math.min(p.boltsPerTick, pool.length);
+      for (let i = 0; i < n; i++) {
+        const target = pool[i].e;
+        applyDamage(world, target, p.damagePerBolt, p.damageType, "#cfe8ff", 6, false, {
+          fromRobot: true,
+        });
+        target.flashUntil = world.time + 0.1;
+        createBeam(world, [robot.pos, target.pos], "#9beaff", 0.15);
+        spawnParticles(world, target.pos, 6, "#cfe8ff", [3, 6], 0.3);
+      }
+      // Sparkles around the robot so the storm reads even with no
+      // enemies inside the ring this tick.
+      spawnParticles(world, robot.pos, 4, "#9beaff", [2, 4], 0.25);
+      p.nextTickAt = world.time + p.tickInterval;
     }
+    return idle;
   }
-  return 1;
+  if (p.kind === "flameRings") {
+    // Spawn the next ring if cadence elapsed and rings remain.
+    if (world.time >= p.nextRingAt && p.ringsRemaining > 0) {
+      p.rings.push({ radius: 0, hitIds: new Set<EntityId>() });
+      p.ringsRemaining -= 1;
+      p.nextRingAt = p.ringsRemaining > 0 ? world.time + p.ringInterval : Number.POSITIVE_INFINITY;
+      createExplosion(world, robot.pos, p.maxRadius, 0.55);
+      spawnParticles(world, robot.pos, 18, "#ff8a3a", [3, 7], 0.4);
+      addShake(world, 0.25, 3);
+    }
+    // Advance each active ring outward and damage any enemy newly
+    // inside the circle (per-ring hit-set so a unit eats one hit per
+    // ring even at low frame rates).
+    const survivors: typeof p.rings = [];
+    for (const ring of p.rings) {
+      ring.radius += p.expandSpeed * dt;
+      const r2 = ring.radius * ring.radius;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (ring.hitIds.has(e.id)) continue;
+        if (distSq(e.pos, robot.pos) > r2) continue;
+        ring.hitIds.add(e.id);
+        applyDamage(world, e, p.damagePerRing, p.damageType, "#ff8a3a", 8, false, {
+          fromRobot: true,
+        });
+        e.flashUntil = world.time + 0.12;
+        spawnParticles(world, e.pos, 8, "#ff8a3a", [3, 7], 0.35);
+        if (p.burn) {
+          applyRobotBurn(world, e, p.burn.duration, p.burn.totalDamage);
+        }
+      }
+      if (ring.radius < p.maxRadius) survivors.push(ring);
+    }
+    p.rings = survivors;
+    // Done when every ring has been emitted AND every active ring has
+    // finished expanding.
+    if (p.ringsRemaining === 0 && p.rings.length === 0) {
+      robot.payload = null;
+    }
+    return idle;
+  }
+  return idle;
 };
 
 // Slot-2 self-buff servicing. Stacks multiplicatively with payload muls
@@ -567,12 +615,13 @@ export const updateRobot = (world: World, dt: number) => {
 
   robot.attackCooldown = Math.max(0, robot.attackCooldown - dt);
   // Ultimate (slot 3) and self-buff (slot 2) refresh the robot's per-tick
-  // multipliers. Damage stacks multiplicatively; the other muls come from
-  // the buff alone. damageResist clamped <1 inside damageRobot.
-  const payloadDmgMul = tickPayload(world, robot);
+  // multipliers. Damage and fire rate stack multiplicatively across the
+  // payload + buff (George's Bullet Storm + Spotter Drone is the
+  // intended combo). damageResist clamped <1 inside damageRobot.
+  const payloadMul = tickPayload(world, robot, dt);
   const buff = tickBuff(world, robot);
-  robot.damageMul = payloadDmgMul * buff.damageMul;
-  robot.fireRateMul = buff.fireRateMul;
+  robot.damageMul = payloadMul.dmgMul * buff.damageMul;
+  robot.fireRateMul = payloadMul.rateMul * buff.fireRateMul;
   robot.speedMul = buff.speedMul;
   robot.damageResist = buff.damageResist;
 
@@ -1097,94 +1146,53 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     return true;
   }
 
-  if (spec.type === "barrage") {
-    for (let i = 0; i < spec.count; i++) {
-      robot.pendingShots.push({
-        when: world.time + 0.05 + i * 0.09,
-        range: spec.range,
-        damage: spec.damage,
-        splashRadius: spec.splashRadius,
-        damageType: spec.damageType,
-      });
-    }
-    // Stan Saturation crater — drop one crater per shell on a slight
-    // delay so the field litters with explosion zones in lockstep with
-    // the barrage cadence. Picks a random offset around the robot.
-    if (spec.crater) {
-      const c = spec.crater;
-      for (let i = 0; i < spec.count; i++) {
-        const ang = (i / spec.count) * Math.PI * 2 + Math.random() * 0.6;
-        const dist = spec.range * (0.35 + 0.55 * Math.random());
-        const cx = robot.pos.x + Math.cos(ang) * dist;
-        const cy = robot.pos.y + Math.sin(ang) * dist;
-        createRobotCrater(
-          world,
-          { x: cx, y: cy },
-          c.radius,
-          c.tickDamage,
-          c.tickInterval,
-          c.duration,
-        );
-      }
-    }
-    emit(world, { type: "robot-ability", kind: "barrage", pos: robot.pos });
-    return true;
-  }
-
-  if (spec.type === "mark") {
-    const base = {
-      kind: "mark" as const,
-      endAt: world.time + spec.duration,
-      dmgMul: spec.dmgMul,
-    };
-    if (spec.arcTick) {
-      // Leela Overcharge — collect up to 5 nearest targetable enemies
-      // inside arc radius and seed them as the persistent mark list.
-      const candidates: { e: Enemy; d2: number }[] = [];
-      const ar2 = spec.arcTick.radius * spec.arcTick.radius;
-      for (const e of world.enemies) {
-        if (!isEnemyTargetable(e)) continue;
-        const d2 = distSq(e.pos, robot.pos);
-        if (d2 > ar2) continue;
-        candidates.push({ e, d2 });
-      }
-      candidates.sort((a, b) => a.d2 - b.d2);
-      const targetIds = candidates.slice(0, 5).map((c) => c.e.id);
-      robot.payload = {
-        ...base,
-        arc: {
-          targetIds,
-          nextTickAt: world.time + spec.arcTick.interval,
-          interval: spec.arcTick.interval,
-          damage: spec.arcTick.damage,
-          radius: spec.arcTick.radius,
-          damageType: spec.arcTick.damageType,
-        },
-      };
-    } else {
-      robot.payload = base;
-    }
-    spawnParticles(world, robot.pos, 18, variant.tint, [2, 5], 0.5);
-    emit(world, { type: "robot-ability", kind: "mark", pos: robot.pos });
-    return true;
-  }
-
-  if (spec.type === "incinerate") {
-    const target = findEnemyByProgress(world, robot.pos, spec.range);
-    if (!target) return false;
-    const tickInterval = 0.5;
-    const ticks = Math.max(1, Math.floor(spec.duration / tickInterval));
+  if (spec.type === "storm") {
     robot.payload = {
-      kind: "incinerate",
-      targetId: target.id,
+      kind: "storm",
       endAt: world.time + spec.duration,
       nextTickAt: world.time + 0.05,
-      tickDamage: spec.totalDamage / ticks,
+      tickInterval: spec.tickInterval,
+      radius: spec.radius,
+      boltsPerTick: spec.boltsPerTick,
+      damagePerBolt: spec.damagePerBolt,
       damageType: spec.damageType,
     };
-    spawnParticles(world, target.pos, 24, "#ff8a3a", [3, 7], 0.5);
-    emit(world, { type: "impact", pos: target.pos });
-    emit(world, { type: "robot-ability", kind: "incinerate", pos: target.pos });
+    spawnParticles(world, robot.pos, 28, "#9beaff", [3, 7], 0.5);
+    addShake(world, 0.3, 4);
+    emit(world, { type: "robot-ability", kind: "storm", pos: robot.pos });
+    return true;
+  }
+
+  if (spec.type === "flameRings") {
+    const totalLife = spec.ringCount * spec.ringInterval + spec.maxRadius / spec.expandSpeed;
+    robot.payload = {
+      kind: "flameRings",
+      endAt: world.time + totalLife + 0.5,
+      nextRingAt: world.time,
+      ringsRemaining: spec.ringCount,
+      ringInterval: spec.ringInterval,
+      maxRadius: spec.maxRadius,
+      expandSpeed: spec.expandSpeed,
+      damagePerRing: spec.damagePerRing,
+      damageType: spec.damageType,
+      burn: spec.burn,
+      rings: [],
+    };
+    spawnParticles(world, robot.pos, 22, "#ff8a3a", [3, 7], 0.45);
+    addShake(world, 0.35, 4);
+    emit(world, { type: "robot-ability", kind: "flameRings", pos: robot.pos });
+    return true;
+  }
+
+  if (spec.type === "frenzy") {
+    robot.payload = {
+      kind: "frenzy",
+      endAt: world.time + spec.duration,
+      damageMul: spec.damageMul,
+      fireRateMul: spec.fireRateMul,
+    };
+    spawnParticles(world, robot.pos, 20, variant.tint, [2, 5], 0.5);
+    emit(world, { type: "robot-ability", kind: "frenzy", pos: robot.pos });
     return true;
   }
 

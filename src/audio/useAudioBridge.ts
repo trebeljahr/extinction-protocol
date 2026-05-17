@@ -179,17 +179,17 @@ export const useAudioBridge = () => {
             case "buff":
               audio.play("upgrade", "ui", 0.6, 120, 0.9);
               break;
-            case "barrage":
-              audio.play("shoot-mortar", "towers", 0.6, 120, 1.4);
+            case "storm":
+              audio.play("shoot-chain", "towers", 0.6, 120, 0.9);
               break;
-            case "mark":
-              audio.play("shoot-chain", "towers", 0.55, 120, 0.9);
+            case "flameRings":
+              audio.play("shoot-flame", "towers", 0.55, 120, 0.9);
               break;
-            case "incinerate":
-              audio.play("shoot-flame", "towers", 0.45, 120, 0.9);
+            case "frenzy":
+              audio.play("upgrade", "ui", 0.6, 120, 1.4);
               break;
             case "killshot":
-              audio.play("shoot-pulse", "towers", 0.7, 120, 0.6);
+              audio.play("shoot-mortar", "towers", 0.7, 120, 1.4);
               break;
           }
           break;
