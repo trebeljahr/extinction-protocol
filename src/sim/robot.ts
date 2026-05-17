@@ -65,6 +65,10 @@ const ROBOT_LATERAL_LERP_PER_SEC = 2.2;
 // in melee. Engaged dinos halt forward path movement until the robot
 // either dies, dashes free, or walks out of this range.
 const ROBOT_ENGAGE_RANGE = 1.6;
+// Cap on simultaneous melee attackers per robot. Closest-N in range get
+// locked into the skirmish (frozen + chipping HP); extras in range keep
+// marching past so packs don't deadlock around a single robot.
+const MAX_ENGAGED_DINOS = 5;
 // Window in which a pre-dash aim stays valid before auto-clearing.
 const DASH_AIM_LIFETIME = 4.0;
 // Max distance a move-order click can land from the painted path before
@@ -772,17 +776,15 @@ export const updateRobot = (world: World, dt: number) => {
   const ky = 1 - Math.exp(-ROBOT_TURN_RATE * dt);
   robot.facing += shortAngleDelta(robot.facing, targetYaw) * ky;
 
-  // Skirmish lock + continuous melee. One robot engages roughly one
-  // dino at a time: pick the closest in-range candidate, mark it as
-  // engaged, and tick its robot-damage onto the robot. Other dinos in
-  // range get their lock cleared so the lane keeps marching.
-  // ENEMY_ROBOT_DAMAGE is its own axis from `e.damage` (which is the
-  // leak/HQ damage), so a t-rex feels devastating in melee while
-  // swarm chip is a tickle.
+  // Skirmish lock + continuous melee. A robot can fight up to
+  // MAX_ENGAGED_DINOS attackers at once — closest-N in melee range get
+  // locked, everyone else (in range or not) keeps marching. Each engaged
+  // dino chips the robot per tick via ENEMY_ROBOT_DAMAGE (its own axis
+  // from `e.damage`, which is the leak/HQ damage), so a t-rex feels
+  // devastating in melee while swarm chip is a tickle.
   const ROBOT_HURT_RANGE = ROBOT_ENGAGE_RANGE;
   const hurtR2 = ROBOT_HURT_RANGE * ROBOT_HURT_RANGE;
-  let closest: Enemy | null = null;
-  let closestD2 = Number.POSITIVE_INFINITY;
+  const candidates: { e: Enemy; d2: number }[] = [];
   if (robot.alive && world.time >= robot.abilityActiveUntil[0] && world.time >= robot.iFrameUntil) {
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
@@ -792,20 +794,22 @@ export const updateRobot = (world: World, dt: number) => {
         if (e.engagedRobotId === robot.id) e.engagedRobotId = null;
         continue;
       }
-      if (d2 < closestD2) {
-        closestD2 = d2;
-        closest = e;
-      }
+      candidates.push({ e, d2 });
     }
-    if (closest) {
-      // Lock the closest dino onto this robot; release everyone else
-      // currently locked so the engagement is genuinely 1:1.
-      for (const e of world.enemies) {
-        if (e === closest) continue;
-        if (e.engagedRobotId === robot.id) e.engagedRobotId = null;
-      }
-      closest.engagedRobotId = robot.id;
-      const perTick = ENEMY_ROBOT_DAMAGE[closest.kind] ?? closest.damage;
+    if (candidates.length > MAX_ENGAGED_DINOS) {
+      candidates.sort((a, b) => a.d2 - b.d2);
+    }
+    const engagedCount = Math.min(candidates.length, MAX_ENGAGED_DINOS);
+    // Release in-range candidates that didn't make the cut so the lane
+    // marches past instead of stalling outside an invisible scrum.
+    for (let i = engagedCount; i < candidates.length; i++) {
+      const e = candidates[i].e;
+      if (e.engagedRobotId === robot.id) e.engagedRobotId = null;
+    }
+    for (let i = 0; i < engagedCount; i++) {
+      const e = candidates[i].e;
+      e.engagedRobotId = robot.id;
+      const perTick = ENEMY_ROBOT_DAMAGE[e.kind] ?? e.damage;
       damageRobot(world, perTick * dt);
     }
   } else {

@@ -16,12 +16,6 @@ const LEAK_POSE_SECONDS = 0.34;
 const LEAK_ATTACK_STANDOFF = 0.18;
 const LEAK_TRIGGER_MIN_DISTANCE = 0.28;
 const LEAK_TRIGGER_MAX_DISTANCE = 0.75;
-// Range within which a passing enemy turns to face the robot. Robot-hurt
-// melee chip uses 1.1u; matching the engage radius to 1.6 gives a small
-// visual lead-in so the model swivels just before it starts gnawing.
-const ROBOT_ENGAGE_RADIUS = 1.6;
-const ROBOT_ENGAGE_R2 = ROBOT_ENGAGE_RADIUS * ROBOT_ENGAGE_RADIUS;
-
 const remainingPathDistance = (path: Vec2[], segment: number, segmentT: number): number => {
   if (path.length < 2) return 0;
   let total = segmentLength(path, segment) * (1 - segmentT);
@@ -147,8 +141,6 @@ export const updateEnemies = (world: World, dt: number) => {
 
   const robot = world.robot;
   const robotAlive = robot.alive;
-  const robotX = robot.pos.x;
-  const robotY = robot.pos.y;
 
   for (const e of world.enemies) {
     if (!e.alive) continue;
@@ -159,13 +151,10 @@ export const updateEnemies = (world: World, dt: number) => {
       updateLeakAttack(world, e);
       continue;
     }
-    if (robotAlive) {
-      const dx = robotX - e.pos.x;
-      const dy = robotY - e.pos.y;
-      e.engagedWithRobot = dx * dx + dy * dy <= ROBOT_ENGAGE_R2;
-    } else {
-      e.engagedWithRobot = false;
-    }
+    // Visual swivel is gated on the actual skirmish lock owned by robot.ts,
+    // not raw distance. With the per-robot engage cap, in-range dinos that
+    // didn't make the cut keep marching and must not turn to face the robot.
+    e.engagedWithRobot = robotAlive && e.engagedRobotId === robot.id;
 
     // Pyre Combustion meta — ignited enemies tick damage on a fixed
     // cadence while world.time < igniteUntil. Damage routes through
