@@ -71,6 +71,10 @@ export const Effects = () => {
       for (const b of beamPairs) {
         group.remove(b.halo.line);
         group.remove(b.core.line);
+        b.core.line.geometry.dispose();
+        b.halo.line.geometry.dispose();
+        b.core.mat.dispose();
+        b.halo.mat.dispose();
       }
     };
   }, [beamPairs]);
