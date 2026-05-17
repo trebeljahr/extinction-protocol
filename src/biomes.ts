@@ -148,7 +148,11 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
   },
 };
 
-const forestLayers = (): BiomeLayer[] => [
+type BiomeLayerSpec = BiomeLayer[];
+
+const makeBiomeLayers = (spec: BiomeLayerSpec): BiomeLayer[] => spec;
+
+const FOREST_LAYERS: BiomeLayerSpec = [
   {
     seed: 1337,
     urls: ["/models/nature/Grass1.glb", "/models/nature/Grass2.glb", "/models/nature/Grass3.glb"],
@@ -244,7 +248,7 @@ const DEAD_TREE_LAYER = (
   footprint: 0.85,
 });
 
-const desertLayers = (): BiomeLayer[] => [
+const DESERT_LAYERS: BiomeLayerSpec = [
   {
     seed: 9001,
     urls: [
@@ -315,7 +319,7 @@ const desertLayers = (): BiomeLayer[] => [
   },
 ];
 
-const snowLayers = (): BiomeLayer[] => [
+const SNOW_LAYERS: BiomeLayerSpec = [
   {
     seed: 4242,
     // Rock2 + Rock3 pulled — both render as hollow/shelf half-domes you can
@@ -360,7 +364,7 @@ const snowLayers = (): BiomeLayer[] => [
   },
 ];
 
-const wastelandLayers = (): BiomeLayer[] => [
+const WASTELAND_LAYERS: BiomeLayerSpec = [
   {
     seed: 9001,
     urls: [
@@ -440,7 +444,7 @@ const BLUE_CRYSTAL_BLOCKER_URLS = [
 // readable volcanic boulder fields rather than full-map rubble. Adds the
 // same blue-crystal pack used by alien so every clearable obstacle has a
 // readable silhouette without falling back to the sci-fi rock/crystal hybrid.
-const lavaLayers = (): BiomeLayer[] => [
+const LAVA_LAYERS: BiomeLayerSpec = [
   {
     seed: 4242,
     urls: [
@@ -514,7 +518,7 @@ const lavaLayers = (): BiomeLayer[] => [
 // instead of non-interactive scenery. Bush/Plant layer is also blocking:
 // previously they sat as 1–4 world-unit "ground cover" the player tried
 // to click and couldn't — now they read as the obstacles they look like.
-const alienLayers = (): BiomeLayer[] => [
+const ALIEN_LAYERS: BiomeLayerSpec = [
   {
     seed: 9001,
     urls: [
@@ -628,13 +632,22 @@ const alienLayers = (): BiomeLayer[] => [
   },
 ];
 
+const BIOME_LAYER_SPECS: Record<Biome, BiomeLayerSpec> = {
+  forest: FOREST_LAYERS,
+  desert: DESERT_LAYERS,
+  snow: SNOW_LAYERS,
+  wasteland: WASTELAND_LAYERS,
+  lava: LAVA_LAYERS,
+  alien: ALIEN_LAYERS,
+};
+
 export const BIOME_LAYERS: Record<Biome, BiomeLayer[]> = {
-  forest: forestLayers(),
-  desert: desertLayers(),
-  snow: snowLayers(),
-  wasteland: wastelandLayers(),
-  lava: lavaLayers(),
-  alien: alienLayers(),
+  forest: makeBiomeLayers(BIOME_LAYER_SPECS.forest),
+  desert: makeBiomeLayers(BIOME_LAYER_SPECS.desert),
+  snow: makeBiomeLayers(BIOME_LAYER_SPECS.snow),
+  wasteland: makeBiomeLayers(BIOME_LAYER_SPECS.wasteland),
+  lava: makeBiomeLayers(BIOME_LAYER_SPECS.lava),
+  alien: makeBiomeLayers(BIOME_LAYER_SPECS.alien),
 };
 
 // Clearable trees per biome (exactly 4 variants for compatibility with Tree.variant 0..3).
