@@ -4,6 +4,7 @@ import * as THREE from "three";
 import type { Tower } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
+import { chainArcABase, chainArcBBase, chainOrbBase } from "./towerTints";
 
 // Overlay VFX for towers. Drives "charge up" visuals off `cooldown` progress:
 //   charge = 1 - cooldown / (1/fireRate)   -> 0 just fired, 1 ready to fire.
@@ -49,13 +50,19 @@ export const TowerVfx = () => {
       const intensity = baseGlow + (1 - baseGlow) * charge * flicker;
       const orbY = 1.35;
 
+      // Path A (Arc Reach) drifts the orb + arcs toward purple. Path B
+      // is reflected on the body mesh in ModelTowerMesh.
+      const orbBase = chainOrbBase(t.upgrades.a);
+      const arcABase = chainArcABase(t.upgrades.a);
+      const arcBBase = chainArcBBase(t.upgrades.a);
+
       // Core orb
       dummy.position.set(t.pos.x, orbY, -t.pos.y);
       dummy.rotation.set(0, time * 1.2 + t.id, 0);
       dummy.scale.setScalar(0.75 + charge * 0.35);
       dummy.updateMatrix();
       chainOrbRef.current!.setMatrixAt(chainCount, dummy.matrix);
-      color.setRGB(0.55 * intensity, 0.82 * intensity, 1.0 * intensity);
+      color.setRGB(orbBase[0] * intensity, orbBase[1] * intensity, orbBase[2] * intensity);
       chainOrbRef.current!.setColorAt(chainCount, color);
 
       // Crossed electrified arcs
@@ -65,14 +72,14 @@ export const TowerVfx = () => {
       dummy.scale.setScalar(arcScale);
       dummy.updateMatrix();
       chainArcARef.current!.setMatrixAt(chainCount, dummy.matrix);
-      color.setRGB(0.75 * intensity, 0.45 * intensity, 1.0 * intensity);
+      color.setRGB(arcABase[0] * intensity, arcABase[1] * intensity, arcABase[2] * intensity);
       chainArcARef.current!.setColorAt(chainCount, color);
 
       dummy.rotation.set(time * 2.4 + t.id * 1.3, 0, time * -1.8 + t.id * 0.4);
       dummy.scale.setScalar(arcScale);
       dummy.updateMatrix();
       chainArcBRef.current!.setMatrixAt(chainCount, dummy.matrix);
-      color.setRGB(0.6 * intensity, 0.95 * intensity, 1.0 * intensity);
+      color.setRGB(arcBBase[0] * intensity, arcBBase[1] * intensity, arcBBase[2] * intensity);
       chainArcBRef.current!.setColorAt(chainCount, color);
 
       chainCount++;

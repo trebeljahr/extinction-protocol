@@ -2,8 +2,31 @@ import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { TowerKind } from "../sim/types";
+import type { TowerKind, TowerUpgrades } from "../sim/types";
 import { useGame } from "../store";
+import { computeTowerTints, tierKey } from "./towerTints";
+
+const applyTints = (item: THREE.Object3D, kind: TowerKind, upgrades: TowerUpgrades) => {
+  const tints = computeTowerTints(kind, upgrades);
+  if (tints.length === 0) return;
+  item.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const raw of mats) {
+      const mat = raw as THREE.MeshStandardMaterial;
+      if (!mat) continue;
+      const tint = tints.find((tn) => mat.name.includes(tn.match));
+      if (!tint) continue;
+      // For atlas materials the texture provides the actual hue and
+      // `color` multiplies it; for untextured baseColorFactor materials
+      // `color` *is* the base colour. setRGB does the right thing in
+      // both cases — see towerTints.ts for the multiply vs replace split.
+      mat.color.setRGB(tint.rgb[0], tint.rgb[1], tint.rgb[2]);
+      mat.needsUpdate = true;
+    }
+  });
+};
 
 type Props = {
   kind: TowerKind;
@@ -25,6 +48,9 @@ export const ModelTowerMesh = ({
   const { scene } = useGLTF(url);
   const groupRef = useRef<THREE.Group>(null);
   const itemsRef = useRef<Map<number, THREE.Object3D>>(new Map());
+  // Last upgrade-tier pair we tinted each tower at. Lets the frame loop
+  // skip re-applying tints when nothing changed.
+  const tierRef = useRef<Map<number, number>>(new Map());
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
@@ -79,15 +105,27 @@ export const ModelTowerMesh = ({
       if (!item) {
         item = scene.clone(true);
         item.scale.setScalar(normalizedScale);
-        // The source-scene effect sets frustumCulled=false on every
-        // child mesh, but clones inherit the value at the moment of
-        // cloning — a tower placed on the very first frame can miss
-        // the effect pass. Re-apply per-clone so it's always set.
+        // Per-instance material clones — the GLTF cache hands every
+        // tower the same material reference by default, so tinting one
+        // would tint them all. Clone here so each tower's upgrade
+        // colours are independent.
         item.traverse((o) => {
-          if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).frustumCulled = false;
+          const mesh = o as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          mesh.frustumCulled = false;
+          const m = mesh.material;
+          if (Array.isArray(m)) mesh.material = m.map((sub) => sub.clone());
+          else if (m) mesh.material = m.clone();
         });
         parent.add(item);
         itemsRef.current.set(t.id, item);
+        tierRef.current.set(t.id, -1);
+      }
+
+      const key = tierKey(t.upgrades);
+      if (tierRef.current.get(t.id) !== key) {
+        applyTints(item, kind, t.upgrades);
+        tierRef.current.set(t.id, key);
       }
 
       item.position.set(t.pos.x - centerXZ.x, yOffset - scaledMinY, -t.pos.y - centerXZ.z);
@@ -114,6 +152,7 @@ export const ModelTowerMesh = ({
       if (!live.has(id)) {
         parent.remove(item);
         itemsRef.current.delete(id);
+        tierRef.current.delete(id);
       }
     }
   });
