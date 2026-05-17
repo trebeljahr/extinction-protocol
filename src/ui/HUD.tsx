@@ -56,6 +56,7 @@ export const HUD = () => {
   const selectedLevelId = useGame((s) => s.selectedLevelId);
   const difficulty = useGame((s) => s.progress.difficulty);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
+  const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const progress = useGame((s) => s.progress);
   // Mode chip + tower picker filtering both read the active mode.
   const runMode = useGame((s) => s.world.mode);
@@ -427,9 +428,11 @@ export const HUD = () => {
       <RobotPanel />
       <BossBanner />
 
-      {paused && !compendiumOpen && !levelIntroVisible && !newEnemyAlertVisible && (
-        <PauseMenu onResume={togglePause} />
-      )}
+      {paused &&
+        !compendiumOpen &&
+        !levelIntroVisible &&
+        !newEnemyAlertVisible &&
+        !difficultyPickerOpen && <PauseMenu onResume={togglePause} />}
     </div>
   );
 };
