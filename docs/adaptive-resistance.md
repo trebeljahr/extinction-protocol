@@ -49,11 +49,13 @@ extraResists[type] = existing × (1 − adaptiveBoost(level, streak, share) × b
 The boost composes three independent terms so a parked-on-one-tower player is punished much faster than a diversified one at the same level:
 
 ```
-levelTerm  = 0.12 + (level − 12) × 0.025
-streakTerm = min(0.4, max(0, streak − 1) × 0.07)
-concTerm   = max(0, share − 0.5) × 0.6
-boost      = min(0.95, levelTerm + streakTerm + concTerm)
+levelTerm  = 0.05 + (level − 12) × 0.015
+streakTerm = min(0.2, max(0, streak − 1) × 0.04)
+concTerm   = max(0, share − 0.5) × 0.3
+boost      = min(0.7, levelTerm + streakTerm + concTerm)
 ```
+
+Coefficients were dialed down from a 0.95 cap (playtest 13: "scales too hard, punishes towers so early waves become impossible"). Half the per-term contribution and a 0.7 ceiling keep adaptation a meaningful tilt without hard-walling early-game towers.
 
 - `streak` = consecutive waves the dominant damage type has stayed the same. Updated in `startWave` from the previous wave's dominant, reset to 1 on a type flip and to 0 when there's no recorded damage.
 - `share` = dominant type's fraction of the trailing `ADAPT_WINDOW` damage total. Below the 0.5 concentration floor it contributes nothing — adaptation still applies, but the herd doesn't ramp into immunity.
@@ -62,22 +64,22 @@ Sample boost across player behavior (no boss scale):
 
 | Level | Streak | Share | `boost` | Read                                              |
 | ----- | ------ | ----- | ------- | ------------------------------------------------- |
-| 12    | 1      | 0.50  | 0.12    | Just unlocked; herd barely flinches.              |
-| 12    | 4      | 0.90  | 0.57    | One tower since L8; herd has tuned.               |
-| 18    | 6      | 0.90  | 0.86    | Single-tower into late-game — immune incoming.    |
-| 20    | 1      | 0.40  | 0.32    | Diversified; manageable resist on adapted spawns. |
-| 20    | 8      | 0.95  | 0.95    | Refused to swap — capped.                         |
+| 12    | 1      | 0.50  | 0.05    | Just unlocked; herd barely flinches.              |
+| 12    | 4      | 0.90  | 0.29    | One tower since L8; herd has tuned.               |
+| 18    | 6      | 0.90  | 0.50    | Single-tower into late-game — meaningful tilt.    |
+| 20    | 1      | 0.40  | 0.17    | Diversified; light resist on adapted spawns.      |
+| 20    | 8      | 0.95  | 0.62    | Refused to swap — most adapted spawns highly resistant. |
 
 Coverage (per-spawn probability of being one of the adapted variants) uses the same three-term shape:
 
 ```
-base       = 0.25 + (level − 12) × 0.05
-streakBon  = min(0.4, max(0, streak − 1) × 0.08)
-concBon    = max(0, share − 0.5) × 0.6
-coverage   = min(1, base + streakBon + concBon)
+base       = 0.10 + (level − 12) × 0.03
+streakBon  = min(0.25, max(0, streak − 1) × 0.04)
+concBon    = max(0, share − 0.5) × 0.3
+coverage   = min(0.7, base + streakBon + concBon)
 ```
 
-A diversified player at L20 sees ~0.65 coverage; a single-tower player at L20 sees full 1.0 coverage with the boost stacked too.
+A diversified player at L20 sees ~0.34 coverage; a single-tower player at L20 hits the 0.7 cap with the boost stacked too — so ~30% of every wave still arrives unadapted, leaving a counter-play window.
 
 - **Effective multiplier:** stacks multiplicatively with the kind's base `ENEMY_RESIST`. A stego (base flame 0.6) at L18 against a streak-6, share-0.9 player hits `0.6 × (1 − 0.86) = 0.084` — below the immunity floor, snaps to 0.
 - **Hard immunity:** if `base × (1 − boost) ≤ 0.10`, snap to 0. Sells "this enemy is _immune_ to your build" rather than "you ping for 6% damage." Triggers much earlier now that streak/concentration stack into the boost.

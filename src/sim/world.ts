@@ -1024,10 +1024,10 @@ export const ADAPT_CONCENTRATION_FLOOR = 0.5;
 export const adaptiveBoost = (level: number, streak: number, share: number): number => {
   if (level < ADAPT_TRIGGER_LEVEL) return 0;
   const t = level - ADAPT_TRIGGER_LEVEL;
-  const levelTerm = 0.12 + t * 0.025;
-  const streakTerm = Math.min(0.4, Math.max(0, streak - 1) * 0.07);
-  const concTerm = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.6;
-  return Math.min(0.95, levelTerm + streakTerm + concTerm);
+  const levelTerm = 0.05 + t * 0.015;
+  const streakTerm = Math.min(0.2, Math.max(0, streak - 1) * 0.04);
+  const concTerm = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.3;
+  return Math.min(0.7, levelTerm + streakTerm + concTerm);
 };
 
 // Per-spawn probability the spawn is one of the adapted variants.
@@ -1037,10 +1037,10 @@ export const adaptiveBoost = (level: number, streak: number, share: number): num
 export const adaptiveCoverage = (level: number, streak: number, share: number): number => {
   if (level < ADAPT_TRIGGER_LEVEL) return 0;
   const t = level - ADAPT_TRIGGER_LEVEL;
-  const base = 0.25 + t * 0.05;
-  const streakBonus = Math.min(0.4, Math.max(0, streak - 1) * 0.08);
-  const concBonus = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.6;
-  return Math.min(1, base + streakBonus + concBonus);
+  const base = 0.1 + t * 0.03;
+  const streakBonus = Math.min(0.25, Math.max(0, streak - 1) * 0.04);
+  const concBonus = Math.max(0, share - ADAPT_CONCENTRATION_FLOOR) * 0.3;
+  return Math.min(0.7, base + streakBonus + concBonus);
 };
 
 // Material tint lerp amount for the adapted body color. Kept below
