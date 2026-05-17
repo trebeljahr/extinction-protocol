@@ -41,6 +41,8 @@
  *   sell — useful for spotting greedy over-commits to falling-off kinds.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { LEVELS } from "../src/levels";
 import {
   DIFFICULTIES,
@@ -50,8 +52,17 @@ import {
   type DifficultyMultipliers,
 } from "../src/progress";
 import { pathLength } from "../src/sim/path";
+import { ROBOT_SPECS } from "../src/sim/robotVariants";
 import { flameThroughputCapacity } from "../src/sim/towers";
-import type { DamageType, EnemyKind, Tower, TowerKind, Vec2, WaveSpec } from "../src/sim/types";
+import type {
+  DamageType,
+  EnemyKind,
+  RobotVariant,
+  Tower,
+  TowerKind,
+  Vec2,
+  WaveSpec,
+} from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
   ELITE_RESIST_FLATTEN,
@@ -65,7 +76,7 @@ import {
   TOWER_STATS,
   type TowerBaseStats,
 } from "../src/sim/world";
-import { enumeratePlacementClasses } from "./lib/coverage";
+import { enumeratePlacementClassesWithAnchors } from "./lib/coverage";
 
 // ------- Tower config (same shape as wave-feasibility.ts) -------
 
@@ -357,9 +368,22 @@ const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number =>
 // active lanes splits its DPS evenly across them (time-share model:
 // can only fire at one lane at a time when multiple lanes have enemies).
 
-type TowerInstance = { kind: TowerKind; tierA: Tier; tierB: Tier; lanes: number[] };
+type TowerInstance = {
+  id: number;
+  kind: TowerKind;
+  tierA: Tier;
+  tierB: Tier;
+  lanes: number[];
+  anchor: Vec2;
+};
 
-type BuildAction = { type: "build"; kind: TowerKind; cost: number; lanes: number[] };
+type BuildAction = {
+  type: "build";
+  kind: TowerKind;
+  cost: number;
+  lanes: number[];
+  anchor: Vec2;
+};
 type UpgradeAction = {
   type: "upgrade";
   towerIdx: number;
@@ -374,6 +398,7 @@ type SimState = {
   towers: TowerInstance[];
   spentByKind: Record<TowerKind, number>;
   totalSpent: number;
+  nextTowerId: number;
 };
 
 const emptySpentByKind = (): Record<TowerKind, number> =>
@@ -382,12 +407,13 @@ const emptySpentByKind = (): Record<TowerKind, number> =>
     number
   >;
 
-type PlacementOptions = Record<TowerKind, number[][]>;
+type PlacementSlot = { lanes: number[]; anchor: Vec2 };
+type PlacementOptions = Record<TowerKind, PlacementSlot[]>;
 
 const computePlacementOptions = (paths: Vec2[][]): PlacementOptions => {
   const out = {} as PlacementOptions;
   for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
-    out[kind] = enumeratePlacementClasses(paths, TOWER_STATS[kind].range);
+    out[kind] = enumeratePlacementClassesWithAnchors(paths, TOWER_STATS[kind].range);
   }
   return out;
 };
@@ -395,8 +421,14 @@ const computePlacementOptions = (paths: Vec2[][]): PlacementOptions => {
 const enumerateActions = (state: SimState, placements: PlacementOptions): Action[] => {
   const out: Action[] = [];
   for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
-    for (const lanes of placements[kind]) {
-      out.push({ type: "build", kind, cost: TOWER_COST[kind], lanes });
+    for (const slot of placements[kind]) {
+      out.push({
+        type: "build",
+        kind,
+        cost: TOWER_COST[kind],
+        lanes: slot.lanes,
+        anchor: slot.anchor,
+      });
     }
   }
   for (let i = 0; i < state.towers.length; i++) {
@@ -423,13 +455,52 @@ const enumerateActions = (state: SimState, placements: PlacementOptions): Action
   return out;
 };
 
-const applyAction = (state: SimState, action: Action): SimState => {
+type AppliedRecord =
+  | {
+      type: "build";
+      towerId: number;
+      kind: TowerKind;
+      lanes: number[];
+      anchor: Vec2;
+      cost: number;
+    }
+  | {
+      type: "upgrade";
+      towerId: number;
+      kind: TowerKind;
+      branch: "a" | "b";
+      newTier: Tier;
+      cost: number;
+    };
+
+const applyAction = (
+  state: SimState,
+  action: Action,
+): { state: SimState; record: AppliedRecord } => {
   const towers = state.towers.slice();
   const spentByKind = { ...state.spentByKind };
   let kind: TowerKind;
+  let record: AppliedRecord;
+  let nextId = state.nextTowerId;
   if (action.type === "build") {
-    towers.push({ kind: action.kind, tierA: 0, tierB: 0, lanes: action.lanes });
+    const id = nextId++;
+    towers.push({
+      id,
+      kind: action.kind,
+      tierA: 0,
+      tierB: 0,
+      lanes: action.lanes,
+      anchor: action.anchor,
+    });
     kind = action.kind;
+    record = {
+      type: "build",
+      towerId: id,
+      kind,
+      lanes: action.lanes,
+      anchor: action.anchor,
+      cost: action.cost,
+    };
   } else {
     const t = towers[action.towerIdx];
     towers[action.towerIdx] = {
@@ -437,13 +508,25 @@ const applyAction = (state: SimState, action: Action): SimState => {
       [action.branch === "a" ? "tierA" : "tierB"]: action.newTier,
     };
     kind = t.kind;
+    record = {
+      type: "upgrade",
+      towerId: t.id,
+      kind,
+      branch: action.branch,
+      newTier: action.newTier,
+      cost: action.cost,
+    };
   }
   spentByKind[kind] += action.cost;
   return {
-    gold: state.gold - action.cost,
-    towers,
-    spentByKind,
-    totalSpent: state.totalSpent + action.cost,
+    state: {
+      gold: state.gold - action.cost,
+      towers,
+      spentByKind,
+      totalSpent: state.totalSpent + action.cost,
+      nextTowerId: nextId,
+    },
+    record,
   };
 };
 
@@ -492,6 +575,7 @@ type WaveStep = {
   dpsAfterByLane: number[];
   spentThisWave: number;
   actionsDesc: string;
+  actions: AppliedRecord[];
   towersAfter: TowerInstance[];
   cleared: boolean;
   bottleneckLane: number; // worst lane (largest deficit / req ratio) for display
@@ -568,16 +652,25 @@ const prepAndClearWave = (
   const towersBefore = state.towers.slice();
   const dpsBefore = dpsPerLane(state.towers, perLane);
   const goldIn = state.gold;
+  const records: AppliedRecord[] = [];
 
   if (forceFirst) {
     const cost = TOWER_COST[forceFirst.kind];
     if (cost <= state.gold) {
-      state = applyAction(state, {
+      const slot = placements[forceFirst.kind].find(
+        (s) =>
+          s.lanes.length === forceFirst.lanes.length &&
+          s.lanes.every((v, i) => v === forceFirst.lanes[i]),
+      ) ?? { lanes: forceFirst.lanes, anchor: { x: 0, y: 0 } };
+      const r = applyAction(state, {
         type: "build",
         kind: forceFirst.kind,
         cost,
         lanes: forceFirst.lanes,
+        anchor: slot.anchor,
       });
+      state = r.state;
+      records.push(r.record);
     }
   }
 
@@ -628,7 +721,7 @@ const prepAndClearWave = (
     let best: { action: Action; scorePerGold: number } | null = null;
 
     for (const action of actions) {
-      const trial = applyAction(state, action);
+      const trial = applyAction(state, action).state;
       const afterDps = dpsPerLane(trial.towers, perLane);
       const reqDpsTrial = reqDpsForState(
         spec,
@@ -693,7 +786,9 @@ const prepAndClearWave = (
       }
     }
     if (!best) break;
-    state = applyAction(state, best.action);
+    const ap = applyAction(state, best.action);
+    state = ap.state;
+    records.push(ap.record);
   }
 
   const dpsAfter = dpsPerLane(state.towers, perLane);
@@ -726,6 +821,7 @@ const prepAndClearWave = (
     dpsAfterByLane: dpsAfter,
     spentThisWave: goldIn - state.gold,
     actionsDesc: summarizeActions(towersBefore, state.towers),
+    actions: records,
     towersAfter: state.towers.slice(),
     cleared,
     bottleneckLane: findBottleneckLane(dpsAfter, reqDpsFinal),
@@ -744,6 +840,7 @@ const initialState = (
   towers: [],
   spentByKind: emptySpentByKind(),
   totalSpent: 0,
+  nextTowerId: 0,
 });
 
 const simulate = (
@@ -765,7 +862,7 @@ const simulate = (
   for (let i = 0; i < level.waves.length; i++) {
     const force =
       i === 0 && forceFirstKind
-        ? { kind: forceFirstKind, lanes: placements[forceFirstKind][0] ?? [0] }
+        ? { kind: forceFirstKind, lanes: placements[forceFirstKind][0]?.lanes ?? [0] }
         : undefined;
     const r = prepAndClearWave(
       state,
@@ -845,7 +942,7 @@ const simulateBeam = (
       // Forced (kind, placement) variants — one per (kind × valid placement).
       for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
         if (TOWER_COST[kind] > node.state.gold) continue;
-        for (const lanes of placements[kind]) {
+        for (const slot of placements[kind]) {
           const r2 = prepAndClearWave(
             node.state,
             level,
@@ -856,7 +953,7 @@ const simulateBeam = (
             lookahead,
             placements,
             difficulty,
-            { kind, lanes },
+            { kind, lanes: slot.lanes },
           );
           if (r2.step.cleared) {
             successors.push({
@@ -1204,9 +1301,248 @@ const printLevel = (
   );
 };
 
+// ------- Trace emission -------
+//
+// For each level, distil the simulator's wave-by-wave plan into a JSON
+// trace consumable by the in-game debug overlay. The overlay reads the
+// trace and renders ghost towers + upgrade hints at the suggested anchors
+// so a player can follow the "optimal" plan literally to validate the
+// balance model.
+
+type TraceUpgrade = { wave: number; branch: "a" | "b"; tier: 1 | 2 | 3 };
+type TracePlannedTower = {
+  id: number;
+  kind: TowerKind;
+  lanes: number[];
+  anchor: Vec2;
+  builtAtWave: number;
+  upgrades: TraceUpgrade[];
+  finalTierA: number;
+  finalTierB: number;
+};
+type TraceWaveAction =
+  | {
+      type: "build";
+      towerId: number;
+      kind: TowerKind;
+      lanes: number[];
+      anchor: Vec2;
+      cost: number;
+    }
+  | {
+      type: "upgrade";
+      towerId: number;
+      kind: TowerKind;
+      branch: "a" | "b";
+      tier: 1 | 2 | 3;
+      cost: number;
+    };
+type TraceWave = {
+  wave: number;
+  archetype: string;
+  totalHp: number;
+  reqDpsByLane: number[];
+  dpsBeforeByLane: number[];
+  dpsAfterByLane: number[];
+  spentThisWave: number;
+  goldIn: number;
+  goldOut: number;
+  cleared: boolean;
+  actions: TraceWaveAction[];
+};
+type LevelTrace = {
+  schemaVersion: 1;
+  levelId: number;
+  levelName: string;
+  difficulty: Difficulty;
+  safety: number;
+  beamWidth: number;
+  effectiveHpScale: number;
+  effectiveStartGold: number;
+  paths: Vec2[][];
+  suggestedRobot: RobotVariant;
+  suggestedRobotReason: string;
+  plannedTowers: TracePlannedTower[];
+  waves: TraceWave[];
+  finalPortfolio: string;
+  totalSpent: number;
+  success: boolean;
+  failedAt?: number;
+  generatedAt: string;
+};
+
+// Hp-weighted vulnerability per damage type across every wave, then pick
+// the robot whose primary damage type has the highest score. Tie-break by
+// raw single-shot damage so kinetic (george) beats electric on equal-HP
+// raptors. Forbidden-towers don't affect robot selection — that's a
+// tower-build constraint, not a hero constraint.
+const suggestRobot = (level: (typeof LEVELS)[number], hpScale: number) => {
+  const score: Record<DamageType, number> = {
+    kinetic: 0,
+    electric: 0,
+    flame: 0,
+    explosive: 0,
+  };
+  for (const wave of level.waves) {
+    const hpMul = (wave.hpMul ?? 1) * hpScale;
+    for (const s of wave.spawns) {
+      const stats = ENEMY_STATS[s.kind];
+      const hp = stats.hp * hpMul * s.count;
+      for (const dt of Object.keys(score) as DamageType[]) {
+        const resist = ENEMY_RESIST[s.kind][dt];
+        const extra = s.resists?.[dt] ?? 1;
+        // Lower combined resist → higher score. Use raw multiplicative
+        // inverse so a flame-immune swarm zeroes the flame term, not
+        // just nudges it.
+        score[dt] += hp * resist * extra;
+      }
+    }
+  }
+  const variantByDamage: Record<DamageType, RobotVariant> = {
+    kinetic: "george",
+    electric: "leela",
+    flame: "mike",
+    explosive: "stan",
+  };
+  let bestType: DamageType = "kinetic";
+  let bestScore = -1;
+  for (const dt of Object.keys(score) as DamageType[]) {
+    if (score[dt] > bestScore) {
+      bestScore = score[dt];
+      bestType = dt;
+    }
+  }
+  const variant = variantByDamage[bestType];
+  const reason = `Hp-weighted vulnerability favours ${bestType} (${Math.round(score[bestType])}). Variant ${ROBOT_SPECS[variant].label} (${ROBOT_SPECS[variant].callsign}) carries ${bestType} primary.`;
+  return { variant, reason };
+};
+
+const buildTrace = (
+  result: SimResult,
+  difficulty: Difficulty,
+  safetyVal: number,
+  beamWidthVal: number,
+): LevelTrace => {
+  const level = result.level;
+  const diffMult = DIFFICULTY_MULTIPLIERS[difficulty];
+  const hpScale = (level.hpScale ?? 1) * diffMult.hp;
+  const startGold = Math.floor(level.startGold * diffMult.startGold);
+
+  const plannedById = new Map<number, TracePlannedTower>();
+  const waves: TraceWave[] = [];
+  for (const step of result.history) {
+    const wActions: TraceWaveAction[] = [];
+    for (const a of step.actions) {
+      if (a.type === "build") {
+        plannedById.set(a.towerId, {
+          id: a.towerId,
+          kind: a.kind,
+          lanes: a.lanes,
+          anchor: a.anchor,
+          builtAtWave: step.wave,
+          upgrades: [],
+          finalTierA: 0,
+          finalTierB: 0,
+        });
+        wActions.push({
+          type: "build",
+          towerId: a.towerId,
+          kind: a.kind,
+          lanes: a.lanes,
+          anchor: a.anchor,
+          cost: a.cost,
+        });
+      } else {
+        const t = plannedById.get(a.towerId);
+        if (t) {
+          t.upgrades.push({ wave: step.wave, branch: a.branch, tier: a.newTier as 1 | 2 | 3 });
+          if (a.branch === "a") t.finalTierA = a.newTier;
+          else t.finalTierB = a.newTier;
+        }
+        wActions.push({
+          type: "upgrade",
+          towerId: a.towerId,
+          kind: a.kind,
+          branch: a.branch,
+          tier: a.newTier as 1 | 2 | 3,
+          cost: a.cost,
+        });
+      }
+    }
+    waves.push({
+      wave: step.wave,
+      archetype: step.archetype,
+      totalHp: step.totalHp,
+      reqDpsByLane: step.reqDpsByLane,
+      dpsBeforeByLane: step.dpsBeforeByLane,
+      dpsAfterByLane: step.dpsAfterByLane,
+      spentThisWave: step.spentThisWave,
+      goldIn: step.goldIn,
+      goldOut: step.goldOut,
+      cleared: step.cleared,
+      actions: wActions,
+    });
+  }
+
+  const robot = suggestRobot(level, hpScale);
+  const plannedTowers = [...plannedById.values()].sort((a, b) => a.id - b.id);
+
+  return {
+    schemaVersion: 1,
+    levelId: level.id,
+    levelName: level.name,
+    difficulty,
+    safety: safetyVal,
+    beamWidth: beamWidthVal,
+    effectiveHpScale: hpScale,
+    effectiveStartGold: startGold,
+    paths: level.paths,
+    suggestedRobot: robot.variant,
+    suggestedRobotReason: robot.reason,
+    plannedTowers,
+    waves,
+    finalPortfolio: portfolioString(result.finalState.towers) || "—",
+    totalSpent: result.finalState.totalSpent,
+    success: result.success,
+    failedAt: result.failedAt,
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+const emitTraces = (
+  diff: Difficulty,
+  safetyVal: number,
+  lookaheadVal: number,
+  beamWidthVal: number,
+  outDir: string,
+  onlyLevelId?: number,
+) => {
+  const diffMult = DIFFICULTY_MULTIPLIERS[diff];
+  fs.mkdirSync(outDir, { recursive: true });
+  const written: { file: string; level: string; success: boolean }[] = [];
+  for (const level of LEVELS) {
+    if (onlyLevelId !== undefined && level.id !== onlyLevelId) continue;
+    const r =
+      beamWidthVal > 1
+        ? simulateBeam(level, safetyVal, lookaheadVal, beamWidthVal, diffMult)
+        : simulate(level, safetyVal, lookaheadVal, diffMult);
+    const trace = buildTrace(r, diff, safetyVal, beamWidthVal);
+    const file = path.join(outDir, `level-${level.id}-${diff}.json`);
+    fs.writeFileSync(file, `${JSON.stringify(trace, null, 2)}\n`);
+    written.push({ file, level: `L${level.id} ${level.name}`, success: r.success });
+  }
+  console.log(`\n${C.bold}═══ Wrote ${written.length} trace file(s) → ${outDir}${C.reset}`);
+  for (const w of written) {
+    const tag = w.success ? `${C.green}ok${C.reset}` : `${C.red}fail${C.reset}`;
+    console.log(
+      `  [${tag}] ${w.level}  ${C.dim}→ ${path.relative(process.cwd(), w.file)}${C.reset}`,
+    );
+  }
+};
+
 // ------- CLI -------
 
-declare const process: { argv: string[]; exit(code: number): never };
+declare const process: { argv: string[]; exit(code: number): never; cwd(): string };
 
 const args = process.argv.slice(2);
 const safetyArg = args.find((a: string) => a.startsWith("--safety="));
@@ -1219,6 +1555,11 @@ const verbose = args.includes("--verbose") || args.includes("-v");
 const compareMode = args.includes("--compare-starters");
 const chillMode = args.includes("--chill");
 const auditMode = args.includes("--audit");
+const emitTracesFlag = args.includes("--emit-traces");
+const traceOutArg = args.find((a: string) => a.startsWith("--trace-out="));
+const traceOutDir = traceOutArg
+  ? traceOutArg.split("=")[1]
+  : path.resolve(process.cwd(), "public/balancing-traces");
 const marginArg = args.find((a: string) => a.startsWith("--margin="));
 const marginMul = marginArg ? Number(marginArg.split("=")[1]) : 1.5;
 const minStreakArg = args.find((a: string) => a.startsWith("--min-streak="));
@@ -1284,6 +1625,12 @@ const runForDifficulty = (diff: Difficulty, verbose: boolean, perLevelOutput: bo
   }
   return { diff, label, mult, results, failed };
 };
+
+if (emitTracesFlag) {
+  const onlyLevelId = levelArg !== undefined ? LEVELS[Number(levelArg) - 1]?.id : undefined;
+  emitTraces(difficulty, safety, lookahead, beamWidth, traceOutDir, onlyLevelId);
+  process.exit(0);
+}
 
 if (chillMode) {
   chillAnalysis(safety, lookahead, marginMul, minStreak, DIFFICULTY_MULTIPLIERS[difficulty]);

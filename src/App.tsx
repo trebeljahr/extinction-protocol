@@ -14,6 +14,7 @@ import { LandscapeNudge } from "./ui/LandscapeNudge";
 import { LevelIntro } from "./ui/LevelIntro";
 import { LevelLoadOverlay } from "./ui/LevelLoadOverlay";
 import { NewEnemyAlert } from "./ui/NewEnemyAlert";
+import { PlannerHud } from "./ui/PlannerHud";
 import { ResultsScreen } from "./ui/ResultsScreen";
 import { SaveSlots } from "./ui/SaveSlots";
 import { Splash } from "./ui/Splash";
@@ -199,6 +200,7 @@ export const App = () => {
 
       {screen === "worldMap" && !modalOpen && <WorldMapUI />}
       {screen !== "worldMap" && !modalOpen && <HUD />}
+      {screen === "playing" && !modalOpen && <PlannerHud />}
       {screen === "results" && !modalOpen && <ResultsScreen />}
       {compendiumOpen && (
         <Suspense fallback={null}>

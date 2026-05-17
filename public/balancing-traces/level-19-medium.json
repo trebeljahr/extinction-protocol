@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "levelId": 19,
+  "levelName": "Threshold of Eschaton",
+  "difficulty": "medium",
+  "safety": 1.2,
+  "beamWidth": 4,
+  "effectiveHpScale": 2.1,
+  "effectiveStartGold": 220,
+  "paths": [
+    [
+      {
+        "x": -20,
+        "y": 9
+      },
+      {
+        "x": -12,
+        "y": 9
+      },
+      {
+        "x": -6,
+        "y": 4
+      },
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 8,
+        "y": -4
+      },
+      {
+        "x": 14,
+        "y": -4
+      },
+      {
+        "x": 20,
+        "y": -4
+      }
+    ],
+    [
+      {
+        "x": -20,
+        "y": -9
+      },
+      {
+        "x": -12,
+        "y": -9
+      },
+      {
+        "x": -6,
+        "y": -4
+      },
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 8,
+        "y": 4
+      },
+      {
+        "x": 14,
+        "y": 4
+      },
+      {
+        "x": 20,
+        "y": 4
+      }
+    ],
+    [
+      {
+        "x": 20,
+        "y": 10
+      },
+      {
+        "x": 14,
+        "y": 10
+      },
+      {
+        "x": 6,
+        "y": 8
+      },
+      {
+        "x": -2,
+        "y": 6
+      },
+      {
+        "x": -8,
+        "y": 2
+      },
+      {
+        "x": -14,
+        "y": 0
+      },
+      {
+        "x": -20,
+        "y": 0
+      }
+    ]
+  ],
+  "suggestedRobot": "leela",
+  "suggestedRobotReason": "Hp-weighted vulnerability favours electric (242764). Variant Leela (Strider) carries electric primary.",
+  "plannedTowers": [
+    {
+      "id": 0,
+      "kind": "cryo",
+      "lanes": [0, 1, 2],
+      "anchor": {
+        "x": -4,
+        "y": 0
+      },
+      "builtAtWave": 1,
+      "upgrades": [
+        {
+          "wave": 2,
+          "branch": "a",
+          "tier": 1
+        }
+      ],
+      "finalTierA": 1,
+      "finalTierB": 0
+    },
+    {
+      "id": 1,
+      "kind": "chain",
+      "lanes": [0, 1, 2],
+      "anchor": {
+        "x": -4,
+        "y": 0
+      },
+      "builtAtWave": 1,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 2,
+      "kind": "chain",
+      "lanes": [0, 1, 2],
+      "anchor": {
+        "x": -4,
+        "y": 0
+      },
+      "builtAtWave": 2,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 3,
+      "kind": "chain",
+      "lanes": [1],
+      "anchor": {
+        "x": -7,
+        "y": -8
+      },
+      "builtAtWave": 2,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 4,
+      "kind": "chain",
+      "lanes": [2],
+      "anchor": {
+        "x": -2,
+        "y": 8
+      },
+      "builtAtWave": 2,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 5,
+      "kind": "chain",
+      "lanes": [1, 2],
+      "anchor": {
+        "x": 3,
+        "y": 5
+      },
+      "builtAtWave": 2,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    }
+  ],
+  "waves": [
+    {
+      "wave": 1,
+      "archetype": "mixed",
+      "totalHp": 2772,
+      "reqDpsByLane": [12.311786246321134, 12.311786246321134, 12.803673930239599],
+      "dpsBeforeByLane": [0, 0, 0],
+      "dpsAfterByLane": [12.871032087272726, 12.871032087272726, 12.871032087272726],
+      "spentThisWave": 125,
+      "goldIn": 220,
+      "goldOut": 275,
+      "cleared": true,
+      "actions": [
+        {
+          "type": "build",
+          "towerId": 0,
+          "kind": "cryo",
+          "lanes": [0, 1, 2],
+          "anchor": {
+            "x": -4,
+            "y": 0
+          },
+          "cost": 75
+        },
+        {
+          "type": "build",
+          "towerId": 1,
+          "kind": "chain",
+          "lanes": [0, 1, 2],
+          "anchor": {
+            "x": -4,
+            "y": 0
+          },
+          "cost": 50
+        }
+      ]
+    },
+    {
+      "wave": 2,
+      "archetype": "heavy",
+      "totalHp": 12852,
+      "reqDpsByLane": [53.586673394587706, 53.586673394587706, 55.8878834367554],
+      "dpsBeforeByLane": [7.235223551999999, 7.235223551999999, 7.235223551999999],
+      "dpsAfterByLane": [14.470447103999998, 47.028953087999994, 47.028953087999994],
+      "spentThisWave": 240,
+      "goldIn": 275,
+      "goldOut": 35,
+      "cleared": false,
+      "actions": [
+        {
+          "type": "upgrade",
+          "towerId": 0,
+          "kind": "cryo",
+          "branch": "a",
+          "tier": 1,
+          "cost": 40
+        },
+        {
+          "type": "build",
+          "towerId": 2,
+          "kind": "chain",
+          "lanes": [0, 1, 2],
+          "anchor": {
+            "x": -4,
+            "y": 0
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 3,
+          "kind": "chain",
+          "lanes": [1],
+          "anchor": {
+            "x": -7,
+            "y": -8
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 4,
+          "kind": "chain",
+          "lanes": [2],
+          "anchor": {
+            "x": -2,
+            "y": 8
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 5,
+          "kind": "chain",
+          "lanes": [1, 2],
+          "anchor": {
+            "x": 3,
+            "y": 5
+          },
+          "cost": 50
+        }
+      ]
+    }
+  ],
+  "finalPortfolio": "1×cryo@L0+1+2, 2×chain@L0+1+2, 1×chain@L1, 1×chain@L2, 1×chain@L1+2",
+  "totalSpent": 365,
+  "success": false,
+  "failedAt": 2,
+  "generatedAt": "2026-05-17T13:28:27.123Z"
+}

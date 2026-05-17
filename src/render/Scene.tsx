@@ -22,6 +22,7 @@ import { ModelTowerMesh } from "./ModelTowerMesh";
 import { OuterScenery } from "./OuterScenery";
 import { PathLine } from "./PathLine";
 import { Placement } from "./Placement";
+import { PlannerOverlay } from "./PlannerOverlay";
 import { ProjectileMesh } from "./ProjectileMesh";
 import { RegenBadges } from "./RegenBadges";
 import { RobotHud } from "./RobotHud";
@@ -77,6 +78,7 @@ export const PlayScene = () => {
       <BiomeCosmetics />
       <EasterEggs />
       <Placement />
+      <PlannerOverlay />
       <PathLine />
       <HQTurrets />
       <HQBase />

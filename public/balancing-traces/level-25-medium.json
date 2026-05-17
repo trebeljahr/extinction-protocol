@@ -1,0 +1,470 @@
+{
+  "schemaVersion": 1,
+  "levelId": 25,
+  "levelName": "Widowmaker",
+  "difficulty": "medium",
+  "safety": 1.2,
+  "beamWidth": 4,
+  "effectiveHpScale": 2.65,
+  "effectiveStartGold": 250,
+  "paths": [
+    [
+      {
+        "x": -20,
+        "y": 10
+      },
+      {
+        "x": 20,
+        "y": 10
+      }
+    ],
+    [
+      {
+        "x": -20,
+        "y": 5
+      },
+      {
+        "x": 20,
+        "y": 5
+      }
+    ],
+    [
+      {
+        "x": -20,
+        "y": 0
+      },
+      {
+        "x": 20,
+        "y": 0
+      }
+    ],
+    [
+      {
+        "x": -20,
+        "y": -5
+      },
+      {
+        "x": 20,
+        "y": -5
+      }
+    ],
+    [
+      {
+        "x": -20,
+        "y": -10
+      },
+      {
+        "x": 20,
+        "y": -10
+      }
+    ]
+  ],
+  "suggestedRobot": "leela",
+  "suggestedRobotReason": "Hp-weighted vulnerability favours electric (391797). Variant Leela (Strider) carries electric primary.",
+  "plannedTowers": [
+    {
+      "id": 0,
+      "kind": "flame",
+      "lanes": [3, 4],
+      "anchor": {
+        "x": 0,
+        "y": -8
+      },
+      "builtAtWave": 1,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 1,
+      "kind": "chain",
+      "lanes": [1, 2],
+      "anchor": {
+        "x": 0,
+        "y": 2
+      },
+      "builtAtWave": 1,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 2,
+      "kind": "chain",
+      "lanes": [0],
+      "anchor": {
+        "x": 0,
+        "y": 12
+      },
+      "builtAtWave": 1,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 3,
+      "kind": "chain",
+      "lanes": [1, 2],
+      "anchor": {
+        "x": 0,
+        "y": 2
+      },
+      "builtAtWave": 1,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 4,
+      "kind": "chain",
+      "lanes": [3, 4],
+      "anchor": {
+        "x": 0,
+        "y": -8
+      },
+      "builtAtWave": 2,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 5,
+      "kind": "chain",
+      "lanes": [1, 2],
+      "anchor": {
+        "x": 0,
+        "y": 2
+      },
+      "builtAtWave": 3,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 6,
+      "kind": "chain",
+      "lanes": [0],
+      "anchor": {
+        "x": 0,
+        "y": 12
+      },
+      "builtAtWave": 3,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 7,
+      "kind": "chain",
+      "lanes": [4],
+      "anchor": {
+        "x": 0,
+        "y": -12
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 8,
+      "kind": "chain",
+      "lanes": [3, 4],
+      "anchor": {
+        "x": 0,
+        "y": -8
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 9,
+      "kind": "chain",
+      "lanes": [2, 3],
+      "anchor": {
+        "x": 0,
+        "y": -3
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 10,
+      "kind": "chain",
+      "lanes": [2, 3],
+      "anchor": {
+        "x": 0,
+        "y": -3
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 11,
+      "kind": "chain",
+      "lanes": [0, 1],
+      "anchor": {
+        "x": 0,
+        "y": 7
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    },
+    {
+      "id": 12,
+      "kind": "chain",
+      "lanes": [1, 2],
+      "anchor": {
+        "x": 0,
+        "y": 2
+      },
+      "builtAtWave": 4,
+      "upgrades": [],
+      "finalTierA": 0,
+      "finalTierB": 0
+    }
+  ],
+  "waves": [
+    {
+      "wave": 1,
+      "archetype": "intro",
+      "totalHp": 2120,
+      "reqDpsByLane": [
+        20.782770144819906, 20.782770144819906, 20.782770144819906, 20.782770144819906,
+        20.782770144819906
+      ],
+      "dpsBeforeByLane": [0, 0, 0, 0, 0],
+      "dpsAfterByLane": [
+        39.81975552, 39.81975552, 39.81975552, 23.342822062500005, 23.342822062500005
+      ],
+      "spentThisWave": 230,
+      "goldIn": 250,
+      "goldOut": 146,
+      "cleared": true,
+      "actions": [
+        {
+          "type": "build",
+          "towerId": 0,
+          "kind": "flame",
+          "lanes": [3, 4],
+          "anchor": {
+            "x": 0,
+            "y": -8
+          },
+          "cost": 80
+        },
+        {
+          "type": "build",
+          "towerId": 1,
+          "kind": "chain",
+          "lanes": [1, 2],
+          "anchor": {
+            "x": 0,
+            "y": 2
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 2,
+          "kind": "chain",
+          "lanes": [0],
+          "anchor": {
+            "x": 0,
+            "y": 12
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 3,
+          "kind": "chain",
+          "lanes": [1, 2],
+          "anchor": {
+            "x": 0,
+            "y": 2
+          },
+          "cost": 50
+        }
+      ]
+    },
+    {
+      "wave": 2,
+      "archetype": "mixed",
+      "totalHp": 3445,
+      "reqDpsByLane": [
+        31.2804815133276, 31.2804815133276, 31.2804815133276, 31.2804815133276, 31.2804815133276
+      ],
+      "dpsBeforeByLane": [
+        42.882813636923075, 42.882813636923075, 42.882813636923075, 29.402977790264426,
+        29.402977790264426
+      ],
+      "dpsAfterByLane": [
+        42.882813636923075, 42.882813636923075, 42.882813636923075, 50.84438460872596,
+        50.84438460872596
+      ],
+      "spentThisWave": 50,
+      "goldIn": 146,
+      "goldOut": 283,
+      "cleared": true,
+      "actions": [
+        {
+          "type": "build",
+          "towerId": 4,
+          "kind": "chain",
+          "lanes": [3, 4],
+          "anchor": {
+            "x": 0,
+            "y": -8
+          },
+          "cost": 50
+        }
+      ]
+    },
+    {
+      "wave": 3,
+      "archetype": "swarm",
+      "totalHp": 3975,
+      "reqDpsByLane": [
+        57.736534194068994, 57.736534194068994, 57.736534194068994, 57.736534194068994,
+        57.736534194068994
+      ],
+      "dpsBeforeByLane": [
+        53.093007359999994, 53.093007359999994, 53.093007359999994, 76.1500005628125,
+        76.1500005628125
+      ],
+      "dpsAfterByLane": [
+        106.18601471999999, 79.63951103999999, 79.63951103999999, 76.1500005628125, 76.1500005628125
+      ],
+      "spentThisWave": 100,
+      "goldIn": 283,
+      "goldOut": 341,
+      "cleared": true,
+      "actions": [
+        {
+          "type": "build",
+          "towerId": 5,
+          "kind": "chain",
+          "lanes": [1, 2],
+          "anchor": {
+            "x": 0,
+            "y": 2
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 6,
+          "kind": "chain",
+          "lanes": [0],
+          "anchor": {
+            "x": 0,
+            "y": 12
+          },
+          "cost": 50
+        }
+      ]
+    },
+    {
+      "wave": 4,
+      "archetype": "heavy",
+      "totalHp": 10335,
+      "reqDpsByLane": [
+        53.52097818269001, 53.52097818269001, 53.52097818269001, 53.52097818269001,
+        53.52097818269001
+      ],
+      "dpsBeforeByLane": [
+        41.24918264123077, 30.936886980923077, 30.936886980923077, 21.87325719876923,
+        21.87325719876923
+      ],
+      "dpsAfterByLane": [
+        51.56147830153846, 51.56147830153846, 61.87377396184615, 52.8101441796923, 52.81014417969231
+      ],
+      "spentThisWave": 300,
+      "goldIn": 341,
+      "goldOut": 41,
+      "cleared": false,
+      "actions": [
+        {
+          "type": "build",
+          "towerId": 7,
+          "kind": "chain",
+          "lanes": [4],
+          "anchor": {
+            "x": 0,
+            "y": -12
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 8,
+          "kind": "chain",
+          "lanes": [3, 4],
+          "anchor": {
+            "x": 0,
+            "y": -8
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 9,
+          "kind": "chain",
+          "lanes": [2, 3],
+          "anchor": {
+            "x": 0,
+            "y": -3
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 10,
+          "kind": "chain",
+          "lanes": [2, 3],
+          "anchor": {
+            "x": 0,
+            "y": -3
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 11,
+          "kind": "chain",
+          "lanes": [0, 1],
+          "anchor": {
+            "x": 0,
+            "y": 7
+          },
+          "cost": 50
+        },
+        {
+          "type": "build",
+          "towerId": 12,
+          "kind": "chain",
+          "lanes": [1, 2],
+          "anchor": {
+            "x": 0,
+            "y": 2
+          },
+          "cost": 50
+        }
+      ]
+    }
+  ],
+  "finalPortfolio": "1×flame@L3+4, 4×chain@L1+2, 2×chain@L0, 2×chain@L3+4, 1×chain@L4, 2×chain@L2+3, 1×chain@L0+1",
+  "totalSpent": 680,
+  "success": false,
+  "failedAt": 4,
+  "generatedAt": "2026-05-17T13:29:18.958Z"
+}

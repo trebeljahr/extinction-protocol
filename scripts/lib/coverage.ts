@@ -127,3 +127,86 @@ export const enumeratePlacementClasses = (paths: Vec2[][], range: number): numbe
   if (found.size === 0) return [[0]];
   return [...found].map((s) => s.split(",").map(Number)).sort((a, b) => a.length - b.length);
 };
+
+/**
+ * Like enumeratePlacementClasses, but additionally returns an anchor
+ * (representative XY) for each class — the centroid of every valid
+ * grid point that achieves that exact coverage class, snapped to the
+ * nearest valid sample (a centroid can land inside a path corridor on
+ * convergent layouts; snapping keeps the ghost out of the road).
+ *
+ * Used by the optimal-path trace emitter to attach a concrete world
+ * position to each suggested tower so the in-game debug overlay can
+ * render the plan as ghost meshes.
+ */
+export const enumeratePlacementClassesWithAnchors = (
+  paths: Vec2[][],
+  range: number,
+): { lanes: number[]; anchor: Vec2 }[] => {
+  if (paths.length <= 1) {
+    const halfW = MAP_WIDTH / 2;
+    const halfH = MAP_HEIGHT / 2;
+    const samples: Vec2[] = [];
+    for (let x = -halfW; x <= halfW; x += 1) {
+      for (let y = -halfH; y <= halfH; y += 1) {
+        const p = { x, y };
+        if (distPointToPath(p, paths[0]) >= MIN_PATH_DIST && distPointToPath(p, paths[0]) <= range)
+          samples.push(p);
+      }
+    }
+    const anchor = samples[Math.floor(samples.length / 2)] ?? { x: 0, y: 0 };
+    return [{ lanes: [0], anchor }];
+  }
+  const halfW = MAP_WIDTH / 2;
+  const halfH = MAP_HEIGHT / 2;
+  const byClass = new Map<string, Vec2[]>();
+
+  for (let x = -halfW; x <= halfW; x += 1) {
+    for (let y = -halfH; y <= halfH; y += 1) {
+      const p = { x, y };
+      let nearestPath = Number.POSITIVE_INFINITY;
+      for (const path of paths) {
+        const d = distPointToPath(p, path);
+        if (d < nearestPath) nearestPath = d;
+      }
+      if (nearestPath < MIN_PATH_DIST) continue;
+
+      const covered: number[] = [];
+      for (let i = 0; i < paths.length; i++) {
+        if (distPointToPath(p, paths[i]) <= range) covered.push(i);
+      }
+      if (covered.length === 0) continue;
+      const key = covered.join(",");
+      const list = byClass.get(key);
+      if (list) list.push(p);
+      else byClass.set(key, [p]);
+    }
+  }
+
+  if (byClass.size === 0) return [{ lanes: [0], anchor: { x: 0, y: 0 } }];
+
+  const out: { lanes: number[]; anchor: Vec2 }[] = [];
+  for (const [key, samples] of byClass) {
+    const lanes = key.split(",").map(Number);
+    // Centroid of valid samples — closest valid-sample to centroid wins.
+    let cx = 0;
+    let cy = 0;
+    for (const s of samples) {
+      cx += s.x;
+      cy += s.y;
+    }
+    cx /= samples.length;
+    cy /= samples.length;
+    let best = samples[0];
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const s of samples) {
+      const d = (s.x - cx) ** 2 + (s.y - cy) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = s;
+      }
+    }
+    out.push({ lanes, anchor: best });
+  }
+  return out.sort((a, b) => a.lanes.length - b.lanes.length);
+};
