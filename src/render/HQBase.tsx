@@ -2,10 +2,12 @@ import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { PATH_WIDTH } from "../level";
+import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { distToSegmentSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
+import { DEAD_DINO_SPECS, DeadDinoInstancer, type DeadDinoItem } from "./DeadDinos";
 import { type GroupItem, InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
 
@@ -76,8 +78,11 @@ const BASE_PROPS: PropDef[] = [
     facesHQ: true,
   },
   {
+    // Tucked inside the left fence (left fence sits at right = -3.25); the
+    // dish's clearRadius (~0.8) used to extend its silhouette to -3.75,
+    // poking the antenna visibly past the perimeter posts.
     url: "/models/scifi/satelliteDish_detailed.glb",
-    right: -2.95,
+    right: -2.4,
     fwd: -1.65,
     targetHeight: 1.18,
     clearRadius: 0.8,
@@ -172,6 +177,29 @@ const BASE_PRIMITIVES: PrimitiveDef[] = [
   { kind: "light", right: -3.25, fwd: 2.0, clearRadius: 0.4 },
   { kind: "light", right: 3.25, fwd: 2.0, clearRadius: 0.4 },
 ];
+
+// Authored dead-dinosaur corpse slots ringing each HQ pad — pad-local
+// (right, fwd) like BASE_PROPS. Picked to sit around the perimeter (mostly
+// just outside the fence, a couple front-corner spots) so the corpses read
+// as "mayhem from prior waves" without crowding the turret or blocking
+// the path. Per-HQ RNG samples a subset; species are mixed per HQ so two
+// neighbouring bases don't both get a wall of Trex carcasses.
+const HQ_CORPSE_SLOTS: { right: number; fwd: number }[] = [
+  { right: -3.8, fwd: -0.6 },
+  { right: 3.8, fwd: -0.6 },
+  { right: -3.2, fwd: 3.1 },
+  { right: 3.2, fwd: 3.1 },
+  { right: 0, fwd: -3.6 },
+  { right: -3.6, fwd: -3.0 },
+  { right: 3.6, fwd: -3.0 },
+  { right: -3.5, fwd: 2.4 },
+];
+
+// Corpses normalize to their species footprint (3.6–4.6 world units) which
+// is way too large for a 6.5×4.5 fence box — scale down so a Trex carcass
+// sits at ~2 units long, fitting between fence segments.
+const HQ_CORPSE_SCALE_MIN = 0.42;
+const HQ_CORPSE_SCALE_MAX = 0.56;
 
 const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
 const noRaycast: THREE.Mesh["raycast"] = () => {};
@@ -385,6 +413,7 @@ const FencePostsOffset = ({ items, sign }: { items: PrimitiveInstance[]; sign: 1
 
 export const HQBase = () => {
   const paths = useGame((s) => s.world.paths);
+  const levelId = useGame((s) => s.world.levelId);
   const towerVersion = useGame((s) => s.ui.towerVersion);
   const towers = useGame.getState().world.towers;
 
@@ -476,6 +505,67 @@ export const HQBase = () => {
     return map;
   }, [visible.instances]);
 
+  // Per-HQ dead-dinosaur corpses. Deterministic per level so the same node
+  // always shows the same aftermath, but per-path RNG so two HQs in the
+  // same level get different species and slot subsets. Many levels get
+  // zero corpses (clean base) — the player should still occasionally see
+  // a base scrubbed and intact.
+  const corpseGroups = useMemo(() => {
+    const byUrl = new Map<string, DeadDinoItem[]>();
+    for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+      const path = paths[pathIndex];
+      if (path.length < 2) continue;
+      const last = path[path.length - 1];
+      const prev = path[path.length - 2];
+      const dx = prev.x - last.x;
+      const dy = prev.y - last.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const faceX = dx / len;
+      const faceY = dy / len;
+      const rightX = faceY;
+      const rightY = -faceX;
+
+      const rng = mulberry32(levelId * 17207 + pathIndex * 1297 + 53);
+      // 45% no corpses, 35% two, 20% three. Skews toward the cleaner
+      // visual most of the time; the mayhem reads strongest when not
+      // every base looks the same.
+      const roll = rng();
+      const count = roll < 0.45 ? 0 : roll < 0.8 ? 2 : 3;
+      if (count === 0) continue;
+
+      // Fisher–Yates the slot pool so picks are distinct.
+      const slotOrder = HQ_CORPSE_SLOTS.map((_, i) => i);
+      for (let i = slotOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [slotOrder[i], slotOrder[j]] = [slotOrder[j], slotOrder[i]];
+      }
+      const speciesOrder = DEAD_DINO_SPECS.map((_, i) => i);
+      for (let i = speciesOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [speciesOrder[i], speciesOrder[j]] = [speciesOrder[j], speciesOrder[i]];
+      }
+
+      for (let i = 0; i < count; i++) {
+        const slot = HQ_CORPSE_SLOTS[slotOrder[i]];
+        const spec = DEAD_DINO_SPECS[speciesOrder[i % DEAD_DINO_SPECS.length]];
+        const wx = last.x + slot.right * rightX + slot.fwd * faceX;
+        const wy = last.y + slot.right * rightY + slot.fwd * faceY;
+        const scale = HQ_CORPSE_SCALE_MIN + rng() * (HQ_CORPSE_SCALE_MAX - HQ_CORPSE_SCALE_MIN);
+        const rotY = rng() * Math.PI * 2;
+        const item: DeadDinoItem = {
+          id: `hq-${levelId}-${pathIndex}-${i}-${spec.url}`,
+          pos: new THREE.Vector3(wx, 0, -wy),
+          rotY,
+          scale,
+        };
+        const list = byUrl.get(spec.url) ?? [];
+        list.push(item);
+        byUrl.set(spec.url, list);
+      }
+    }
+    return Array.from(byUrl.entries());
+  }, [paths, levelId]);
+
   return (
     <>
       {pads.map((pad, i) => (
@@ -491,6 +581,9 @@ export const HQBase = () => {
           baseScaleFor={baseScaleFor}
           raycast={noRaycast}
         />
+      ))}
+      {corpseGroups.map(([url, items]) => (
+        <DeadDinoInstancer key={url} url={url} items={items} />
       ))}
     </>
   );

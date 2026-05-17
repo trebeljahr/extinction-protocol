@@ -12,7 +12,7 @@ import {
   isOnLavaSurface,
   type LavaFeatures,
 } from "../lavaGeometry";
-import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
+import { HQ_PAD_BLOCKER_RADIUS, MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
 import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage";
@@ -188,6 +188,12 @@ const buildTrees = (
     return TREE_MIN_SPACING + (1 - d) * (TREE_MAX_SPACING - TREE_MIN_SPACING);
   };
 
+  // Pre-compute HQ blocker centres so trees never spawn inside (or just
+  // outside) the home-base fence — HQBase.tsx renders its own authored
+  // set-dressing there and scattered trees would clip into buildings.
+  const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
+  const hqR2 = (HQ_PAD_BLOCKER_RADIUS + TREE_FOOTPRINT) ** 2;
+
   const isValid = (x: number, y: number): boolean => {
     if (isOnLavaSurface(lava, x, y, TREE_FOOTPRINT)) return false;
     for (const path of paths) {
@@ -196,6 +202,11 @@ const buildTrees = (
           return false;
         }
       }
+    }
+    for (const c of hqCenters) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      if (dx * dx + dy * dy < hqR2) return false;
     }
     return true;
   };
@@ -251,6 +262,8 @@ const buildRocks = (
   const bounds = { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
   let nextId = firstId;
 
+  const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
+
   const layers = BIOME_LAYERS[biome];
   for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
     const spec = layers[layerIndex];
@@ -285,6 +298,8 @@ const buildRocks = (
     // rock at this position couldn't touch lava either.
     const lavaFootprint = candidateR + 0.1;
 
+    const hqRockR2 = (HQ_PAD_BLOCKER_RADIUS + candidateR) ** 2;
+
     const isValid = (x: number, y: number): boolean => {
       if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
       for (const path of paths) {
@@ -293,6 +308,11 @@ const buildRocks = (
             return false;
           }
         }
+      }
+      for (const c of hqCenters) {
+        const dx = c.x - x;
+        const dy = c.y - y;
+        if (dx * dx + dy * dy < hqRockR2) return false;
       }
       for (const tr of trees) {
         const dx = tr.pos.x - x;

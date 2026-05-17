@@ -2,7 +2,6 @@ import { useGLTF } from "@react-three/drei";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
   BIOME_LAYERS,
   BIOME_STORY_PROPS,
@@ -16,8 +15,7 @@ import { LEVELS } from "../levels";
 import { getStars, type ProgressData } from "../progress";
 import { mulberry32 } from "../sim/random";
 import { useGame } from "../store";
-import { findClip } from "./animUtils";
-import { measureVisibleBox } from "./measureModel";
+import { DEAD_DINO_FOOTPRINT, DEAD_DINO_URLS, DeadDinoInstancer, isDeadDinoUrl } from "./DeadDinos";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
 // recognizable little vignette rather than a noisy pile: one robot landmark
@@ -103,27 +101,6 @@ const foliageUrls = (biome: Biome): string[] => {
   }
   return Array.from(seen);
 };
-
-// Dead-dinosaur carcasses for the march-of-death trail near cleared
-// levels. Each entry points at one of the shipped Kenney dino GLBs (all
-// have a "Death" animation clip) and a target rendered footprint in
-// world units — the dino is skinned-cloned, the Death clip is advanced
-// to its final frame, and the mixer is then frozen so the corpse holds
-// its end pose. Footprint is measured along the longest body axis post-
-// death so the overlap check matches the carcass silhouette. Apato/Trex
-// queens excluded — too huge for a world-map cluster.
-type DeadDinoSpec = { url: string; footprint: number };
-const DEAD_DINO_SPECS: DeadDinoSpec[] = [
-  { url: "/models/Velociraptor.glb", footprint: 3.6 },
-  { url: "/models/Parasaurolophus.glb", footprint: 4.0 },
-  { url: "/models/Stegosaurus.glb", footprint: 4.2 },
-  { url: "/models/Triceratops.glb", footprint: 4.2 },
-  { url: "/models/Trex.glb", footprint: 4.6 },
-];
-const DEAD_DINO_URLS = DEAD_DINO_SPECS.map((s) => s.url);
-const DEAD_DINO_FOOTPRINT: Record<string, number> = Object.fromEntries(
-  DEAD_DINO_SPECS.map((s) => [s.url, s.footprint]),
-);
 
 // Per-level cluster geometry. Props land on composition slots outside
 // the clean node bubble.
@@ -402,81 +379,6 @@ const PropInstancer = ({ url, items }: { url: string; items: PropInstance[] }) =
     </group>
   );
 };
-
-// Skinned-mesh renderer for dead-dinosaur carcasses. Unlike the static
-// `PropInstancer`, this can't share a single cloned scene across instances
-// because each instance needs its own skeleton — SkeletonUtils.clone()
-// duplicates the bone hierarchy so per-instance pose state doesn't leak.
-// Each clone runs one AnimationMixer tick at the Death clip's end time
-// to bake the final pose, then the mixer is dropped (no per-frame work).
-const DeadDinoInstancer = ({ url, items }: { url: string; items: PropInstance[] }) => {
-  const gltf = useGLTF(url);
-  const footprint = DEAD_DINO_FOOTPRINT[url] ?? 2.0;
-
-  // One skinned clone per instance, posed once at Death-clip end and then
-  // left static. Memoized on the source scene + url so HMR rebuilds the
-  // clones if the asset reloads but instances aren't re-cloned on every
-  // render.
-  const clones = useMemo(() => {
-    return items.map((it) => {
-      const obj = cloneSkinned(gltf.scene);
-      // Bake the Death-clip end pose. All shipped dino GLBs include
-      // a "Death" clip; fall back to substrings (`Die`, `Dead`) for
-      // future packs.
-      const deathClip =
-        findClip(gltf.animations, "Death") ??
-        findClip(gltf.animations, "Die") ??
-        findClip(gltf.animations, "Dead") ??
-        null;
-      if (deathClip) {
-        const mixer = new THREE.AnimationMixer(obj);
-        const action = mixer.clipAction(deathClip);
-        action.play();
-        // Step the mixer to the final frame so bones land in the death
-        // end pose. clampWhenFinished + LoopOnce keeps the pose held in
-        // case anything later re-evaluates the mixer.
-        action.setLoop(THREE.LoopOnce, 0);
-        action.clampWhenFinished = true;
-        mixer.setTime(deathClip.duration);
-        obj.updateMatrixWorld(true);
-      }
-      // Normalize the post-death silhouette to the bucket footprint and
-      // ground-rest it. measureVisibleBox walks the posed skin (not the
-      // bind-pose attribute) so the corpse's actual footprint drives the
-      // scale instead of the standing rig.
-      const box = measureVisibleBox(obj);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-      const s = (footprint / maxDim) * it.scale;
-      obj.scale.setScalar(s);
-      // Re-measure after scaling so we lift by the actual posed minY,
-      // including any bone segment that drooped below the bbox floor.
-      const scaledBox = measureVisibleBox(obj);
-      const liftY = Number.isFinite(scaledBox.min.y) ? -scaledBox.min.y : 0;
-      obj.position.set(it.pos.x, liftY, it.pos.z);
-      obj.rotation.set(0, it.rotY, 0);
-      obj.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (!m.isMesh) return;
-        m.castShadow = true;
-        m.receiveShadow = true;
-        // Decorative — don't intercept clicks on level nodes.
-        m.raycast = noRaycast;
-      });
-      return { id: it.id, obj };
-    });
-  }, [gltf.scene, gltf.animations, items, footprint]);
-
-  return (
-    <group>
-      {clones.map((c) => (
-        <primitive key={c.id} object={c.obj} />
-      ))}
-    </group>
-  );
-};
-
-const isDeadDinoUrl = (url: string) => DEAD_DINO_FOOTPRINT[url] !== undefined;
 
 export const BiomeProps = () => {
   const progress = useGame((s) => s.progress);

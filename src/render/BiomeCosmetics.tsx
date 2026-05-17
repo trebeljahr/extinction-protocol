@@ -14,7 +14,7 @@ import {
   isOnLavaSurface,
   type LavaFeatures,
 } from "../lavaGeometry";
-import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
+import { HQ_PAD_BLOCKER_RADIUS, MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
@@ -122,6 +122,11 @@ const buildInstances = (
     return PROP_MIN_SPACING + (1 - d) * (PROP_MAX_SPACING - PROP_MIN_SPACING);
   };
 
+  // HQ-pad blocker per path endpoint — keep procedural cosmetics out of
+  // the home-base compound where HQBase.tsx renders authored set-dressing.
+  const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
+  const hqR2 = HQ_PAD_BLOCKER_RADIUS * HQ_PAD_BLOCKER_RADIUS;
+
   const isValid = (x: number, y: number): boolean => {
     if (isOnLavaSurface(lava, x, y, 0.5)) return false;
     for (const path of paths) {
@@ -130,6 +135,11 @@ const buildInstances = (
           return false;
         }
       }
+    }
+    for (const c of hqCenters) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      if (dx * dx + dy * dy < hqR2) return false;
     }
     for (const b of blockers) {
       const dx = b.pos.x - x;
@@ -202,9 +212,21 @@ const buildStoryDetails = (
   const halfH = MAP_HEIGHT * 0.49;
   const inBounds = (x: number, y: number) => x >= -halfW && x <= halfW && y >= -halfH && y <= halfH;
 
+  // HQ-pad blocker — story props (3D buildings + warning markers) must
+  // not crowd the home-base compound. Traces (flat drag-mark footprints)
+  // intentionally extend into the HQ so the trail reads as leading INTO
+  // the base; they bypass this check.
+  const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
+
   const blockedByWorld = (x: number, y: number, radius: number): boolean => {
     if (!inBounds(x, y)) return true;
     if (isOnLavaSurface(lava, x, y, radius)) return true;
+    for (const c of hqCenters) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      const minDist = HQ_PAD_BLOCKER_RADIUS + radius;
+      if (dx * dx + dy * dy < minDist * minDist) return true;
+    }
     for (const b of blockers) {
       const dx = b.pos.x - x;
       const dy = b.pos.y - y;
@@ -260,7 +282,10 @@ const buildStoryDetails = (
     for (let i = 0; i < Math.min(2, picks.length); i++) {
       const url = picks[i];
       const radius = storyRadiusFor(url);
-      const p = at(clampFwd(2.8 + i * 1.25 + rng() * 0.4), sideSign * (STORY_SIDE - i * 0.1));
+      // Start ≥4.6 along the approach so 3D props sit beyond the HQ
+      // compound (fence corner ≈ 4.1 from the tower) instead of crowding
+      // right in front of the turret.
+      const p = at(clampFwd(4.6 + i * 1.25 + rng() * 0.4), sideSign * (STORY_SIDE - i * 0.1));
       if (blockedByWorld(p.x, p.y, radius)) continue;
       instances.push({
         url,
@@ -271,7 +296,7 @@ const buildStoryDetails = (
       });
     }
 
-    const markerPos = at(clampFwd(2.25 + rng() * 0.55), sideSign * (STORY_SIDE + 0.02));
+    const markerPos = at(clampFwd(4.9 + rng() * 0.55), sideSign * (STORY_SIDE + 0.02));
     if (!blockedByWorld(markerPos.x, markerPos.y, 0.28)) {
       markers.push({
         pos: markerPos,
