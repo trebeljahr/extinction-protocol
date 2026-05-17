@@ -34,7 +34,7 @@ const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "
 
 export const DebugMenuSection = () => {
   return (
-    <section className="bg-[rgba(255,214,106,0.05)] border border-[rgba(255,214,106,0.25)] rounded-lg pt-3.5 px-4 pb-3 mb-5">
+    <section className="debug-menu-section bg-[rgba(255,214,106,0.05)] border border-[rgba(255,214,106,0.25)] rounded-lg pt-3.5 px-4 pb-3 mb-5">
       <div className="text-[10px] font-bold tracking-uber text-gold mb-2.5 flex items-center gap-2">
         <span>DEBUG · ?debug=true</span>
       </div>
@@ -334,7 +334,9 @@ const DebugRow = ({ label, children }: { label: string; children: React.ReactNod
 );
 
 const ChipGrid = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap gap-1 max-h-[40vh] overflow-y-auto pr-1">{children}</div>
+  <div className="debug-chip-grid flex flex-wrap gap-1 max-h-[40vh] overflow-y-auto pr-1">
+    {children}
+  </div>
 );
 
 const Toggle = ({

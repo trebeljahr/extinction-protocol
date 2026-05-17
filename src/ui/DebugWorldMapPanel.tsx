@@ -15,21 +15,47 @@ export const DebugWorldMapPanel = () => {
   const debugSetLevelStars = useGame((s) => s.debugSetLevelStars);
   const debugResetProgress = useGame((s) => s.debugResetProgress);
   const [collapsed, setCollapsed] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  return (
-    <div className="absolute right-6 bottom-6 w-[260px] bg-surface-3 border border-[rgba(255,214,106,0.35)] rounded-xl backdrop-blur-md pointer-events-auto shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+  if (hidden) {
+    return (
       <button
         type="button"
-        className="w-full flex items-center justify-between px-3.5 py-2.5 text-[10px] font-bold tracking-uber text-gold uppercase cursor-pointer"
-        onClick={() => setCollapsed((c) => !c)}
+        className="debug-floating-reopen pointer-events-auto"
+        onClick={() => setHidden(false)}
+        title="Show debug panel"
       >
-        <span>DEBUG · Progress</span>
-        <span className="text-fg-muted">{collapsed ? "▸" : "▾"}</span>
+        DEBUG
       </button>
+    );
+  }
+
+  return (
+    <div className="debug-floating-panel pointer-events-auto">
+      <div className="debug-floating-panel-header">
+        <button
+          type="button"
+          className="debug-floating-panel-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+        >
+          <span>DEBUG · Progress</span>
+          <span className="text-fg-muted">{collapsed ? "▸" : "▾"}</span>
+        </button>
+        <button
+          type="button"
+          className="debug-floating-panel-close"
+          onClick={() => setHidden(true)}
+          title="Hide debug panel"
+          aria-label="Hide debug panel"
+        >
+          ✕
+        </button>
+      </div>
 
       {!collapsed && (
-        <div className="px-3 pb-3 max-h-[60vh] overflow-y-auto">
+        <div className="debug-floating-panel-body">
           <div className="grid grid-cols-[auto_1fr_auto] gap-x-2 gap-y-1.5 items-center text-xs">
             <div className="text-fg-faint tracking-wide font-bold col-span-3 mb-1">LEVELS</div>
             {LEVELS.map((l) => {
@@ -49,7 +75,7 @@ export const DebugWorldMapPanel = () => {
                         key={s}
                         type="button"
                         onClick={() => debugSetLevelStars(l.id, s)}
-                        className={`w-5 h-5 rounded-sm text-[10px] font-bold tabular-nums leading-none ${
+                        className={`debug-star-btn rounded-sm text-[10px] font-bold tabular-nums leading-none ${
                           stars === s
                             ? "bg-gold text-black"
                             : "bg-[rgba(255,255,255,0.04)] text-fg-muted hover:bg-[rgba(255,255,255,0.1)]"

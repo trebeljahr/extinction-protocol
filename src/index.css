@@ -2773,6 +2773,84 @@
     z-index: 12;
   }
 
+  /* Floating debug panel (world map). Sits above HUD/world-map UI but
+     below modal overlays (z-60+) so any open menu still wins. */
+  .debug-floating-panel {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    width: 260px;
+    z-index: 55;
+    background: var(--surface-3, rgba(20, 28, 40, 0.94));
+    border: 1px solid rgba(255, 214, 106, 0.35);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+  .debug-floating-panel-header {
+    display: flex;
+    align-items: stretch;
+  }
+  .debug-floating-panel-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-gold, #ffd66a);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    min-height: 40px;
+  }
+  .debug-floating-panel-close {
+    padding: 0 14px;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--fg-muted, #9aa9bd);
+    background: transparent;
+    border: 0;
+    border-left: 1px solid rgba(255, 214, 106, 0.2);
+    cursor: pointer;
+    min-width: 40px;
+  }
+  .debug-floating-panel-close:hover {
+    color: var(--color-gold, #ffd66a);
+  }
+  .debug-floating-panel-body {
+    padding: 0 12px 12px;
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .debug-floating-reopen {
+    position: absolute;
+    right: 12px;
+    bottom: calc(12px + var(--safe-bottom, 0px));
+    z-index: 55;
+    padding: 8px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #1a1100;
+    background: var(--color-gold, #ffd66a);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    min-height: 36px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .debug-star-btn {
+    width: 22px;
+    height: 22px;
+  }
+
   .hive-drone-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -3234,6 +3312,59 @@
       min-width: 0;
       max-width: none;
       padding: 12px;
+    }
+
+    /* Floating debug panel on phones: bottom sheet spanning the screen so
+       it doesn't crowd the world-map cards, with a large tap target
+       header and bigger scroll viewport. */
+    .debug-floating-panel {
+      right: calc(8px + var(--safe-right));
+      left: calc(8px + var(--safe-left));
+      bottom: calc(8px + var(--safe-bottom));
+      width: auto;
+    }
+    .debug-floating-panel-toggle {
+      min-height: 48px;
+      padding: 12px 16px;
+      font-size: 11px;
+    }
+    .debug-floating-panel-close {
+      min-width: 48px;
+      font-size: 16px;
+    }
+    .debug-floating-panel-body {
+      max-height: 50dvh;
+      padding: 0 12px 14px;
+    }
+    .debug-floating-reopen {
+      right: calc(12px + var(--safe-right));
+      bottom: calc(12px + var(--safe-bottom));
+      min-height: 40px;
+      padding: 10px 16px;
+    }
+    .debug-star-btn {
+      width: 28px;
+      height: 28px;
+    }
+
+    /* Debug menu section (inside pause/world-map menu overlays): bigger
+       chip tap targets, drop the inner scroll cap so the outer overlay
+       handles scrolling on phones — nested scroll containers are a pain
+       to drive with thumbs. */
+    .debug-menu-section .btn--sm {
+      min-height: 36px;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    .debug-menu-section button[aria-pressed],
+    .debug-menu-section .debug-chip-grid button {
+      min-height: 36px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    .debug-menu-section .debug-chip-grid {
+      max-height: none;
+      overflow-y: visible;
     }
 
     /* Achievement toasts — full-width strip from the top so they
