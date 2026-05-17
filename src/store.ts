@@ -513,6 +513,11 @@ type GameStore = {
   // Hero shop modal.
   heroShopOpen: boolean;
   setHeroShopOpen: (open: boolean) => void;
+  // Hero overview overlay (stats / abilities / vitals). Decoupled from
+  // `hero.selected` so the player can keep commanding the hero (move/
+  // target) without the info panel covering the canvas.
+  heroPanelOpen: boolean;
+  setHeroPanelOpen: (open: boolean) => void;
   // Persistent hero progression actions. Reads/writes ProgressData
   // (heroUnlocks / activeHero / heroSkills). XP is mutated via the sim
   // tick → progress sync inside `tick`.
@@ -1293,6 +1298,11 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  heroPanelOpen: false,
+  setHeroPanelOpen: (open) => {
+    set({ heroPanelOpen: open });
+  },
+
   unlockHero: (variant) => {
     const s = get();
     if (s.progress.heroUnlocks[variant]) return;
@@ -1403,6 +1413,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedRockId: null,
       pendingTouchPlacement: null,
       inspectedEnemy: emptyInspect,
+      heroPanelOpen: false,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },

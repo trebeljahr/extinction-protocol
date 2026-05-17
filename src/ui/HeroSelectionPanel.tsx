@@ -13,7 +13,7 @@ const SLOT_KEYS: Array<{ slot: HeroAbilitySlot; key: "Q" | "W" | "E" | "R" }> = 
 ];
 
 export const HeroSelectionPanel = () => {
-  const selected = useGame((s) => s.ui.heroSelected);
+  const open = useGame((s) => s.heroPanelOpen);
   const status = useGame((s) => s.ui.status);
   const variant = useGame((s) => s.ui.heroVariant);
   const label = useGame((s) => s.ui.heroLabel);
@@ -29,9 +29,9 @@ export const HeroSelectionPanel = () => {
   const labels = useGame((s) => s.ui.heroAbilityLabels);
   const glyphs = useGame((s) => s.ui.heroAbilityGlyphs);
   const trigger = useGame((s) => s.triggerHeroAbility);
-  const selectHeroUnit = useGame((s) => s.selectHeroUnit);
+  const setHeroPanelOpen = useGame((s) => s.setHeroPanelOpen);
 
-  if (!selected || status !== "running") return null;
+  if (!open || status !== "running") return null;
 
   const hero = useGame.getState().world.hero;
   const spec = HERO_SPECS[variant];
@@ -68,7 +68,7 @@ export const HeroSelectionPanel = () => {
         <button
           type="button"
           className="btn-close"
-          onClick={() => selectHeroUnit(false)}
+          onClick={() => setHeroPanelOpen(false)}
           aria-label="close"
         >
           ×

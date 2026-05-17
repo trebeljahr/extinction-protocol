@@ -24,13 +24,16 @@ import { useKeyboardHintsVisible } from "./useInputMode";
 import { useIsMobile } from "./useMediaQuery";
 
 const KINDS: TowerKind[] = ["pulse", "chain", "flame", "hive", "mortar", "cryo"];
+// "1" is reserved for hero select — towers shift up by one so the row
+// reads "1 = hero, 2..7 = towers" left-to-right.
+const HERO_HOTKEY = "1";
 const HOTKEYS: Record<TowerKind, string> = {
-  pulse: "1",
-  chain: "2",
-  flame: "3",
-  hive: "4",
-  mortar: "5",
-  cryo: "6",
+  pulse: "2",
+  chain: "3",
+  flame: "4",
+  hive: "5",
+  mortar: "6",
+  cryo: "7",
 };
 
 export const HUD = () => {
@@ -158,7 +161,8 @@ export const HUD = () => {
           s.inspectedEnemy.kind !== null ||
           s.selectedTreeId !== null ||
           s.selectedRockId !== null ||
-          s.world.hero.selected
+          s.world.hero.selected ||
+          s.heroPanelOpen
         ) {
           s.clearSelection();
           (document.activeElement as HTMLElement | null)?.blur();
@@ -189,6 +193,11 @@ export const HUD = () => {
         return;
       }
       const digit = e.key;
+      if (digit === HERO_HOTKEY) {
+        const s = useGame.getState();
+        s.selectHeroUnit(!s.world.hero.selected);
+        return;
+      }
       const kind = (Object.keys(HOTKEYS) as TowerKind[]).find((k) => HOTKEYS[k] === digit);
       if (kind) setSelectedKind(selectedKind === kind ? null : kind);
     };

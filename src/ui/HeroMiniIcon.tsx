@@ -1,10 +1,9 @@
 import { useGame } from "../store";
 import { HeroPreview } from "./HeroPreview";
 
-// Top-left "banner" — clicking it opens the hero menu (HeroShop) so the
-// menu has exactly one trigger and selection is a separate action via
-// the canvas-side hero mesh. The banner still shows live HP/level so the
-// player can scan hero status without opening the shop.
+// Top-left "banner" — clicking it toggles the hero overview overlay
+// (stats / abilities / vitals). Hero selection for in-canvas commands
+// (move, target) is a separate action via the hero mesh or hotkey "1".
 export const HeroMiniIcon = () => {
   const variant = useGame((s) => s.ui.heroVariant);
   const hp = useGame((s) => s.ui.heroHp);
@@ -13,7 +12,8 @@ export const HeroMiniIcon = () => {
   const respawnRemaining = useGame((s) => s.ui.heroRespawnRemaining);
   const level = useGame((s) => s.ui.heroLevel);
   const status = useGame((s) => s.ui.status);
-  const setHeroShopOpen = useGame((s) => s.setHeroShopOpen);
+  const panelOpen = useGame((s) => s.heroPanelOpen);
+  const setHeroPanelOpen = useGame((s) => s.setHeroPanelOpen);
 
   if (status !== "running" && status !== "paused") return null;
 
@@ -22,10 +22,11 @@ export const HeroMiniIcon = () => {
   return (
     <button
       type="button"
-      className={`hero-mini ${alive ? "" : "dead"}`}
-      onClick={() => setHeroShopOpen(true)}
-      title={alive ? `Hero menu · ${hp}/${maxHp} HP` : `Respawn in ${respawnRemaining}s`}
-      aria-label="Open hero menu"
+      className={`hero-mini ${alive ? "" : "dead"} ${panelOpen ? "active" : ""}`}
+      onClick={() => setHeroPanelOpen(!panelOpen)}
+      title={alive ? `Hero overview · ${hp}/${maxHp} HP` : `Respawn in ${respawnRemaining}s`}
+      aria-label="Toggle hero overview"
+      aria-pressed={panelOpen}
     >
       <HeroPreview variant={variant} />
       <div className="hero-mini-body">
