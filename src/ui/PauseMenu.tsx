@@ -7,7 +7,7 @@ import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DifficultyTag } from "./DifficultyTag";
 import { FullscreenToggle } from "./FullscreenToggle";
-import { IconBook, IconTrophy } from "./MenuIcons";
+import { IconBook, IconMap, IconRefresh, IconTrophy } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
 import { useKeyboardHintsVisible } from "./useInputMode";
@@ -100,16 +100,18 @@ export const PauseMenu = ({ onResume }: Props) => {
           </button>
           <button
             type="button"
-            className="btn btn-warn w-full"
+            className="btn btn-warn w-full flex items-center justify-center gap-2"
             onClick={() => setConfirming("restart")}
           >
+            <IconRefresh size={16} className="shrink-0" />
             Restart
           </button>
           <button
             type="button"
-            className="btn btn-danger w-full"
+            className="btn btn-danger w-full flex items-center justify-center gap-2"
             onClick={() => setConfirming("worldMap")}
           >
+            <IconMap size={16} className="shrink-0" />
             Return to World Map
           </button>
         </ActionsCol>

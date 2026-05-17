@@ -172,6 +172,23 @@ export const IconFloppy: FC<MenuIconProps> = (p) => (
   </Svg>
 );
 
+export const IconRefresh: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Restart">
+    <path d="M4 12a8 8 0 0 1 13.7-5.6L20 9" />
+    <path d="M20 4v5h-5" />
+    <path d="M20 12a8 8 0 0 1-13.7 5.6L4 15" />
+    <path d="M4 20v-5h5" />
+  </Svg>
+);
+
+export const IconMap: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="World map">
+    <path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z" />
+    <path d="M9 4v14" />
+    <path d="M15 6v14" />
+  </Svg>
+);
+
 export const IconSpeaker: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Sound">
     <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" />
