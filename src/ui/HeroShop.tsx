@@ -201,12 +201,27 @@ const formatAbilityStats = (spec: HeroVariantSpec, slot: 0 | 1 | 2): string[] =>
       `Marked targets take +${Math.round((a.dmgMul - 1) * 100)}% damage`,
     ];
   }
-  return [
-    `Cooldown ${a.cooldown.toFixed(1)}s`,
-    `Total damage ${a.totalDamage}`,
-    `Duration ${a.duration.toFixed(1)}s · Range ${a.range.toFixed(1)}`,
-    `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
-  ];
+  if (a.type === "buff") {
+    const signed = (m: number) => {
+      const delta = Math.round((m - 1) * 100);
+      return `${delta >= 0 ? "+" : ""}${delta}%`;
+    };
+    const lines = [`Cooldown ${a.cooldown.toFixed(1)}s`, `Duration ${a.duration.toFixed(1)}s`];
+    if (a.damageMul !== 1) lines.push(`Damage ${signed(a.damageMul)}`);
+    if (a.fireRateMul !== 1) lines.push(`Fire rate ${signed(a.fireRateMul)}`);
+    if (a.speedMul !== 1) lines.push(`Speed ${signed(a.speedMul)}`);
+    if (a.damageResist > 0) lines.push(`Damage resist ${Math.round(a.damageResist * 100)}%`);
+    return lines;
+  }
+  if (a.type === "incinerate") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Total damage ${a.totalDamage}`,
+      `Duration ${a.duration.toFixed(1)}s · Range ${a.range.toFixed(1)}`,
+      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+    ];
+  }
+  return [];
 };
 
 const ABILITY_BLURB: Record<string, string> = {
