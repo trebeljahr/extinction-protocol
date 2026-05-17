@@ -261,16 +261,44 @@ export type HeroPendingShot = {
 };
 
 // Ongoing slot-3 effect that ticks per frame. Mark (Leela) buffs the
-// hero's own outgoing damage for the duration; incinerate (Mike) burns
-// a single locked enemy until the timer ends or the target dies.
+// hero's own outgoing damage for the duration AND optionally pulses an
+// arc-tick across the marked target list; incinerate (Mike) burns a
+// single locked enemy until the timer ends or the target dies;
+// killshot (George) charges a hitscan that then deletes one enemy.
 export type HeroPayloadState =
-  | { kind: "mark"; endAt: number; dmgMul: number }
+  | {
+      kind: "mark";
+      endAt: number;
+      dmgMul: number;
+      // Optional arc-tick (Leela Overcharge). Empty targetIds list means
+      // no arc — just a pure damage multiplier.
+      arc?: {
+        targetIds: EntityId[];
+        nextTickAt: number;
+        interval: number;
+        damage: number;
+        radius: number;
+        damageType: DamageType;
+      };
+    }
   | {
       kind: "incinerate";
       targetId: EntityId;
       endAt: number;
       nextTickAt: number;
       tickDamage: number;
+      damageType: DamageType;
+    }
+  | {
+      kind: "killshot";
+      // The hero is locked in place during chargeTime; fireAt is when the
+      // shot lands. End-of-payload happens immediately after fire.
+      targetId: EntityId;
+      fireAt: number;
+      endAt: number;
+      damage: number;
+      splashDamage: number;
+      splashRadius: number;
       damageType: DamageType;
     };
 
@@ -395,6 +423,23 @@ export type Hero = {
   // dash press OR a ground click commits the dash in `dir`. Escape
   // clears it. Auto-clears after world.time >= expiresAt.
   dashAim: { dir: Vec2; expiresAt: number } | null;
+  // George — set by Sidestep dash; the next auto-attack lands with the
+  // crit multiplier and (optionally) a piercing flag. Consumed on fire.
+  pendingCrit: { mul: number; pierce: boolean } | null;
+};
+
+// Lingering explosive crater dropped by Stan's Saturation Strike. Ticks
+// AoE explosive damage until expiresAt. Stored on World so render and
+// sim can both iterate without going through hero state.
+export type HeroCrater = {
+  id: EntityId;
+  pos: Vec2;
+  expiresAt: number;
+  maxLife: number;
+  nextTickAt: number;
+  tickInterval: number;
+  tickDamage: number;
+  radius: number;
 };
 
 // Lingering damage tile dropped behind Mike during his dash. Each tile
@@ -637,6 +682,7 @@ export type World = {
   explosions: Explosion[];
   cryoWaves: CryoWave[];
   coalEmbers: CoalEmber[];
+  heroCraters: HeroCrater[];
   particles: Particle[];
   spawnQueue: SpawnRequest[];
   bossTrickleStreams: ActiveBossTrickle[];

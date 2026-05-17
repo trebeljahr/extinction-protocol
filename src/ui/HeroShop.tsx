@@ -168,49 +168,96 @@ const RosterCard = ({
   );
 };
 
-const formatAbilityStats = (spec: HeroVariantSpec, slot: 0 | 1 | 2): string[] => {
+type AbilitySlot = 0 | 1 | 2 | 3;
+
+const signedPct = (m: number) => {
+  const delta = Math.round((m - 1) * 100);
+  return `${delta >= 0 ? "+" : ""}${delta}%`;
+};
+
+const formatAbilityStats = (spec: HeroVariantSpec, slot: AbilitySlot): string[] => {
   const a = spec.abilities[slot];
   if (a.type === "dash") {
-    return [
+    const lines = [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
       `Duration ${a.duration.toFixed(2)}s`,
       `Speed ${a.speed.toFixed(1)}`,
       "Grants i-frames during lunge",
     ];
+    if (a.nextShotCrit) {
+      lines.push(
+        `Next shot: ×${a.nextShotCrit.mul.toFixed(1)} damage${a.nextShotCrit.pierce ? ", pierces" : ""}`,
+      );
+    }
+    if (a.endChain) {
+      lines.push(
+        `On end: chain ${a.endChain.hops}× ${a.endChain.damagePerHop} ${DAMAGE_TYPE_LABEL[a.endChain.damageType]}`,
+      );
+    }
+    if (a.landingBlast) {
+      lines.push(
+        `Landing blast: ${a.landingBlast.damage} ${DAMAGE_TYPE_LABEL[a.landingBlast.damageType]} (${a.landingBlast.radius.toFixed(1)} radius)`,
+      );
+    }
+    return lines;
   }
   if (a.type === "burst") {
-    return [
+    const lines = [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
       `Damage ${a.damage}`,
       `Radius ${a.radius.toFixed(1)}`,
       `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
     ];
+    if (a.chainHops) {
+      lines.push(`Chains to ${a.chainHops.hops} more (${a.chainHops.damagePerHop} dmg each)`);
+    }
+    if (a.burn) {
+      lines.push(`Burn: ${a.burn.totalDamage} over ${a.burn.duration.toFixed(1)}s`);
+    }
+    if (a.knockback) {
+      lines.push(`Pushes enemies ${a.knockback.pathPush.toFixed(1)} back along path`);
+    }
+    return lines;
   }
   if (a.type === "barrage") {
-    return [
+    const lines = [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
       `Shells ${a.count}`,
       `Damage ${a.damage} × splash ${a.splashRadius.toFixed(1)}`,
       `Range ${a.range.toFixed(1)} · ${DAMAGE_TYPE_LABEL[a.damageType]}`,
     ];
+    if (a.crater) {
+      lines.push(
+        `Each shell leaves a crater (${a.crater.tickDamage}/tick, ${a.crater.duration.toFixed(1)}s)`,
+      );
+    }
+    return lines;
   }
   if (a.type === "mark") {
-    return [
+    const lines = [
       `Cooldown ${a.cooldown.toFixed(1)}s`,
       `Duration ${a.duration.toFixed(1)}s`,
       `Marked targets take +${Math.round((a.dmgMul - 1) * 100)}% damage`,
     ];
+    if (a.arcTick) {
+      lines.push(
+        `Arc tick every ${a.arcTick.interval.toFixed(1)}s: ${a.arcTick.damage} ${DAMAGE_TYPE_LABEL[a.arcTick.damageType]}`,
+      );
+    }
+    return lines;
   }
   if (a.type === "buff") {
-    const signed = (m: number) => {
-      const delta = Math.round((m - 1) * 100);
-      return `${delta >= 0 ? "+" : ""}${delta}%`;
-    };
     const lines = [`Cooldown ${a.cooldown.toFixed(1)}s`, `Duration ${a.duration.toFixed(1)}s`];
-    if (a.damageMul !== 1) lines.push(`Damage ${signed(a.damageMul)}`);
-    if (a.fireRateMul !== 1) lines.push(`Fire rate ${signed(a.fireRateMul)}`);
-    if (a.speedMul !== 1) lines.push(`Speed ${signed(a.speedMul)}`);
+    if (a.damageMul !== 1) lines.push(`Damage ${signedPct(a.damageMul)}`);
+    if (a.fireRateMul !== 1) lines.push(`Fire rate ${signedPct(a.fireRateMul)}`);
+    if (a.speedMul !== 1) lines.push(`Speed ${signedPct(a.speedMul)}`);
+    if (a.rangeMul && a.rangeMul !== 1) lines.push(`Range ${signedPct(a.rangeMul)}`);
     if (a.damageResist > 0) lines.push(`Damage resist ${Math.round(a.damageResist * 100)}%`);
+    if (a.igniteOnHit) {
+      lines.push(
+        `Auto-shots ignite: ${a.igniteOnHit.totalDamage} over ${a.igniteOnHit.duration.toFixed(1)}s`,
+      );
+    }
     return lines;
   }
   if (a.type === "incinerate") {
@@ -221,16 +268,35 @@ const formatAbilityStats = (spec: HeroVariantSpec, slot: 0 | 1 | 2): string[] =>
       `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
     ];
   }
+  if (a.type === "killshot") {
+    return [
+      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `Range ${a.range.toFixed(1)} · Charge ${a.chargeTime.toFixed(1)}s`,
+      `Direct ${a.damage} + splash ${a.splashDamage} (${a.splashRadius.toFixed(1)} radius)`,
+      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+    ];
+  }
   return [];
 };
 
-const ABILITY_BLURB: Record<string, string> = {
-  dash: "Forward dash. Hero is invulnerable mid-lunge — use it to break grapple or close range.",
-  burst: "Instant radial blast centered on the hero. Best when ringed by enemies.",
-  barrage: "Calls a saturation strike of shells over a target area. Each shell splashes.",
-  mark: "Marks the nearest cluster of enemies; marked targets take bonus damage from all sources.",
-  incinerate:
-    "Sustained flame cone in front of the hero. Total damage spread evenly over the duration.",
+const formatAutoAttack = (spec: HeroVariantSpec): string[] => {
+  const lines = [
+    `Damage ${spec.damage} · Fire rate ${spec.fireRate.toFixed(1)}/s · Range ${spec.range.toFixed(1)}`,
+    `Type ${DAMAGE_TYPE_LABEL[spec.damageType]}`,
+  ];
+  if (spec.attackSplashRadius > 0) {
+    lines.push(`Splash radius ${spec.attackSplashRadius.toFixed(1)} per shot`);
+  } else if (spec.attackTracer) {
+    lines.push("Hitscan tracer beam — no projectile travel");
+  } else {
+    lines.push("Single-target projectile");
+  }
+  if (spec.attackChain) {
+    lines.push(
+      `Chains to ${spec.attackChain.hops} nearby (${spec.attackChain.damagePerHop} bonus damage)`,
+    );
+  }
+  return lines;
 };
 
 const AbilityCard = ({
@@ -240,13 +306,13 @@ const AbilityCard = ({
   onToggle,
 }: {
   spec: HeroVariantSpec;
-  slot: 0 | 1 | 2;
+  slot: AbilitySlot;
   expanded: boolean;
   onToggle: () => void;
 }) => {
   const label = spec.abilityLabels[slot];
   const glyph = spec.abilityGlyphs[slot];
-  const a = spec.abilities[slot];
+  const blurb = spec.abilityBlurbs[slot + 1];
   return (
     <div className={`hero-ability-card ${expanded ? "expanded" : ""}`}>
       <button
@@ -265,7 +331,7 @@ const AbilityCard = ({
       </button>
       {expanded && (
         <div className="hero-ability-detail">
-          <p className="hero-ability-blurb">{ABILITY_BLURB[a.type]}</p>
+          <p className="hero-ability-blurb">{blurb}</p>
           <ul className="hero-ability-stats">
             {formatAbilityStats(spec, slot).map((line) => (
               <li key={line}>{line}</li>
@@ -276,6 +342,43 @@ const AbilityCard = ({
     </div>
   );
 };
+
+const AutoAttackCard = ({
+  spec,
+  expanded,
+  onToggle,
+}: {
+  spec: HeroVariantSpec;
+  expanded: boolean;
+  onToggle: () => void;
+}) => (
+  <div className={`hero-ability-card ${expanded ? "expanded" : ""}`}>
+    <button
+      type="button"
+      className="hero-ability-summary"
+      onClick={onToggle}
+      aria-expanded={expanded}
+    >
+      <span className="hero-ability-glyph" aria-hidden>
+        ◉
+      </span>
+      <span className="hero-ability-name">Basic Attack</span>
+      <span className="hero-ability-toggle" aria-hidden>
+        {expanded ? "−" : "+"}
+      </span>
+    </button>
+    {expanded && (
+      <div className="hero-ability-detail">
+        <p className="hero-ability-blurb">{spec.abilityBlurbs[0]}</p>
+        <ul className="hero-ability-stats">
+          {formatAutoAttack(spec).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+);
 
 const HeroDetail = ({
   variant,
@@ -295,7 +398,8 @@ const HeroDetail = ({
   const unlockHero = useGame((s) => s.unlockHero);
   const setActiveHero = useGame((s) => s.setActiveHero);
   const resetSkills = useGame((s) => s.resetHeroSkills);
-  const [openAbility, setOpenAbility] = useState<0 | 1 | 2 | null>(null);
+  // `auto` = the basic-attack card; 0..3 = QWER ability cards.
+  const [openAbility, setOpenAbility] = useState<"auto" | AbilitySlot | null>(null);
 
   const xp = progress.heroXp[variant] ?? 0;
   const ranks = progress.heroSkills[variant];
@@ -355,7 +459,12 @@ const HeroDetail = ({
           </div>
 
           <div className="hero-ability-list">
-            {([0, 1, 2] as const).map((slot) => (
+            <AutoAttackCard
+              spec={spec}
+              expanded={openAbility === "auto"}
+              onToggle={() => setOpenAbility(openAbility === "auto" ? null : "auto")}
+            />
+            {([0, 1, 2, 3] as const).map((slot) => (
               <AbilityCard
                 key={slot}
                 spec={spec}

@@ -3,13 +3,26 @@ import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { isEnemyTargetable } from "./enemyState";
 import { HERO_SPECS, type HeroVariantSpec } from "./heroVariants";
 import { pathProgress, projectOnPath, smoothDirection } from "./path";
-import type { DamageType, Enemy, Hero, HeroAbilitySlot, HeroVariant, Vec2, World } from "./types";
+import type {
+  DamageType,
+  Enemy,
+  EntityId,
+  Hero,
+  HeroAbilitySlot,
+  HeroVariant,
+  Vec2,
+  World,
+} from "./types";
 import { distSq } from "./vec2";
 import {
   addShake,
   applyDamage,
+  applyHeroBurn,
+  applyPathKnockback,
+  createBeam,
   createCoalEmber,
   createExplosion,
+  createHeroCrater,
   createProjectile,
   ENEMY_HERO_DAMAGE,
   emit,
@@ -132,8 +145,9 @@ const resolveOverlap = (world: World, pos: Vec2, radius: number): Vec2 => {
   return { x, y };
 };
 
-const findHeroTarget = (world: World, hero: Hero): Enemy | null => {
-  const r2 = hero.range * hero.range;
+const findHeroTarget = (world: World, hero: Hero, rangeMul = 1): Enemy | null => {
+  const effRange = hero.range * rangeMul;
+  const r2 = effRange * effRange;
   let best: Enemy | null = null;
   let bestDistSq = Number.POSITIVE_INFINITY;
   for (const e of world.enemies) {
@@ -165,8 +179,24 @@ const findEnemyByProgress = (world: World, pos: Vec2, range: number): Enemy | nu
 };
 
 const fireHeroShot = (world: World, hero: Hero, target: Enemy) => {
-  const dmg = hero.damage * hero.damageMul;
-  if (hero.attackSplashRadius > 0) {
+  const variant = HERO_SPECS[hero.variant];
+  // George Sidestep flags the next shot as a piercing crit (×mul, no
+  // projectile travel — applied as a hitscan tracer so the lunge → shot
+  // combo reads instantly). Consumed on fire.
+  const crit = hero.pendingCrit;
+  hero.pendingCrit = null;
+  const critMul = crit ? crit.mul : 1;
+  const dmg = hero.damage * hero.damageMul * critMul;
+
+  // Hitscan tracer (George sniper) — direct hit, no projectile entity.
+  // Draw a thin beam from hero → target for the visual read.
+  if (variant.attackTracer || crit?.pierce) {
+    applyDamage(world, target, dmg, hero.damageType, "#fff4d6", crit ? 12 : 5);
+    createBeam(world, [hero.pos, target.pos], crit ? "#ffe9a0" : "#cfe8ff", 0.12);
+    spawnParticles(world, hero.pos, 4, "#cfe8ff", [2, 5], 0.18);
+    spawnParticles(world, target.pos, crit ? 14 : 6, crit ? "#ffe9a0" : "#cfe8ff", [3, 7], 0.3);
+    if (crit) addShake(world, 0.3, 5);
+  } else if (hero.attackSplashRadius > 0) {
     createProjectile(
       world,
       "splash",
@@ -193,6 +223,47 @@ const fireHeroShot = (world: World, hero: Hero, target: Enemy) => {
       { fromHero: true },
     );
   }
+
+  // Leela auto-attack chain — fork to N nearby additional enemies after
+  // the primary hit. Damage applied directly so a chain beam reads in
+  // the same frame as the primary projectile fire.
+  if (variant.attackChain) {
+    const { hops, damagePerHop, radius } = variant.attackChain;
+    const r2 = radius * radius;
+    const seen = new Set<number>([target.id]);
+    let from = target;
+    for (let i = 0; i < hops; i++) {
+      let next: Enemy | null = null;
+      let best = Number.POSITIVE_INFINITY;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (seen.has(e.id)) continue;
+        const d2 = distSq(e.pos, from.pos);
+        if (d2 > r2) continue;
+        if (d2 < best) {
+          best = d2;
+          next = e;
+        }
+      }
+      if (!next) break;
+      applyDamage(world, next, damagePerHop * hero.damageMul, hero.damageType, "#cfe8ff", 4);
+      createBeam(world, [from.pos, next.pos], "#7ee0ff", 0.1);
+      seen.add(next.id);
+      from = next;
+    }
+  }
+
+  // Mike Ignition (slot 2 buff) tags every shot with a short burn DoT.
+  const buffSpec = variant.abilities[2];
+  if (
+    buffSpec.type === "buff" &&
+    buffSpec.igniteOnHit &&
+    hero.selfBuff &&
+    world.time < hero.selfBuff.endAt
+  ) {
+    applyHeroBurn(world, target, buffSpec.igniteOnHit.duration, buffSpec.igniteOnHit.totalDamage);
+  }
+
   hero.shootFlashUntil = world.time + 0.18;
   emit(world, { type: "shoot", towerId: hero.id, towerKind: "pulse", pos: hero.pos });
 };
@@ -382,17 +453,62 @@ const dashDir = (hero: Hero): Vec2 => {
 };
 
 // Mid-tick payload servicing for slot 3 ongoing effects (ultimate).
-// Mark drives a damage multiplier; incinerate ticks flame damage on a
-// locked target until either ends. The slot-2 self-buff is its own tick
-// pass (tickBuff) — they stack rather than overwrite.
+// Mark drives a damage multiplier (and optionally arcs to a list of
+// marked targets); incinerate ticks flame on a locked target;
+// killshot waits for the charge timer then deletes a target with splash.
+// The slot-2 self-buff is its own tick pass (tickBuff) — they stack.
 const tickPayload = (world: World, hero: Hero) => {
   const p = hero.payload;
   if (!p) return 1;
+  if (p.kind === "killshot") {
+    if (world.time >= p.fireAt) {
+      const target = world.enemyById.get(p.targetId);
+      if (target && isEnemyTargetable(target)) {
+        createBeam(world, [hero.pos, target.pos], "#ffe9a0", 0.25);
+        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 24);
+        // Splash at impact point so escorts die with the priority target.
+        const r2 = p.splashRadius * p.splashRadius;
+        for (const e of world.enemies) {
+          if (!isEnemyTargetable(e)) continue;
+          if (e === target) continue;
+          if (distSq(e.pos, target.pos) > r2) continue;
+          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 8);
+        }
+        createExplosion(world, target.pos, p.splashRadius, 0.45);
+        spawnParticles(world, target.pos, 36, "#ffe9a0", [4, 9], 0.6);
+        addShake(world, 0.5, 4);
+        emit(world, { type: "impact", pos: target.pos });
+      }
+      hero.payload = null;
+    }
+    return 1;
+  }
   if (world.time >= p.endAt) {
     hero.payload = null;
     return 1;
   }
-  if (p.kind === "mark") return p.dmgMul;
+  if (p.kind === "mark") {
+    // Arc-tick (Leela Overcharge) — chain damage across the marked
+    // targets at a steady interval. Filters out dead targets between ticks.
+    if (p.arc && world.time >= p.arc.nextTickAt) {
+      const live: EntityId[] = [];
+      for (const id of p.arc.targetIds) {
+        const t = world.enemyById.get(id);
+        if (t && isEnemyTargetable(t)) live.push(id);
+      }
+      p.arc.targetIds = live;
+      let from: { pos: Vec2 } = hero;
+      for (const id of live) {
+        const t = world.enemyById.get(id);
+        if (!t) continue;
+        applyDamage(world, t, p.arc.damage, p.arc.damageType, "#cfe8ff", 4);
+        createBeam(world, [from.pos, t.pos], "#7ee0ff", 0.12);
+        from = t;
+      }
+      p.arc.nextTickAt = world.time + p.arc.interval;
+    }
+    return p.dmgMul;
+  }
   if (p.kind === "incinerate") {
     const target = world.enemyById.get(p.targetId);
     if (!target || !isEnemyTargetable(target)) {
@@ -405,6 +521,8 @@ const tickPayload = (world: World, hero: Hero) => {
       });
       target.flashUntil = world.time + 0.1;
       spawnParticles(world, target.pos, 4, "#ff8a3a", [2, 5], 0.3);
+      // Beam from hero to target reads as a sustained flame cone.
+      createBeam(world, [hero.pos, target.pos], "#ff8a3a", 0.45);
       p.nextTickAt = world.time + 0.5;
     }
   }
@@ -413,22 +531,32 @@ const tickPayload = (world: World, hero: Hero) => {
 
 // Slot-2 self-buff servicing. Stacks multiplicatively with payload muls
 // (mark) so a buff + mark combo lands the planned burst damage. Cleared
-// when the window expires.
+// when the window expires. rangeMul is sourced from the variant's slot-2
+// spec while the buff is active (George Spotter Drone scope-in).
 const tickBuff = (
   world: World,
   hero: Hero,
-): { damageMul: number; fireRateMul: number; speedMul: number; damageResist: number } => {
+): {
+  damageMul: number;
+  fireRateMul: number;
+  speedMul: number;
+  damageResist: number;
+  rangeMul: number;
+} => {
   const b = hero.selfBuff;
-  if (!b) return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0 };
+  if (!b) return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0, rangeMul: 1 };
   if (world.time >= b.endAt) {
     hero.selfBuff = null;
-    return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0 };
+    return { damageMul: 1, fireRateMul: 1, speedMul: 1, damageResist: 0, rangeMul: 1 };
   }
+  const buffSpec = HERO_SPECS[hero.variant].abilities[2];
+  const rangeMul = buffSpec.type === "buff" && buffSpec.rangeMul ? buffSpec.rangeMul : 1;
   return {
     damageMul: b.damageMul,
     fireRateMul: b.fireRateMul,
     speedMul: b.speedMul,
     damageResist: b.damageResist,
+    rangeMul,
   };
 };
 
@@ -624,7 +752,7 @@ export const updateHero = (world: World, dt: number) => {
   if (movingMagSq > 0.04) {
     targetYaw = Math.atan2(hero.vel.x, -hero.vel.y);
   } else {
-    const target = findHeroTarget(world, hero);
+    const target = findHeroTarget(world, hero, buff.rangeMul);
     if (target) {
       targetYaw = Math.atan2(target.pos.x - hero.pos.x, -(target.pos.y - hero.pos.y));
     }
@@ -703,7 +831,7 @@ export const updateHero = (world: World, dt: number) => {
 
   // Auto-attack — pick the closest in-range enemy. Doesn't fire while
   // dashing because the upper-body pose flips into the dash anim.
-  const target = !dashing ? findHeroTarget(world, hero) : null;
+  const target = !dashing ? findHeroTarget(world, hero, buff.rangeMul) : null;
   hero.targetId = target?.id ?? null;
   if (target && hero.attackCooldown === 0) {
     fireHeroShot(world, hero, target);
@@ -791,11 +919,71 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
     hero.facing = Math.atan2(dir.x, -dir.y);
     hero.abilityActiveUntil[0] = world.time + spec.duration;
     spawnParticles(world, hero.pos, 14, variant.tint, [2, 5], 0.35);
+    // George Sidestep — arm the next auto-attack as a piercing crit.
+    if (spec.nextShotCrit) {
+      hero.pendingCrit = { mul: spec.nextShotCrit.mul, pierce: spec.nextShotCrit.pierce };
+    }
+    // Leela Phase Step — arc lightning to closest enemies on lunge end.
+    // Apply immediately (i-frames cover the brief windup).
+    if (spec.endChain) {
+      const endX = hero.pos.x + Math.sin(hero.facing) * spec.speed * spec.duration;
+      const endY = hero.pos.y + -Math.cos(hero.facing) * spec.speed * spec.duration;
+      const endPos: Vec2 = { x: endX, y: endY };
+      const r2 = spec.endChain.radius * spec.endChain.radius;
+      const seen = new Set<EntityId>();
+      let from: { pos: Vec2 } = { pos: endPos };
+      for (let i = 0; i < spec.endChain.hops; i++) {
+        let best: Enemy | null = null;
+        let bd = Number.POSITIVE_INFINITY;
+        for (const e of world.enemies) {
+          if (!isEnemyTargetable(e)) continue;
+          if (seen.has(e.id)) continue;
+          const d2 = distSq(e.pos, from.pos);
+          if (d2 > r2) continue;
+          if (d2 < bd) {
+            bd = d2;
+            best = e;
+          }
+        }
+        if (!best) break;
+        applyDamage(
+          world,
+          best,
+          spec.endChain.damagePerHop,
+          spec.endChain.damageType,
+          "#cfe8ff",
+          4,
+        );
+        createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
+        seen.add(best.id);
+        from = best;
+      }
+    }
+    // Stan Ground Pound — detonate at landing position. Cheat the
+    // landing point as forward-step from current pos using dash dir.
+    if (spec.landingBlast) {
+      const lbX = hero.pos.x + Math.sin(hero.facing) * spec.speed * spec.duration;
+      const lbY = hero.pos.y + -Math.cos(hero.facing) * spec.speed * spec.duration;
+      const lbPos: Vec2 = { x: lbX, y: lbY };
+      const r2 = spec.landingBlast.radius * spec.landingBlast.radius;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (distSq(e.pos, lbPos) > r2) continue;
+        applyDamage(world, e, spec.landingBlast.damage, spec.landingBlast.damageType, "#ffb054", 8);
+        e.flashUntil = world.time + 0.12;
+      }
+      createExplosion(world, lbPos, spec.landingBlast.radius, 0.45);
+      spawnParticles(world, lbPos, 24, "#ffb04a", [3, 7], 0.5);
+      spawnParticles(world, lbPos, 14, "#ff8a3a", [4, 9], 0.4);
+      addShake(world, 0.5, 5);
+      emit(world, { type: "impact", pos: lbPos });
+    }
     return true;
   }
 
   if (spec.type === "burst") {
     const r2 = spec.radius * spec.radius;
+    const hit: Enemy[] = [];
     for (const e of world.enemies) {
       if (!isEnemyTargetable(e)) continue;
       if (distSq(e.pos, hero.pos) > r2) continue;
@@ -803,10 +991,45 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
         fromHero: true,
       });
       e.flashUntil = world.time + 0.12;
+      hit.push(e);
+      if (spec.burn) {
+        applyHeroBurn(world, e, spec.burn.duration, spec.burn.totalDamage);
+      }
+      if (spec.knockback) {
+        applyPathKnockback(world, e, spec.knockback.pathPush);
+      }
+    }
+    // Leela chain-fork: pick `hops` extra enemies near the burst circle,
+    // arc beams between them. Distinct from auto-attack chain.
+    if (spec.chainHops) {
+      const seen = new Set<EntityId>(hit.map((e) => e.id));
+      let from: { pos: Vec2 } = hero;
+      const hr2 = spec.chainHops.radius * spec.chainHops.radius;
+      for (let i = 0; i < spec.chainHops.hops; i++) {
+        let best: Enemy | null = null;
+        let bd = Number.POSITIVE_INFINITY;
+        for (const e of world.enemies) {
+          if (!isEnemyTargetable(e)) continue;
+          if (seen.has(e.id)) continue;
+          const d2 = distSq(e.pos, from.pos);
+          if (d2 > hr2) continue;
+          if (d2 < bd) {
+            bd = d2;
+            best = e;
+          }
+        }
+        if (!best) break;
+        applyDamage(world, best, spec.chainHops.damagePerHop, spec.damageType, "#cfe8ff", 4);
+        createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
+        seen.add(best.id);
+        from = best;
+      }
     }
     createExplosion(world, hero.pos, spec.radius, 0.45);
+    // Burst particles now key off variant tint instead of a hard-coded
+    // orange — an electric burst no longer reads as flame.
     spawnParticles(world, hero.pos, 24, variant.tint, [3, 7], 0.5);
-    spawnParticles(world, hero.pos, 14, "#ff8a3a", [4, 9], 0.4);
+    spawnParticles(world, hero.pos, 14, variant.tint, [4, 9], 0.4);
     addShake(world, 0.4, 5);
     emit(world, { type: "impact", pos: hero.pos });
     return true;
@@ -834,11 +1057,62 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
         damageType: spec.damageType,
       });
     }
+    // Stan Saturation crater — drop one crater per shell on a slight
+    // delay so the field litters with explosion zones in lockstep with
+    // the barrage cadence. Picks a random offset around the hero.
+    if (spec.crater) {
+      const c = spec.crater;
+      for (let i = 0; i < spec.count; i++) {
+        const ang = (i / spec.count) * Math.PI * 2 + Math.random() * 0.6;
+        const dist = spec.range * (0.35 + 0.55 * Math.random());
+        const cx = hero.pos.x + Math.cos(ang) * dist;
+        const cy = hero.pos.y + Math.sin(ang) * dist;
+        createHeroCrater(
+          world,
+          { x: cx, y: cy },
+          c.radius,
+          c.tickDamage,
+          c.tickInterval,
+          c.duration,
+        );
+      }
+    }
     return true;
   }
 
   if (spec.type === "mark") {
-    hero.payload = { kind: "mark", endAt: world.time + spec.duration, dmgMul: spec.dmgMul };
+    const base = {
+      kind: "mark" as const,
+      endAt: world.time + spec.duration,
+      dmgMul: spec.dmgMul,
+    };
+    if (spec.arcTick) {
+      // Leela Overcharge — collect up to 5 nearest targetable enemies
+      // inside arc radius and seed them as the persistent mark list.
+      const candidates: { e: Enemy; d2: number }[] = [];
+      const ar2 = spec.arcTick.radius * spec.arcTick.radius;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        const d2 = distSq(e.pos, hero.pos);
+        if (d2 > ar2) continue;
+        candidates.push({ e, d2 });
+      }
+      candidates.sort((a, b) => a.d2 - b.d2);
+      const targetIds = candidates.slice(0, 5).map((c) => c.e.id);
+      hero.payload = {
+        ...base,
+        arc: {
+          targetIds,
+          nextTickAt: world.time + spec.arcTick.interval,
+          interval: spec.arcTick.interval,
+          damage: spec.arcTick.damage,
+          radius: spec.arcTick.radius,
+          damageType: spec.arcTick.damageType,
+        },
+      };
+    } else {
+      hero.payload = base;
+    }
     spawnParticles(world, hero.pos, 18, variant.tint, [2, 5], 0.5);
     return true;
   }
@@ -858,6 +1132,27 @@ export const triggerHeroAbility = (world: World, slot: HeroAbilitySlot): boolean
     };
     spawnParticles(world, target.pos, 24, "#ff8a3a", [3, 7], 0.5);
     emit(world, { type: "impact", pos: target.pos });
+    return true;
+  }
+
+  if (spec.type === "killshot") {
+    const target = findEnemyByProgress(world, hero.pos, spec.range);
+    if (!target) {
+      // Refund cooldown — no valid target = no payload, no charge.
+      hero.abilityReadyAt[slot] = world.time;
+      return false;
+    }
+    hero.payload = {
+      kind: "killshot",
+      targetId: target.id,
+      fireAt: world.time + spec.chargeTime,
+      endAt: world.time + spec.chargeTime + 0.05,
+      damage: spec.damage,
+      splashDamage: spec.splashDamage,
+      splashRadius: spec.splashRadius,
+      damageType: spec.damageType,
+    };
+    spawnParticles(world, hero.pos, 12, variant.tint, [2, 5], 0.45);
     return true;
   }
 

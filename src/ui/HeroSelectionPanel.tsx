@@ -110,7 +110,7 @@ export const HeroSelectionPanel = () => {
               className={`hero-sel-ability ${ready ? "ready" : "cooling"}`}
               onClick={() => trigger(slot)}
               disabled={!ready}
-              title={`${labels[slot]} [${key}]`}
+              title={`${labels[slot]} [${key}] — ${spec.abilityBlurbs[slot + 1]}`}
             >
               <span className="hero-sel-ability-glyph">{glyphs[slot]}</span>
               <div className="hero-sel-ability-body">

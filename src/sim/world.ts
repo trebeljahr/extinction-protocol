@@ -123,6 +123,7 @@ const heroDefaults = (variant: HeroVariant, pos: Vec2, id: EntityId, xp: number)
     lastDeathAt: -1000,
     dashAim: null,
     mikeCoalDropAt: 0,
+    pendingCrit: null,
   };
 };
 
@@ -600,6 +601,7 @@ export const createWorld = (
     explosions: [],
     cryoWaves: [],
     coalEmbers: [],
+    heroCraters: [],
     particles: [],
     spawnQueue: [],
     bossTrickleStreams: [],
@@ -1626,6 +1628,121 @@ export const updateCoalEmbers = (world: World, _dt: number) => {
     remaining.push(e);
   }
   world.coalEmbers = remaining;
+};
+
+// Hero-owned burn DoT. Piggybacks on the existing ignite system so
+// enemies render their burn state the same way as flame-tower ignite.
+// Burn duration + total damage are translated to a DPS-style stamp so
+// the existing tick loop in updateEnemies applies the damage.
+export const applyHeroBurn = (
+  world: World,
+  enemy: Enemy,
+  duration: number,
+  totalDamage: number,
+) => {
+  if (!enemy.alive || enemy.leak) return;
+  const dps = totalDamage / Math.max(0.01, duration);
+  enemy.igniteUntil = Math.max(enemy.igniteUntil, world.time + duration);
+  enemy.igniteDps = Math.max(enemy.igniteDps, dps);
+  enemy.igniteAttackerTowerId = null;
+  if (enemy.igniteTickAt <= world.time) {
+    enemy.igniteTickAt = world.time + 0.5;
+  }
+};
+
+// Path-relative knockback. Drops the enemy's segmentT back by `pushUnits`
+// world-units along the path, clamped to segment 0. Re-syncs the enemy's
+// world position so the render reads the new path coordinate instantly.
+export const applyPathKnockback = (world: World, enemy: Enemy, pushUnits: number) => {
+  if (!enemy.alive || enemy.leak) return;
+  const path = world.paths[enemy.pathIndex] ?? world.paths[0];
+  if (!path) return;
+  let seg = enemy.segment;
+  let t = enemy.segmentT;
+  let remaining = pushUnits;
+  while (remaining > 0 && seg >= 0) {
+    const a = path[seg];
+    const b = path[seg + 1];
+    if (!a || !b) break;
+    const segLen = Math.hypot(b.x - a.x, b.y - a.y);
+    const traveled = segLen * t;
+    if (remaining <= traveled) {
+      const newTraveled = traveled - remaining;
+      t = segLen > 1e-6 ? newTraveled / segLen : 0;
+      remaining = 0;
+    } else {
+      remaining -= traveled;
+      seg -= 1;
+      t = 1;
+    }
+  }
+  if (seg < 0) {
+    seg = 0;
+    t = 0;
+  }
+  enemy.segment = seg;
+  enemy.segmentT = t;
+  const a = path[seg];
+  const b = path[seg + 1] ?? a;
+  if (a && b) {
+    const tx = b.x - a.x;
+    const ty = b.y - a.y;
+    const len = Math.hypot(tx, ty);
+    const ux = len > 1e-6 ? tx / len : 1;
+    const uy = len > 1e-6 ? ty / len : 0;
+    // Right-hand normal so lateralOffset sign matches projectOnPath.
+    const nx = -uy;
+    const ny = ux;
+    enemy.pos = {
+      x: a.x + ux * (len * t) + nx * enemy.lateralOffset,
+      y: a.y + uy * (len * t) + ny * enemy.lateralOffset,
+    };
+  }
+};
+
+// Stan-owned explosive crater. Each instance ticks AoE explosive damage
+// every tickInterval until expiresAt. Distinct from coalEmber so the
+// damage type, color, and tick cadence stay hero-flavoured.
+export const createHeroCrater = (
+  world: World,
+  pos: Vec2,
+  radius: number,
+  tickDamage: number,
+  tickInterval: number,
+  duration: number,
+) => {
+  world.heroCraters.push({
+    id: world.nextEntityId++,
+    pos: { x: pos.x, y: pos.y },
+    expiresAt: world.time + duration,
+    maxLife: duration,
+    nextTickAt: world.time + 0.1,
+    tickInterval,
+    tickDamage,
+    radius,
+  });
+};
+
+// Tick every crater: explosive AoE every tickInterval, drop when expired.
+export const updateHeroCraters = (world: World, _dt: number) => {
+  if (world.heroCraters.length === 0) return;
+  const remaining: typeof world.heroCraters = [];
+  for (const c of world.heroCraters) {
+    if (world.time >= c.expiresAt) continue;
+    if (world.time >= c.nextTickAt) {
+      const r2 = c.radius * c.radius;
+      for (const enemy of world.enemies) {
+        if (!enemy.alive || enemy.leak) continue;
+        const dx = enemy.pos.x - c.pos.x;
+        const dy = enemy.pos.y - c.pos.y;
+        if (dx * dx + dy * dy > r2) continue;
+        applyDamage(world, enemy, c.tickDamage, "explosive", "#ff8a3a", 3);
+      }
+      c.nextTickAt = world.time + c.tickInterval;
+    }
+    remaining.push(c);
+  }
+  world.heroCraters = remaining;
 };
 
 export const createCryoWave = (

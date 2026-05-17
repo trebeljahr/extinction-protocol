@@ -13,7 +13,7 @@ import { updateProjectiles } from "./projectiles";
 import { checkRunEnd, spawnerTick } from "./spawner";
 import { updateTowers } from "./towers";
 import type { World } from "./types";
-import { updateCoalEmbers, updateEasterEggs } from "./world";
+import { updateCoalEmbers, updateEasterEggs, updateHeroCraters } from "./world";
 
 export const TICK_RATE = 60;
 export const TICK_DT = 1 / TICK_RATE;
@@ -61,6 +61,7 @@ export class Engine {
     updateExplosions(world);
     updateCryoWaves(world);
     updateCoalEmbers(world, TICK_DT);
+    updateHeroCraters(world, TICK_DT);
     updateParticles(world, TICK_DT);
     updateShake(world, TICK_DT);
     updateEasterEggs(world, TICK_DT);
