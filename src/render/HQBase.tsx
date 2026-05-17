@@ -104,46 +104,73 @@ const BASE_PROPS: PropDef[] = [
     targetHeight: 0.62,
     clearRadius: 0.55,
   },
-  {
-    url: "/models/scifi/barrels.glb",
-    right: -2.55,
-    fwd: 1.35,
-    targetHeight: 0.46,
-    clearRadius: 0.45,
-  },
-  {
-    url: "/models/scifi/rover.glb",
-    right: 2.55,
-    fwd: 1.55,
-    targetHeight: 0.56,
-    clearRadius: 0.65,
-    yawOffset: Math.PI / 2,
-  },
 ];
 
+// Perimeter fence: 3 sides closed (back + left + right), front open where the
+// approach path connects. Segment endpoints land under each corner torch so
+// posts and lights align.
 const BASE_PRIMITIVES: PrimitiveDef[] = [
-  { kind: "fence", right: -2.15, fwd: -2.95, length: 1.4, clearRadius: 0.65 },
-  { kind: "fence", right: 2.15, fwd: -2.95, length: 1.4, clearRadius: 0.65 },
+  // Back row — full pad width at fwd = -2.5.
+  { kind: "fence", right: -2.6, fwd: -2.5, length: 1.3, clearRadius: 0.6 },
+  { kind: "fence", right: -1.3, fwd: -2.5, length: 1.3, clearRadius: 0.6 },
+  { kind: "fence", right: 0, fwd: -2.5, length: 1.3, clearRadius: 0.6 },
+  { kind: "fence", right: 1.3, fwd: -2.5, length: 1.3, clearRadius: 0.6 },
+  { kind: "fence", right: 2.6, fwd: -2.5, length: 1.3, clearRadius: 0.6 },
+  // Left side — runs from back torch to front torch along fwd-axis.
   {
     kind: "fence",
     right: -3.25,
-    fwd: -1.0,
-    length: 1.2,
+    fwd: -1.75,
+    length: 1.5,
     yawOffset: Math.PI / 2,
-    clearRadius: 0.55,
+    clearRadius: 0.6,
+  },
+  {
+    kind: "fence",
+    right: -3.25,
+    fwd: -0.25,
+    length: 1.5,
+    yawOffset: Math.PI / 2,
+    clearRadius: 0.6,
+  },
+  {
+    kind: "fence",
+    right: -3.25,
+    fwd: 1.25,
+    length: 1.5,
+    yawOffset: Math.PI / 2,
+    clearRadius: 0.6,
+  },
+  // Right side — mirror of the left.
+  {
+    kind: "fence",
+    right: 3.25,
+    fwd: -1.75,
+    length: 1.5,
+    yawOffset: Math.PI / 2,
+    clearRadius: 0.6,
   },
   {
     kind: "fence",
     right: 3.25,
-    fwd: -1.0,
-    length: 1.2,
+    fwd: -0.25,
+    length: 1.5,
     yawOffset: Math.PI / 2,
-    clearRadius: 0.55,
+    clearRadius: 0.6,
   },
-  { kind: "light", right: -2.95, fwd: 1.95, clearRadius: 0.35 },
-  { kind: "light", right: 2.95, fwd: 1.95, clearRadius: 0.35 },
-  { kind: "light", right: -2.95, fwd: -2.15, clearRadius: 0.35 },
-  { kind: "light", right: 2.95, fwd: -2.15, clearRadius: 0.35 },
+  {
+    kind: "fence",
+    right: 3.25,
+    fwd: 1.25,
+    length: 1.5,
+    yawOffset: Math.PI / 2,
+    clearRadius: 0.6,
+  },
+  // Torches at the four perimeter corners.
+  { kind: "light", right: -3.25, fwd: -2.5, clearRadius: 0.4 },
+  { kind: "light", right: 3.25, fwd: -2.5, clearRadius: 0.4 },
+  { kind: "light", right: -3.25, fwd: 2.0, clearRadius: 0.4 },
+  { kind: "light", right: 3.25, fwd: 2.0, clearRadius: 0.4 },
 ];
 
 const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
