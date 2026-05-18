@@ -179,6 +179,7 @@ type UiSnapshot = {
   // Cooldowns per ability slot (Q/W/E/R = 0..3). Rounded to 0.1s so the
   // HUD doesn't thrash on every frame for the same on-screen text.
   robotAbilityCooldowns: [number, number, number, number];
+  robotAbilityActiveRemaining: [number, number, number, number];
   robotAbilityMaxCooldowns: [number, number, number, number];
   robotAbilityLabels: [string, string, string, string];
   robotAbilityGlyphs: [string, string, string, string];
@@ -225,6 +226,21 @@ const snapshot = (
       extraResists = e.extraResists;
       adaptiveType = e.adaptiveResistType ?? null;
     }
+  }
+  const abilityActiveRemaining: [number, number, number, number] = [
+    Math.max(0, Math.round((w.robot.abilityActiveUntil[0] - w.time) * 10) / 10),
+    Math.max(0, Math.round((w.robot.abilityActiveUntil[1] - w.time) * 10) / 10),
+    Math.max(0, Math.round((w.robot.abilityActiveUntil[2] - w.time) * 10) / 10),
+    Math.max(0, Math.round((w.robot.abilityActiveUntil[3] - w.time) * 10) / 10),
+  ];
+  if (w.robot.selfBuff && w.robot.selfBuff.endAt > w.time) {
+    abilityActiveRemaining[2] = Math.max(
+      0,
+      Math.round((w.robot.selfBuff.endAt - w.time) * 10) / 10,
+    );
+  }
+  if (w.robot.payload && w.robot.payload.endAt > w.time) {
+    abilityActiveRemaining[3] = Math.max(0, Math.round((w.robot.payload.endAt - w.time) * 10) / 10);
   }
   return {
     gold: w.gold,
@@ -273,6 +289,7 @@ const snapshot = (
       Math.max(0, Math.round((w.robot.abilityReadyAt[2] - w.time) * 10) / 10),
       Math.max(0, Math.round((w.robot.abilityReadyAt[3] - w.time) * 10) / 10),
     ],
+    robotAbilityActiveRemaining: abilityActiveRemaining,
     robotAbilityMaxCooldowns: [
       ROBOT_SPECS[w.robot.variant].abilities[0].cooldown * w.robot.abilityCooldownMul,
       ROBOT_SPECS[w.robot.variant].abilities[1].cooldown * w.robot.abilityCooldownMul,
@@ -327,6 +344,10 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.robotAbilityCooldowns[1] === b.robotAbilityCooldowns[1] &&
   a.robotAbilityCooldowns[2] === b.robotAbilityCooldowns[2] &&
   a.robotAbilityCooldowns[3] === b.robotAbilityCooldowns[3] &&
+  a.robotAbilityActiveRemaining[0] === b.robotAbilityActiveRemaining[0] &&
+  a.robotAbilityActiveRemaining[1] === b.robotAbilityActiveRemaining[1] &&
+  a.robotAbilityActiveRemaining[2] === b.robotAbilityActiveRemaining[2] &&
+  a.robotAbilityActiveRemaining[3] === b.robotAbilityActiveRemaining[3] &&
   a.robotKills === b.robotKills &&
   a.robotDps === b.robotDps &&
   a.robotDamageDealt === b.robotDamageDealt;

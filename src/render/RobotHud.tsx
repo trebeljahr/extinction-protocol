@@ -37,11 +37,17 @@ export const RobotHud = () => {
   const ringRef = useRef<THREE.Mesh>(null);
   const footRef = useRef<THREE.Mesh>(null);
   const moveRef = useRef<THREE.Mesh>(null);
+  const stormFillRef = useRef<THREE.Mesh>(null);
+  const stormRingRef = useRef<THREE.Mesh>(null);
+  const stormPulseRef = useRef<THREE.Mesh>(null);
 
   const ringGeom = useMemo(() => new THREE.RingGeometry(0.95, 1.08, 48), []);
   const footGeom = useMemo(() => new THREE.CircleGeometry(0.85, 36), []);
   const moveGeom = useMemo(() => new THREE.RingGeometry(0.4, 0.55, 32), []);
   const selGeom = useMemo(() => new THREE.RingGeometry(1.1, 1.32, 48), []);
+  const stormFillGeom = useMemo(() => new THREE.CircleGeometry(1, 64), []);
+  const stormRingGeom = useMemo(() => new THREE.RingGeometry(0.96, 1, 96), []);
+  const stormPulseGeom = useMemo(() => new THREE.RingGeometry(0.72, 0.78, 96), []);
   const selRef = useRef<THREE.Mesh>(null);
   // Dash-aim arrow assembled from a tapered shaft, a chunky arrowhead,
   // sliding chevrons, and a landing reticle at the endpoint. Everything
@@ -103,6 +109,33 @@ export const RobotHud = () => {
       selRef.current.scale.setScalar(pulse);
     } else {
       selRef.current.visible = false;
+    }
+    const storm = robot.payload?.kind === "storm" ? robot.payload : null;
+    const stormActive = robot.alive && !!storm && world.time < storm.endAt;
+    const stormFill = stormFillRef.current;
+    const stormRing = stormRingRef.current;
+    const stormPulse = stormPulseRef.current;
+    if (stormFill && stormRing && stormPulse) {
+      stormFill.visible = stormActive;
+      stormRing.visible = stormActive;
+      stormPulse.visible = stormActive;
+      if (stormActive) {
+        const radius = storm.radius;
+        const fade = Math.min(1, Math.max(0, (storm.endAt - world.time) / 0.35));
+        const pulse = 1 + Math.sin(world.time * 8) * 0.025;
+        stormFill.position.set(robot.pos.x, 0.047, -robot.pos.y);
+        stormFill.rotation.set(-Math.PI / 2, 0, 0);
+        stormFill.scale.setScalar(radius);
+        (stormFill.material as THREE.MeshBasicMaterial).opacity = 0.1 * fade;
+        stormRing.position.set(robot.pos.x, 0.072, -robot.pos.y);
+        stormRing.rotation.set(-Math.PI / 2, 0, world.time * 0.55);
+        stormRing.scale.setScalar(radius * pulse);
+        (stormRing.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade;
+        stormPulse.position.set(robot.pos.x, 0.074, -robot.pos.y);
+        stormPulse.rotation.set(-Math.PI / 2, 0, -world.time * 0.75);
+        stormPulse.scale.setScalar(radius * (0.9 + Math.sin(world.time * 5.4) * 0.07));
+        (stormPulse.material as THREE.MeshBasicMaterial).opacity = 0.48 * fade;
+      }
     }
     // Dash aim arrow (armed dash, any variant). Shaft + arrowhead +
     // landing reticle stretch to the variant's actual dash distance so
@@ -218,6 +251,36 @@ export const RobotHud = () => {
       </mesh>
       <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
         <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={stormFillRef} geometry={stormFillGeom} visible={false} renderOrder={3}>
+        <meshBasicMaterial
+          color="#5ad6ff"
+          transparent
+          opacity={0}
+          toneMapped={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh ref={stormRingRef} geometry={stormRingGeom} visible={false} renderOrder={4}>
+        <meshBasicMaterial
+          color="#9beaff"
+          transparent
+          opacity={0}
+          toneMapped={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh ref={stormPulseRef} geometry={stormPulseGeom} visible={false} renderOrder={4}>
+        <meshBasicMaterial
+          color="#ffffff"
+          transparent
+          opacity={0}
+          toneMapped={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
       </mesh>
       {/* Dash aim arrow — tapered shaft + bold arrowhead + sliding
           chevrons + landing reticle, anchored at robot pos. Hidden

@@ -26,6 +26,7 @@ export const RobotPanel = () => {
   const xpInto = useGame((s) => s.ui.robotXpInto);
   const xpNeed = useGame((s) => s.ui.robotXpNeed);
   const cooldowns = useGame((s) => s.ui.robotAbilityCooldowns);
+  const activeRemaining = useGame((s) => s.ui.robotAbilityActiveRemaining);
   const maxCooldowns = useGame((s) => s.ui.robotAbilityMaxCooldowns);
   const labels = useGame((s) => s.ui.robotAbilityLabels);
   const glyphs = useGame((s) => s.ui.robotAbilityGlyphs);
@@ -77,21 +78,28 @@ export const RobotPanel = () => {
       <div className="robot-abilities">
         {SLOT_KEYS.map(({ slot, key }) => {
           const cd = cooldowns[slot];
+          const active = activeRemaining[slot] > 0;
           const max = maxCooldowns[slot];
           const ready = cd === 0 && alive;
           const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
+          const title = active
+            ? `${labels[slot]} [${key}] - Active ${activeRemaining[slot].toFixed(1)}s remaining`
+            : `${labels[slot]} [${key}]`;
           return (
             <button
               key={key}
               type="button"
-              className={`robot-ability ${ready ? "ready" : "cooling"}`}
+              className={`robot-ability ${active ? "active" : ""} ${ready ? "ready" : "cooling"}`}
               onClick={() => trigger(slot)}
               disabled={!ready}
-              title={`${labels[slot]} [${key}]`}
+              aria-label={title}
+              aria-pressed={active}
+              title={title}
             >
               <span className="robot-ability-glyph">{glyphs[slot]}</span>
               <span className="robot-ability-key">{key}</span>
               <div className="robot-ability-fill" style={{ width: `${fillPct * 100}%` }} />
+              {active && <span className="robot-ability-active">ON</span>}
               {cd > 0 && <span className="robot-ability-cd">{cd.toFixed(1)}</span>}
             </button>
           );

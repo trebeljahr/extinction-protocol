@@ -4246,6 +4246,20 @@
     filter: grayscale(0.4) brightness(0.75);
     cursor: not-allowed;
   }
+  .robot-ability.active {
+    filter: none;
+    border-color: #5ad6ff;
+    box-shadow:
+      0 0 0 1px rgba(90, 214, 255, 0.42),
+      0 0 18px rgba(90, 214, 255, 0.38);
+    animation: robot-ability-active-pulse 0.9s ease-in-out infinite alternate;
+  }
+  .robot-ability.active .robot-ability-glyph {
+    color: #ffffff;
+    text-shadow:
+      0 0 7px rgba(255, 255, 255, 0.72),
+      0 0 14px rgba(90, 214, 255, 0.58);
+  }
   .robot-ability-glyph {
     font-size: 18px;
     line-height: 1;
@@ -4277,6 +4291,28 @@
     padding: 1px 4px;
     border-radius: 4px;
     font-variant-numeric: tabular-nums;
+  }
+  .robot-ability-active {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    color: #04131a;
+    background: #5ad6ff;
+    border-radius: 4px;
+    padding: 2px 4px;
+    letter-spacing: 0.04em;
+    box-shadow: 0 0 10px rgba(90, 214, 255, 0.55);
+  }
+  @keyframes robot-ability-active-pulse {
+    from {
+      background-color: rgba(14, 20, 28, 0.78);
+    }
+    to {
+      background-color: rgba(23, 67, 82, 0.9);
+    }
   }
 
   /* Robot level / XP bar inside the panel. */
