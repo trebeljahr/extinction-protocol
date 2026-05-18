@@ -724,12 +724,9 @@ export type World = {
   levelId: number;
   biome: "forest" | "desert" | "snow" | "wasteland" | "lava" | "alien";
   paths: Vec2[][];
-  // Per-path index of the first smoothed point that sits at or inside
-  // the playfield border. Enemies traverse the full `paths[i]` (which
-  // includes an off-map lead-in so they walk on-screen instead of
-  // popping in); the painted ribbon and "start ring" decoration render
-  // from this index onward so the visible lane still begins at the
-  // border.
+  // Per-path index where the visible ribbon/start ring begins. Currently
+  // 0 because enemy lead-ins are deliberately painted out to the camera
+  // entry bounds.
   pathRibbonStart: number[];
   plannedWaves: WaveSpec[];
   enemies: Enemy[];

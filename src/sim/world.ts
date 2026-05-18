@@ -12,11 +12,18 @@ import {
   isOnLavaSurface,
   type LavaFeatures,
 } from "../lavaGeometry";
-import { HQ_PAD_BLOCKER_RADIUS, MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
+import {
+  HQ_PAD_BLOCKER_RADIUS,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  PATH_ENTRY_MARGIN_X,
+  PATH_ENTRY_MARGIN_Y,
+  PATH_WIDTH,
+} from "../level";
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
 import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage";
-import { prependLeadIn, samplePath, smoothPath } from "./path";
+import { prependLeadInToBounds, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
 import {
@@ -494,15 +501,13 @@ export const createWorld = (
   // that the others curved around.
   // Off-map lead-in: each authored path gets one extra waypoint prepended
   // in the reverse of its first segment direction so the path attaches to
-  // the camera's fit-zoom bounding box edge — DECOR_MARGIN_X (4) past the
-  // playable rectangle. Spawn ring sits at the new path[0] so the player
-  // sees where enemies enter exactly at the screen edge at max zoom-out.
-  const PATH_LEAD_IN_DISTANCE = 4;
-  const extendedAuthored = level.paths.map((p) => prependLeadIn(p, PATH_LEAD_IN_DISTANCE));
+  // the camera's fully zoomed-out entry bounds.
+  const entryHalfX = MAP_WIDTH / 2 + PATH_ENTRY_MARGIN_X;
+  const entryHalfY = MAP_HEIGHT / 2 + PATH_ENTRY_MARGIN_Y;
+  const extendedAuthored = level.paths.map((p) => prependLeadInToBounds(p, entryHalfX, entryHalfY));
   const paths = extendedAuthored.map((p) => smoothPath(p));
-  // Ribbon + spawn ring both anchor at path[0] now (the lead-in point at
-  // the visible edge). Kept as a per-path array for compat with the World
-  // shape and any future per-level offset.
+  // Ribbon + spawn ring both anchor at path[0], the lead-in point at the
+  // fully zoomed-out entry bounds. Kept per-path for future offsets.
   const pathRibbonStart = level.paths.map(() => 0);
   // Lava rivers and lakes block organic decoration placement so trees,
   // rocks, and easter eggs don't spawn in molten terrain. Pass null for

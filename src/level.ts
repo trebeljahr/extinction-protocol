@@ -5,6 +5,11 @@ export const MAP_HEIGHT = 24;
 
 export const PATH_WIDTH = 2.8;
 
+// Enemy entry paths extend past the authored playfield to these camera
+// margins so spawn rings and path ribbons reach the fully zoomed-out view.
+export const PATH_ENTRY_MARGIN_X = 6.5;
+export const PATH_ENTRY_MARGIN_Y = 7;
+
 // Radius (centered on the HQ tower at each path endpoint) inside which
 // world-scatter systems must NOT spawn: trees, rocks, biome cosmetics,
 // and story props. Covers the fence box (max corner ≈ 4.1) plus a small

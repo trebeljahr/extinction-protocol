@@ -27,6 +27,38 @@ export const prependLeadIn = (path: Vec2[], distance: number): Vec2[] => {
   return [pre, ...path];
 };
 
+// Extend the first segment backwards until it reaches the configured
+// camera-entry bounds. This keeps enemy spawn paths matched to the maximum
+// zoom-out rectangle even when starts are diagonal or already near a corner.
+export const prependLeadInToBounds = (path: Vec2[], halfX: number, halfY: number): Vec2[] => {
+  if (path.length < 2 || halfX <= 0 || halfY <= 0) return path.slice();
+  const p0 = path[0];
+  const p1 = path[1];
+  const dx = p0.x - p1.x;
+  const dy = p0.y - p1.y;
+  const len = Math.hypot(dx, dy);
+  if (len <= 1e-6) return path.slice();
+  const ux = dx / len;
+  const uy = dy / len;
+  const candidates: number[] = [];
+
+  if (Math.abs(ux) > 1e-6) {
+    const tx = ((ux > 0 ? halfX : -halfX) - p0.x) / ux;
+    const y = p0.y + uy * tx;
+    if (tx > 1e-6 && y >= -halfY - 1e-6 && y <= halfY + 1e-6) candidates.push(tx);
+  }
+  if (Math.abs(uy) > 1e-6) {
+    const ty = ((uy > 0 ? halfY : -halfY) - p0.y) / uy;
+    const x = p0.x + ux * ty;
+    if (ty > 1e-6 && x >= -halfX - 1e-6 && x <= halfX + 1e-6) candidates.push(ty);
+  }
+
+  if (candidates.length === 0) return path.slice();
+  const distance = Math.min(...candidates);
+  const pre: Vec2 = { x: p0.x + ux * distance, y: p0.y + uy * distance };
+  return [pre, ...path];
+};
+
 // Centripetal Catmull–Rom subdivision (alpha = 0.5). Endpoints are
 // reflected to give the first/last spans a tangent. Returns a denser
 // polyline that passes through every original waypoint but bends

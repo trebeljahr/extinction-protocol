@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { OrthographicCamera as OrthographicCameraImpl } from "three";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { MAP_HEIGHT, MAP_WIDTH } from "../level";
+import { MAP_HEIGHT, MAP_WIDTH, PATH_ENTRY_MARGIN_X, PATH_ENTRY_MARGIN_Y } from "../level";
 import { useGame } from "../store";
 import { MapOrbitControls } from "./useMapGestures";
 
@@ -29,19 +29,21 @@ const BATTLE_MAX_POLAR = 0.75;
 // ground is symmetric around z=0 with half-extent ≈ 0.577*height/Z.
 const TILT_HALF_FACTOR = 0.577;
 
-// Decoration margin past the play area — at the most-zoomed-out zoom,
-// this much decor is visible past the playable rectangle on each side.
-// Large enough that the playfield doesn't feel claustrophobic; small
-// enough that the camera can never zoom out far enough to reveal the
-// far ground plane edge or the scene background past it.
-const DECOR_MARGIN_X = 4;
-const DECOR_MARGIN_Z = 3;
+// Decoration margin past the play area at the most-zoomed-out zoom. X
+// matches the sim's side-entry bounds; Z keeps baseline decor visible,
+// while the path extents below pull top/bottom entries into the fit.
+const DECOR_MARGIN_X = PATH_ENTRY_MARGIN_X;
+const DECOR_MARGIN_Z = 4.5;
 
 // Mobile gets a larger Z margin so the HUD bands (top wave banner,
 // bottom tower picker) don't crop the playable area. Without this the
 // fit zoom on landscape phones cuts off path endpoints behind the HUD.
 const MOBILE_VIEWPORT_PX = 720;
-const MOBILE_DECOR_MARGIN_Z = 6;
+const MOBILE_DECOR_MARGIN_Z = PATH_ENTRY_MARGIN_Y + 1.5;
+
+// Start a little zoomed in from the maximum zoom-out so the first run
+// still has useful pan range while the player can pull back farther.
+const START_ZOOM_MULT = 1.12;
 
 // How far the player can manually zoom in past the fit-to-edge zoom.
 // 2.5× covers reading tower upgrade details up close. Zooming out
@@ -55,20 +57,16 @@ const MAX_ZOOM_MULT = 2.5;
 // already be high.
 const ABS_MAX_ZOOM = 80;
 
-// Skip the off-map lead-in slice — its points sit past the playfield
-// border by design and shouldn't pull the fit zoom outward (that would
-// expose the lead-in on screen, defeating the purpose).
-const computeMaxPathExtentZ = (
-  paths: { x: number; y: number }[][],
-  ribbonStart: number[],
-): number => {
-  let m = 0;
-  for (let i = 0; i < paths.length; i++) {
-    const p = paths[i];
-    const start = ribbonStart[i] ?? 0;
-    for (let j = start; j < p.length; j++) m = Math.max(m, Math.abs(p[j].y));
+const computeMaxPathExtents = (paths: { x: number; y: number }[][]): { x: number; z: number } => {
+  let x = 0;
+  let z = 0;
+  for (const p of paths) {
+    for (const point of p) {
+      x = Math.max(x, Math.abs(point.x));
+      z = Math.max(z, Math.abs(point.y));
+    }
   }
-  return m;
+  return { x, z };
 };
 
 // Most-zoomed-out zoom — guarantees the playable area + decor margin
@@ -77,11 +75,15 @@ const computeMaxPathExtentZ = (
 // Z edges hit first. The half-extent is max(playArea, pathExtent)
 // because some levels have paths that meander outside the play
 // rectangle's vertical band; pulling them in too is friendlier.
-const computeFitZoom = (width: number, height: number, pathHalfZ: number): number => {
+const computeFitZoom = (
+  width: number,
+  height: number,
+  pathHalfExtents: { x: number; z: number },
+): number => {
   const mobile = width <= MOBILE_VIEWPORT_PX || height <= 500;
   const marginZ = mobile ? MOBILE_DECOR_MARGIN_Z : DECOR_MARGIN_Z;
-  const halfX = MAP_WIDTH / 2 + DECOR_MARGIN_X;
-  const halfZ = Math.max(MAP_HEIGHT / 2, pathHalfZ) + marginZ;
+  const halfX = Math.max(MAP_WIDTH / 2 + DECOR_MARGIN_X, pathHalfExtents.x);
+  const halfZ = Math.max(MAP_HEIGHT / 2 + marginZ, pathHalfExtents.z);
   const fitZoomX = width / (2 * halfX);
   const fitZoomZ = (TILT_HALF_FACTOR * height) / halfZ;
   return Math.min(fitZoomX, fitZoomZ);
@@ -92,7 +94,6 @@ export const CameraRig = () => {
   const cameraRef = useRef<OrthographicCameraImpl>(null);
 
   const paths = useGame((s) => s.world.paths);
-  const pathRibbonStart = useGame((s) => s.world.pathRibbonStart);
   const levelId = useGame((s) => s.world.levelId);
   const selectedKind = useGame((s) => s.selectedKind);
   const status = useGame((s) => s.world.status);
@@ -114,15 +115,13 @@ export const CameraRig = () => {
   // the loss rumble visibly rotated the whole map.
   const shakeOffsetRef = useRef({ x: 0, z: 0 });
 
-  const pathHalfZ = useMemo(
-    () => computeMaxPathExtentZ(paths, pathRibbonStart),
-    [paths, pathRibbonStart],
-  );
+  const pathHalfExtents = useMemo(() => computeMaxPathExtents(paths), [paths]);
   const fitZoom = useMemo(
-    () => computeFitZoom(size.width, size.height, pathHalfZ),
-    [size.width, size.height, pathHalfZ],
+    () => computeFitZoom(size.width, size.height, pathHalfExtents),
+    [size.width, size.height, pathHalfExtents],
   );
   const maxZoom = Math.min(fitZoom * MAX_ZOOM_MULT, ABS_MAX_ZOOM);
+  const startZoom = Math.min(fitZoom * START_ZOOM_MULT, maxZoom);
   // At zoom z the visible half-extent is viewport / (2z) on X and
   // TILT * viewport / z on Z. Pan range is what was visible at fit zoom
   // minus what's visible now — zero at fit zoom, growing as the player
@@ -137,23 +136,23 @@ export const CameraRig = () => {
     };
   }, [size.width, size.height, fitZoom]);
 
-  // Reset to the fit baseline whenever the level changes or the
+  // Reset slightly inside the fit baseline whenever the level changes or the
   // viewport resizes. Re-centre pan too; otherwise a prior level's
-  // drag offset can carry into the new fit and make mobile starts
-  // feel cropped even though the zoom itself reset correctly.
+  // drag offset can carry into the new start and make mobile starts feel
+  // cropped even though the zoom itself reset correctly.
   // biome-ignore lint/correctness/useExhaustiveDependencies: levelId is intentional
   useEffect(() => {
     const cam = cameraRef.current;
     const ctrls = controlsRef.current;
     if (!cam) return;
     cam.position.set(...CAMERA_BASE_POSITION);
-    cam.zoom = fitZoom;
+    cam.zoom = startZoom;
     cam.updateProjectionMatrix();
     if (ctrls) {
       ctrls.target.set(0, 0, 0);
       ctrls.update();
     }
-  }, [levelId, fitZoom]);
+  }, [levelId, startZoom]);
 
   useFrame(() => {
     const cam = cameraRef.current;
@@ -214,7 +213,7 @@ export const CameraRig = () => {
         makeDefault
         position={CAMERA_BASE_POSITION}
         rotation={[-Math.PI / 3, 0, 0]}
-        zoom={fitZoom}
+        zoom={startZoom}
         near={0.1}
         far={200}
       />
