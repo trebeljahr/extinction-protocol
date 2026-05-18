@@ -25,6 +25,17 @@ const YAW_HALFLIFE = 0.08;
 // directly and divides by this to get a 0..1 intensity.
 const HOVER_HEIGHT_FULL = 0.55;
 const FLASH_COLOR = new THREE.Color("#ff8a4a");
+const MUZZLE_ANCHOR_NAMES = [
+  "Hand.R",
+  "LowerArm.R",
+  "UpperArm.R",
+  "Shoulder.R",
+  "Chest",
+  "Body",
+  "Head",
+];
+const MUZZLE_FORWARD_OFFSET = 0.3;
+const MUZZLE_SIDE_OFFSET = 0.12;
 
 export const ModelRobotMesh = () => {
   const variant = useGame((s) => s.world.robot.variant);
@@ -34,6 +45,7 @@ export const ModelRobotMesh = () => {
 
   const groupRef = useRef<THREE.Group>(null);
   const objRef = useRef<THREE.Object3D | null>(null);
+  const muzzleAnchorRef = useRef<THREE.Object3D | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const currentClipRef = useRef<string | null>(null);
   const matsRef = useRef<THREE.MeshStandardMaterial[]>([]);
@@ -44,6 +56,9 @@ export const ModelRobotMesh = () => {
     init: false,
   });
   const jetRef = useRef<THREE.Mesh>(null);
+  const muzzleWorld = useMemo(() => new THREE.Vector3(), []);
+  const muzzleForward = useMemo(() => new THREE.Vector3(), []);
+  const muzzleSide = useMemo(() => new THREE.Vector3(), []);
 
   const { normalizedScale, centerXZ, scaledMinY } = useMemo(() => {
     const box = measureVisibleBox(scene);
@@ -109,6 +124,8 @@ export const ModelRobotMesh = () => {
         }
       }
     });
+    muzzleAnchorRef.current =
+      MUZZLE_ANCHOR_NAMES.map((name) => obj.getObjectByName(name)).find(Boolean) ?? obj;
     const mixer = new THREE.AnimationMixer(obj);
     parent.add(obj);
     objRef.current = obj;
@@ -124,6 +141,7 @@ export const ModelRobotMesh = () => {
         else (m.material as THREE.Material).dispose();
       });
       objRef.current = null;
+      muzzleAnchorRef.current = null;
       mixerRef.current = null;
       matsRef.current = [];
       currentClipRef.current = null;
@@ -194,6 +212,28 @@ export const ModelRobotMesh = () => {
     obj.position.set(vis.x - centerXZ.x, -scaledMinY + robot.hoverHeight, vis.z - centerXZ.z);
     obj.rotation.set(0, vis.yaw, 0);
     obj.visible = robot.alive || robot.motionState === "dead";
+    obj.updateMatrixWorld(true);
+
+    // Feed sim/VFX with the animated muzzle point. Leela's model has no
+    // explicit arm bone, so the anchor search falls back through upper
+    // body nodes and still follows the active animation instead of the
+    // static robot center.
+    if (robot.alive) {
+      const anchor = muzzleAnchorRef.current ?? obj;
+      anchor.getWorldPosition(muzzleWorld);
+      muzzleForward.set(Math.sin(vis.yaw), 0, Math.cos(vis.yaw));
+      muzzleSide.set(Math.cos(vis.yaw), 0, -Math.sin(vis.yaw));
+      muzzleWorld
+        .addScaledVector(muzzleForward, MUZZLE_FORWARD_OFFSET)
+        .addScaledVector(muzzleSide, MUZZLE_SIDE_OFFSET);
+      robot.muzzlePos = {
+        x: muzzleWorld.x,
+        y: -muzzleWorld.z,
+        h: Math.max(0.45, muzzleWorld.y),
+      };
+    } else {
+      robot.muzzlePos = null;
+    }
 
     // Jetpack jet visual — two downward thrust cones beneath the
     // robot whose opacity tracks the hover engagement so they fade in

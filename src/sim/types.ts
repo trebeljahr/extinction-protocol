@@ -1,6 +1,7 @@
 export type EntityId = number;
 
 export type Vec2 = { x: number; y: number };
+export type BeamPoint = Vec2 & { h?: number };
 
 export type EnemyKind =
   | "raptor"
@@ -463,6 +464,10 @@ export type Robot = {
   // George — set by Sidestep dash; the next auto-attack lands with the
   // crit multiplier and (optionally) a piercing flag. Consumed on fire.
   pendingCrit: { mul: number; pierce: boolean } | null;
+  // Render-authored muzzle point for robot shots/bolts. The model layer
+  // updates this from the animated arm/upper-body each frame; sim falls
+  // back to a facing-based estimate before the model is ready.
+  muzzlePos: BeamPoint | null;
 };
 
 // Lingering explosive crater dropped by Stan's Saturation Strike. Ticks
@@ -551,7 +556,7 @@ export type Projectile = {
 
 export type Beam = {
   id: EntityId;
-  points: Vec2[];
+  points: BeamPoint[];
   color: string;
   expiresAt: number;
 };

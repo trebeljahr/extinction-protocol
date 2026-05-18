@@ -35,6 +35,7 @@ import {
 import { ROBOT_SPECS } from "./robotVariants";
 import type {
   Beam,
+  BeamPoint,
   BossVariant,
   CoalEmber,
   CryoWave,
@@ -139,6 +140,7 @@ const robotDefaults = (variant: RobotVariant, pos: Vec2, id: EntityId, xp: numbe
     dashAim: null,
     mikeCoalDropAt: 0,
     pendingCrit: null,
+    muzzlePos: null,
   };
 };
 
@@ -1891,10 +1893,19 @@ export const createProjectile = (
   return p;
 };
 
-export const createBeam = (world: World, points: Vec2[], color: string, lifeSec = 0.12): Beam => {
+export const createBeam = (
+  world: World,
+  points: readonly BeamPoint[],
+  color: string,
+  lifeSec = 0.12,
+): Beam => {
   const b: Beam = {
     id: world.nextEntityId++,
-    points: points.map((p) => ({ x: p.x, y: p.y })),
+    points: points.map((p) => ({
+      x: p.x,
+      y: p.y,
+      ...(p.h === undefined ? {} : { h: p.h }),
+    })),
     color,
     expiresAt: world.time + lifeSec,
   };

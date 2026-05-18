@@ -273,14 +273,17 @@ export const Effects = () => {
       };
 
       const firstP = b.points[0];
-      writePoint(coreArr, coreVi++, firstP.x, 0.85, -firstP.y);
-      writePoint(haloArr, haloVi++, firstP.x, 0.9, -firstP.y);
+      const firstH = firstP.h ?? 0.85;
+      writePoint(coreArr, coreVi++, firstP.x, firstH, -firstP.y);
+      writePoint(haloArr, haloVi++, firstP.x, firstH + 0.08, -firstP.y);
 
       for (let s = 0; s < b.points.length - 1; s++) {
         const a = b.points[s];
         const bpt = b.points[s + 1];
         const dx = bpt.x - a.x;
         const dy = bpt.y - a.y;
+        const ah = a.h ?? 0.85;
+        const bh = bpt.h ?? 0.85;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
         // perpendicular in XZ plane (world coords: x, -y)
         const perpX = -dy / len;
@@ -289,6 +292,7 @@ export const Effects = () => {
           const t = sub / BEAM_SUBDIVISIONS;
           const baseX = a.x + dx * t;
           const baseY = a.y + dy * t;
+          const baseH = ah + (bh - ah) * t;
           // taper noise near the endpoints
           const taper = Math.sin(t * Math.PI);
           const nCore = rng() * BEAM_NOISE * taper;
@@ -297,14 +301,14 @@ export const Effects = () => {
             coreArr,
             coreVi++,
             baseX + perpX * nCore,
-            0.85 + rng() * 0.05 * taper,
+            baseH + rng() * 0.05 * taper,
             -baseY + perpZ * nCore,
           );
           writePoint(
             haloArr,
             haloVi++,
             baseX + perpX * nHalo,
-            0.95 + rng() * 0.12 * taper,
+            baseH + 0.08 + rng() * 0.12 * taper,
             -baseY + perpZ * nHalo,
           );
         }

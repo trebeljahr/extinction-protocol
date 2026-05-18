@@ -5,6 +5,7 @@ import { isEnemyTargetable } from "./enemyState";
 import { pathProgress, projectOnPath, smoothDirection } from "./path";
 import { type DashSpec, ROBOT_SPECS, type RobotVariantSpec } from "./robotVariants";
 import type {
+  BeamPoint,
   DamageType,
   Enemy,
   EntityId,
@@ -83,6 +84,9 @@ const COAL_DROP_INTERVAL = 0.045; // ~9 embers per default 0.4s dash
 const COAL_TICK_DAMAGE = 16;
 const COAL_RADIUS = 0.85;
 const COAL_LIFETIME = 2.6;
+const ROBOT_MUZZLE_FORWARD_OFFSET = 0.42;
+const ROBOT_MUZZLE_SIDE_OFFSET = 0.18;
+const ROBOT_MUZZLE_HEIGHT = 1.05;
 
 // Single source of truth for the robot blocker set. Trees / rocks /
 // towers each carry their own footprint constant; iterating them via
@@ -162,6 +166,94 @@ const findEnemyByProgress = (world: World, pos: Vec2, range: number): Enemy | nu
   return best;
 };
 
+const robotMuzzlePoint = (robot: Robot, pos: Vec2 = robot.pos): BeamPoint => {
+  if (pos === robot.pos && robot.muzzlePos) return robot.muzzlePos;
+  const fx = Math.sin(robot.facing);
+  const fy = -Math.cos(robot.facing);
+  const sx = Math.cos(robot.facing);
+  const sy = Math.sin(robot.facing);
+  return {
+    x: pos.x + fx * ROBOT_MUZZLE_FORWARD_OFFSET + sx * ROBOT_MUZZLE_SIDE_OFFSET,
+    y: pos.y + fy * ROBOT_MUZZLE_FORWARD_OFFSET + sy * ROBOT_MUZZLE_SIDE_OFFSET,
+    h: ROBOT_MUZZLE_HEIGHT + robot.hoverHeight,
+  };
+};
+
+const enemyLightningHeight = (enemy: Enemy): number => {
+  switch (enemy.kind) {
+    case "swarm":
+      return 0.48;
+    case "raptor":
+      return 0.82;
+    case "para":
+      return 0.96;
+    case "allosaur":
+      return 1.12;
+    case "stego":
+      return 1.0;
+    case "armored":
+      return 0.95;
+    case "titan":
+      return 2.2;
+    case "boss":
+      return 2.8;
+  }
+};
+
+const enemyLightningPoint = (enemy: Enemy): BeamPoint => ({
+  x: enemy.pos.x,
+  y: enemy.pos.y,
+  h: enemyLightningHeight(enemy),
+});
+
+const findNextChainTarget = (
+  world: World,
+  from: Vec2,
+  radius: number,
+  seen: Set<EntityId>,
+): Enemy | null => {
+  const r2 = radius * radius;
+  let best: Enemy | null = null;
+  let bd = Number.POSITIVE_INFINITY;
+  for (const e of world.enemies) {
+    if (!isEnemyTargetable(e)) continue;
+    if (seen.has(e.id)) continue;
+    const d2 = distSq(e.pos, from);
+    if (d2 > r2) continue;
+    if (d2 < bd) {
+      bd = d2;
+      best = e;
+    }
+  }
+  return best;
+};
+
+const nearestEnemyFrom = (enemies: Enemy[], from: Vec2): Enemy | null => {
+  let best: Enemy | null = null;
+  let bd = Number.POSITIVE_INFINITY;
+  for (const e of enemies) {
+    const d2 = distSq(e.pos, from);
+    if (d2 < bd) {
+      bd = d2;
+      best = e;
+    }
+  }
+  return best;
+};
+
+const applyRobotLightningDamage = (
+  world: World,
+  enemy: Enemy,
+  damage: number,
+  damageType: DamageType,
+  deathParticles = 4,
+) => {
+  applyDamage(world, enemy, damage, damageType, "#cfe8ff", deathParticles, false, {
+    fromRobot: true,
+  });
+  enemy.flashUntil = world.time + 0.1;
+};
+
 const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
   const variant = ROBOT_SPECS[robot.variant];
   // George Sidestep flags the next shot as a piercing crit (×mul, no
@@ -171,20 +263,45 @@ const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
   robot.pendingCrit = null;
   const critMul = crit ? crit.mul : 1;
   const dmg = robot.damage * robot.damageMul * critMul;
+  const source = robotMuzzlePoint(robot);
 
-  // Hitscan tracer (George sniper) — direct hit, no projectile entity.
-  // Draw a thin beam from robot → target for the visual read.
-  if (variant.attackTracer || crit?.pierce) {
-    applyDamage(world, target, dmg, robot.damageType, "#fff4d6", crit ? 12 : 5);
-    createBeam(world, [robot.pos, target.pos], crit ? "#ffe9a0" : "#cfe8ff", 0.12);
-    spawnParticles(world, robot.pos, 4, "#cfe8ff", [2, 5], 0.18);
+  // Leela auto-attack — hitscan lightning that visibly bounces from
+  // enemy to enemy. Damage lands in chain order so kill/XP attribution
+  // stays robot-owned for every hop.
+  if (variant.attackChain) {
+    const { hops, damagePerHop, radius } = variant.attackChain;
+    const seen = new Set<EntityId>([target.id]);
+    const points: BeamPoint[] = [source, enemyLightningPoint(target)];
+    applyRobotLightningDamage(world, target, dmg, robot.damageType, 6);
+    spawnParticles(world, source, 4, "#cfe8ff", [2, 5], 0.18);
+    spawnParticles(world, target.pos, 6, "#cfe8ff", [3, 6], 0.3);
+    let from: Vec2 = target.pos;
+    for (let i = 0; i < hops; i++) {
+      const next = findNextChainTarget(world, from, radius, seen);
+      if (!next) break;
+      applyRobotLightningDamage(world, next, damagePerHop * robot.damageMul, robot.damageType, 4);
+      spawnParticles(world, next.pos, 4, "#cfe8ff", [3, 6], 0.25);
+      points.push(enemyLightningPoint(next));
+      seen.add(next.id);
+      from = next.pos;
+    }
+    createBeam(world, points, "#7ee0ff", 0.12);
+  } else if (variant.attackTracer || crit?.pierce) {
+    // Hitscan tracer (George sniper) — direct hit, no projectile entity.
+    // Draw a thin beam from the animated muzzle to the target for the
+    // visual read.
+    applyDamage(world, target, dmg, robot.damageType, "#fff4d6", crit ? 12 : 5, false, {
+      fromRobot: true,
+    });
+    createBeam(world, [source, enemyLightningPoint(target)], crit ? "#ffe9a0" : "#cfe8ff", 0.12);
+    spawnParticles(world, source, 4, "#cfe8ff", [2, 5], 0.18);
     spawnParticles(world, target.pos, crit ? 14 : 6, crit ? "#ffe9a0" : "#cfe8ff", [3, 7], 0.3);
   } else if (robot.attackSplashRadius > 0) {
     createProjectile(
       world,
       "splash",
       robot.damageType,
-      robot.pos,
+      source,
       target.pos,
       dmg,
       robot.attackSplashRadius,
@@ -197,7 +314,7 @@ const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
       world,
       "direct",
       robot.damageType,
-      robot.pos,
+      source,
       target,
       dmg,
       0,
@@ -205,35 +322,6 @@ const fireRobotShot = (world: World, robot: Robot, target: Enemy) => {
       false,
       { fromRobot: true },
     );
-  }
-
-  // Leela auto-attack chain — fork to N nearby additional enemies after
-  // the primary hit. Damage applied directly so a chain beam reads in
-  // the same frame as the primary projectile fire.
-  if (variant.attackChain) {
-    const { hops, damagePerHop, radius } = variant.attackChain;
-    const r2 = radius * radius;
-    const seen = new Set<number>([target.id]);
-    let from = target;
-    for (let i = 0; i < hops; i++) {
-      let next: Enemy | null = null;
-      let best = Number.POSITIVE_INFINITY;
-      for (const e of world.enemies) {
-        if (!isEnemyTargetable(e)) continue;
-        if (seen.has(e.id)) continue;
-        const d2 = distSq(e.pos, from.pos);
-        if (d2 > r2) continue;
-        if (d2 < best) {
-          best = d2;
-          next = e;
-        }
-      }
-      if (!next) break;
-      applyDamage(world, next, damagePerHop * robot.damageMul, robot.damageType, "#cfe8ff", 4);
-      createBeam(world, [from.pos, next.pos], "#7ee0ff", 0.1);
-      seen.add(next.id);
-      from = next;
-    }
   }
 
   // Mike Ignition (slot 2 buff) tags every shot with a short burn DoT.
@@ -465,15 +553,19 @@ const tickPayload = (
     if (world.time >= p.fireAt) {
       const target = world.enemyById.get(p.targetId);
       if (target && isEnemyTargetable(target)) {
-        createBeam(world, [robot.pos, target.pos], "#ffe9a0", 0.25);
-        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 28);
+        createBeam(world, [robotMuzzlePoint(robot), enemyLightningPoint(target)], "#ffe9a0", 0.25);
+        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 28, false, {
+          fromRobot: true,
+        });
         // Splash at impact point so escorts die with the priority target.
         const r2 = p.splashRadius * p.splashRadius;
         for (const e of world.enemies) {
           if (!isEnemyTargetable(e)) continue;
           if (e === target) continue;
           if (distSq(e.pos, target.pos) > r2) continue;
-          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 10);
+          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 10, false, {
+            fromRobot: true,
+          });
         }
         createExplosion(world, target.pos, p.splashRadius, 0.55);
         spawnParticles(world, target.pos, 48, "#ffb04a", [4, 10], 0.7);
@@ -498,29 +590,26 @@ const tickPayload = (
       return idle;
     }
     if (world.time >= p.nextTickAt) {
-      // Pick the N nearest targetable enemies inside radius, lash each.
-      const r2 = p.radius * p.radius;
-      const pool: { e: Enemy; d2: number }[] = [];
-      for (const e of world.enemies) {
-        if (!isEnemyTargetable(e)) continue;
-        const d2 = distSq(e.pos, robot.pos);
-        if (d2 > r2) continue;
-        pool.push({ e, d2 });
-      }
-      pool.sort((a, b) => a.d2 - b.d2);
-      const n = Math.min(p.boltsPerTick, pool.length);
-      for (let i = 0; i < n; i++) {
-        const target = pool[i].e;
-        applyDamage(world, target, p.damagePerBolt, p.damageType, "#cfe8ff", 6, false, {
-          fromRobot: true,
-        });
-        target.flashUntil = world.time + 0.1;
-        createBeam(world, [robot.pos, target.pos], "#9beaff", 0.15);
+      // Pick a lightning path instead of independent robot→enemy rays:
+      // first hop starts at the animated muzzle, each later hop bounces
+      // from the enemy it just struck.
+      const source = robotMuzzlePoint(robot);
+      const seen = new Set<EntityId>();
+      const points: BeamPoint[] = [source];
+      let from: Vec2 = source;
+      for (let i = 0; i < p.boltsPerTick; i++) {
+        const target = findNextChainTarget(world, from, p.radius, seen);
+        if (!target) break;
+        applyRobotLightningDamage(world, target, p.damagePerBolt, p.damageType, 6);
+        points.push(enemyLightningPoint(target));
+        seen.add(target.id);
+        from = target.pos;
         spawnParticles(world, target.pos, 6, "#cfe8ff", [3, 6], 0.3);
       }
+      if (points.length > 1) createBeam(world, points, "#9beaff", 0.15);
       // Sparkles around the robot so the storm reads even with no
       // enemies inside the ring this tick.
-      spawnParticles(world, robot.pos, 4, "#9beaff", [2, 4], 0.25);
+      spawnParticles(world, source, 4, "#9beaff", [2, 4], 0.25);
       p.nextTickAt = world.time + p.tickInterval;
     }
     return idle;
@@ -988,28 +1077,24 @@ const commitDash = (
     const endX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
     const endY = robot.pos.y + -Math.cos(robot.facing) * spec.speed * spec.duration;
     const endPos: Vec2 = { x: endX, y: endY };
-    const r2 = spec.endChain.radius * spec.endChain.radius;
     const seen = new Set<EntityId>();
-    let from: { pos: Vec2 } = { pos: endPos };
+    const points: BeamPoint[] = [robotMuzzlePoint(robot, endPos)];
+    let from: Vec2 = endPos;
     for (let i = 0; i < spec.endChain.hops; i++) {
-      let best: Enemy | null = null;
-      let bd = Number.POSITIVE_INFINITY;
-      for (const e of world.enemies) {
-        if (!isEnemyTargetable(e)) continue;
-        if (seen.has(e.id)) continue;
-        const d2 = distSq(e.pos, from.pos);
-        if (d2 > r2) continue;
-        if (d2 < bd) {
-          bd = d2;
-          best = e;
-        }
-      }
+      const best = findNextChainTarget(world, from, spec.endChain.radius, seen);
       if (!best) break;
-      applyDamage(world, best, spec.endChain.damagePerHop, spec.endChain.damageType, "#cfe8ff", 4);
-      createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
+      applyRobotLightningDamage(
+        world,
+        best,
+        spec.endChain.damagePerHop,
+        spec.endChain.damageType,
+        4,
+      );
+      points.push(enemyLightningPoint(best));
       seen.add(best.id);
-      from = best;
+      from = best.pos;
     }
+    if (points.length > 1) createBeam(world, points, "#7ee0ff", 0.18);
   }
   if (spec.landingBlast) {
     const lbX = robot.pos.x + Math.sin(robot.facing) * spec.speed * spec.duration;
@@ -1100,27 +1185,23 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     // arc beams between them. Distinct from auto-attack chain.
     if (spec.chainHops) {
       const seen = new Set<EntityId>(hit.map((e) => e.id));
-      let from: { pos: Vec2 } = robot;
-      const hr2 = spec.chainHops.radius * spec.chainHops.radius;
-      for (let i = 0; i < spec.chainHops.hops; i++) {
-        let best: Enemy | null = null;
-        let bd = Number.POSITIVE_INFINITY;
-        for (const e of world.enemies) {
-          if (!isEnemyTargetable(e)) continue;
-          if (seen.has(e.id)) continue;
-          const d2 = distSq(e.pos, from.pos);
-          if (d2 > hr2) continue;
-          if (d2 < bd) {
-            bd = d2;
-            best = e;
-          }
-        }
-        if (!best) break;
-        applyDamage(world, best, spec.chainHops.damagePerHop, spec.damageType, "#cfe8ff", 4);
-        createBeam(world, [from.pos, best.pos], "#7ee0ff", 0.18);
-        seen.add(best.id);
-        from = best;
+      const source = robotMuzzlePoint(robot);
+      const first = nearestEnemyFrom(hit, source);
+      const points: BeamPoint[] = [source];
+      let from: Vec2 = source;
+      if (first) {
+        points.push(enemyLightningPoint(first));
+        from = first.pos;
       }
+      for (let i = 0; i < spec.chainHops.hops; i++) {
+        const best = findNextChainTarget(world, from, spec.chainHops.radius, seen);
+        if (!best) break;
+        applyRobotLightningDamage(world, best, spec.chainHops.damagePerHop, spec.damageType, 4);
+        points.push(enemyLightningPoint(best));
+        seen.add(best.id);
+        from = best.pos;
+      }
+      if (points.length > 1) createBeam(world, points, "#7ee0ff", 0.18);
     }
     createExplosion(world, robot.pos, spec.radius, 0.45);
     // Burst particles now key off variant tint instead of a hard-coded
