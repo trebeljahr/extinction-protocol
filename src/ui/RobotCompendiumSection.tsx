@@ -2,17 +2,21 @@ import type { ProgressData } from "../progress";
 import { ROBOT_SPECS } from "../sim/robotVariants";
 import type { RobotVariant } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
+import { useGame } from "../store";
 import { RobotDiorama } from "./RobotDiorama";
 
 const ROSTER: RobotVariant[] = ["george", "leela", "mike", "stan"];
 
 export const RobotCompendiumSection = ({ progress }: { progress: ProgressData }) => {
+  const robotLocks = useGame((s) => s.compendiumLocks.robots);
   return (
     <div className="robot-compendium-scroll">
       <div className="robot-compendium-grid">
         {ROSTER.map((variant) => {
           const spec = ROBOT_SPECS[variant];
-          const unlocked = !!progress.robotUnlocks[variant];
+          const lockedOverride = robotLocks[variant];
+          const unlocked =
+            lockedOverride === undefined ? !!progress.robotUnlocks[variant] : !lockedOverride;
           const xp = progress.robotXp[variant] ?? 0;
           return (
             <article

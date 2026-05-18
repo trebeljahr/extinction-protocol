@@ -11,6 +11,7 @@ import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS, levelHasMode, resolveLevelMode } from "./levels";
 import { LEVEL_BRIEFING } from "./levels/briefings";
+import { LORE_FRAGMENT_ORDER } from "./levels/lore";
 import type { Difficulty, LevelMode, ProgressData, SlotId, Stars } from "./progress";
 import {
   DEFAULT_DIFFICULTY,
@@ -34,7 +35,7 @@ import {
   triggeredEasterEggIdsForLevel,
 } from "./progress";
 import { Engine } from "./sim/loop";
-import type { MechanicId } from "./sim/mechanicsText";
+import { MECHANIC_ORDER, type MechanicId } from "./sim/mechanicsText";
 import {
   applyMetaSkillsToTower,
   effectiveTowerCost,
@@ -62,7 +63,7 @@ import {
   setRobotRank,
   xpProgressInLevel,
 } from "./sim/robotSkills";
-import { ROBOT_SPECS } from "./sim/robotVariants";
+import { ROBOT_SPECS, ROBOT_VARIANTS } from "./sim/robotVariants";
 import {
   canCallEarly,
   earlyCallGoldReward,
@@ -610,14 +611,17 @@ type GameStore = {
   freeTowers: boolean;
   invincible: boolean;
   pathDebug: boolean;
-  // Compendium lock overrides for towers + mechanics. Enemies use
-  // progress.encountered directly (toggled via debugSetEnemyEncountered)
-  // since the regular compendium UI already gates on it. Towers and
-  // mechanics have no production lock concept, so this debug-only map
-  // forces the compendium to render them as locked.
+  // Compendium lock overrides. Undefined falls through to normal
+  // progression; true forces locked and false forces unlocked. This lets
+  // debug inspect every dossier/lore state without changing robot
+  // purchases or level stars.
   compendiumLocks: {
+    enemies: Partial<Record<EnemyKind, boolean>>;
+    matriarchs: Partial<Record<BossVariant, boolean>>;
     towers: Partial<Record<TowerKind, boolean>>;
     mechanics: Partial<Record<MechanicId, boolean>>;
+    robots: Partial<Record<RobotVariant, boolean>>;
+    lore: Partial<Record<number, boolean>>;
   };
   debugAddGold: (n: number) => void;
   debugSkipWave: () => void;
@@ -630,8 +634,11 @@ type GameStore = {
   debugSpawnEnemy: (kind: EnemyKind) => void;
   debugForceWave: (n: number) => void;
   debugSetEnemyEncountered: (kind: EnemyKind, encountered: boolean) => void;
+  debugSetEnemyDossierLocked: (kind: EnemyKind, locked: boolean) => void;
+  debugSetMatriarchDossierLocked: (variant: BossVariant, locked: boolean) => void;
   debugSetTowerLocked: (kind: TowerKind, locked: boolean) => void;
   debugSetMechanicLocked: (id: MechanicId, locked: boolean) => void;
+  debugSetAllDossiersLocked: (locked: boolean) => void;
   debugSetAchievementUnlocked: (id: AchievementId, unlocked: boolean) => void;
   debugSetLevelStars: (levelId: number, stars: Stars) => void;
   debugLoadSuggestedBuild: (trace: PlannerTrace) => void;
@@ -643,6 +650,32 @@ const emptyInspect: InspectState = { id: null, kind: null, maxHp: null, bossVari
 let nextToastKey = 1;
 
 const EASTER_EGG_CLICK_THRESHOLD = 10;
+
+const DEBUG_ENEMY_DOSSIER_KINDS: EnemyKind[] = [
+  "raptor",
+  "swarm",
+  "para",
+  "allosaur",
+  "stego",
+  "armored",
+  "titan",
+];
+const DEBUG_MATRIARCH_DOSSIER_VARIANTS: BossVariant[] = [
+  "raptor",
+  "stego",
+  "para",
+  "allosaur",
+  "armored",
+  "apex",
+];
+const DEBUG_TOWER_DOSSIER_KINDS: TowerKind[] = [
+  "pulse",
+  "chain",
+  "cryo",
+  "mortar",
+  "flame",
+  "hive",
+];
 
 // Seconds a static gold-reward egg lingers after being triggered so the
 // renderer can shrink it out instead of popping off the same frame the
@@ -2147,7 +2180,7 @@ export const useGame = create<GameStore>((set, get) => ({
   freeTowers: false,
   invincible: false,
   pathDebug: false,
-  compendiumLocks: { towers: {}, mechanics: {} },
+  compendiumLocks: { enemies: {}, matriarchs: {}, towers: {}, mechanics: {}, robots: {}, lore: {} },
 
   debugAddGold: (n) => {
     const s = get();
@@ -2305,6 +2338,20 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  debugSetEnemyDossierLocked: (kind, locked) => {
+    const s = get();
+    const nextEnemies = { ...s.compendiumLocks.enemies };
+    nextEnemies[kind] = locked;
+    set({ compendiumLocks: { ...s.compendiumLocks, enemies: nextEnemies } });
+  },
+
+  debugSetMatriarchDossierLocked: (variant, locked) => {
+    const s = get();
+    const nextMatriarchs = { ...s.compendiumLocks.matriarchs };
+    nextMatriarchs[variant] = locked;
+    set({ compendiumLocks: { ...s.compendiumLocks, matriarchs: nextMatriarchs } });
+  },
+
   debugSetTowerLocked: (kind, locked) => {
     const s = get();
     const nextTowers = { ...s.compendiumLocks.towers };
@@ -2319,6 +2366,32 @@ export const useGame = create<GameStore>((set, get) => ({
     if (locked) nextMech[id] = true;
     else delete nextMech[id];
     set({ compendiumLocks: { ...s.compendiumLocks, mechanics: nextMech } });
+  },
+
+  debugSetAllDossiersLocked: (locked) => {
+    const nextEnemies: Partial<Record<EnemyKind, boolean>> = {};
+    for (const kind of DEBUG_ENEMY_DOSSIER_KINDS) nextEnemies[kind] = locked;
+    const nextMatriarchs: Partial<Record<BossVariant, boolean>> = {};
+    for (const variant of DEBUG_MATRIARCH_DOSSIER_VARIANTS) nextMatriarchs[variant] = locked;
+    const nextTowers: Partial<Record<TowerKind, boolean>> = {};
+    for (const kind of DEBUG_TOWER_DOSSIER_KINDS) nextTowers[kind] = locked;
+    const nextMechanics: Partial<Record<MechanicId, boolean>> = {};
+    for (const id of MECHANIC_ORDER) nextMechanics[id] = locked;
+    const nextRobots: Partial<Record<RobotVariant, boolean>> = {};
+    for (const variant of ROBOT_VARIANTS) nextRobots[variant] = locked;
+    const nextLore: Partial<Record<number, boolean>> = {};
+    for (const id of LORE_FRAGMENT_ORDER) nextLore[id] = locked;
+
+    set({
+      compendiumLocks: {
+        enemies: nextEnemies,
+        matriarchs: nextMatriarchs,
+        towers: nextTowers,
+        mechanics: nextMechanics,
+        robots: nextRobots,
+        lore: nextLore,
+      },
+    });
   },
 
   debugSetAchievementUnlocked: (id, unlocked) => {

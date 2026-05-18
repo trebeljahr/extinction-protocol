@@ -12,10 +12,10 @@ import { useState } from "react";
 import { ACHIEVEMENTS, isAchievementUnlocked } from "../achievements";
 import { fetchPlannerTrace } from "../debugPlannerTrace";
 import { EASTER_EGG_DEFS } from "../easterEggs";
-import { hasEncountered } from "../progress";
+import { hasEncountered, hasMatriarchEncountered } from "../progress";
 import { MECHANIC_LABEL, MECHANIC_ORDER, type MechanicId } from "../sim/mechanicsText";
-import type { EnemyKind, TowerKind } from "../sim/types";
-import { ENEMY_LABEL, TOWER_LABEL } from "../sim/world";
+import type { BossVariant, EnemyKind, TowerKind } from "../sim/types";
+import { BOSS_VARIANT_LABEL, ENEMY_LABEL, TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
 
 const GOLD_BUMPS = [100, 500, 1000, 5000];
@@ -31,6 +31,23 @@ const ENEMY_ORDER: EnemyKind[] = [
   "armored",
   "titan",
   "boss",
+];
+const ENEMY_DOSSIER_ORDER: EnemyKind[] = [
+  "raptor",
+  "swarm",
+  "para",
+  "allosaur",
+  "stego",
+  "armored",
+  "titan",
+];
+const MATRIARCH_DOSSIER_ORDER: BossVariant[] = [
+  "raptor",
+  "stego",
+  "para",
+  "allosaur",
+  "armored",
+  "apex",
 ];
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 
@@ -213,24 +230,64 @@ const RunControls = () => {
 
 const CompendiumLockControls = () => {
   const progress = useGame((s) => s.progress);
+  const enemyLocks = useGame((s) => s.compendiumLocks.enemies);
+  const matriarchLocks = useGame((s) => s.compendiumLocks.matriarchs);
   const towerLocks = useGame((s) => s.compendiumLocks.towers);
   const mechLocks = useGame((s) => s.compendiumLocks.mechanics);
-  const debugSetEnemyEncountered = useGame((s) => s.debugSetEnemyEncountered);
+  const debugSetEnemyDossierLocked = useGame((s) => s.debugSetEnemyDossierLocked);
+  const debugSetMatriarchDossierLocked = useGame((s) => s.debugSetMatriarchDossierLocked);
   const debugSetTowerLocked = useGame((s) => s.debugSetTowerLocked);
   const debugSetMechanicLocked = useGame((s) => s.debugSetMechanicLocked);
+  const debugSetAllDossiersLocked = useGame((s) => s.debugSetAllDossiersLocked);
 
   return (
     <DebugSubsection title="Compendium">
+      <DebugRow label="All">
+        <button
+          type="button"
+          className="btn btn-ghost btn--sm"
+          onClick={() => debugSetAllDossiersLocked(false)}
+          title="Unlock every enemy, matriarch, tower, mechanic, robot, and lore entry"
+        >
+          Unlock all
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn--sm"
+          onClick={() => debugSetAllDossiersLocked(true)}
+          title="Lock every enemy, matriarch, tower, mechanic, robot, and lore entry"
+        >
+          Lock all
+        </button>
+      </DebugRow>
       <ChipGrid>
-        {ENEMY_ORDER.map((kind) => {
-          const seen = hasEncountered(progress, kind);
+        {ENEMY_DOSSIER_ORDER.map((kind) => {
+          const lockedOverride = enemyLocks[kind];
+          const seen =
+            lockedOverride === undefined ? hasEncountered(progress, kind) : !lockedOverride;
           return (
             <LockChip
               key={kind}
               locked={!seen}
               label={ENEMY_LABEL[kind]}
-              onToggle={() => debugSetEnemyEncountered(kind, !seen)}
+              onToggle={() => debugSetEnemyDossierLocked(kind, seen)}
               kindLabel="enemy"
+            />
+          );
+        })}
+        {MATRIARCH_DOSSIER_ORDER.map((variant) => {
+          const lockedOverride = matriarchLocks[variant];
+          const seen =
+            lockedOverride === undefined
+              ? hasMatriarchEncountered(progress, variant)
+              : !lockedOverride;
+          return (
+            <LockChip
+              key={`matriarch:${variant}`}
+              locked={!seen}
+              label={BOSS_VARIANT_LABEL[variant]}
+              onToggle={() => debugSetMatriarchDossierLocked(variant, seen)}
+              kindLabel="matriarch"
             />
           );
         })}

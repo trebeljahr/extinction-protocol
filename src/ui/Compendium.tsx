@@ -62,6 +62,7 @@ type Section = CompendiumSection;
 // reads the dossier as a single bestiary, but stats/labels dispatch on
 // `kind` since the variant data lives in BOSS_VARIANT_* tables.
 type EnemyEntry = { kind: "species"; id: EnemyKind } | { kind: "matriarch"; variant: BossVariant };
+type CompendiumLocks = ReturnType<typeof useGame.getState>["compendiumLocks"];
 
 const ENEMY_SPECIES_ORDER: EnemyKind[] = [
   "raptor",
@@ -85,8 +86,15 @@ const ENEMY_ENTRIES: EnemyEntry[] = [
 const entryKey = (e: EnemyEntry): string =>
   e.kind === "species" ? `species:${e.id}` : `matriarch:${e.variant}`;
 
-const entrySeen = (e: EnemyEntry, p: ReturnType<typeof useGame.getState>["progress"]): boolean =>
-  e.kind === "species" ? hasEncountered(p, e.id) : hasMatriarchEncountered(p, e.variant);
+const entrySeen = (
+  e: EnemyEntry,
+  p: ReturnType<typeof useGame.getState>["progress"],
+  locks?: CompendiumLocks,
+): boolean => {
+  const lockedOverride = e.kind === "species" ? locks?.enemies[e.id] : locks?.matriarchs[e.variant];
+  if (lockedOverride !== undefined) return !lockedOverride;
+  return e.kind === "species" ? hasEncountered(p, e.id) : hasMatriarchEncountered(p, e.variant);
+};
 
 const entryLabel = (e: EnemyEntry): string =>
   e.kind === "species" ? ENEMY_LABEL[e.id] : BOSS_VARIANT_LABEL[e.variant];
@@ -110,6 +118,7 @@ const SECTION_LABEL: Record<Section, string> = {
 
 export const Compendium = () => {
   const progress = useGame((s) => s.progress);
+  const compendiumLocks = useGame((s) => s.compendiumLocks);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const initialSection = useGame((s) => s.compendiumInitialSection);
   const clearInitialSection = useGame((s) => s.clearCompendiumInitialSection);
@@ -128,8 +137,8 @@ export const Compendium = () => {
   }, []);
 
   const firstEncountered = useMemo(
-    () => ENEMY_ENTRIES.find((e) => entrySeen(e, progress)) ?? ENEMY_ENTRIES[0],
-    [progress],
+    () => ENEMY_ENTRIES.find((e) => entrySeen(e, progress, compendiumLocks)) ?? ENEMY_ENTRIES[0],
+    [progress, compendiumLocks],
   );
   const [selectedEnemy, setSelectedEnemy] = useState<EnemyEntry>(firstEncountered);
   const [selectedTower, setSelectedTower] = useState<TowerKind>(TOWER_ORDER[0]);
@@ -203,6 +212,7 @@ export const Compendium = () => {
             selected={selectedEnemy}
             setSelected={setSelectedEnemy}
             progress={progress}
+            compendiumLocks={compendiumLocks}
           />
         )}
         {section === "tower" && (
@@ -224,18 +234,20 @@ const EnemySectionView = ({
   selected,
   setSelected,
   progress,
+  compendiumLocks,
 }: {
   selected: EnemyEntry;
   setSelected: (e: EnemyEntry) => void;
   progress: ReturnType<typeof useGame.getState>["progress"];
+  compendiumLocks: CompendiumLocks;
 }) => {
-  const selectedSeen = entrySeen(selected, progress);
+  const selectedSeen = entrySeen(selected, progress, compendiumLocks);
   const selectedKey = entryKey(selected);
   return (
     <div className="compendium-browser">
       <div className="compendium-selector">
         {ENEMY_ENTRIES.map((entry) => {
-          const seen = entrySeen(entry, progress);
+          const seen = entrySeen(entry, progress, compendiumLocks);
           const key = entryKey(entry);
           const isMatriarch = entry.kind === "matriarch";
           return (
@@ -697,17 +709,22 @@ const LoreSectionView = ({
 }: {
   progress: ReturnType<typeof useGame.getState>["progress"];
 }) => {
+  const loreLocks = useGame((s) => s.compendiumLocks.lore);
+  const loreUnlocked = (id: number): boolean => {
+    const lockedOverride = loreLocks[id];
+    return lockedOverride === undefined ? getStars(progress, id) > 0 : !lockedOverride;
+  };
   // Default selection: the most recently unlocked fragment so the panel
   // opens to "what the player just learned" rather than the very first
   // memo every time. Falls back to id 1 if nothing's unlocked yet.
   const unlockedIds = useMemo(
-    () => LORE_FRAGMENT_ORDER.filter((id) => getStars(progress, id) > 0),
-    [progress],
+    () => LORE_FRAGMENT_ORDER.filter((id) => loreUnlocked(id)),
+    [progress, loreLocks],
   );
   const initialId = unlockedIds.length > 0 ? unlockedIds[unlockedIds.length - 1] : 1;
   const [selectedId, setSelectedId] = useState<number>(initialId);
   const selected = LORE_FRAGMENTS[selectedId];
-  const selectedUnlocked = getStars(progress, selectedId) > 0;
+  const selectedUnlocked = loreUnlocked(selectedId);
   const levelName = LEVELS.find((l) => l.id === selectedId)?.name;
 
   return (
@@ -715,7 +732,7 @@ const LoreSectionView = ({
       <div className="compendium-selector compendium-lore-selector">
         {LORE_FRAGMENT_ORDER.map((id) => {
           const frag = LORE_FRAGMENTS[id];
-          const unlocked = getStars(progress, id) > 0;
+          const unlocked = loreUnlocked(id);
           return (
             <button
               type="button"
