@@ -8,9 +8,9 @@ The herd should _actually_ adapt to the damage type the player is leaning on, te
 
 ## Narrative anchor
 
-`LEVEL_INTERSTITIAL[11]` (`src/levels/briefings.ts:95`) is the SITREP that names the adaptation loop: _"every kill seeds the next wave, because the conditioning network selects against the round that killed the last one. We have been training the herd."_
+`LEVEL_INTERSTITIAL[11]` (`src/levels/briefings.ts:95`) is the command update that names the adaptation loop: _"every kill seeds the next wave, because the conditioning network selects against the round that killed the last one. We have been training the herd."_
 
-Adaptation behavior turns on **starting L12** — the level after the announcement, so the SITREP is paid off mechanically on the very next wave.
+Adaptation behavior turns on **starting L12** — the level after the announcement, so the command update is paid off mechanically on the very next wave.
 
 ---
 
@@ -180,6 +180,6 @@ export const computeAdaptiveDominant: (world: World) => {
 
 ## Open questions (defer until implementation)
 
-- Should the briefing/SITREP UI surface the dominant type the herd is currently adapting to? (Probably yes, as a one-line addendum on the L12+ briefing screen — but out of scope for this spec.)
+- Should the briefing/command-update UI surface the dominant type the herd is currently adapting to? (Probably yes, as a one-line addendum on the L12+ briefing screen — but out of scope for this spec.)
 - Telemetry: do we want to log adaptation churn (how often dominant flips wave-to-wave) for balance tuning? Cheap to add later.
-- Tutorial pop on first adapted spawn? Defer — the SITREP at L11 already primes it.
+- Tutorial pop on first adapted spawn? Defer — the command update at L11 already primes it.

@@ -954,7 +954,7 @@ export const MIN_SLOW_FACTOR = 0.25;
 // === Adaptive Resistance =================================================
 //
 // Playtest note 10 / item 14. Starting one level after the "training the
-// herd" SITREP at LEVEL_INTERSTITIAL[11], the herd actively adapts to
+// herd" command update at LEVEL_INTERSTITIAL[11], the herd actively adapts to
 // the damage type the player has been leaning on — a fraction of each
 // wave spawns with bumped resistance (up to full immunity in late
 // game) against the type the player dealt the most damage with over
@@ -971,7 +971,7 @@ export const MIN_SLOW_FACTOR = 0.25;
 // See docs/adaptive-resistance.md for the full spec.
 export const ADAPTIVE_RESISTANCE_ENABLED = true;
 
-// First level at which the herd adapts. L11 carries the SITREP that
+// First level at which the herd adapts. L11 carries the command update that
 // names the loop ("we have been training the herd"); the mechanic
 // kicks in on the next level so the narrative beat is paid off
 // immediately by the very next wave.

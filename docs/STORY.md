@@ -122,7 +122,7 @@ intended emotional shape: tactical mastery, strategic horror.
 ## Between the beats
 
 Things that happen off-screen between the playable levels, kept
-consistent so the briefings and SITREPs make sense.
+consistent so the briefings and command updates make sense.
 
 - **Before L1.** Reserve perimeter goes down. Cloning vats and
   conditioning rigs inside the wall keep running. Kairos Corp
@@ -273,15 +273,15 @@ silhouettes. Shown, not told.
 1. **`docs/STORY.md`** (this file) — the bible.
 2. **`src/levels/briefings.ts`** — full 30-line pass of
    `LEVEL_BRIEFING` against the voice rules above. Plus a new
-   `LEVEL_INTERSTITIAL` export holding one longer SITREP per biome
+   `LEVEL_INTERSTITIAL` export holding one longer command update per biome
    opener (L1, L6, L11, L16, L21, L26) — 4–6 sentences each,
    command-memo voice, explaining the macro picture.
-3. **`src/ui/LevelIntro.tsx`** — render the SITREP block below the
+3. **`src/ui/LevelIntro.tsx`** — render the command-update block below the
    per-level briefing when one is defined. `seenIntros` in progress
-   already gates the whole overlay to first-play, so each SITREP is
+   already gates the whole overlay to first-play, so each command update is
    read once per save slot.
-4. **`src/index.css`** — `.level-intro-sitrep` styling (monospace
-   block, muted, divider rules) so the SITREP reads as a different
+4. **`src/index.css`** — `.level-intro-command-note` styling (monospace
+   block, muted, divider rules) so the command update reads as a different
    document type than the operator field report above it.
 5. **`src/sim/robotVariants.ts`** — no changes.
 

@@ -2120,7 +2120,7 @@
     font-style: italic;
   }
 
-  .level-intro-sitrep {
+  .level-intro-command-note {
     margin: 4px 0 14px;
     padding: 14px 16px 12px;
     border-top: 1px solid rgba(120, 180, 220, 0.18);
@@ -2129,7 +2129,7 @@
     text-align: left;
   }
 
-  .level-intro-sitrep-eyebrow {
+  .level-intro-command-note-eyebrow {
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.22em;
@@ -2138,7 +2138,7 @@
     margin-bottom: 8px;
   }
 
-  .level-intro-sitrep-text {
+  .level-intro-command-note-text {
     font-size: 13px;
     line-height: 1.55;
     color: #c4d0dc;

@@ -63,16 +63,16 @@ export const LEVEL_BRIEFING: Record<number, string> = {
   30: "The Matriarch is here. She is what the programme made when it would not stop. The biosphere is hers. The Protocol was always for her. There is nothing else left to do. Engage.",
 };
 
-// Longer SITREP-style framing copy shown only on the first play of each
-// biome-opener level. Sits below the per-level briefing in LevelIntro
-// and explains the macro picture: why the line keeps falling back even
-// though the player is winning every emplacement.
+// Longer command-update framing copy shown only on the first play of
+// each biome-opener level. Sits below the per-level briefing in
+// LevelIntro and explains the macro picture: why the line keeps
+// falling back even though the player is winning every emplacement.
 //
 // Voice is a command memo, not the on-station operator — half a step
 // less terse than LEVEL_BRIEFING. Each block is one paragraph of
 // 4–6 sentences, framed as a situation report from above.
 //
-// The thread the SITREPs are carrying:
+// The thread the command updates are carrying:
 //   - The player wins every engagement because they're the ones
 //     holding outposts. Off-screen the war is geographic, not tactical.
 //   - The herd reproduces and adapts faster than emplacements can
@@ -88,23 +88,23 @@ export const LEVEL_BRIEFING: Record<number, string> = {
 export const LEVEL_INTERSTITIAL: Record<number, string> = {
   // Forest opener — establish the premise. Why we're here. Why we
   // can't just shut the revival rigs down. What "winning" looks like.
-  1: "SITREP, day one. Kairos Corp has been running the revival programme at industrial scale for nine years. Seventy-two hours ago the reserve perimeter failed and the specimens that walked out were larger, denser, and more coordinated than any catalogue entry the programme has ever produced. The cloning vats inside the wall are still running; shutdown of the rigs requires a corporate signature nobody has produced. Operator role: hold the outpost ring while local population evacuates east. Every emplacement that holds is hours bought for the convoy. We are not retaking ground.",
+  1: "Day one. Kairos Corp has been running the revival programme at industrial scale for nine years. Seventy-two hours ago the reserve perimeter failed and the specimens that walked out were larger, denser, and more coordinated than any catalogue entry the programme has ever produced. The cloning vats inside the wall are still running; shutdown of the rigs requires a corporate signature nobody has produced. Operator role: hold the outpost ring while local population evacuates east. Every emplacement that holds is hours bought for the convoy. We are not retaking ground.",
 
   // Snow opener — first biome fall-back. Why winning fights hasn't
   // helped: the line moves backward whether we hold the ridge or not.
-  6: "SITREP. Coastal cordon fell on day six. Climate gradient was projected as a hard ceiling on specimen movement — it has not been. Tissue samples from the leading edge show our scaffolding alloy laminated into the integument; the animals are not carrying the hardware, they are made of it, and the metal is keeping them warm. Civilian convoy is now north of the treeline and moving. Every ridge we hold buys time for the column to dig in at the next ridge. The line is not advancing. The line is buying hours.",
+  6: "Coastal cordon fell on day six. Climate gradient was projected as a hard ceiling on specimen movement — it has not been. Tissue samples from the leading edge show our scaffolding alloy laminated into the integument; the animals are not carrying the hardware, they are made of it, and the metal is keeping them warm. Civilian convoy is now north of the treeline and moving. Every ridge we hold buys time for the column to dig in at the next ridge. The line is not advancing. The line is buying hours.",
 
   // Desert opener — name the adaptation loop. Why every win is
   // making the next wave harder. Player learns they're training the herd.
-  11: "SITREP. Northern fall-back terminated at the mountains. Convoy diverted south through the high-desert corridor. Specimen morphology on the leading edge no longer matches the catalogue — shielded integument is now the dominant phenotype on inbound waves. Internal review concludes the revival hardware never stopped iterating: it is rewriting the animals between engagements, selecting against the round that killed the last wave faster than any natural species adapts in a generation. Every kill is data; every wave is the species that data produced. We have been training the herd that is eating the continent. The corridor must hold until the column clears.",
+  11: "Northern fall-back terminated at the mountains. Convoy diverted south through the high-desert corridor. Specimen morphology on the leading edge no longer matches the catalogue — shielded integument is now the dominant phenotype on inbound waves. Internal review concludes the revival hardware never stopped iterating: it is rewriting the animals between engagements, selecting against the round that killed the last wave faster than any natural species adapts in a generation. Every kill is data; every wave is the species that data produced. We have been training the herd that is eating the continent. The corridor must hold until the column clears.",
 
   // Wasteland opener — civilisation is gone. Acknowledge it openly.
-  // First time the Protocol is named in a SITREP, not just a briefing.
-  16: "SITREP. Coastal cordon is gone. So is the coast. The remaining civilian population is dispersed across uncatalogued terrain; operators are reaching them by runner, not radio. The herd has stopped behaving like an ecology — they coordinate without signal, breed faster than the rigs ever did inside the wall, and adapt between waves in ways the biology team has stopped trying to predict. The native biosphere between outposts is failing: ground cover dying off, surface water turning, catalogued fauna gone from the survey grids around every emplacement still reporting. The Extinction Protocol is the only standing directive. Tactical-yield ordnance authorised from this point.",
+  // First time the Protocol is named in a command update, not just a briefing.
+  16: "Coastal cordon is gone. So is the coast. The remaining civilian population is dispersed across uncatalogued terrain; operators are reaching them by runner, not radio. The herd has stopped behaving like an ecology — they coordinate without signal, breed faster than the rigs ever did inside the wall, and adapt between waves in ways the biology team has stopped trying to predict. The native biosphere between outposts is failing: ground cover dying off, surface water turning, catalogued fauna gone from the survey grids around every emplacement still reporting. The Extinction Protocol is the only standing directive. Tactical-yield ordnance authorised from this point.",
 
   // Lava opener — terraforming begins. Why the ground is changing.
-  21: "SITREP. Continental interior is no longer recognisable on satellite. Geothermal venting follows herd migration corridors precisely. Atmospheric chemistry is drifting where the densest grazing pressure has been longest. Surveyors are no longer describing this as damage to the landscape. The hardware now grown into the apex specimens appears to be catalysing the change directly — what they walk through, the planet becomes; what they pass over, the native biosphere does not survive. Every emplacement that still holds is one square kilometre that does not become the new biome.",
+  21: "Continental interior is no longer recognisable on satellite. Geothermal venting follows herd migration corridors precisely. Atmospheric chemistry is drifting where the densest grazing pressure has been longest. Surveyors are no longer describing this as damage to the landscape. The hardware now grown into the apex specimens appears to be catalysing the change directly — what they walk through, the planet becomes; what they pass over, the native biosphere does not survive. Every emplacement that still holds is one square kilometre that does not become the new biome.",
 
   // Alien opener — the planet is functionally lost. Final framing.
-  26: "SITREP. The new biome covers approximately one hundred and thirty thousand square kilometres and is still spreading at nine kilometres per day. Ground biology does not match anything in the planetary catalogue. Atmospheric readings inside the zone are off the reference scale; the air at the cordon will not support our respiration much longer. Command considers the planet lost — there is no plan past this directive. Operator role: locate and engage the apex specimen at the original revival site. The Extinction Protocol has not been countermanded because there is nobody left with the authority to countermand it.",
+  26: "The new biome covers approximately one hundred and thirty thousand square kilometres and is still spreading at nine kilometres per day. Ground biology does not match anything in the planetary catalogue. Atmospheric readings inside the zone are off the reference scale; the air at the cordon will not support our respiration much longer. Command considers the planet lost — there is no plan past this directive. Operator role: locate and engage the apex specimen at the original revival site. The Extinction Protocol has not been countermanded because there is nobody left with the authority to countermand it.",
 };

@@ -12,7 +12,7 @@ export const LevelIntro = () => {
   const input = useInputMode();
 
   const briefing = levelId !== null ? LEVEL_BRIEFING[levelId] : undefined;
-  const sitrep = levelId !== null ? LEVEL_INTERSTITIAL[levelId] : undefined;
+  const commandNote = levelId !== null ? LEVEL_INTERSTITIAL[levelId] : undefined;
   const hint =
     input.mode === "gamepad"
       ? "press a button to continue"
@@ -60,10 +60,10 @@ export const LevelIntro = () => {
       <div className="level-intro-card">
         <div className="level-intro-eyebrow">Field Report · Outpost {levelId}</div>
         <p className="level-intro-text">{briefing}</p>
-        {sitrep && (
-          <div className="level-intro-sitrep">
-            <div className="level-intro-sitrep-eyebrow">Command SITREP</div>
-            <p className="level-intro-sitrep-text">{sitrep}</p>
+        {commandNote && (
+          <div className="level-intro-command-note">
+            <div className="level-intro-command-note-eyebrow">Command Update</div>
+            <p className="level-intro-command-note-text">{commandNote}</p>
           </div>
         )}
         <div className="level-intro-hint">{hint}</div>
