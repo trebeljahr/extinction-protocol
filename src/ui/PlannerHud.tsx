@@ -7,51 +7,13 @@
 
 import { useEffect, useState } from "react";
 import { isDebug } from "../debug";
-import type { TowerKind } from "../sim/types";
+import { fetchPlannerTrace, type PlannerTrace, type PlannerWaveAction } from "../debugPlannerTrace";
 import { useGame } from "../store";
-
-type Vec2 = { x: number; y: number };
-type Action =
-  | { type: "build"; towerId: number; kind: TowerKind; lanes: number[]; anchor: Vec2; cost: number }
-  | {
-      type: "upgrade";
-      towerId: number;
-      kind: TowerKind;
-      branch: "a" | "b";
-      tier: 1 | 2 | 3;
-      cost: number;
-    };
-type WaveTrace = {
-  wave: number;
-  archetype: string;
-  reqDpsByLane: number[];
-  dpsAfterByLane: number[];
-  spentThisWave: number;
-  goldIn: number;
-  goldOut: number;
-  cleared: boolean;
-  actions: Action[];
-};
-type Trace = {
-  schemaVersion: number;
-  levelName: string;
-  difficulty: string;
-  safety: number;
-  beamWidth: number;
-  suggestedRobot: string;
-  suggestedRobotReason: string;
-  effectiveStartGold: number;
-  finalPortfolio: string;
-  totalSpent: number;
-  success: boolean;
-  failedAt?: number;
-  waves: WaveTrace[];
-};
 
 const fmtLane = (vs: number[]) => vs.map((v) => Math.round(v)).join("/");
 const fmtLanes = (l: number[]) => (l.length === 1 ? `L${l[0]}` : `L${l.join("+")}`);
 
-const describeAction = (a: Action): string => {
+const describeAction = (a: PlannerWaveAction): string => {
   if (a.type === "build")
     return `+${a.kind}@${fmtLanes(a.lanes)} (${Math.round(a.anchor.x)},${Math.round(a.anchor.y)}) ${a.cost}g`;
   return `↑${a.kind} ${a.branch.toUpperCase()}→T${a.tier} ${a.cost}g`;
@@ -65,16 +27,15 @@ export const PlannerHud = () => {
 const PlannerHudInner = () => {
   const levelId = useGame((s) => s.world.levelId);
   const difficulty = useGame((s) => s.progress.difficulty);
-  const [trace, setTrace] = useState<Trace | null>(null);
+  const [trace, setTrace] = useState<PlannerTrace | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setTrace(null);
-    fetch(`/balancing-traces/level-${levelId}-${difficulty}.json`)
-      .then((r) => (r.ok ? r.json() : null))
+    fetchPlannerTrace(levelId, difficulty)
       .then((t) => {
-        if (!cancelled && t && t.schemaVersion === 1) setTrace(t as Trace);
+        if (!cancelled) setTrace(t);
       })
       .catch(() => {});
     return () => {
@@ -84,15 +45,46 @@ const PlannerHudInner = () => {
 
   if (!trace) return null;
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        title="Show suggested build order"
+        style={{
+          position: "fixed",
+          top: "calc(16px + var(--safe-top, 0px))",
+          right: "calc(104px + var(--safe-right, 0px))",
+          zIndex: 12,
+          width: 46,
+          height: 34,
+          background: "rgba(8,12,18,0.78)",
+          color: "#ffd66a",
+          border: "1px solid rgba(255,214,106,0.42)",
+          borderRadius: 6,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0,
+          cursor: "pointer",
+          pointerEvents: "auto",
+        }}
+      >
+        PLAN
+      </button>
+    );
+  }
+
   return (
     <div
       style={{
         position: "fixed",
-        top: 12,
-        right: 12,
+        top: "calc(76px + var(--safe-top, 0px))",
+        right: "calc(12px + var(--safe-right, 0px))",
         zIndex: 50,
         maxWidth: 360,
-        maxHeight: "70vh",
+        maxHeight:
+          "min(58vh, calc(100vh - 104px - var(--safe-top, 0px) - var(--safe-bottom, 0px)))",
         overflow: "auto",
         background: "rgba(8,12,18,0.88)",
         color: "#cfe5ff",
@@ -167,8 +159,11 @@ const PlannerHudInner = () => {
             {w.actions.length === 0 ? (
               <div style={{ color: "#7da3c2" }}> (no actions)</div>
             ) : (
-              w.actions.map((a, i) => (
-                <div key={i} style={{ color: "#cfe5ff" }}>
+              w.actions.map((a) => (
+                <div
+                  key={`${a.type}-${a.towerId}-${describeAction(a)}`}
+                  style={{ color: "#cfe5ff" }}
+                >
                   {"  "}
                   {describeAction(a)}
                 </div>

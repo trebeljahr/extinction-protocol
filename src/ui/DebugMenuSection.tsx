@@ -8,7 +8,9 @@
 // only make sense mid-level (gold, wave control, spawn) self-hide based
 // on the live `screen`/`status` so the same component is safe to drop
 // into the world-map menu.
+import { useState } from "react";
 import { ACHIEVEMENTS, isAchievementUnlocked } from "../achievements";
+import { fetchPlannerTrace } from "../debugPlannerTrace";
 import { EASTER_EGG_DEFS } from "../easterEggs";
 import { hasEncountered } from "../progress";
 import { MECHANIC_LABEL, MECHANIC_ORDER, type MechanicId } from "../sim/mechanicsText";
@@ -58,6 +60,8 @@ const RunControls = () => {
   const status = useGame((s) => s.ui.status);
   const wave = useGame((s) => s.ui.wave);
   const totalWaves = useGame((s) => s.ui.totalWaves);
+  const levelId = useGame((s) => s.world.levelId);
+  const difficulty = useGame((s) => s.progress.difficulty);
   const freeTowers = useGame((s) => s.freeTowers);
   const invincible = useGame((s) => s.invincible);
   const pathDebug = useGame((s) => s.pathDebug);
@@ -69,6 +73,25 @@ const RunControls = () => {
   const debugSetInvincible = useGame((s) => s.debugSetInvincible);
   const debugSetPathDebug = useGame((s) => s.debugSetPathDebug);
   const debugSpawnEnemy = useGame((s) => s.debugSpawnEnemy);
+  const debugLoadSuggestedBuild = useGame((s) => s.debugLoadSuggestedBuild);
+  const [planLoad, setPlanLoad] = useState<"idle" | "loading" | "loaded" | "missing" | "error">(
+    "idle",
+  );
+
+  const loadSuggestedBuild = async () => {
+    setPlanLoad("loading");
+    try {
+      const trace = await fetchPlannerTrace(levelId, difficulty);
+      if (!trace) {
+        setPlanLoad("missing");
+        return;
+      }
+      debugLoadSuggestedBuild(trace);
+      setPlanLoad("loaded");
+    } catch {
+      setPlanLoad("error");
+    }
+  };
 
   if (screen !== "playing") {
     // pathDebug + invincibility are still useful between runs, but the
@@ -159,6 +182,23 @@ const RunControls = () => {
         <Toggle on={pathDebug} onClick={() => debugSetPathDebug(!pathDebug)}>
           {pathDebug ? "Path debug: on" : "Path debug: off"}
         </Toggle>
+      </DebugRow>
+
+      <DebugRow label="Plan">
+        <button
+          type="button"
+          className="btn btn-ghost btn--sm"
+          onClick={loadSuggestedBuild}
+          disabled={planLoad === "loading"}
+          title={`Load suggested lab and robot upgrades for level ${levelId} (${difficulty})`}
+        >
+          {planLoad === "loading" ? "Loading..." : "Load labs + robot"}
+        </button>
+        {planLoad !== "idle" && planLoad !== "loading" && (
+          <span className="text-[10px] tracking-wide text-fg-faint uppercase ml-1">
+            {planLoad === "loaded" ? "loaded" : planLoad === "missing" ? "no trace" : "error"}
+          </span>
+        )}
       </DebugRow>
     </DebugSubsection>
   );

@@ -4,6 +4,7 @@ import { ACHIEVEMENT_BY_ID, checkAchievements } from "./achievements";
 import { track } from "./analytics";
 import { BIOME_LAYERS, BIOME_TREE_URLS } from "./biomes";
 import { isDebug } from "./debug";
+import { deriveSuggestedDebugLoadout, type PlannerTrace } from "./debugPlannerTrace";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { isOnLavaSurface } from "./lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
@@ -633,6 +634,7 @@ type GameStore = {
   debugSetMechanicLocked: (id: MechanicId, locked: boolean) => void;
   debugSetAchievementUnlocked: (id: AchievementId, unlocked: boolean) => void;
   debugSetLevelStars: (levelId: number, stars: Stars) => void;
+  debugLoadSuggestedBuild: (trace: PlannerTrace) => void;
   debugResetProgress: () => void;
 };
 
@@ -678,6 +680,41 @@ const buildWorldForLevel = (
     treeVersion: 0,
     inspectedEnemy: emptyInspect,
   };
+};
+
+const applyRobotVariantToWorld = (
+  world: World,
+  variant: RobotVariant,
+  progress: ProgressData,
+): void => {
+  const spec = ROBOT_SPECS[variant];
+  const xp = progress.robotXp[variant] ?? 0;
+  const level = levelForXp(xp);
+  const bonusHp = robotLevelHpBonus(level);
+  world.robot.variant = variant;
+  world.robot.maxHp = spec.maxHp + bonusHp;
+  world.robot.hp = world.robot.maxHp;
+  world.robot.damage = spec.damage;
+  world.robot.range = spec.range;
+  world.robot.fireRate = spec.fireRate;
+  world.robot.speed = spec.speed;
+  world.robot.attackSplashRadius = spec.attackSplashRadius;
+  world.robot.damageType = spec.damageType;
+  world.robot.abilityCooldownMul = 1;
+  world.robot.payload = null;
+  world.robot.selfBuff = null;
+  world.robot.pendingShots.length = 0;
+  world.robot.abilityReadyAt = [0, 0, 0, 0];
+  world.robot.abilityActiveUntil = [0, 0, 0, 0];
+  world.robot.attackCooldown = 0;
+  world.robot.damageMul = 1;
+  world.robot.fireRateMul = 1;
+  world.robot.speedMul = 1;
+  world.robot.damageResist = 0;
+  world.robot.xp = xp;
+  world.robot.level = level;
+  applyRobotSkillsToRobot(world.robot, progress.robotSkills);
+  world.robot.hp = world.robot.maxHp;
 };
 
 // All progress saves route through this — when no slot is active (splash
@@ -1395,36 +1432,7 @@ export const useGame = create<GameStore>((set, get) => ({
     // takes effect immediately (otherwise it'd wait until next level).
     // Preserves position so the swap feels in-place.
     const w = s.world;
-    if (s.screen === "playing") {
-      const old = w.robot;
-      const spec = ROBOT_SPECS[variant];
-      w.robot.variant = variant;
-      w.robot.maxHp = spec.maxHp;
-      w.robot.hp = spec.maxHp;
-      w.robot.damage = spec.damage;
-      w.robot.range = spec.range;
-      w.robot.fireRate = spec.fireRate;
-      w.robot.speed = spec.speed;
-      w.robot.attackSplashRadius = spec.attackSplashRadius;
-      w.robot.damageType = spec.damageType;
-      w.robot.abilityCooldownMul = 1;
-      w.robot.payload = null;
-      w.robot.selfBuff = null;
-      w.robot.pendingShots.length = 0;
-      w.robot.abilityReadyAt = [0, 0, 0, 0];
-      w.robot.abilityActiveUntil = [0, 0, 0, 0];
-      w.robot.attackCooldown = 0;
-      w.robot.damageMul = 1;
-      w.robot.fireRateMul = 1;
-      w.robot.speedMul = 1;
-      w.robot.damageResist = 0;
-      w.robot.xp = progress.robotXp[variant] ?? 0;
-      applyRobotSkillsToRobot(w.robot, progress.robotSkills);
-      w.robot.hp = w.robot.maxHp;
-      // Preserve pos / facing / selected from old robot — feels like a
-      // pilot swap, not a teleport-respawn.
-      void old;
-    }
+    if (s.screen === "playing") applyRobotVariantToWorld(w, variant, progress);
     set({
       progress,
       ui: snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy),
@@ -2358,6 +2366,27 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       progress: res.progress,
       achievementToasts: [...s.achievementToasts, ...newToasts],
+    });
+  },
+
+  debugLoadSuggestedBuild: (trace) => {
+    const s = get();
+    const loadout = deriveSuggestedDebugLoadout(trace);
+    const variant = loadout.activeRobot;
+    const progress: ProgressData = {
+      ...s.progress,
+      metaSkills: loadout.metaSkills,
+      activeRobot: variant,
+      robotUnlocks: { ...s.progress.robotUnlocks, ...loadout.robotUnlocks },
+      robotXp: { ...s.progress.robotXp, ...loadout.robotXp },
+      robotSkills: { ...s.progress.robotSkills, ...loadout.robotSkills },
+      bolts: Math.max(s.progress.bolts, ROBOT_SPECS[variant].unlockBolts),
+    };
+    persistProgress(s.activeSlot, progress);
+    if (s.screen === "playing") applyRobotVariantToWorld(s.world, variant, progress);
+    set({
+      progress,
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
     });
   },
 
