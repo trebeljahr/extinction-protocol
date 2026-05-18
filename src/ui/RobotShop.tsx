@@ -1,4 +1,5 @@
 import { type FC, useState } from "react";
+import { isDebug } from "../debug";
 import {
   levelForXp,
   ROBOT_MAX_LEVEL,
@@ -137,7 +138,9 @@ const RosterCard = ({
         {active && <span className="robot-roster-active-tag">Active</span>}
         {!unlocked && (
           <span className="robot-roster-lock">
-            <span className="robot-roster-lock-cost">⚡ {spec.unlockBolts}</span>
+            <span className="robot-roster-lock-cost">
+              {isDebug ? "FREE" : `⚡ ${spec.unlockBolts}`}
+            </span>
             <span className="robot-roster-lock-label">LOCKED</span>
           </span>
         )}
@@ -397,7 +400,7 @@ const RobotDetail = ({
   const { into, need, maxed } = xpProgressInLevel(xp);
   const pts = robotSkillPointsAvailable(xp, ranks);
   const active = activeRobot === variant;
-  const canUnlock = !unlocked && availableBolts >= spec.unlockBolts;
+  const canUnlock = !unlocked && (isDebug || availableBolts >= spec.unlockBolts);
   const xpPct = maxed ? 1 : need > 0 ? into / need : 0;
   const investedTotal = pts.spent;
 
@@ -528,7 +531,7 @@ const RobotDetail = ({
             <div className="border-t border-border-faint pt-3 flex items-center gap-3">
               <span className="text-[12px] text-fg-muted">Unlock cost</span>
               <span className="text-blue text-base font-bold tabular-nums">
-                ⚡ {spec.unlockBolts}
+                {isDebug ? "FREE" : `⚡ ${spec.unlockBolts}`}
               </span>
               <button
                 type="button"
@@ -536,7 +539,11 @@ const RobotDetail = ({
                 disabled={!canUnlock}
                 onClick={() => unlockRobot(variant)}
                 title={
-                  canUnlock ? "Unlock" : `Need ${spec.unlockBolts - availableBolts} more bolts`
+                  canUnlock
+                    ? isDebug
+                      ? "Unlock free in debug"
+                      : "Unlock"
+                    : `Need ${spec.unlockBolts - availableBolts} more bolts`
                 }
               >
                 {canUnlock ? "Unlock" : "Locked"}

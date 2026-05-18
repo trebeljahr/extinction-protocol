@@ -3,6 +3,7 @@ import type { AchievementId } from "./achievements";
 import { ACHIEVEMENT_BY_ID, checkAchievements } from "./achievements";
 import { track } from "./analytics";
 import { BIOME_LAYERS, BIOME_TREE_URLS } from "./biomes";
+import { isDebug } from "./debug";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS } from "./easterEggs";
 import { isOnLavaSurface } from "./lavaGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
@@ -1374,10 +1375,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     if (s.progress.robotUnlocks[variant]) return;
     const cost = ROBOT_SPECS[variant].unlockBolts;
-    if (s.progress.bolts < cost) return;
+    if (!isDebug && s.progress.bolts < cost) return;
     const progress: ProgressData = {
       ...s.progress,
-      bolts: s.progress.bolts - cost,
+      bolts: isDebug ? s.progress.bolts : s.progress.bolts - cost,
       robotUnlocks: { ...s.progress.robotUnlocks, [variant]: true },
     };
     persistProgress(s.activeSlot, progress);
