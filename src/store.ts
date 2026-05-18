@@ -645,6 +645,7 @@ type GameStore = {
   debugSetAchievementUnlocked: (id: AchievementId, unlocked: boolean) => void;
   debugSetLevelStars: (levelId: number, stars: Stars) => void;
   debugLoadSuggestedBuild: (trace: PlannerTrace) => void;
+  debugUnlockThroughLevel: (levelId: number) => void;
   debugResetProgress: () => void;
 };
 
@@ -2492,11 +2493,35 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  debugUnlockThroughLevel: (levelId) => {
+    const s = get();
+    const next: ProgressData = {
+      ...s.progress,
+      starsByLevel: { ...s.progress.starsByLevel },
+    };
+    for (const level of LEVELS) {
+      if (level.id > levelId) continue;
+      const prev = s.progress.starsByLevel[level.id];
+      next.starsByLevel[level.id] = {
+        normal: 3,
+        heroic: prev?.heroic ?? 0,
+        iron: prev?.iron ?? 0,
+      };
+    }
+    const res = checkAchievements(next, s.world, null);
+    persistProgress(s.activeSlot, res.progress);
+    const newToasts = res.unlocked.map((id) => ({ id, key: nextToastKey++ }));
+    set({
+      progress: res.progress,
+      achievementToasts: [...s.achievementToasts, ...newToasts],
+    });
+  },
+
   debugResetProgress: () => {
     const s = get();
     const empty = emptyProgress();
     persistProgress(s.activeSlot, empty);
-    set({ progress: empty });
+    set({ progress: empty, achievementToasts: [] });
   },
 }));
 

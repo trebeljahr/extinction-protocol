@@ -136,6 +136,22 @@ export const IconStar: FC<MenuIconProps> = (p) => (
   </Svg>
 );
 
+export const IconLock: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Lock">
+    <rect x="5.5" y="10" width="13" height="10" rx="2" />
+    <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" />
+    <path d="M12 14v2" />
+  </Svg>
+);
+
+export const IconUnlock: FC<MenuIconProps> = (p) => (
+  <Svg {...p} label="Unlocked">
+    <rect x="5.5" y="10" width="13" height="10" rx="2" />
+    <path d="M8.5 10V7.5a3.5 3.5 0 0 1 6.4-2" />
+    <path d="M12 14v2" />
+  </Svg>
+);
+
 export const IconBolt: FC<MenuIconProps> = (p) => (
   <Svg {...p} label="Bolts">
     <path d="M8 4.5h8l4 7-4 7H8l-4-7 4-7Z" />

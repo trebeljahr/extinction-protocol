@@ -15,8 +15,7 @@ import {
 } from "../progress";
 import { spentMetaStars } from "../sim/metaSkills";
 import { useGame } from "../store";
-import { DebugMenuSection } from "./DebugMenuSection";
-import { DebugWorldMapPanel } from "./DebugWorldMapPanel";
+import { DebugProgressSettings } from "./DebugProgressSettings";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 import { DifficultyTag } from "./DifficultyTag";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
@@ -247,6 +246,7 @@ export const WorldMapUI = () => {
           <div className="menu-panel-scroll">
             <SoundControls />
             <FullscreenToggle />
+            {isDebug && <DebugProgressSettings />}
             <div className="menu-panel-actions">
               <button
                 type="button"
@@ -282,11 +282,6 @@ export const WorldMapUI = () => {
                 Change save slot
               </button>
             </div>
-            {isDebug && (
-              <div className="mt-5">
-                <DebugMenuSection />
-              </div>
-            )}
           </div>
         </MenuOverlay>
       )}
@@ -319,8 +314,6 @@ export const WorldMapUI = () => {
           )}
         </div>
       )}
-
-      {isDebug && <DebugWorldMapPanel />}
 
       {showModesUnlocked && <ModesUnlockedModal />}
     </div>

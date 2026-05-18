@@ -3,15 +3,18 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
-import { type LevelConfig, levelHasMode } from "../levels";
+import { isDebug } from "../debug";
+import { LEVELS, type LevelConfig, levelHasMode } from "../levels";
 import {
   getModeStars,
   getStars,
   isLevelUnlocked,
   isModeUnlocked,
   type LevelMode,
+  type Stars,
 } from "../progress";
 import { useGame } from "../store";
+import { IconLock, IconStar, IconUnlock } from "../ui/MenuIcons";
 
 type Props = { level: LevelConfig };
 
@@ -234,6 +237,63 @@ export const LevelNode = ({ level }: Props) => {
           </div>
         </Html>
       )}
+
+      {isDebug && <DebugLevelControl levelId={level.id} levelName={level.name} />}
     </group>
+  );
+};
+
+const DebugLevelControl = ({ levelId, levelName }: { levelId: number; levelName: string }) => {
+  const progress = useGame((s) => s.progress);
+  const debugSetLevelStars = useGame((s) => s.debugSetLevelStars);
+  const debugUnlockThroughLevel = useGame((s) => s.debugUnlockThroughLevel);
+  const stars = getStars(progress, levelId);
+  const nextStars = ((stars + 1) % 4) as Stars;
+  const fullyUnlockedThrough = LEVELS.every(
+    (level) => level.id > levelId || getStars(progress, level.id) >= 3,
+  );
+  const unlockLabel = fullyUnlockedThrough
+    ? `Unlocked through ${levelName}`
+    : `Unlock through ${levelName} with 3 stars`;
+
+  return (
+    <Html
+      center
+      position={[0, 4.05, -0.1]}
+      zIndexRange={[9, 9]}
+      wrapperClass="debug-level-control-wrap"
+    >
+      <div
+        className={`debug-level-control ${fullyUnlockedThrough ? "is-complete" : "is-locked"}`}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="debug-level-stars"
+          onClick={(e) => {
+            e.stopPropagation();
+            debugSetLevelStars(levelId, nextStars);
+          }}
+          title={`Cycle ${levelName} stars`}
+          aria-label={`Cycle ${levelName} stars. Current ${stars}`}
+          aria-pressed={stars > 0}
+        >
+          <IconStar size={10} className="debug-level-star-icon" />
+          <span>{stars}</span>
+        </button>
+        <button
+          type="button"
+          className="debug-level-unlock"
+          onClick={(e) => {
+            e.stopPropagation();
+            debugUnlockThroughLevel(levelId);
+          }}
+          title={unlockLabel}
+          aria-label={unlockLabel}
+        >
+          {fullyUnlockedThrough ? <IconUnlock size={12} /> : <IconLock size={12} />}
+        </button>
+      </div>
+    </Html>
   );
 };

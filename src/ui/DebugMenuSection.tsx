@@ -1,13 +1,12 @@
-// Debug controls used by both the in-run pause menu and the world-map
-// menu. Renders nothing in production because every call site gates on
+// Debug controls used by the in-run pause menu. Renders nothing in
+// production because every call site gates on
 // `isDebug` from src/debug.ts, which collapses to `false` under
 // `import.meta.env.DEV` so the whole component dead-codes out of the
 // prod bundle.
 //
 // State all lives on the store via the debug* actions. Sections that
 // only make sense mid-level (gold, wave control, spawn) self-hide based
-// on the live `screen`/`status` so the same component is safe to drop
-// into the world-map menu.
+// on the live `screen`/`status`.
 import { useState } from "react";
 import { ACHIEVEMENTS, isAchievementUnlocked } from "../achievements";
 import { fetchPlannerTrace } from "../debugPlannerTrace";
@@ -69,7 +68,7 @@ export const DebugMenuSection = () => {
 // --- In-run controls ------------------------------------------------------
 //
 // Self-hides when not in a live run. The pause menu is the obvious host;
-// the world-map menu mounts the same component but skips this block since
+// if this section is ever mounted outside a run, it skips this block since
 // `screen !== "playing"`.
 
 const RunControls = () => {
@@ -112,8 +111,7 @@ const RunControls = () => {
 
   if (screen !== "playing") {
     // pathDebug + invincibility are still useful between runs, but the
-    // sim-driven actions below would be no-ops. Surface only the toggles
-    // that survive the no-world case.
+    // sim-driven actions below would be no-ops.
     return (
       <DebugSubsection title="Run">
         <DebugRow label="Toggles">
