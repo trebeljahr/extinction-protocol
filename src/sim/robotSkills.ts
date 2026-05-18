@@ -1,13 +1,15 @@
 // Per-robot meta-progression. Each kill drips XP into the robot's own
-// pool; the level milestones gate skill points the player spends in
-// this tree. Mirrors the tower MetaSkill shape (same module conventions,
-// same Ranks storage), just keyed on RobotVariant instead of TowerKind.
+// pool; level milestones gate skill points while dropped bolts pay rank
+// costs in this tree. Mirrors the tower MetaSkill shape (same module
+// conventions, same Ranks storage), just keyed on RobotVariant instead
+// of TowerKind.
 //
 // Ranks apply at robot spawn (createWorld) so the in-game numbers stay
-// stable for the whole run. Refunds are free — points aren't consumed
-// in the sense of being burned, just allocated, so the player can
-// re-spec between runs from the robot shop.
+// stable for the whole run. Points are allocation-only; bolt costs are
+// refunded by the store when ranks decrease, so the ranks stay the
+// source of truth for respec value.
 
+import { robotSkillBoltsForRank } from "./robotBolts";
 import type { Robot, RobotVariant } from "./types";
 
 export const ROBOT_SKILL_MAX_RANK = 3;
@@ -114,6 +116,17 @@ export const spentRobotPoints = (skills: AllRobotSkills, variant: RobotVariant):
   const ranks = skills[variant];
   if (!ranks) return 0;
   for (const id in ranks) n += norm(ranks[id as RobotSkillId]);
+  return n;
+};
+
+export const spentRobotSkillBolts = (skills: AllRobotSkills, variant?: RobotVariant): number => {
+  let n = 0;
+  const variants = variant ? [variant] : (Object.keys(skills) as RobotVariant[]);
+  for (const v of variants) {
+    const ranks = skills[v];
+    if (!ranks) continue;
+    for (const id in ranks) n += robotSkillBoltsForRank(norm(ranks[id as RobotSkillId]));
+  }
   return n;
 };
 

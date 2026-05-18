@@ -7,7 +7,7 @@ Single-player roguelite tower defense: deploy sci-fi turrets, hold collapsing ou
 - World-map campaign with 30 outposts across forest, snow, desert, wasteland, lava, and alien biomes.
 - Six tower types: Pulse Rifle, Chain Coil, Pyre, Hive Swarm, Mortar, and Cryo Emitter.
 - Seven enemy species with distinct speeds, health pools, rewards, damage, and resistances.
-- Per-level star progress, achievements, enemy compendium, audio/music, hit feedback, screenshake, and upgrade/sell/targeting controls.
+- Per-level star progress, dropped robot bolts, achievements, enemy compendium, audio/music, hit feedback, screenshake, and upgrade/sell/targeting controls.
 - Web build for development/deployment, a Tauri v2 desktop shell (Steam-shippable), and a Capacitor mobile shell (iOS + Android).
 
 Long-form design notes live in [DESIGN.md](DESIGN.md). Distribution flow (Steam, App Store, Play) lives in [DISTRIBUTION.md](DISTRIBUTION.md). Keep this README focused on setup, controls, and repository orientation.
@@ -87,7 +87,7 @@ src/
   ui/              HUD, menus, panels, compendium, results, world-map UI
   audio/           WebAudio manager and game-event audio bridge
   biomes.ts        biome styles and prop layers
-  progress.ts      local progress, stars, and encounter tracking
+  progress.ts      local progress, stars, robot bolts, and encounter tracking
   achievements.ts  achievement definitions and unlock checks
 public/
   audio/           bundled SFX and music

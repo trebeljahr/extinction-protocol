@@ -400,7 +400,7 @@ export const damageRobot = (world: World, amount: number) => {
     spawnParticles(world, robot.pos, 28, "#ff5a3a", [5, 11], 0.55);
     spawnParticles(world, robot.pos, 22, "#fff4d6", [2, 5], 0.35);
     addShake(world, 0.7, 3.2);
-    emit(world, { type: "death", pos: robot.pos });
+    emit(world, { type: "death", pos: robot.pos, target: "robot" });
   }
 };
 
@@ -597,10 +597,10 @@ const tickPayload = (
       const seen = new Set<EntityId>();
       const points: BeamPoint[] = [source];
       let from: Vec2 = source;
-      for (let i = 0; i < p.boltsPerTick; i++) {
+      for (let i = 0; i < p.arcsPerTick; i++) {
         const target = findNextChainTarget(world, from, p.radius, seen);
         if (!target) break;
-        applyRobotLightningDamage(world, target, p.damagePerBolt, p.damageType, 6);
+        applyRobotLightningDamage(world, target, p.damagePerArc, p.damageType, 6);
         points.push(enemyLightningPoint(target));
         seen.add(target.id);
         from = target.pos;
@@ -1234,8 +1234,8 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
       nextTickAt: world.time + 0.05,
       tickInterval: spec.tickInterval,
       radius: spec.radius,
-      boltsPerTick: spec.boltsPerTick,
-      damagePerBolt: spec.damagePerBolt,
+      arcsPerTick: spec.arcsPerTick,
+      damagePerArc: spec.damagePerArc,
       damageType: spec.damageType,
     };
     spawnParticles(world, robot.pos, 28, "#9beaff", [3, 7], 0.5);

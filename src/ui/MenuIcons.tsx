@@ -137,8 +137,13 @@ export const IconStar: FC<MenuIconProps> = (p) => (
 );
 
 export const IconBolt: FC<MenuIconProps> = (p) => (
-  <Svg {...p} label="Bolt">
-    <path d="M13 2 L4 14 H11 L10 22 L20 9 H13 Z" fill="currentColor" stroke="none" />
+  <Svg {...p} label="Bolts">
+    <path d="M8 4.5h8l4 7-4 7H8l-4-7 4-7Z" />
+    <circle cx="12" cy="11.5" r="2.8" />
+    <path d="M5 11.5H2.8" />
+    <path d="M21.2 11.5H19" />
+    <path d="M6.9 6.6 5.5 5.2" />
+    <path d="M18.5 17.8 17.1 16.4" />
   </Svg>
 );
 

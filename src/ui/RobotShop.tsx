@@ -1,5 +1,6 @@
 import { type FC, useState } from "react";
 import { isDebug } from "../debug";
+import { robotSkillBoltDelta } from "../sim/robotBolts";
 import {
   levelForXp,
   ROBOT_MAX_LEVEL,
@@ -17,7 +18,14 @@ import type { RobotVariant } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
-import { IconBoot, IconCore, IconCrosshair, IconShield, type MenuIconProps } from "./MenuIcons";
+import {
+  IconBolt,
+  IconBoot,
+  IconCore,
+  IconCrosshair,
+  IconShield,
+  type MenuIconProps,
+} from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { RobotDiorama } from "./RobotDiorama";
 import { RobotPreview } from "./RobotPreview";
@@ -31,13 +39,22 @@ const SKILL_ICONS: Record<RobotSkillId, FC<MenuIconProps>> = {
   ultimate: IconCore,
 };
 
+const BoltPrice = ({ amount, className = "" }: { amount: number; className?: string }) => (
+  <span className={`robot-bolt-price ${className}`}>
+    <IconBolt size={12} className="shrink-0" />
+    {isDebug ? "FREE" : amount}
+  </span>
+);
+
 const RankPips = ({
   rank,
   available,
+  availableBolts,
   onClick,
 }: {
   rank: number;
   available: number;
+  availableBolts: number;
   onClick: (target: number) => void;
 }) => (
   <div className="robot-skill-pips">
@@ -46,8 +63,20 @@ const RankPips = ({
       const filled = tier <= rank;
       const target = filled && tier === rank ? rank - 1 : tier;
       const wouldSpend = Math.max(0, tier - rank);
-      const affordable = wouldSpend <= available;
+      const boltCost = robotSkillBoltDelta(rank, tier);
+      const hasPoints = wouldSpend <= available;
+      const hasBolts = isDebug || boltCost <= availableBolts;
+      const affordable = hasPoints && hasBolts;
       const disabled = !filled && !affordable;
+      const needBolts = Math.max(0, boltCost - availableBolts);
+      const priceLabel = isDebug ? "free" : `${boltCost} bolts`;
+      const label = filled
+        ? `Rank ${tier} (click to refund)`
+        : affordable
+          ? `Upgrade to rank ${tier} for ${priceLabel}`
+          : !hasPoints
+            ? `Need ${wouldSpend} skill point${wouldSpend === 1 ? "" : "s"}`
+            : `Need ${needBolts} more bolts`;
       return (
         <button
           key={`pip-${tier}`}
@@ -55,8 +84,8 @@ const RankPips = ({
           className={`robot-skill-pip ${filled ? "filled" : affordable ? "affordable" : "locked"}`}
           onClick={() => !disabled && onClick(target)}
           disabled={disabled}
-          aria-label={filled ? `Rank ${tier} (click to refund)` : `Upgrade to rank ${tier}`}
-          title={filled ? `Rank ${tier} (click to refund)` : `Upgrade to rank ${tier}`}
+          aria-label={label}
+          title={label}
         />
       );
     })}
@@ -68,16 +97,20 @@ const SkillRow = ({
   node,
   rank,
   available,
+  availableBolts,
 }: {
   variant: RobotVariant;
   node: RobotSkillNode;
   rank: number;
   available: number;
+  availableBolts: number;
 }) => {
   const setRank = useGame((s) => s.setRobotSkillRank);
   const Icon = SKILL_ICONS[node.id];
   const nextDesc = rank < ROBOT_SKILL_MAX_RANK ? node.rankDesc[rank] : null;
   const currentDesc = rank > 0 ? node.rankDesc[rank - 1] : null;
+  const nextCost = nextDesc ? robotSkillBoltDelta(rank, rank + 1) : 0;
+  const canAffordNext = isDebug || availableBolts >= nextCost;
   return (
     <div className={`robot-skill-card ${rank > 0 ? "invested" : ""}`}>
       <div className="robot-skill-icon">
@@ -89,6 +122,7 @@ const SkillRow = ({
           <RankPips
             rank={rank}
             available={available}
+            availableBolts={availableBolts}
             onClick={(target) => setRank(variant, node.id, target)}
           />
         </div>
@@ -102,6 +136,10 @@ const SkillRow = ({
             <>
               <span className="robot-skill-arrow">→</span>
               <span className="robot-skill-next">{nextDesc}</span>
+              <BoltPrice
+                amount={nextCost}
+                className={`robot-skill-cost ${canAffordNext ? "" : "locked"}`}
+              />
             </>
           )}
         </div>
@@ -139,9 +177,7 @@ const RosterCard = ({
         {active && <span className="robot-roster-active-tag">Active</span>}
         {!unlocked && (
           <span className="robot-roster-lock">
-            <span className="robot-roster-lock-cost">
-              {isDebug ? "FREE" : `⚡ ${spec.unlockBolts}`}
-            </span>
+            <BoltPrice amount={spec.unlockBolts} className="robot-roster-lock-cost" />
             <span className="robot-roster-lock-label">LOCKED</span>
           </span>
         )}
@@ -225,7 +261,7 @@ export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): s
     return [
       `CD ${a.cooldown.toFixed(1)}s`,
       `${a.duration.toFixed(1)}s · ${a.radius.toFixed(1)} radius`,
-      `${a.boltsPerTick} bolts/${a.tickInterval.toFixed(2)}s · ${a.damagePerBolt} each`,
+      `${a.arcsPerTick} arcs/${a.tickInterval.toFixed(2)}s · ${a.damagePerArc} each`,
     ];
   }
   if (a.type === "flameRings") {
@@ -505,7 +541,7 @@ const RobotDetail = ({
                 </div>
                 <div className="robot-level-foot">
                   <span>
-                    {ROBOT_POINTS_PER_LEVEL} skill point per level · earned {pts.earned}
+                    XP grants {ROBOT_POINTS_PER_LEVEL} skill point per level · earned {pts.earned}
                     {pts.earned >= ROBOT_TREE_TOTAL_POINTS ? " (tree max)" : ""}
                   </span>
                   <span className="robot-level-points">
@@ -522,6 +558,7 @@ const RobotDetail = ({
                     node={node as RobotSkillNode}
                     rank={(ranks?.[node.id as RobotSkillId] ?? 0) as number}
                     available={pts.available}
+                    availableBolts={availableBolts}
                   />
                 ))}
                 {investedTotal > 0 && (
@@ -549,9 +586,7 @@ const RobotDetail = ({
           ) : (
             <div className="border-t border-border-faint pt-3 flex items-center gap-3">
               <span className="text-[12px] text-fg-muted">Unlock cost</span>
-              <span className="text-blue text-base font-bold tabular-nums">
-                {isDebug ? "FREE" : `⚡ ${spec.unlockBolts}`}
-              </span>
+              <BoltPrice amount={spec.unlockBolts} className="text-base" />
               <button
                 type="button"
                 className={`ml-auto btn ${canUnlock ? "btn-blue" : "btn-ghost"} text-sm py-2 px-4`}
@@ -642,9 +677,7 @@ const RobotShopToolbar = ({
 }) => (
   <div className="lab-stars-toolbar">
     <span className="lab-stars-chip" title={`${bolts} bolts gathered`}>
-      <span aria-hidden style={{ color: "#5ad6ff", fontSize: 16, lineHeight: 1 }}>
-        ⚡
-      </span>
+      <IconBolt size={15} className="shrink-0" />
       <span className="lab-stars-num tabular-nums">{bolts}</span>
       <span className="lab-stars-lbl">bolts</span>
     </span>

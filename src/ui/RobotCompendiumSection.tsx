@@ -3,6 +3,7 @@ import { ROBOT_SPECS } from "../sim/robotVariants";
 import type { RobotVariant } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
+import { IconBolt } from "./MenuIcons";
 import { RobotDiorama } from "./RobotDiorama";
 
 const ROSTER: RobotVariant[] = ["george", "leela", "mike", "stan"];
@@ -29,7 +30,9 @@ export const RobotCompendiumSection = ({ progress }: { progress: ProgressData })
                 <RobotDiorama variant={variant} />
                 {!unlocked && (
                   <div className="robot-compendium-locked">
-                    <span>⚡ {spec.unlockBolts}</span>
+                    <span className="robot-compendium-lock-price">
+                      <IconBolt size={13} /> {spec.unlockBolts}
+                    </span>
                     <span className="robot-compendium-locked-label">LOCKED</span>
                   </div>
                 )}

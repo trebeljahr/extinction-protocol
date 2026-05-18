@@ -53,14 +53,17 @@ import {
   setRobotDashAimDir as simSetRobotDashAimDir,
   triggerRobotAbility as simTriggerRobotAbility,
 } from "./sim/robot";
+import { robotSkillBoltDelta } from "./sim/robotBolts";
 import {
   applyRobotSkillsToRobot,
+  getRobotRank,
   levelForXp,
   type RobotSkillId,
   resetAllRobotRanks,
   resetRobotVariantRanks,
   robotSkillPointsAvailable,
   setRobotRank,
+  spentRobotSkillBolts,
   xpProgressInLevel,
 } from "./sim/robotSkills";
 import { ROBOT_SPECS, ROBOT_VARIANTS } from "./sim/robotVariants";
@@ -1219,11 +1222,11 @@ export const useGame = create<GameStore>((set, get) => ({
 
     if (s.world.events.length > 0) {
       for (const ev of s.world.events) {
-        if (ev.type === "death") {
+        if (ev.type === "death" && ev.target === "enemy") {
           progress = {
             ...progress,
             stats: { ...progress.stats, killsTotal: progress.stats.killsTotal + 1 },
-            bolts: progress.bolts + 1,
+            bolts: progress.bolts + ev.bolts,
           };
         }
         if (ev.type === "game-over") {
@@ -1481,6 +1484,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const xp = s.progress.robotXp[variant] ?? 0;
     const ranks = s.progress.robotSkills[variant];
+    const currentRank = getRobotRank(s.progress.robotSkills, variant, id);
     const next = setRobotRank(s.progress.robotSkills, variant, id, rank);
     if (next === s.progress.robotSkills) return;
     // Reject if spending more points than the robot's level grants. Use
@@ -1490,7 +1494,14 @@ export const useGame = create<GameStore>((set, get) => ({
     if (nextRanks) for (const k in nextRanks) nextSpent += nextRanks[k as RobotSkillId] ?? 0;
     const { earned } = robotSkillPointsAvailable(xp, ranks);
     if (nextSpent > earned) return;
-    const progress: ProgressData = { ...s.progress, robotSkills: next };
+    const nextRank = getRobotRank(next, variant, id);
+    const boltDelta = robotSkillBoltDelta(currentRank, nextRank);
+    if (!isDebug && boltDelta > 0 && s.progress.bolts < boltDelta) return;
+    const progress: ProgressData = {
+      ...s.progress,
+      bolts: isDebug ? s.progress.bolts : Math.max(0, s.progress.bolts - boltDelta),
+      robotSkills: next,
+    };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
@@ -1499,7 +1510,12 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const next = resetRobotVariantRanks(s.progress.robotSkills, variant);
     if (next === s.progress.robotSkills) return;
-    const progress: ProgressData = { ...s.progress, robotSkills: next };
+    const refund = spentRobotSkillBolts(s.progress.robotSkills, variant);
+    const progress: ProgressData = {
+      ...s.progress,
+      bolts: isDebug ? s.progress.bolts : s.progress.bolts + refund,
+      robotSkills: next,
+    };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },
@@ -1507,7 +1523,12 @@ export const useGame = create<GameStore>((set, get) => ({
   resetAllRobotSkills: () => {
     const s = get();
     if (Object.keys(s.progress.robotSkills).length === 0) return;
-    const progress: ProgressData = { ...s.progress, robotSkills: resetAllRobotRanks() };
+    const refund = spentRobotSkillBolts(s.progress.robotSkills);
+    const progress: ProgressData = {
+      ...s.progress,
+      bolts: isDebug ? s.progress.bolts : s.progress.bolts + refund,
+      robotSkills: resetAllRobotRanks(),
+    };
     persistProgress(s.activeSlot, progress);
     set({ progress });
   },

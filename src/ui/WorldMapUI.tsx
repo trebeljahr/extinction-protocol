@@ -224,7 +224,7 @@ export const WorldMapUI = () => {
           <IconSquad size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
           <span
-            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-blue text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
+            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-[rgba(215,191,130,0.95)] text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
           >
             <IconBolt size={10} className="shrink-0" />
             {bolts}

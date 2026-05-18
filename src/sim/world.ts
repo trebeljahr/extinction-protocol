@@ -26,6 +26,7 @@ import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage
 import { prependLeadInToBounds, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
 import { mulberry32 } from "./random";
+import { rollDinoBoltDrop } from "./robotBolts";
 import {
   type AllRobotSkills,
   applyRobotSkillsToRobot,
@@ -1505,8 +1506,14 @@ export const applyDamage = (
       world.robot.kills += 1;
       world.robot.xp += xpForEnemyKill(enemy.maxHp);
     }
+    const bolts = rollDinoBoltDrop(enemy.kind);
     spawnParticles(world, enemy.pos, deathParticles, deathColor);
-    emit(world, { type: "death", pos: enemy.pos });
+    if (bolts > 0) {
+      const metalFlecks = Math.min(18, 3 + Math.ceil(bolts / 12));
+      spawnParticles(world, enemy.pos, metalFlecks, "#c8b078", [2.5, 5.5], 0.45);
+      spawnParticles(world, enemy.pos, Math.min(10, metalFlecks), "#8f9aa3", [1.8, 4.2], 0.38);
+    }
+    emit(world, { type: "death", pos: enemy.pos, target: "enemy", enemyKind: enemy.kind, bolts });
     // Boss kill — extra payout on top of the normal bounty so the
     // moment reads as a windfall, plus an event for the UI flash.
     // Scales with wave so late-game boss kills stay meaningful when

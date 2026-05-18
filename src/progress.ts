@@ -134,17 +134,17 @@ export type ProgressData = {
   activeRobot: RobotVariant;
   // Permanent unlock map. George is implicitly unlocked even when
   // missing from the map; the others must be purchased from the robot
-  // shop with stars.
+  // shop with dropped metal bolts.
   robotUnlocks: Partial<Record<RobotVariant, boolean>>;
   // Per-robot XP — accrues from kills, never decays. Level + available
   // skill points derive from this.
   robotXp: Partial<Record<RobotVariant, number>>;
-  // Per-robot skill tree ranks. Shape mirrors AllMetaSkills.
+  // Per-robot skill tree ranks. Shape mirrors AllMetaSkills. XP grants
+  // skill points; dropped metal bolts pay the rank costs.
   robotSkills: AllRobotSkills;
-  // Scrap "bolts" gathered by the active robot. Bolts are the unlock
-  // currency for additional robot variants (replacing the old star cost)
-  // and a generic in-game currency hook for later economy uses. Earned
-  // on every enemy death credited to the player; never decays.
+  // Scrap bolts and nuts dropped by dinosaurs. Bolts are the currency
+  // for robot unlocks and robot skill ranks; kills before a failed wave
+  // still persist their drops so grinding works.
   bolts: number;
   // Persistent per-(levelId, eggId) one-shot guard. Once an egg fires on
   // a given map it never spawns there again, even before the achievement

@@ -294,8 +294,8 @@ export type RobotPayloadState =
       nextTickAt: number;
       tickInterval: number;
       radius: number;
-      boltsPerTick: number;
-      damagePerBolt: number;
+      arcsPerTick: number;
+      damagePerArc: number;
       damageType: DamageType;
     }
   | {
@@ -696,7 +696,8 @@ export type RunStatus = "running" | "paused" | "won" | "lost";
 export type GameEvent =
   | { type: "shoot"; towerId: number; towerKind: TowerKind; pos: Vec2 }
   | { type: "impact"; pos: Vec2 }
-  | { type: "death"; pos: Vec2 }
+  | { type: "death"; pos: Vec2; target: "enemy"; enemyKind: EnemyKind; bolts: number }
+  | { type: "death"; pos: Vec2; target: "robot" }
   | { type: "wave-start"; wave: number }
   | { type: "wave-clear"; wave: number }
   | { type: "boss-wave-start"; wave: number }

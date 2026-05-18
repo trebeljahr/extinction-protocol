@@ -64,14 +64,14 @@ export type PayloadSpec =
   | {
       // Leela R — Storm Surge. AoE chain-lightning storm centered on the
       // robot for `duration` seconds. Every `tickInterval`, picks up to
-      // `boltsPerTick` nearest enemies inside `radius` and zaps each.
+      // `arcsPerTick` nearest enemies inside `radius` and zaps each.
       type: "storm";
       cooldown: number;
       duration: number;
       radius: number;
       tickInterval: number;
-      boltsPerTick: number;
-      damagePerBolt: number;
+      arcsPerTick: number;
+      damagePerArc: number;
       damageType: DamageType;
     }
   | {
@@ -150,8 +150,8 @@ export type RobotVariantSpec = {
   // beam from the robot to the target instead of (or alongside) the
   // projectile. George uses this for the sniper read.
   attackTracer?: boolean;
-  // Bolt cost to unlock this robot from the roster. 0 = starter (george).
-  // Bolts are gathered per enemy kill — see store.ts.
+  // Metal bolt cost to unlock this robot from the roster. 0 = starter
+  // (george). Dinosaur drops feed the persistent bolt wallet.
   unlockBolts: number;
   abilities: [DashSpec, BurstSpec, BuffSpec, PayloadSpec];
   tint: string;
@@ -291,8 +291,8 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
         duration: 5.0,
         radius: 7.0,
         tickInterval: 0.2,
-        boltsPerTick: 4,
-        damagePerBolt: 26,
+        arcsPerTick: 4,
+        damagePerArc: 26,
         damageType: "electric",
       },
     ],
@@ -304,7 +304,7 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
       "I-frame dash; end arcs hit 3 enemies for 24 electric.",
       "4-radius electric pulse, then 4 chain hops for 35 each.",
       "3s veil: speed, fire rate, damage, and 80% resist.",
-      "5s storm: 4 electric bolts every 0.2s inside 7 radius.",
+      "5s storm: 4 electric arcs every 0.2s inside 7 radius.",
     ],
   },
   mike: {
