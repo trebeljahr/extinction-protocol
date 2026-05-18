@@ -7,7 +7,12 @@ import type { Vec2 } from "../sim/types";
 import { distToSegmentSq } from "../sim/vec2";
 import { TOWER_FOOTPRINT } from "../sim/world";
 import { useGame } from "../store";
-import { DEAD_DINO_SPECS, DeadDinoInstancer, type DeadDinoItem } from "./DeadDinos";
+import {
+  DEAD_DINO_SPECS,
+  DeadDinoInstancer,
+  type DeadDinoItem,
+  deadDinoCollisionRadius,
+} from "./DeadDinos";
 import { type GroupItem, InstancedGroup } from "./InstancedGroup";
 import type { MeshSource } from "./meshSource";
 
@@ -179,25 +184,25 @@ const BASE_PRIMITIVES: PrimitiveDef[] = [
 ];
 
 // Authored dead-dinosaur corpse slots ringing each HQ pad — pad-local
-// (right, fwd) like BASE_PROPS. Picked to sit OUTSIDE the fence perimeter
-// (sides at ±4.4, back beyond fwd ≈ -3.6, front beyond fwd ≈ 3.4) so the
+// (right, fwd) like BASE_PROPS. Picked to sit outside the fence perimeter
+// (sides at ±4.8, back beyond fwd ≈ -4.1, front beyond fwd ≈ 4.1) so the
 // corpse silhouettes never clip into fences, buildings, or the pad rim.
 // Per-HQ RNG draws from this pool with a runtime collision check that
 // rejects any slot overlapping a path, building prop, pad rect, or
 // previously-placed corpse — so two neighbouring corpses can't stack
 // poses and a curved approach can't shave a carcass with the walking lane.
 const HQ_CORPSE_SLOTS: { right: number; fwd: number }[] = [
-  { right: -4.4, fwd: -0.5 },
-  { right: 4.4, fwd: -0.5 },
-  { right: -4.4, fwd: 1.6 },
-  { right: 4.4, fwd: 1.6 },
-  { right: -4.4, fwd: -2.2 },
-  { right: 4.4, fwd: -2.2 },
-  { right: -3.4, fwd: 3.6 },
-  { right: 3.4, fwd: 3.6 },
+  { right: -4.8, fwd: -0.5 },
+  { right: 4.8, fwd: -0.5 },
+  { right: -4.8, fwd: 1.6 },
+  { right: 4.8, fwd: 1.6 },
+  { right: -4.8, fwd: -2.2 },
+  { right: 4.8, fwd: -2.2 },
+  { right: -3.6, fwd: 4.1 },
+  { right: 3.6, fwd: 4.1 },
   { right: 0, fwd: -4.2 },
-  { right: -2.6, fwd: -3.8 },
-  { right: 2.6, fwd: -3.8 },
+  { right: -2.6, fwd: -4.3 },
+  { right: 2.6, fwd: -4.3 },
 ];
 
 // Corpses normalize to their species footprint (3.6–4.6 world units) which
@@ -573,7 +578,7 @@ export const HQBase = () => {
         const spec = DEAD_DINO_SPECS[speciesOrder[placedCount % DEAD_DINO_SPECS.length]];
         const scale = HQ_CORPSE_SCALE_MIN + rng() * (HQ_CORPSE_SCALE_MAX - HQ_CORPSE_SCALE_MIN);
         const rotY = rng() * Math.PI * 2;
-        const corpseR = spec.footprint * scale * 0.5;
+        const corpseR = deadDinoCollisionRadius(spec.url, scale);
         const wx = last.x + slot.right * rightX + slot.fwd * faceX;
         const wy = last.y + slot.right * rightY + slot.fwd * faceY;
         const here: Vec2 = { x: wx, y: wy };
@@ -599,13 +604,44 @@ export const HQBase = () => {
         }
         if (blocked) continue;
 
-        // Base building props. Fence/light primitives are thin enough
-        // visually that we don't bother checking them — slots are
-        // authored well clear of the fence ring.
+        // Base building props.
         for (const inst of instances) {
           const ix = inst.pos.x - wx;
           const iy = inst.pos.y - wy;
           const lim = corpseR + inst.clearRadius * propVisualScale;
+          if (ix * ix + iy * iy < lim * lim) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) continue;
+
+        // Fence/light primitives. Fences use segment distance so long rails
+        // and their posts are treated as blockers, not just their centres.
+        for (const primitive of primitives) {
+          if (primitive.kind === "fence") {
+            const cos = Math.cos(primitive.rotY);
+            const sin = Math.sin(primitive.rotY);
+            const halfLen = primitive.length * 0.5;
+            const a = {
+              x: primitive.pos.x - cos * halfLen,
+              y: primitive.pos.y - sin * halfLen,
+            };
+            const b = {
+              x: primitive.pos.x + cos * halfLen,
+              y: primitive.pos.y + sin * halfLen,
+            };
+            const lim = corpseR + 0.08;
+            if (distToSegmentSq(here, a, b) < lim * lim) {
+              blocked = true;
+              break;
+            }
+            continue;
+          }
+
+          const ix = primitive.pos.x - wx;
+          const iy = primitive.pos.y - wy;
+          const lim = corpseR + primitive.clearRadius * 0.45;
           if (ix * ix + iy * iy < lim * lim) {
             blocked = true;
             break;
@@ -640,7 +676,7 @@ export const HQBase = () => {
       }
     }
     return Array.from(byUrl.entries());
-  }, [paths, levelId, instances]);
+  }, [paths, levelId, instances, primitives]);
 
   return (
     <>

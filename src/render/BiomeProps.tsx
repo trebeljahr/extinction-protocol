@@ -15,7 +15,13 @@ import { LEVELS } from "../levels";
 import { getStars, type ProgressData } from "../progress";
 import { mulberry32 } from "../sim/random";
 import { useGame } from "../store";
-import { DEAD_DINO_FOOTPRINT, DEAD_DINO_URLS, DeadDinoInstancer, isDeadDinoUrl } from "./DeadDinos";
+import {
+  DEAD_DINO_FOOTPRINT,
+  DEAD_DINO_URLS,
+  DeadDinoInstancer,
+  deadDinoCollisionRadius,
+  isDeadDinoUrl,
+} from "./DeadDinos";
 
 // World-map decoration. Keep it SPARSE so each level cluster reads as a
 // recognizable little vignette rather than a noisy pile: one robot landmark
@@ -138,7 +144,7 @@ const visibleRadius = (url: string, scale: number): number => {
   // DeadDinoInstancer normalizes them to that size rather than to a
   // TARGET_SIZE_BY_ROLE bucket (skinned mesh + custom death pose).
   const dino = DEAD_DINO_FOOTPRINT[url];
-  if (dino !== undefined) return (dino * scale) / 2;
+  if (dino !== undefined) return deadDinoCollisionRadius(url, scale);
   const role = classifyPropUrl(url);
   return (TARGET_SIZE_BY_ROLE[role] * scale) / 2;
 };

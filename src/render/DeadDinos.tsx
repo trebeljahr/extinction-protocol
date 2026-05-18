@@ -29,6 +29,14 @@ export const DEAD_DINO_FOOTPRINT: Record<string, number> = Object.fromEntries(
 );
 export const isDeadDinoUrl = (url: string) => DEAD_DINO_FOOTPRINT[url] !== undefined;
 
+// Placement uses a circle around the corpse's intended visual center. Use
+// more than half the normalized footprint so rotated bbox corners and
+// long tail/head silhouettes stay clear of bases and props.
+const DEAD_DINO_COLLISION_RADIUS_MUL = 0.62;
+
+export const deadDinoCollisionRadius = (url: string, scale: number): number =>
+  (DEAD_DINO_FOOTPRINT[url] ?? 2.0) * scale * DEAD_DINO_COLLISION_RADIUS_MUL;
+
 export type DeadDinoItem = {
   id: string;
   pos: THREE.Vector3;
@@ -118,8 +126,16 @@ export const DeadDinoInstancer = ({ url, items }: { url: string; items: DeadDino
       const s = (footprint / maxDim) * it.scale;
       obj.scale.setScalar(s);
       const scaledBox = measureVisibleBox(obj);
+      const center = scaledBox.getCenter(new THREE.Vector3());
       const liftY = Number.isFinite(scaledBox.min.y) ? -scaledBox.min.y : 0;
-      obj.position.set(it.pos.x, liftY, it.pos.z);
+      const cos = Math.cos(it.rotY);
+      const sin = Math.sin(it.rotY);
+      const centerX = center.x * cos + center.z * sin;
+      const centerZ = -center.x * sin + center.z * cos;
+      // Treat item.pos as the corpse's visual XZ center. Death poses are
+      // often offset from the rig root, and leaving that offset in place
+      // lets a bbox pass placement checks while the mesh clips into bases.
+      obj.position.set(it.pos.x - centerX, liftY, it.pos.z - centerZ);
       obj.rotation.set(0, it.rotY, 0);
       obj.traverse((o) => {
         const m = o as THREE.Mesh;
