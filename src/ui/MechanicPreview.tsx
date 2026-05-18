@@ -6,7 +6,11 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { cloneAndCaptureBase, findClip } from "../render/animUtils";
 import { HEAL_HUG_RADIUS_BY_KIND } from "../render/HealAuras.constants";
 import { measureVisibleBox } from "../render/measureModel";
-import { buildPlusGeometry, buildPlusMaterial } from "../render/RegenBadges.geometry";
+import {
+  buildPlusGeometry,
+  buildPlusMaterial,
+  REGEN_PLUS_LENGTH,
+} from "../render/RegenBadges.geometry";
 import type { MechanicId } from "../sim/mechanicsText";
 import type { DamageType, EnemyKind } from "../sim/types";
 import {
@@ -38,6 +42,7 @@ const FROST_COLOR = new THREE.Color("#cfe6ff");
 const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
 const ELITE_TINT_AMOUNT = 0.55;
 const ELITE_EMISSIVE_AMOUNT = 0.35;
+const REGEN_BADGE_COMPENDIUM_CLEARANCE = REGEN_PLUS_LENGTH * 0.25;
 
 // Mirrors SHIELD_RADIUS_BY_KIND in ShieldBubbles.tsx.
 const SHIELD_RADIUS_BY_KIND: Record<EnemyKind, number> = {
@@ -333,9 +338,9 @@ const RegenBadgeEffect = ({ kind }: { kind: EnemyKind }) => {
     const t = state.clock.elapsedTime;
     const bob = Math.sin(t * 2.6) * 0.04;
     const pulse = 1.05 + 0.1 * Math.sin(t * 4);
-    // Sit just above the head — much lower than the old plane to better
-    // tie the icon to the creature it's regenerating.
-    m.position.set(0, cfg.targetSize * 0.6 + bob, 0);
+    // Add one-quarter cross-length of air so the compendium badge clears
+    // the stego plates without drifting away from the creature.
+    m.position.set(0, cfg.targetSize * 0.6 + REGEN_BADGE_COMPENDIUM_CLEARANCE + bob, 0);
     m.rotation.set(0, t * 1.1, 0);
     m.scale.set(pulse, pulse, pulse);
   });

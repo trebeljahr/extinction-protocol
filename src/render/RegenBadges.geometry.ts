@@ -7,9 +7,11 @@ import * as THREE from "three";
 //
 // Shared between the in-game badge (RegenBadges) and the compendium
 // preview so one set of tweaks updates both surfaces.
+export const REGEN_PLUS_LENGTH = 0.84;
+
 export const buildPlusGeometry = (): THREE.BufferGeometry => {
   const shape = new THREE.Shape();
-  const arm = 0.42;
+  const arm = REGEN_PLUS_LENGTH / 2;
   const half = 0.14;
   shape.moveTo(-half, -arm);
   shape.lineTo(half, -arm);
