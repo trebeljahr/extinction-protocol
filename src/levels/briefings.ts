@@ -4,8 +4,8 @@
 //      → lava → alien), each band a zone the line could not hold.
 //   2. The escalating roster — when a new mechanic debuts in-game
 //      (shielded specimens at L11, healing at L13, regen at L14, the
-//      first elite at L15, multi-lane coordination at L19, the
-//      matriarch's appearances at L5 / L10 / L15 / L30) the field
+//      first desert Matriarch at L15, multi-lane coordination at L19,
+//      the matriarch's appearances at L5 / L10 / L15 / L30) the field
 //      report acknowledges it.
 //   3. The hardware-integration thread. Kairos Corp ran a de-extinction
 //      revival programme; the specimens absorbed the revival hardware
@@ -34,7 +34,7 @@ export const LEVEL_BRIEFING: Record<number, string> = {
   9: "Specimens recovered from the tar are decades-old normals. What is hunting us now grew last quarter. Same species on paper. Not the same animal. The lab cannot tell us what changed because the change is still happening.",
   10: "Larger frame, denser bone. They are bigger between encounters than they should be. Matriarch sighted again — she brought a herd that did not exist last month. The herd is making more of itself faster than we can count.",
 
-  // Desert — integration. Hardware shows up in tissue. Shields, healing, regen, first elite.
+  // Desert — integration. Hardware shows up in tissue. Shields, healing, regen, Matriarch return.
   11: "Integument now deflects kinetic rounds at range. Cross-section shows our scaffolding alloy threaded through the dermal layers. They are growing the metal into themselves. The metal is keeping pace.",
   12: "Confirmed: the larger specimens arrive plated. Both lane entries breached. Whatever round we ended last week with, next week's wave is wearing it. We are watching evolution happen on the firing line.",
   13: "Smaller specimens healing the larger ones mid-engagement. Wounds closing as we watch. The revival tanks did this for us once under sterile conditions. The animals are doing it to each other in the open. We did not design that.",

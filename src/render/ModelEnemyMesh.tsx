@@ -12,7 +12,6 @@ import {
   ADAPTIVE_TINT_BY_TYPE,
   BOSS_VARIANT_MATERIAL,
   BOSS_VARIANT_TINT,
-  ELITE_TINT_BY_KIND,
 } from "../sim/world";
 import { useGame } from "../store";
 import { cloneAndCaptureBase, findClip } from "./animUtils";
@@ -38,13 +37,6 @@ type Props = {
 // toward this as e.frost climbs from 0 → 1.
 const FROST_COLOR = new THREE.Color("#cfe6ff");
 const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
-// Elite chip blends the kind's per-species elite color into the
-// material color and adds a matching emissive rim. Strong enough that
-// elite raptors look noticeably crimson, elite armored shimmer with a
-// chrome-blue cast, etc. Per-kind colors live in world.ts so wave
-// authoring + UI can share them.
-const ELITE_TINT_AMOUNT = 0.55;
-const ELITE_EMISSIVE_AMOUNT = 0.35;
 
 type Item = {
   obj: THREE.Object3D;
@@ -108,13 +100,11 @@ export const ModelEnemyMesh = ({
   // level". When this ref doesn't match the current world, force-recycle
   // all stale items before the live pass runs.
   const worldRef = useRef<World | null>(null);
-  // Stable per-kind elite color — built once and reused for the body
-  // lerp every frame so we don't allocate THREE.Color in the inner loop.
-  // Variant-tagged boss meshes route through the variant tint table so
-  // each biome's matriarch has her own elite glow.
-  const eliteTint = useMemo(
-    () => new THREE.Color(bossVariant ? BOSS_VARIANT_TINT[bossVariant] : ELITE_TINT_BY_KIND[kind]),
-    [kind, bossVariant],
+  // Stable matriarch color — built once and reused for the body lerp
+  // every frame so we don't allocate THREE.Color in the inner loop.
+  const variantTint = useMemo(
+    () => new THREE.Color(bossVariant ? BOSS_VARIANT_TINT[bossVariant] : "#ffffff"),
+    [bossVariant],
   );
   const matriarchMaterial = bossVariant !== undefined ? BOSS_VARIANT_MATERIAL[bossVariant] : null;
   // Adaptive-resistance tint palette — one stable THREE.Color per damage
@@ -483,14 +473,13 @@ export const ModelEnemyMesh = ({
         }
       }
       item.obj.rotation.set(attackPose * 0.18, baseRotY + item.visYaw, attackPose * 0.035);
-      // Publish smoothed body-center XZ + bob so decoration renderers
-      // (fierce halo, etc.) ride the same animated pose as the skeleton
-      // instead of snapping to the raw sim position.
+      // Publish smoothed body-center XZ + bob so any decoration renderers
+      // ride the same animated pose as the skeleton instead of snapping
+      // to the raw sim position.
       setEnemyRender(e.id, { x: item.visX, z: item.visZ, bobY: bobY - attackPose * 0.08 });
 
       const flashing = world.time < e.flashUntil;
       const frost = e.frost;
-      const elite = e.elite;
       // Matriarchs always wear their variant tint — they're a distinct
       // queen, not a chip-stacked rank-and-file. Captured here once per
       // enemy so the inner traverse callback is a cheap branch.
@@ -500,8 +489,7 @@ export const ModelEnemyMesh = ({
       // which damage type they're now hardened against. Lerp amount
       // scales with level (set at spawn into e.adaptiveResistAmount)
       // so later mutations read as more pronounced on screen.
-      // Priority is below frost/matriarch/elite; the elite chip's
-      // silhouette read still wins when both fire.
+      // Priority is below frost and matriarch tint.
       const adaptiveType = e.adaptiveResistType;
       const adaptiveAmount = e.adaptiveResistAmount ?? 0;
       const adaptiveTint = adaptiveType ? adaptiveTintByType[adaptiveType] : null;
@@ -513,15 +501,13 @@ export const ModelEnemyMesh = ({
         const apply = (mm: THREE.MeshStandardMaterial) => {
           // Restore base color each frame, then layer on tints in order
           // of priority: frost wins outright (the "frozen solid" read
-          // shouldn't fight with elite), otherwise elite shifts the
-          // material toward the kind-specific tint. Skipping when both
-          // are 0 keeps the no-op fast path allocation-free.
+          // shouldn't fight with body tint). Skipping when both are 0
+          // keeps the no-op fast path allocation-free.
           const base = mm.userData.baseColor as THREE.Color | undefined;
           if (base && mm.color) {
             if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
             else if (matriarch && matriarchMaterial)
-              mm.color.copy(base).lerp(eliteTint, matriarchMaterial.tintAmount);
-            else if (elite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
+              mm.color.copy(base).lerp(variantTint, matriarchMaterial.tintAmount);
             else if (adaptiveTint && adaptiveAmount > 0)
               mm.color.copy(base).lerp(adaptiveTint, adaptiveAmount);
             else mm.color.copy(base);
@@ -543,15 +529,11 @@ export const ModelEnemyMesh = ({
           } else if (matriarch && matriarchMaterial) {
             // Variant-specific charge: early species queens stay material
             // first, later queens carry more supernatural light.
-            mm.emissive.copy(eliteTint).multiplyScalar(matriarchMaterial.emissiveAmount);
-          } else if (elite) {
-            // Inner rim glow in the kind's elite color — sells the
-            // tint as a metallic / energized look rather than a dye job.
-            mm.emissive.copy(eliteTint).multiplyScalar(ELITE_EMISSIVE_AMOUNT);
+            mm.emissive.copy(variantTint).multiplyScalar(matriarchMaterial.emissiveAmount);
           } else if (adaptiveEmissive && adaptiveAmount > 0) {
             // Subtle adaptive inner glow scaled to the body tint
             // amount so heavy late-game / high-streak adaptation pops
-            // visibly without ever competing with frost/matriarch/elite.
+            // visibly without ever competing with frost/matriarch tint.
             mm.emissive.copy(adaptiveEmissive).multiplyScalar(adaptiveAmount * 0.6);
           } else {
             mm.emissive.setRGB(0, 0, 0);

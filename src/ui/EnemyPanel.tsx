@@ -9,13 +9,9 @@ import {
   BOSS_VARIANT_STATS,
   DAMAGE_TYPE_COLOR,
   DAMAGE_TYPE_LABEL,
-  ELITE_RESIST_FLATTEN,
-  ELITE_SLOW_RESIST_BONUS,
-  ELITE_SLOW_RESIST_CAP,
   ENEMY_LABEL,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
-  FIERCE_DAMAGE_MUL,
   HEAL_AURA_RANGE,
   HEAL_AURA_RATE,
   REGEN_DAMAGE_PAUSE,
@@ -27,7 +23,7 @@ import { EnemyIcon } from "./EnemyIcon";
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
 // Chip metadata — color + short tooltip. Layout reads consistently
-// across the panel so combos read at a glance ("Shielded Elite Stego").
+// across the panel so combos read at a glance ("Shielded Regen Stego").
 type ChipInfo = { name: string; color: string; bg: string; border: string; title: string };
 const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
   shielded: {
@@ -51,20 +47,6 @@ const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
     border: "rgba(187,255,200,0.5)",
     title: `Regen — heals ${REGEN_RATE} HP/sec, paused for ${REGEN_DAMAGE_PAUSE.toFixed(1)}s after damage`,
   },
-  elite: {
-    name: "Elite",
-    color: "#ffb030",
-    bg: "rgba(255,176,48,0.10)",
-    border: "rgba(255,176,48,0.5)",
-    title: `Elite — resist spread flattened by ${Math.round(ELITE_RESIST_FLATTEN * 100)}%, +${Math.round(ELITE_SLOW_RESIST_BONUS * 100)}% slow resist`,
-  },
-  fierce: {
-    name: "Fierce",
-    color: "#ff5a3a",
-    bg: "rgba(255,90,58,0.12)",
-    border: "rgba(255,90,58,0.5)",
-    title: `Fierce — deals ${Math.round((FIERCE_DAMAGE_MUL - 1) * 100)}% more damage on contact`,
-  },
 };
 
 export const EnemyPanel = () => {
@@ -77,8 +59,6 @@ export const EnemyPanel = () => {
   const maxShield = useGame((s) => s.ui.inspectedEnemyMaxShield);
   const healAura = useGame((s) => s.ui.inspectedEnemyHealAura);
   const regen = useGame((s) => s.ui.inspectedEnemyRegen);
-  const elite = useGame((s) => s.ui.inspectedEnemyElite);
-  const fierce = useGame((s) => s.ui.inspectedEnemyFierce);
   const extraResists = useGame((s) => s.ui.inspectedEnemyExtraResists);
   const adaptiveType = useGame((s) => s.ui.inspectedEnemyAdaptiveType);
 
@@ -98,29 +78,22 @@ export const EnemyPanel = () => {
 
   const hpPct = hp !== null && maxHp ? clamp01(hp / maxHp) : 0;
   const shieldPct = shield !== null && maxShield > 0 ? clamp01(shield / maxShield) : 0;
-  // Elite chip flattens the resist spread toward 1×, then the resists
-  // chip multiplies on top. Mirrors applyDamage so the panel reflects
-  // the real damage taken in-flight.
+  // Resists chip multiplies on top of base species / matriarch resists.
+  // Mirrors applyDamage so the panel reflects the real damage taken
+  // in-flight.
   const resist = Object.fromEntries(
     DAMAGE_TYPE_ORDER.map((t) => {
-      const eliteMul = elite
-        ? baseResist[t] + (1 - baseResist[t]) * ELITE_RESIST_FLATTEN
-        : baseResist[t];
       const extra = extraResists[t] ?? 1;
-      return [t, eliteMul * extra];
+      return [t, baseResist[t] * extra];
     }),
   ) as Record<DamageType, number>;
   const hasAdaptation = Object.keys(extraResists).length > 0;
-  const slowResist = elite
-    ? Math.min(ELITE_SLOW_RESIST_CAP, baseSlowResist + ELITE_SLOW_RESIST_BONUS)
-    : baseSlowResist;
+  const slowResist = baseSlowResist;
 
   const activeChips: EnemyChip[] = [];
   if (maxShield > 0) activeChips.push("shielded");
   if (healAura) activeChips.push("healAura");
   if (regen) activeChips.push("regen");
-  if (elite) activeChips.push("elite");
-  if (fierce) activeChips.push("fierce");
 
   return (
     <div className="enemy-panel">
@@ -273,7 +246,6 @@ export const EnemyPanel = () => {
           else value = "·";
           const state: "good" | "bad" | "neutral" = pct > 0 ? "bad" : pct < 0 ? "good" : "neutral";
           const titleParts = [`${DAMAGE_TYPE_LABEL[type]}: ${mul.toFixed(2)}×`];
-          if (elite) titleParts.push("(elite)");
           if (adapted) {
             titleParts.push(
               adaptPct > 0
@@ -301,7 +273,7 @@ export const EnemyPanel = () => {
           {slowResist > 0 && (
             <ResistChip
               state="good"
-              title={`Chill resistance: ${Math.round(slowResist * 100)}%${elite ? ` (+${Math.round(ELITE_SLOW_RESIST_BONUS * 100)}% elite)` : ""}`}
+              title={`Chill resistance: ${Math.round(slowResist * 100)}%`}
               nameColor={DAMAGE_TYPE_COLOR.cold}
               name="Chill resist"
               value={`${Math.round(slowResist * 100)}%`}

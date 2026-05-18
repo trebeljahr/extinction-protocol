@@ -8,7 +8,6 @@ import { CameraRig } from "./CameraRig";
 import { CoalTrail } from "./CoalTrail";
 import { EasterEggs } from "./EasterEggs";
 import { Effects } from "./Effects";
-import { FierceHalos } from "./FierceHalos";
 import { Ground } from "./Ground";
 import { HealAuras } from "./HealAuras";
 import { HealthBars } from "./HealthBars";
@@ -138,7 +137,6 @@ export const PlayScene = () => {
       <HiveDrones />
       <ShieldBubbles />
       <HealAuras />
-      <FierceHalos />
       <RegenBadges />
 
       <ModelRobotMesh />

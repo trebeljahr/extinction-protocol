@@ -22,8 +22,6 @@ export const MechanicIcon = ({ id, size = 220 }: Props) => {
         {id === "shielded" && <ShieldGlyph fill={fill} />}
         {id === "healAura" && <HealAuraGlyph fill={fill} />}
         {id === "regen" && <RegenGlyph fill={fill} />}
-        {id === "elite" && <EliteGlyph fill={fill} />}
-        {id === "fierce" && <FierceGlyph fill={fill} />}
         {id === "slow" && <SlowGlyph fill={fill} />}
         {id === "adaptation" && <AdaptationGlyph fill={fill} />}
       </svg>
@@ -109,54 +107,6 @@ const RegenGlyph = ({ fill }: { fill: string }) => (
       strokeWidth="2.5"
       strokeLinecap="round"
     />
-  </g>
-);
-
-const EliteGlyph = ({ fill }: { fill: string }) => (
-  <g>
-    <polygon
-      points="100,40 120,90 174,98 132,134 144,188 100,160 56,188 68,134 26,98 80,90"
-      fill={fill}
-      fillOpacity="0.18"
-      stroke={fill}
-      strokeWidth="2.5"
-      strokeLinejoin="round"
-    />
-    <circle cx="100" cy="115" r="14" fill={fill} fillOpacity="0.5" />
-  </g>
-);
-
-const FierceGlyph = ({ fill }: { fill: string }) => (
-  <g>
-    <circle
-      cx="100"
-      cy="100"
-      r="60"
-      fill="none"
-      stroke={fill}
-      strokeOpacity="0.35"
-      strokeWidth="3"
-    />
-    <circle cx="100" cy="100" r="44" fill={fill} fillOpacity="0.18" stroke={fill} strokeWidth="2" />
-    {[0, 60, 120, 180, 240, 300].map((deg) => {
-      const a = (deg * Math.PI) / 180;
-      const x1 = 100 + Math.cos(a) * 68;
-      const y1 = 100 + Math.sin(a) * 68;
-      const x2 = 100 + Math.cos(a) * 92;
-      const y2 = 100 + Math.sin(a) * 92;
-      return (
-        <line
-          key={deg}
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={fill}
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-      );
-    })}
   </g>
 );
 

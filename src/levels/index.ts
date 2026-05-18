@@ -98,8 +98,6 @@ type SpawnFlags = {
   shielded?: boolean;
   healAura?: boolean;
   regen?: boolean;
-  elite?: boolean;
-  fierce?: boolean;
   resists?: Partial<Record<DamageType, number>>;
 };
 
@@ -111,8 +109,6 @@ const toSpawns = (c: EnemyCounts, pathIndex = 0, flags: SpawnFlags = {}): EnemyS
     ...(flags.shielded ? { shielded: true } : {}),
     ...(flags.healAura ? { healAura: true } : {}),
     ...(flags.regen ? { regen: true } : {}),
-    ...(flags.elite ? { elite: true } : {}),
-    ...(flags.fierce ? { fierce: true } : {}),
     ...(flags.resists ? { resists: flags.resists } : {}),
   }));
 
@@ -162,8 +158,8 @@ const FLAME_ADAPTED_SWARM_RESISTS: Partial<Record<DamageType, number>> = { flame
 // one tower's damage type. Paired with `withSpecialist` below to drop a
 // small adapted minority into otherwise vanilla mid/late waves so a
 // single-tower spam build stalls on the holdouts. Multiplier 0.05 stacks
-// on top of the kind's base resist; T3 anti-modifiers and the elite-flatten
-// chip still soften them, which keeps a fully-built portfolio honest.
+// on top of the kind's base resist; T3 anti-modifiers still soften them,
+// which keeps a fully-built portfolio honest.
 //
 // Adaptive-resistance design hook: keep the per-spawn `resists` chip
 // dimension (`Partial<Record<DamageType, number>>`) general — wave authors
@@ -196,8 +192,6 @@ const withSpecialist = (
     count: number;
     resists: Partial<Record<DamageType, number>>;
     pathIndex?: number;
-    fierce?: boolean;
-    elite?: boolean;
     shielded?: boolean;
   },
 ): WaveSpec => ({
@@ -209,8 +203,6 @@ const withSpecialist = (
       count: spec.count,
       pathIndex: spec.pathIndex ?? 0,
       resists: spec.resists,
-      ...(spec.fierce ? { fierce: true } : {}),
-      ...(spec.elite ? { elite: true } : {}),
       ...(spec.shielded ? { shielded: true } : {}),
     },
   ],
@@ -349,7 +341,7 @@ const trickleStream = (
   minInterval = 1.8,
   maxInterval = 2.8,
   startDelay = 6,
-  modifiers?: { shielded?: boolean; fierce?: boolean; elite?: boolean },
+  modifiers?: { shielded?: boolean },
 ): BossTrickleStream => ({ pathIndex, kinds, minInterval, maxInterval, startDelay, ...modifiers });
 
 export const LEVELS: LevelConfig[] = [
@@ -596,7 +588,7 @@ export const LEVELS: LevelConfig[] = [
       bossWave("raptor", { raptor: 6, allosaur: 2 }, 1, 0.55),
     ],
     heroic: {
-      tagline: "No pulse. The Matriarch brings her fierce kin.",
+      tagline: "No pulse. The Matriarch brings her heavy kin.",
       forbiddenTowers: ["pulse"],
       startGold: 380,
       waves: [
@@ -611,10 +603,10 @@ export const LEVELS: LevelConfig[] = [
         {
           archetype: "swarm",
           spacing: 0.13,
-          spawns: [...toSpawns({ raptor: 24, swarm: 18 }, 0, { fierce: true })],
+          spawns: [...toSpawns({ raptor: 24, swarm: 18 }, 0)],
         },
         // Boss wave: same Raptor Matriarch debut, but flanked by a
-        // fierce raptor pack and an extra escort. No pulse means chain
+        // heavy raptor pack and an extra escort. No pulse means chain
         // burst + flame DoT carry the kill.
         {
           archetype: "convoy",
@@ -622,7 +614,7 @@ export const LEVELS: LevelConfig[] = [
           bossWave: true,
           spawns: [
             ...toSpawns({ raptor: 8, allosaur: 3 }, 0),
-            ...toSpawns({ raptor: 6 }, 0, { fierce: true }),
+            ...toSpawns({ raptor: 6 }, 0),
             bossSpawn("raptor", 0),
           ],
           bossTrickle: [trickleStream(0, ["swarm", "raptor"], 1.8, 2.6, 8)],
@@ -979,30 +971,22 @@ export const LEVELS: LevelConfig[] = [
         // Shielded raptor pack early — denies easy chain-clears.
         shielded({ raptor: 14, swarm: 6 }, 0.5),
         rush(100, 18),
-        // Fierce armored push — 40% extra damage on leaks, no mortar to
         // soft-counter the plates.
         {
           archetype: "heavy",
           spacing: 0.85,
-          spawns: [
-            ...toSpawns({ armored: 5 }, 0, { fierce: true }),
-            ...toSpawns({ stego: 4, allosaur: 4 }),
-          ],
+          spawns: [...toSpawns({ armored: 5 }, 0), ...toSpawns({ stego: 4, allosaur: 4 })],
         },
         chaos({ raptor: 22, swarm: 30, allosaur: 10, stego: 5, armored: 3 }),
         rush(140, 30),
-        // Elite stego vanguard — flattened resists turn his plates into
         // a serious chain-only puzzle.
         {
           archetype: "vanguard",
           spacing: 0.6,
-          spawns: [
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
-            ...toSpawns({ armored: 8, allosaur: 4 }),
-          ],
+          spawns: [...toSpawns({ stego: 2 }, 0), ...toSpawns({ armored: 8, allosaur: 4 })],
         },
         mixed({ raptor: 28, swarm: 22, allosaur: 12, stego: 7, armored: 4 }),
-        // Boss wave: Stegosaur Matriarch with a fiercer entourage and a
+        // Boss wave: Stegosaur Matriarch with a denser entourage and a
         // denser child trickle. No mortar means the trickle pressure has
         // to be cleared by pulse/chain/flame while the matriarch eats
         // chain bolts.
@@ -1011,14 +995,14 @@ export const LEVELS: LevelConfig[] = [
           spacing: 0.65,
           bossWave: true,
           spawns: [
-            ...toSpawns({ armored: 2 }, 0, { fierce: true }),
+            ...toSpawns({ armored: 2 }, 0),
             ...toSpawns({ allosaur: 5, titan: 1 }),
-            ...toSpawns({ stego: 1 }, 0, { elite: true }),
+            ...toSpawns({ stego: 1 }, 0),
             bossSpawn("stego", 0),
           ],
           bossTrickle: [
             trickleStream(0, ["swarm", "raptor"], 1.3, 1.9, 5),
-            trickleStream(0, ["raptor", "allosaur"], 0.9, 1.4, 18, { fierce: true }),
+            trickleStream(0, ["raptor", "allosaur"], 0.9, 1.4, 18),
           ],
         },
       ],
@@ -1236,24 +1220,21 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 14, swarm: 16, allosaur: 5, stego: 3, armored: 2 }],
           [1, { raptor: 14, swarm: 16, allosaur: 5, stego: 3, armored: 2 }],
         ),
-        // Fierce swarm rush across both lanes — leaks bite hard.
+        // Heavy swarm rush across both lanes — leaks bite hard.
         {
           archetype: "swarm",
           spacing: 0.09,
-          spawns: [
-            ...toSpawns({ swarm: 55 }, 0, { fierce: true }),
-            ...toSpawns({ swarm: 55, raptor: 10 }, 1, { fierce: true }),
-          ],
+          spawns: [...toSpawns({ swarm: 55 }, 0), ...toSpawns({ swarm: 55, raptor: 10 }, 1)],
         },
-        // Shielded armored convoy on both lanes, fiercer escort.
+        // Shielded armored convoy on both lanes, denser escort.
         {
           archetype: "heavy",
           spacing: 0.8,
           spawns: [
             ...toSpawns({ armored: 5, stego: 3 }, 0, { shielded: true }),
-            ...toSpawns({ allosaur: 4 }, 0, { fierce: true }),
+            ...toSpawns({ allosaur: 4 }, 0),
             ...toSpawns({ armored: 5, stego: 3 }, 1, { shielded: true }),
-            ...toSpawns({ allosaur: 4 }, 1, { fierce: true }),
+            ...toSpawns({ allosaur: 4 }, 1),
           ],
         },
         split(
@@ -1262,14 +1243,14 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 3 }],
           [1, { raptor: 16, swarm: 20, allosaur: 6, stego: 4, armored: 3 }],
         ),
-        // Finale: elite-armored on each lane, plain mass behind.
+        // Finale: heavy-armored on each lane, plain mass behind.
         {
           archetype: "chaos",
           spacing: 0.25,
           spawns: [
-            ...toSpawns({ armored: 2 }, 0, { elite: true }),
+            ...toSpawns({ armored: 2 }, 0),
             ...toSpawns({ raptor: 18, swarm: 22, allosaur: 8, stego: 5, titan: 1 }, 0),
-            ...toSpawns({ armored: 2 }, 1, { elite: true }),
+            ...toSpawns({ armored: 2 }, 1),
             ...toSpawns({ raptor: 18, swarm: 22, allosaur: 8, stego: 5, titan: 1 }, 1),
           ],
         },
@@ -1706,33 +1687,23 @@ export const LEVELS: LevelConfig[] = [
       heavy({ armored: 10, stego: 6, allosaur: 5 }),
       chaos({ raptor: 24, swarm: 32, para: 7, allosaur: 10, stego: 6, armored: 4 }),
       rush(155, 32),
-      // Elite debut: a single elite stego leads, plain pack trails.
-      // The kind-specific jade tint on its plates pops the silhouette
-      // mid-pack, and flattened resists mean explosive isn't free.
+      // Heavy debut: armored plate leads, plain pack trails.
       {
         archetype: "vanguard",
         spacing: 0.5,
-        spawns: [
-          ...toSpawns({ stego: 2 }, 0, { elite: true }),
-          ...toSpawns({ raptor: 22, allosaur: 8, stego: 5 }),
-        ],
+        spawns: [...toSpawns({ stego: 2 }, 0), ...toSpawns({ raptor: 22, allosaur: 8, stego: 5 })],
       },
-      // Fierce raptor swarm — the red halo crowd. Each raptor hits 40%
-      // harder, so a leak is much more punishing.
+      // Dense raptor swarm tests leak coverage.
       {
         archetype: "swarm",
         spacing: 0.12,
-        spawns: [...toSpawns({ raptor: 36, swarm: 28 }, 0, { fierce: true })],
+        spawns: [...toSpawns({ raptor: 36, swarm: 28 }, 0)],
       },
-      // Elite armored breach — glacial-blue chrome plate, riding a
-      // dense tank pack.
+      // Heavy armored breach riding a dense tank pack.
       {
         archetype: "heavy",
         spacing: 0.85,
-        spawns: [
-          ...toSpawns({ armored: 3 }, 0, { elite: true }),
-          ...toSpawns({ stego: 7, allosaur: 7, titan: 2 }),
-        ],
+        spawns: [...toSpawns({ armored: 3 }, 0), ...toSpawns({ stego: 7, allosaur: 7, titan: 2 })],
       },
       heavy({ armored: 20, stego: 11, allosaur: 8, titan: 3 }),
       // Mixed-defense penultimate: shielded healing paras + plain push +
@@ -1752,21 +1723,20 @@ export const LEVELS: LevelConfig[] = [
       // damage rings through her at 1.7× but her sprint is fast enough
       // that the player has to commit slow + AoE early. Para children
       // pile up every 2.2 seconds; bring shield-busters or watch the
-      // chain coils tickle the bubbles forever. Elite-fierce armored
-      // still leads to keep the anti-modifier T3 lesson alive.
+      // lane drown in support targets.
       {
         archetype: "convoy",
         spacing: 0.55,
         bossWave: true,
         spawns: [
-          ...toSpawns({ armored: 2 }, 0, { elite: true, fierce: true }),
+          ...toSpawns({ armored: 2 }, 0),
           ...toSpawns({ allosaur: 3, stego: 2, armored: 2 }),
-          ...toSpawns({ stego: 1 }, 0, { elite: true, regen: true }),
+          ...toSpawns({ stego: 1 }, 0, { regen: true }),
           bossSpawn("para", 0),
         ],
         bossTrickle: [
           trickleStream(0, ["swarm", "raptor", "allosaur"], 1.4, 2.0, 6),
-          trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 22, { fierce: true }),
+          trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 22),
         ],
       },
     ],
@@ -1788,20 +1758,20 @@ export const LEVELS: LevelConfig[] = [
           archetype: "vanguard",
           spacing: 0.5,
           spawns: [
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ raptor: 20, allosaur: 7, stego: 4 }),
           ],
         },
         {
           archetype: "swarm",
           spacing: 0.12,
-          spawns: [...toSpawns({ raptor: 34, swarm: 26 }, 0, { fierce: true })],
+          spawns: [...toSpawns({ raptor: 34, swarm: 26 }, 0)],
         },
         {
           archetype: "heavy",
           spacing: 0.85,
           spawns: [
-            ...toSpawns({ armored: 3 }, 0, { elite: true }),
+            ...toSpawns({ armored: 3 }, 0),
             ...toSpawns({ stego: 6, allosaur: 7, titan: 1 }),
           ],
         },
@@ -1823,14 +1793,14 @@ export const LEVELS: LevelConfig[] = [
           spacing: 0.5,
           bossWave: true,
           spawns: [
-            ...toSpawns({ armored: 3 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 3 }, 0),
             ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
-            ...toSpawns({ stego: 2 }, 0, { elite: true, regen: true }),
+            ...toSpawns({ stego: 2 }, 0, { regen: true }),
             bossSpawn("para", 0),
           ],
           bossTrickle: [
             trickleStream(0, ["swarm", "raptor", "allosaur"], 1.2, 1.8, 5),
-            trickleStream(0, ["raptor", "allosaur", "para"], 0.8, 1.3, 18, { fierce: true }),
+            trickleStream(0, ["raptor", "allosaur", "para"], 0.8, 1.3, 18),
           ],
         },
       ],
@@ -1855,7 +1825,7 @@ export const LEVELS: LevelConfig[] = [
         {
           archetype: "swarm",
           spacing: 0.13,
-          spawns: [...toSpawns({ raptor: 30, swarm: 24 }, 0, { fierce: true })],
+          spawns: [...toSpawns({ raptor: 30, swarm: 24 }, 0)],
         },
         heavy({ armored: 14, stego: 8, allosaur: 6, titan: 1 }),
         {
@@ -1863,13 +1833,13 @@ export const LEVELS: LevelConfig[] = [
           spacing: 0.5,
           bossWave: true,
           spawns: [
-            ...toSpawns({ armored: 3 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 3 }, 0),
             ...toSpawns({ allosaur: 4, stego: 3, armored: 3 }),
             bossSpawn("para", 0),
           ],
           bossTrickle: [
             trickleStream(0, ["swarm", "raptor", "allosaur"], 1.4, 2.0, 6),
-            trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 20, { fierce: true }),
+            trickleStream(0, ["raptor", "allosaur", "para"], 0.9, 1.5, 20),
           ],
         },
       ],
@@ -2119,7 +2089,7 @@ export const LEVELS: LevelConfig[] = [
     // Heroic — no pulse, no hive. The kinetic workhorse and the drone
     // support both gone. Chain handles swarm waves, cryo + mortar must
     // anchor the armored push, flame chews the regen brick later.
-    // Adds an elite leader to several waves to sand off the resist
+    // Adds a heavy leader to several waves to sand off the resist
     // crutch, plus a regen-stego trickle that previously didn't exist.
     heroic: {
       startGold: 320,
@@ -2129,12 +2099,11 @@ export const LEVELS: LevelConfig[] = [
         mixed({ raptor: 22, swarm: 18, allosaur: 8, stego: 3 }),
         rush(110, 22),
         mixed({ raptor: 28, swarm: 24, allosaur: 10, stego: 5 }),
-        // Elite-armored vanguard — flattened resists, plain pack trails.
         {
           archetype: "vanguard",
           spacing: 0.55,
           spawns: [
-            ...toSpawns({ armored: 2 }, 0, { elite: true }),
+            ...toSpawns({ armored: 2 }, 0),
             ...toSpawns({ armored: 11, stego: 7, allosaur: 5 }),
           ],
         },
@@ -2152,14 +2121,14 @@ export const LEVELS: LevelConfig[] = [
           ],
         },
         chaos({ raptor: 28, swarm: 38, allosaur: 12, stego: 7, armored: 5, titan: 2 }),
-        // Shielded armored + elite stego — chain's anti-shield bounce
+        // Shielded armored + heavy stego — chain's anti-shield bounce
         // wins this if placed early in the corkscrew.
         {
           archetype: "heavy",
           spacing: 0.85,
           spawns: [
             ...toSpawns({ armored: 10 }, 0, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ stego: 7, allosaur: 7, titan: 2 }),
           ],
         },
@@ -2218,7 +2187,7 @@ export const LEVELS: LevelConfig[] = [
     // no electric bounce against swarms or shields, no DoT for regen
     // or dense packs. Pulse must headshot the leaders, mortar splash
     // chops the line, cryo buys cycle time, hive amplifies. Adds
-    // fierce raptors and a shielded armored convoy to spike pressure.
+    // heavy raptors and a shielded armored convoy to spike pressure.
     heroic: {
       startGold: 400,
       forbiddenTowers: ["chain", "flame"],
@@ -2240,22 +2209,22 @@ export const LEVELS: LevelConfig[] = [
         },
         mixed({ raptor: 32, swarm: 28, allosaur: 12, stego: 7 }),
         chaos({ raptor: 28, swarm: 38, allosaur: 12, stego: 7, armored: 5, titan: 2 }),
-        // Fierce raptor + swarm wall — leak math is brutal without
+        // Heavy raptor + swarm wall — leak math is brutal without
         // flame DoT to lock the lane down.
         {
           archetype: "swarm",
           spacing: 0.09,
-          spawns: [...toSpawns({ raptor: 50, swarm: 90 }, 0, { fierce: true })],
+          spawns: [...toSpawns({ raptor: 50, swarm: 90 }, 0)],
         },
         heavy({ armored: 20, stego: 10, allosaur: 8, titan: 2 }),
         mixed({ raptor: 36, swarm: 32, allosaur: 14, stego: 9 }),
-        // Elite-armored vanguard with regen tag — pulse focus fire only
+        // Heavy-armored vanguard with regen tag — pulse focus fire only
         // way to keep regen paused.
         {
           archetype: "heavy",
           spacing: 0.9,
           spawns: [
-            ...toSpawns({ armored: 3 }, 0, { elite: true, regen: true }),
+            ...toSpawns({ armored: 3 }, 0, { regen: true }),
             ...toSpawns({ armored: 18, stego: 11, allosaur: 9, titan: 3 }),
           ],
         },
@@ -2365,7 +2334,7 @@ export const LEVELS: LevelConfig[] = [
     // king — yanking it forces pulse-DPS + chain-coverage to do the
     // tank work the splash circle was eating for free. Heavy waves
     // gain a shielded armored core and the chaos waves swap in a
-    // fierce-raptor pack so single-leak coverage hurts more.
+    // heavy-raptor pack so single-leak coverage hurts more.
     heroic: {
       startGold: 600,
       tagline: "No mortar. Triple-front armor breach.",
@@ -2398,17 +2367,16 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 16, swarm: 12, allosaur: 4 }],
           [2, { raptor: 16, swarm: 12, allosaur: 4 }],
         ),
-        // Fierce raptors on the chaos pack — one leak now eats 1.4× the
         // life-pool, so the "miss a couple" room of normal mode is gone.
         {
           archetype: "chaos",
           spacing: 0.28,
           spawns: [
-            ...toSpawns({ raptor: 14, swarm: 16 }, 0, { fierce: true }),
+            ...toSpawns({ raptor: 14, swarm: 16 }, 0),
             ...toSpawns({ allosaur: 4, stego: 2 }, 0),
-            ...toSpawns({ raptor: 14, swarm: 16 }, 1, { fierce: true }),
+            ...toSpawns({ raptor: 14, swarm: 16 }, 1),
             ...toSpawns({ allosaur: 4, stego: 2 }, 1),
-            ...toSpawns({ raptor: 14, swarm: 16 }, 2, { fierce: true }),
+            ...toSpawns({ raptor: 14, swarm: 16 }, 2),
             ...toSpawns({ allosaur: 4, stego: 2 }, 2),
           ],
         },
@@ -2427,20 +2395,20 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 18, swarm: 14, allosaur: 6, stego: 3 }],
           [2, { raptor: 18, swarm: 14, allosaur: 6, stego: 3 }],
         ),
-        // Shielded armored + elite stego punctuation — without mortar to
+        // Shielded armored + heavy stego punctuation — without mortar to
         // crack groups, chain is the only path through the bubble screen.
         {
           archetype: "heavy",
           spacing: 0.82,
           spawns: [
             ...toSpawns({ armored: 5 }, 0, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ allosaur: 4 }, 0),
             ...toSpawns({ armored: 5 }, 1, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 1, { elite: true }),
+            ...toSpawns({ stego: 2 }, 1),
             ...toSpawns({ allosaur: 4 }, 1),
             ...toSpawns({ armored: 5 }, 2, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 2, { elite: true }),
+            ...toSpawns({ stego: 2 }, 2),
             ...toSpawns({ allosaur: 4 }, 2),
           ],
         },
@@ -2459,7 +2427,7 @@ export const LEVELS: LevelConfig[] = [
           [1, { armored: 14, stego: 7, allosaur: 5, titan: 2 }],
           [2, { armored: 14, stego: 7, allosaur: 5, titan: 2 }],
         ),
-        // Heroic finale: same chaos backbone, but with an elite-fierce
+        // Heroic finale: same chaos backbone, but with a stacked
         // titan per lane. Electric chain is the only single-tower answer
         // and it still has to be saturated across all three converging
         // entrances at once.
@@ -2467,11 +2435,11 @@ export const LEVELS: LevelConfig[] = [
           archetype: "chaos",
           spacing: 0.2,
           spawns: [
-            ...toSpawns({ titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 0),
             ...toSpawns({ raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }, 0),
-            ...toSpawns({ titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 1),
             ...toSpawns({ raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }, 1),
-            ...toSpawns({ titan: 1 }, 2, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 2),
             ...toSpawns({ raptor: 24, swarm: 28, allosaur: 10, stego: 8, armored: 7, titan: 3 }, 2),
           ],
         },
@@ -2750,18 +2718,17 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 16, swarm: 20, para: 5, allosaur: 6, stego: 4, armored: 2 }],
         ),
         split("swarm", 0.07, [0, { swarm: 90 }], [1, { swarm: 90, raptor: 18 }]),
-        // Convoy: shielded armored sandwich around an elite stego — even
-        // with mortar in hand, the elite-flatten makes splash less
+        // Convoy: shielded armored sandwich around a heavy stego — even
         // efficient. Chain is the budget answer; cryo keeps the brick slow.
         {
           archetype: "convoy",
           spacing: 0.8,
           spawns: [
             ...toSpawns({ armored: 5 }, 0, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ allosaur: 4, titan: 1 }, 0),
             ...toSpawns({ armored: 5 }, 1, { shielded: true }),
-            ...toSpawns({ stego: 2 }, 1, { elite: true }),
+            ...toSpawns({ stego: 2 }, 1),
             ...toSpawns({ allosaur: 4, titan: 1 }, 1),
           ],
         },
@@ -2802,7 +2769,7 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 30, swarm: 38, para: 13, allosaur: 15, stego: 13, armored: 10, titan: 5 }],
           [1, { raptor: 30, swarm: 38, para: 13, allosaur: 15, stego: 13, armored: 10, titan: 5 }],
         ),
-        // Boss wave: twin T-Rex Matriarchs again, but now with a fierce
+        // Boss wave: twin T-Rex Matriarchs again, but now with a heavy
         // titan riding each lane and a third trickle stream of shielded
         // raptors. No pulse means the player can't focus-fire a queen
         // down — the answer is chain saturation + cryo lockdown + mortar
@@ -2812,9 +2779,9 @@ export const LEVELS: LevelConfig[] = [
           spacing: 0.48,
           bossWave: true,
           spawns: [
-            ...toSpawns({ titan: 1 }, 0, { fierce: true }),
+            ...toSpawns({ titan: 1 }, 0),
             ...toSpawns({ stego: 4, armored: 6, titan: 2 }, 0),
-            ...toSpawns({ titan: 1 }, 1, { fierce: true }),
+            ...toSpawns({ titan: 1 }, 1),
             ...toSpawns({ stego: 4, armored: 6, titan: 2 }, 1),
             bossSpawn("allosaur", 0),
             bossSpawn("allosaur", 1),
@@ -3028,7 +2995,7 @@ export const LEVELS: LevelConfig[] = [
     // mean chain's bounce was buying free coverage between paths —
     // yank it and every lane needs its own dedicated coverage. Heavy
     // waves bring shielded armored that pulse can crack; the late
-    // chaos waves swap in fierce-raptor batches to punish a single
+    // chaos waves swap in heavy-raptor batches to punish a single
     // dropped lane.
     heroic: {
       startGold: 700,
@@ -3069,17 +3036,17 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 18, swarm: 14, allosaur: 6 }],
           [2, { raptor: 18, swarm: 14, allosaur: 6 }],
         ),
-        // Fierce raptor chaos on every lane — leaking one is much more
+        // Heavy raptor chaos on every lane — leaking one is much more
         // expensive now.
         {
           archetype: "chaos",
           spacing: 0.28,
           spawns: [
-            ...toSpawns({ raptor: 16, swarm: 18 }, 0, { fierce: true }),
+            ...toSpawns({ raptor: 16, swarm: 18 }, 0),
             ...toSpawns({ allosaur: 6, stego: 3 }, 0),
-            ...toSpawns({ raptor: 16, swarm: 18 }, 1, { fierce: true }),
+            ...toSpawns({ raptor: 16, swarm: 18 }, 1),
             ...toSpawns({ allosaur: 6, stego: 3 }, 1),
-            ...toSpawns({ raptor: 16, swarm: 18 }, 2, { fierce: true }),
+            ...toSpawns({ raptor: 16, swarm: 18 }, 2),
             ...toSpawns({ allosaur: 6, stego: 3 }, 2),
           ],
         },
@@ -3105,18 +3072,18 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 18, swarm: 24, allosaur: 7, stego: 5, armored: 3 }],
           [2, { raptor: 18, swarm: 24, allosaur: 7, stego: 5, armored: 3 }],
         ),
-        // Elite-stego titan-armored stack on every lane — without chain
+        // Heavy-stego titan-armored stack on every lane — without chain
         // ring-through, pulse-T3 or mortar-splash sustained per lane is
         // the only stable lever.
         {
           archetype: "heavy",
           spacing: 0.76,
           spawns: [
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ armored: 16, titan: 2 }, 0),
-            ...toSpawns({ stego: 2 }, 1, { elite: true }),
+            ...toSpawns({ stego: 2 }, 1),
             ...toSpawns({ armored: 16, titan: 2 }, 1),
-            ...toSpawns({ stego: 2 }, 2, { elite: true }),
+            ...toSpawns({ stego: 2 }, 2),
             ...toSpawns({ armored: 16, titan: 2 }, 2),
           ],
         },
@@ -3127,18 +3094,18 @@ export const LEVELS: LevelConfig[] = [
           [1, { raptor: 24, swarm: 32, allosaur: 11, stego: 7, armored: 6, titan: 2 }],
           [2, { raptor: 24, swarm: 32, allosaur: 11, stego: 7, armored: 6, titan: 2 }],
         ),
-        // Heroic finale: fierce titans per lane, three lanes wide.
+        // Heroic finale: heavy titans per lane, three lanes wide.
         // Without chain, the player must field per-lane towers that can
-        // burst the elite titan before it walks the field.
+        // burst the heavy titan before it walks the field.
         {
           archetype: "chaos",
           spacing: 0.2,
           spawns: [
-            ...toSpawns({ titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 0),
             ...toSpawns({ raptor: 28, swarm: 38, allosaur: 13, stego: 9, armored: 8, titan: 3 }, 0),
-            ...toSpawns({ titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 1),
             ...toSpawns({ raptor: 28, swarm: 38, allosaur: 13, stego: 9, armored: 8, titan: 3 }, 1),
-            ...toSpawns({ titan: 1 }, 2, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 2),
             ...toSpawns({ raptor: 28, swarm: 38, allosaur: 13, stego: 9, armored: 8, titan: 3 }, 2),
           ],
         },
@@ -3443,19 +3410,18 @@ export const LEVELS: LevelConfig[] = [
           [2, { armored: 10, stego: 5, titan: 1 }],
           [3, { armored: 10, stego: 5, titan: 1 }],
         ),
-        // Fierce raptor mix on every lane — leaking one corridor of
-        // four now means 1.4× damage taken.
+        // Heavy raptor mix on every lane — leaking one corridor of
         {
           archetype: "mixed",
           spacing: 0.38,
           spawns: [
-            ...toSpawns({ raptor: 18, swarm: 14 }, 0, { fierce: true }),
+            ...toSpawns({ raptor: 18, swarm: 14 }, 0),
             ...toSpawns({ allosaur: 6, stego: 3 }, 0),
-            ...toSpawns({ raptor: 18, swarm: 14 }, 1, { fierce: true }),
+            ...toSpawns({ raptor: 18, swarm: 14 }, 1),
             ...toSpawns({ allosaur: 6, stego: 3 }, 1),
-            ...toSpawns({ raptor: 18, swarm: 14 }, 2, { fierce: true }),
+            ...toSpawns({ raptor: 18, swarm: 14 }, 2),
             ...toSpawns({ allosaur: 6, stego: 3 }, 2),
-            ...toSpawns({ raptor: 18, swarm: 14 }, 3, { fierce: true }),
+            ...toSpawns({ raptor: 18, swarm: 14 }, 3),
             ...toSpawns({ allosaur: 6, stego: 3 }, 3),
           ],
         },
@@ -3467,20 +3433,18 @@ export const LEVELS: LevelConfig[] = [
           [2, { raptor: 16, swarm: 20, allosaur: 7, stego: 5, armored: 4 }],
           [3, { raptor: 16, swarm: 20, allosaur: 7, stego: 5, armored: 4 }],
         ),
-        // Heavy elite-stego punctuation: four lanes, every lane has an
-        // elite stego in the convoy. Resist-flatten + no mortar means
         // electric chain is the cleanest answer.
         {
           archetype: "heavy",
           spacing: 0.72,
           spawns: [
-            ...toSpawns({ stego: 2 }, 0, { elite: true }),
+            ...toSpawns({ stego: 2 }, 0),
             ...toSpawns({ armored: 14, titan: 2 }, 0),
-            ...toSpawns({ stego: 2 }, 1, { elite: true }),
+            ...toSpawns({ stego: 2 }, 1),
             ...toSpawns({ armored: 14, titan: 2 }, 1),
-            ...toSpawns({ stego: 2 }, 2, { elite: true }),
+            ...toSpawns({ stego: 2 }, 2),
             ...toSpawns({ armored: 14, titan: 2 }, 2),
-            ...toSpawns({ stego: 2 }, 3, { elite: true }),
+            ...toSpawns({ stego: 2 }, 3),
             ...toSpawns({ armored: 14, titan: 2 }, 3),
           ],
         },
@@ -3499,19 +3463,19 @@ export const LEVELS: LevelConfig[] = [
           [2, { raptor: 22, swarm: 28, allosaur: 9, stego: 6, armored: 5, titan: 2 }],
           [3, { raptor: 22, swarm: 28, allosaur: 9, stego: 6, armored: 5, titan: 2 }],
         ),
-        // Heroic finale: fierce titans on every lane plus the regular
+        // Heroic finale: heavy titans on every lane plus the regular
         // chaos backbone.
         {
           archetype: "chaos",
           spacing: 0.18,
           spawns: [
-            ...toSpawns({ titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 0),
             ...toSpawns({ raptor: 26, swarm: 32, allosaur: 11, stego: 8, armored: 7, titan: 3 }, 0),
-            ...toSpawns({ titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 1),
             ...toSpawns({ raptor: 26, swarm: 32, allosaur: 11, stego: 8, armored: 7, titan: 3 }, 1),
-            ...toSpawns({ titan: 1 }, 2, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 2),
             ...toSpawns({ raptor: 26, swarm: 32, allosaur: 11, stego: 8, armored: 7, titan: 3 }, 2),
-            ...toSpawns({ titan: 1 }, 3, { elite: true, fierce: true }),
+            ...toSpawns({ titan: 1 }, 3),
             ...toSpawns({ raptor: 26, swarm: 32, allosaur: 11, stego: 8, armored: 7, titan: 3 }, 3),
           ],
         },
@@ -3674,7 +3638,7 @@ export const LEVELS: LevelConfig[] = [
     // every heavy wave — pulse-T3 was deleting them for kinetic-loss
     // change. Yank pulse and the player has to lean on chain ring-
     // through (electric 1.6× on stego, 0.9× on titan) plus splash for
-    // the mid-tier brick clear. Most heavies now include a fierce
+    // the mid-tier brick clear. Most heavies now include a heavy
     // titan, and the final wave is a regen-armored brick wall.
     heroic: {
       startGold: 550,
@@ -3684,27 +3648,20 @@ export const LEVELS: LevelConfig[] = [
         intro(20, 12),
         mixed({ raptor: 24, swarm: 18, allosaur: 7 }),
         rush(100, 18),
-        // First titan with the fierce chip — leak costs 1.4× life.
         {
           archetype: "heavy",
           spacing: 0.92,
-          spawns: [
-            ...toSpawns({ armored: 6, stego: 3 }),
-            ...toSpawns({ titan: 1 }, 0, { fierce: true }),
-          ],
+          spawns: [...toSpawns({ armored: 6, stego: 3 }), ...toSpawns({ titan: 1 }, 0)],
         },
         mixed({ raptor: 28, swarm: 22, allosaur: 10, stego: 4 }),
         heavy({ armored: 9, stego: 5, titan: 2 }),
         chaos({ raptor: 22, swarm: 30, allosaur: 9, stego: 6, armored: 3, titan: 2 }),
-        // Elite stego wedge in front of an armored block — without pulse,
+        // Heavy stego wedge in front of an armored block — without pulse,
         // electric chain ring-through is the cleanest pop.
         {
           archetype: "heavy",
           spacing: 0.88,
-          spawns: [
-            ...toSpawns({ stego: 3 }, 0, { elite: true }),
-            ...toSpawns({ armored: 11, titan: 3 }),
-          ],
+          spawns: [...toSpawns({ stego: 3 }, 0), ...toSpawns({ armored: 11, titan: 3 })],
         },
         mixed({ raptor: 32, swarm: 26, allosaur: 15, stego: 9, armored: 4 }),
         // Shielded armored convoy + titan trio — bubbles plus tank HP.
@@ -3719,13 +3676,13 @@ export const LEVELS: LevelConfig[] = [
         },
         chaos({ raptor: 30, swarm: 36, allosaur: 13, stego: 9, armored: 7, titan: 4 }),
         heavy({ stego: 11, armored: 16, titan: 6 }),
-        // Fierce titan in the chaos backbone — leak it and the run
+        // Heavy titan in the chaos backbone — leak it and the run
         // basically ends.
         {
           archetype: "chaos",
           spacing: 0.18,
           spawns: [
-            ...toSpawns({ titan: 1 }, 0, { fierce: true }),
+            ...toSpawns({ titan: 1 }, 0),
             ...toSpawns({ raptor: 34, swarm: 42, allosaur: 16, stego: 11, armored: 10, titan: 5 }),
           ],
         },
@@ -3835,16 +3792,16 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 20, swarm: 24, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
           [1, { raptor: 20, swarm: 24, allosaur: 9, stego: 6, armored: 4, titan: 1 }],
         ),
-        // Elite armored + regen stegos — burst-vs-regen on a kind that
+        // Heavy armored + regen stegos — burst-vs-regen on a kind that
         // already eats kinetic-less defenses.
         {
           archetype: "heavy",
           spacing: 0.72,
           spawns: [
-            ...toSpawns({ armored: 2 }, 0, { elite: true }),
+            ...toSpawns({ armored: 2 }, 0),
             ...toSpawns({ stego: 3 }, 0, { regen: true }),
             ...toSpawns({ armored: 12, titan: 3 }, 0),
-            ...toSpawns({ armored: 2 }, 1, { elite: true }),
+            ...toSpawns({ armored: 2 }, 1),
             ...toSpawns({ stego: 3 }, 1, { regen: true }),
             ...toSpawns({ armored: 12, titan: 3 }, 1),
           ],
@@ -3872,17 +3829,16 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 30, swarm: 38, para: 10, allosaur: 14, stego: 10, armored: 8, titan: 5 }],
           [1, { raptor: 30, swarm: 38, para: 10, allosaur: 14, stego: 10, armored: 8, titan: 5 }],
         ),
-        // Fierce-elite finale — paired modifiers on the late chaos pack.
         {
           archetype: "chaos",
           spacing: 0.16,
           spawns: [
-            ...toSpawns({ armored: 4, stego: 3 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 4, stego: 3 }, 0),
             ...toSpawns(
               { raptor: 34, swarm: 44, para: 12, allosaur: 16, stego: 8, armored: 6, titan: 5 },
               0,
             ),
-            ...toSpawns({ armored: 4, stego: 3 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 4, stego: 3 }, 1),
             ...toSpawns(
               { raptor: 34, swarm: 44, para: 12, allosaur: 16, stego: 8, armored: 6, titan: 5 },
               1,
@@ -4611,17 +4567,16 @@ export const LEVELS: LevelConfig[] = [
           [0, { armored: 22, stego: 14, titan: 5 }],
           [1, { armored: 22, stego: 14, titan: 5 }],
         ),
-        // Elite-fierce armored vanguard on the finale chaos.
         {
           archetype: "chaos",
           spacing: 0.18,
           spawns: [
-            ...toSpawns({ armored: 3, titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 3, titan: 1 }, 0),
             ...toSpawns(
               { raptor: 30, swarm: 42, para: 12, allosaur: 16, stego: 10, armored: 8, titan: 4 },
               0,
             ),
-            ...toSpawns({ armored: 3, titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 3, titan: 1 }, 1),
             ...toSpawns(
               { raptor: 30, swarm: 42, para: 12, allosaur: 16, stego: 10, armored: 8, titan: 4 },
               1,
@@ -4872,7 +4827,6 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 24, swarm: 60, allosaur: 12, stego: 7, armored: 5, titan: 2 }],
           [1, { raptor: 24, swarm: 60, allosaur: 12, stego: 7, armored: 5, titan: 2 }],
         ),
-        // Flamebreak with fierce swarm — every hatchling hits 40% harder
         // on leak, and the flame-resist makes the few flame-DoT lookalikes
         // (none here, but the chip-resistance lesson persists) moot.
         {
@@ -5113,17 +5067,17 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 24, swarm: 36, para: 7, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
           [1, { raptor: 24, swarm: 36, para: 7, allosaur: 10, stego: 7, armored: 5, titan: 2 }],
         ),
-        // Regen stegos + fierce raptor swarm — sustained burst vs
+        // Regen stegos + heavy raptor swarm — sustained burst vs
         // regen, but you can't even slow them.
         {
           archetype: "chaos",
           spacing: 0.2,
           spawns: [
             ...toSpawns({ stego: 4 }, 0, { regen: true }),
-            ...toSpawns({ raptor: 24 }, 0, { fierce: true }),
+            ...toSpawns({ raptor: 24 }, 0),
             ...toSpawns({ swarm: 38, allosaur: 11, armored: 6, titan: 2 }, 0),
             ...toSpawns({ stego: 4 }, 1, { regen: true }),
-            ...toSpawns({ raptor: 24 }, 1, { fierce: true }),
+            ...toSpawns({ raptor: 24 }, 1),
             ...toSpawns({ swarm: 38, allosaur: 11, armored: 6, titan: 2 }, 1),
           ],
         },
@@ -5145,17 +5099,16 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 26, swarm: 50, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
           [1, { raptor: 26, swarm: 50, para: 12, allosaur: 15, stego: 11, armored: 9, titan: 4 }],
         ),
-        // Elite-shielded armored vanguard — flatten resists + bubble.
         {
           archetype: "chaos",
           spacing: 0.15,
           spawns: [
-            ...toSpawns({ armored: 4, stego: 2 }, 0, { elite: true, shielded: true }),
+            ...toSpawns({ armored: 4, stego: 2 }, 0, { shielded: true }),
             ...toSpawns(
               { raptor: 30, swarm: 50, para: 13, allosaur: 16, stego: 10, armored: 8, titan: 4 },
               0,
             ),
-            ...toSpawns({ armored: 4, stego: 2 }, 1, { elite: true, shielded: true }),
+            ...toSpawns({ armored: 4, stego: 2 }, 1, { shielded: true }),
             ...toSpawns(
               { raptor: 30, swarm: 50, para: 13, allosaur: 16, stego: 10, armored: 8, titan: 4 },
               1,
@@ -5174,18 +5127,17 @@ export const LEVELS: LevelConfig[] = [
           [0, { raptor: 34, swarm: 62, para: 16, allosaur: 22, stego: 16, armored: 13, titan: 6 }],
           [1, { raptor: 34, swarm: 62, para: 16, allosaur: 22, stego: 16, armored: 13, titan: 6 }],
         ),
-        // Fierce-elite finale — every armored hits harder, every brute
         // is flatter on resists.
         {
           archetype: "chaos",
           spacing: 0.12,
           spawns: [
-            ...toSpawns({ armored: 4, titan: 2 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 4, titan: 2 }, 0),
             ...toSpawns(
               { raptor: 38, swarm: 68, para: 16, allosaur: 22, stego: 16, armored: 11, titan: 5 },
               0,
             ),
-            ...toSpawns({ armored: 4, titan: 2 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 4, titan: 2 }, 1),
             ...toSpawns(
               { raptor: 38, swarm: 68, para: 16, allosaur: 22, stego: 16, armored: 11, titan: 5 },
               1,
@@ -5572,27 +5524,26 @@ export const LEVELS: LevelConfig[] = [
           [2, { raptor: 24, swarm: 32, para: 9, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
           [3, { raptor: 24, swarm: 32, para: 9, allosaur: 13, stego: 9, armored: 7, titan: 3 }],
         ),
-        // Elite-fierce vanguard finale — paired modifiers across 4 paths.
         {
           archetype: "chaos",
           spacing: 0.16,
           spawns: [
-            ...toSpawns({ armored: 2, titan: 1 }, 0, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 2, titan: 1 }, 0),
             ...toSpawns(
               { raptor: 28, swarm: 38, para: 11, allosaur: 15, stego: 11, armored: 9, titan: 4 },
               0,
             ),
-            ...toSpawns({ armored: 2, titan: 1 }, 1, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 2, titan: 1 }, 1),
             ...toSpawns(
               { raptor: 28, swarm: 38, para: 11, allosaur: 15, stego: 11, armored: 9, titan: 4 },
               1,
             ),
-            ...toSpawns({ armored: 2, titan: 1 }, 2, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 2, titan: 1 }, 2),
             ...toSpawns(
               { raptor: 28, swarm: 38, para: 11, allosaur: 15, stego: 11, armored: 9, titan: 4 },
               2,
             ),
-            ...toSpawns({ armored: 2, titan: 1 }, 3, { elite: true, fierce: true }),
+            ...toSpawns({ armored: 2, titan: 1 }, 3),
             ...toSpawns(
               { raptor: 28, swarm: 38, para: 11, allosaur: 15, stego: 11, armored: 9, titan: 4 },
               3,

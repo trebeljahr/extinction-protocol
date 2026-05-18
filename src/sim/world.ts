@@ -935,27 +935,12 @@ export const ENEMY_SLOW_RESIST: Record<EnemyKind, number> = {
   boss: 0.6,
 };
 
-// Per-chip stat multipliers — applied at spawn (HP/damage/bounty) or
-// derived per-tick (resist flatten, slow resist). Chips compose: a
-// raptor with both `elite` and `fierce` gets the resist flatten and
-// the damage bump and the bounty stacks multiplicatively.
-//
-// Elite chip — slows the kill but doesn't make the enemy hit harder.
-export const ELITE_RESIST_FLATTEN = 0.15;
-export const ELITE_SLOW_RESIST_BONUS = 0.25;
-export const ELITE_SLOW_RESIST_CAP = 0.95;
-
-// Fierce chip — purely offensive bump.
-export const FIERCE_DAMAGE_MUL = 1.4;
-
 // Bounty multipliers per active chip. Stack multiplicatively at spawn
-// time, so an elite-shielded-fierce raptor pays out roughly 2× its
-// vanilla bounty without any single chip dominating.
+// time, so layered defensive threats pay proportionally to their extra
+// durability without any single chip dominating.
 export const SHIELDED_BOUNTY_MUL = 1.3;
 export const HEAL_AURA_BOUNTY_MUL = 1.4;
 export const REGEN_BOUNTY_MUL = 1.3;
-export const ELITE_BOUNTY_MUL = 1.4;
-export const FIERCE_BOUNTY_MUL = 1.3;
 
 export const MIN_SLOW_FACTOR = 0.25;
 
@@ -1042,10 +1027,9 @@ export const adaptiveCoverage = (level: number, streak: number, share: number): 
   return Math.min(0.7, base + streakBonus + concBonus);
 };
 
-// Material tint lerp amount for the adapted body color. Kept below
-// ELITE_TINT_AMOUNT (0.55 in ModelEnemyMesh) at the base; a long
-// streak adds a small bump on top so a player who refuses to swap
-// towers visually watches the herd's hide deepen wave over wave.
+// Material tint lerp amount for the adapted body color. A long streak
+// adds a small bump on top so a player who refuses to swap towers
+// visually watches the herd's hide deepen wave over wave.
 // Stepped level base instead of continuous so the band changes read
 // on screen.
 export const adaptiveTintAmount = (level: number, streak: number): number => {
@@ -1066,9 +1050,8 @@ export const adaptiveTintAmount = (level: number, streak: number): number => {
 // same hues bumped to higher saturation / lower luminance so the
 // off-color body tint stays legible across all five types — kinetic
 // reads as gunmetal not bone-white, cold as deep ice not pastel mist.
-// Each picked to stay visually distinct from the others *and* from
-// the ELITE_TINT_BY_KIND palette so an elite/adapted overlap on the
-// kind tints can still tell them apart at a glance.
+// Each picked to stay visually distinct from the others and readable on
+// the different dinosaur materials at a glance.
 export const ADAPTIVE_TINT_BY_TYPE: Record<DamageType, string> = {
   kinetic: "#5a6478", // gunmetal slate — bullet-glanced steel
   electric: "#a040ff", // saturated violet — arc-charged hide
@@ -1077,9 +1060,9 @@ export const ADAPTIVE_TINT_BY_TYPE: Record<DamageType, string> = {
   flame: "#ff2a14", // hot crimson — char-resistant
 };
 
-// Optional emissive tint per type. Multiplied by a level/streak
-// scalar in ModelEnemyMesh so heavy late-game adaptation reads with
-// a subtle inner glow (without competing with frost/matriarch/elite).
+// Optional emissive tint per type. Multiplied by a level/streak scalar
+// in ModelEnemyMesh so heavy late-game adaptation reads with a subtle
+// inner glow without competing with frost or matriarch tint.
 export const ADAPTIVE_EMISSIVE_BY_TYPE: Record<DamageType, string> = {
   kinetic: "#2a2f3a",
   electric: "#6a18cf",
@@ -1153,9 +1136,7 @@ export const ENEMY_MODEL: Record<EnemyKind, { url: string; targetSize: number; c
   armored: { url: "/models/Triceratops.glb", targetSize: 2.0 },
   titan: { url: "/models/Apatosaurus.glb", targetSize: 11.0, clip: "Walk" },
   // Boss — the largest available model scaled up further so the
-  // silhouette dwarfs everything else on screen. Same Apatosaurus mesh
-  // as titan; the elite-tint pass + dedicated label sells it as a
-  // distinct adversary.
+  // silhouette dwarfs everything else on screen.
   boss: { url: "/models/Apatosaurus.glb", targetSize: 18.0, clip: "Walk" },
 };
 
@@ -1250,21 +1231,19 @@ export const BOSS_VARIANT_RESIST: Record<BossVariant, Record<DamageType, number>
   apex: { kinetic: 0.45, electric: 0.85, cold: 1.5, explosive: 0.3, flame: 0.3 },
 };
 
-// Combined resist multiplier for a damage hit. Walks the same three
-// inputs (base species/variant resist, elite flatten, per-spawn resist
-// chip with armor-pierce override) that applyDamage and the damage
-// estimator both need. Previously inlined in three places — keep the
-// math here so tuning a boss-variant resist or armor-pierce semantics
-// doesn't require updating multiple call sites.
+// Combined resist multiplier for a damage hit. Walks the same inputs
+// (base species/variant resist, per-spawn resist chip with armor-pierce
+// override) that applyDamage and the damage estimator both need. Keep
+// the math here so tuning a boss-variant resist or armor-pierce
+// semantics doesn't require updating multiple call sites.
 export const computeResistMul = (enemy: Enemy, type: DamageType, armorPierce: boolean): number => {
   const baseMul =
     enemy.kind === "boss" && enemy.bossVariant !== undefined
       ? BOSS_VARIANT_RESIST[enemy.bossVariant][type]
       : ENEMY_RESIST[enemy.kind][type];
-  const flattened = enemy.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
   const rawExtra = enemy.extraResists[type] ?? 1;
   const extraMul = armorPierce && rawExtra < 1 ? 1 : rawExtra;
-  return flattened * extraMul;
+  return baseMul * extraMul;
 };
 
 export const BOSS_VARIANT_SLOW_RESIST: Record<BossVariant, number> = {
@@ -1288,14 +1267,14 @@ export const BOSS_VARIANT_MODEL: Record<
   apex: { url: "/models/Apatosaurus.glb", targetSize: 20.0, clip: "Walk" },
 };
 
-// Per-variant body tint. Applied permanently to matriarch meshes (not
-// gated by the elite chip the way species tints are) so each queen
-// reads as her own creature at first glance. Hues are chosen to fit
-// the biome AND stay visually distinct from each other — pairs within
-// ~30° on the wheel read as muddy under the biome's ambient lighting.
+// Per-variant body tint. Applied permanently to matriarch meshes so
+// each queen reads as her own creature at first glance. Hues are chosen
+// to fit the biome AND stay visually distinct from each other — pairs
+// within ~30° on the wheel read as muddy under the biome's ambient
+// lighting.
 export const BOSS_VARIANT_TINT: Record<BossVariant, string> = {
   raptor: "#a85a38", // forest — warm hide shift without the neon-red wash
-  stego: "#8fd8c3", // snow — soft glacial jade, gentler than elite plates
+  stego: "#8fd8c3", // snow — soft glacial jade
   para: "#a25aff", // desert — twilight violet on the crest
   allosaur: "#ffb030", // wasteland — apex-predator gold
   armored: "#5ad6ff", // lava — chrome-cyan chitin (cool contrast)
@@ -1361,20 +1340,6 @@ export const BOSS_VARIANT_LABEL: Record<BossVariant, string> = {
   allosaur: "T-Rex Matriarch",
   armored: "Triceratops Matriarch",
   apex: "Apex Matriarch",
-};
-
-// Per-kind elite material tint — a distinct palette per species so the
-// elite chip reads as "this kind, but the dangerous variant" rather
-// than a uniform red wash. Read by ModelEnemyMesh.
-export const ELITE_TINT_BY_KIND: Record<EnemyKind, string> = {
-  raptor: "#ff3a30", // bright crimson — predator pack alpha
-  swarm: "#ff8a3a", // burnt orange — feral hatchling tint
-  para: "#a25aff", // royal purple — runner with shimmering crest
-  allosaur: "#ffb030", // gold — apex-of-apex
-  stego: "#3affb0", // jade — carved jade plates
-  armored: "#5ad6ff", // glacial blue — chrome-plated tank
-  titan: "#ffd24a", // burnished gold — legendary colossus
-  boss: "#ff2a55", // arterial red — matriarch's blood-glow
 };
 
 // Tower-source info carried by tower fire paths into applyDamage. The
@@ -1453,7 +1418,7 @@ export const applyDamage = (
     }
   }
 
-  // Combined boss-variant / elite-flatten / resist-chip / armor-pierce
+  // Combined boss-variant / resist-chip / armor-pierce
   // multiplier — shared with the tower-side damage estimator so tuning
   // one branch can't desync the other. See computeResistMul.
   const mul = computeResistMul(enemy, type, hitOpts?.armorPierce ?? false);
@@ -1551,10 +1516,8 @@ export type SpawnOptions = {
   shielded?: boolean;
   healAura?: boolean;
   regen?: boolean;
-  elite?: boolean;
-  fierce?: boolean;
   // Per-damage-type adaptation — values < 1 reduce damage taken,
-  // values > 1 increase. Stacks on top of base resists and elite-flatten.
+  // values > 1 increase. Stacks on top of base resists.
   resists?: Partial<Record<DamageType, number>>;
   // Boss-only — picks the biome-themed matriarch variant. Ignored for
   // non-boss kinds. When kind === "boss" and bossVariant is unset, the
@@ -1569,8 +1532,6 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     shielded = false,
     healAura = false,
     regen = false,
-    elite = false,
-    fierce = false,
     resists,
     bossVariant,
   } = opts;
@@ -1584,16 +1545,12 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   const path = world.paths[pathIndex] ?? world.paths[0];
   const start = path[0];
   const maxHp = Math.ceil(base.hp * hpMul);
-  // Damage bump comes from `fierce` — elite is purely a defensive chip.
-  const damage = fierce ? Math.ceil(base.damage * FIERCE_DAMAGE_MUL) : base.damage;
   // Bounty stacks multiplicatively per active chip so combos pay out
   // proportionally to the threat — never extra-flat from one big chip.
   let bountyMul = 1;
   if (shielded) bountyMul *= SHIELDED_BOUNTY_MUL;
   if (healAura) bountyMul *= HEAL_AURA_BOUNTY_MUL;
   if (regen) bountyMul *= REGEN_BOUNTY_MUL;
-  if (elite) bountyMul *= ELITE_BOUNTY_MUL;
-  if (fierce) bountyMul *= FIERCE_BOUNTY_MUL;
   // Difficulty's gold-per-kill multiplier folds in here so the existing
   // `world.gold += enemy.bounty` in applyDamage stays a single read.
   const bounty = Math.max(1, Math.ceil(base.bounty * bountyMul * world.goldKillMul));
@@ -1625,7 +1582,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     maxHp,
     speed: base.speed * world.speedMul,
     bounty,
-    damage,
+    damage: base.damage,
     alive: true,
     slowUntil: 0,
     slowFactor: 1,
@@ -1636,8 +1593,6 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     shieldBrokenAt: 0,
     healAura,
     regen,
-    elite,
-    fierce,
     regenPausedUntil: 0,
     engagedRobotId: null,
     extraResists: resists ? { ...resists } : {},
@@ -2212,13 +2167,10 @@ export const enemyPosOnPath = (world: World, enemy: Enemy): Vec2 =>
   samplePath(world.paths[enemy.pathIndex], enemy.segment, enemy.segmentT);
 
 export const applySlow = (enemy: Enemy, world: World, factor: number, duration: number) => {
-  const baseResist =
+  const resist =
     enemy.kind === "boss" && enemy.bossVariant !== undefined
       ? BOSS_VARIANT_SLOW_RESIST[enemy.bossVariant]
       : ENEMY_SLOW_RESIST[enemy.kind];
-  const resist = enemy.elite
-    ? Math.min(ELITE_SLOW_RESIST_CAP, baseResist + ELITE_SLOW_RESIST_BONUS)
-    : baseResist;
   const resisted = factor + (1 - factor) * resist;
   const eff = Math.max(MIN_SLOW_FACTOR, resisted);
   if (eff >= 1) return;

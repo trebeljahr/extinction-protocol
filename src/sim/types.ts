@@ -38,11 +38,7 @@ export type NewSightingId =
 // - regen:    passive self-heal, paused briefly after taking damage so
 //             sustained DPS still works.
 //             Visual: floating mint-green "+" above the model.
-// - elite:    flattens damage-resist spread toward 1× and adds slow
-//             resistance. Visual: model material tint shifts to a
-//             distinct elite color per kind.
-// - fierce:   +40% damage. Visual: red glowing halo around the body.
-export type EnemyChip = "shielded" | "healAura" | "regen" | "elite" | "fierce";
+export type EnemyChip = "shielded" | "healAura" | "regen";
 
 export type Enemy = {
   id: EntityId;
@@ -77,8 +73,6 @@ export type Enemy = {
   // EnemyChip docstring for visual/behavior summary.
   healAura: boolean;
   regen: boolean;
-  elite: boolean;
-  fierce: boolean;
   // Set whenever a regen-chipped enemy takes damage. Self-heal pauses
   // until world.time crosses this stamp — keeps sustained DPS effective
   // and prevents the "ticked-by-a-feather" stalemate.
@@ -92,9 +86,8 @@ export type Enemy = {
   // Damage-type adaptation layered via the `resists` chip on EnemySpec.
   // Per-spawn multiplier on top of the base ENEMY_RESIST table — value 0
   // = full immunity to that damage type, 0.4 = 60% reduction, 1.5 = +50%
-  // damage taken (vulnerability). Empty = no adaptation. Distinct from
-  // the `elite` chip (which flattens base resists toward 1.0); resists
-  // is per-damage-type and per-spawn.
+  // damage taken (vulnerability). Empty = no adaptation. Resists is
+  // per-damage-type and per-spawn.
   extraResists: Partial<Record<DamageType, number>>;
   // Flame meta-skill "ignite" — Pyre Combustion T3/T4 leaves enemies
   // burning after they walk out of range. While world.time < igniteUntil
@@ -613,8 +606,6 @@ export type SpawnRequest = {
   shielded?: boolean;
   healAura?: boolean;
   regen?: boolean;
-  elite?: boolean;
-  fierce?: boolean;
   // Per-damage-type adaptation. e.g. { flame: 0 } = full flame immunity
   // for that spawn, { electric: 0.4 } = 60% electric resist on top of
   // base. Layered on the chip system as a sixth orthogonal modifier.
@@ -631,11 +622,9 @@ export type EnemySpec = {
   shielded?: boolean;
   healAura?: boolean;
   regen?: boolean;
-  elite?: boolean;
-  fierce?: boolean;
   // Per-damage-type resist multiplier (e.g. { flame: 0 } = immune,
   // { electric: 0.4 } = 60% reduction). Stacks on top of base resists
-  // and the elite-flatten effect, before T3 anti-modifier upgrades fire.
+  // before T3 anti-modifier upgrades fire.
   resists?: Partial<Record<DamageType, number>>;
   // Only honored when kind === "boss". Picks the biome-themed matriarch.
   bossVariant?: BossVariant;
@@ -675,8 +664,6 @@ export type BossTrickleStream = {
   maxInterval: number;
   startDelay?: number;
   shielded?: boolean;
-  fierce?: boolean;
-  elite?: boolean;
 };
 
 export type ActiveBossTrickle = {
@@ -687,8 +674,6 @@ export type ActiveBossTrickle = {
   nextAt: number;
   hpMul: number;
   shielded?: boolean;
-  fierce?: boolean;
-  elite?: boolean;
 };
 
 export type RunStatus = "running" | "paused" | "won" | "lost";

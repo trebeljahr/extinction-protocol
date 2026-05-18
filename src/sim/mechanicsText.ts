@@ -5,31 +5,14 @@
 // and types.ts (chip flag descriptions). When tuning constants change in
 // world.ts, update the numbers here too.
 
-export type MechanicId =
-  | "shielded"
-  | "healAura"
-  | "regen"
-  | "elite"
-  | "fierce"
-  | "slow"
-  | "adaptation";
+export type MechanicId = "shielded" | "healAura" | "regen" | "slow" | "adaptation";
 
-export const MECHANIC_ORDER: MechanicId[] = [
-  "shielded",
-  "healAura",
-  "regen",
-  "elite",
-  "fierce",
-  "slow",
-  "adaptation",
-];
+export const MECHANIC_ORDER: MechanicId[] = ["shielded", "healAura", "regen", "slow", "adaptation"];
 
 export const MECHANIC_LABEL: Record<MechanicId, string> = {
   shielded: "Shields",
   healAura: "Healers",
   regen: "Regen",
-  elite: "Elite",
-  fierce: "Fierce",
   slow: "Slow",
   adaptation: "Adaptation",
 };
@@ -38,8 +21,6 @@ export const MECHANIC_TINT: Record<MechanicId, string> = {
   shielded: "#9fd8ff",
   healAura: "#7eff8a",
   regen: "#a8ffb6",
-  elite: "#d8b4ff",
-  fierce: "#ff5a3a",
   slow: "#bfe9ff",
   adaptation: "#ffb266",
 };
@@ -48,8 +29,6 @@ export const MECHANIC_SUBTITLE: Record<MechanicId, string> = {
   shielded: "Energy bubble",
   healAura: "Field medic",
   regen: "Self-heal",
-  elite: "Hardened variant",
-  fierce: "Berserker",
   slow: "Speed debuff",
   adaptation: "Evolved resistance",
 };
@@ -58,8 +37,6 @@ export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = {
   shielded: "Blue energy bubble. Absorbs damage before HP. Pool size scales with the host kind.",
   healAura: "Pulsing green ring. Heals nearby allies for 3 HP/sec within 3.5 tiles.",
   regen: "Floating mint-green '+'. Passive 1.5 HP/sec while not taking damage.",
-  elite: "Hardened variant of the host kind. Flattened resist spread, increased slow resistance.",
-  fierce: "Red glowing halo. +40% damage on exit.",
   slow: "Applied only by Cryo Emitter. Reduces movement speed for the slow duration.",
   adaptation:
     "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch.",
@@ -86,16 +63,6 @@ export const MECHANIC_STATS: Record<MechanicId, [string, string][]> = {
     ["Rate", "1.5 HP/s"],
     ["Pause", "1.5s on hit"],
     ["Counters", "Pyre T3 · Cryo T3"],
-  ],
-  elite: [
-    ["Resists", "→ 1×"],
-    ["Slow resist", "+25%"],
-    ["Damage", "unchanged"],
-  ],
-  fierce: [
-    ["Contact dmg", "+40%"],
-    ["HP", "unchanged"],
-    ["Resists", "unchanged"],
   ],
   slow: [
     ["Default", "40% speed"],

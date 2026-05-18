@@ -30,7 +30,7 @@ export const WAVE_ARCHETYPE_HINT: Record<WaveArchetype, string> = {
   swarm: "favors AoE towers",
   heavy: "favors single-target",
   chaos: "bring everything",
-  vanguard: "elites lead, swarm trails",
+  vanguard: "heavies lead, swarm trails",
   echelon: "tiered escalation in order",
   trickle: "long sparse spacing",
   convoy: "tank flanked by escorts",
@@ -69,8 +69,6 @@ type RosterEntry = {
   shielded: boolean;
   healAura: boolean;
   regen: boolean;
-  elite: boolean;
-  fierce: boolean;
   resists?: Partial<Record<DamageType, number>>;
   bossVariant?: BossVariant;
 };
@@ -82,8 +80,6 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
     const shielded = s.shielded ?? false;
     const healAura = s.healAura ?? false;
     const regen = s.regen ?? false;
-    const elite = s.elite ?? false;
-    const fierce = s.fierce ?? false;
     for (let i = 0; i < s.count; i++) {
       out.push({
         kind: s.kind,
@@ -91,8 +87,6 @@ const rosterFromSpec = (spec: WaveSpec): RosterEntry[] => {
         shielded,
         healAura,
         regen,
-        elite,
-        fierce,
         resists: s.resists,
         bossVariant: s.bossVariant,
       });
@@ -170,8 +164,6 @@ export const startWave = (world: World) => {
       shielded: entry.shielded,
       healAura: entry.healAura,
       regen: entry.regen,
-      elite: entry.elite,
-      fierce: entry.fierce,
       resists: entry.resists,
       bossVariant: entry.bossVariant,
     });
@@ -187,8 +179,6 @@ export const startWave = (world: World) => {
         nextAt: world.time + (s.startDelay ?? 0),
         hpMul,
         shielded: s.shielded,
-        fierce: s.fierce,
-        elite: s.elite,
       });
     }
   }
@@ -222,8 +212,6 @@ const tickBossTrickle = (world: World) => {
         hpMul: stream.hpMul,
         pathIndex: stream.pathIndex,
         shielded: stream.shielded,
-        fierce: stream.fierce,
-        elite: stream.elite,
       });
       const interval =
         stream.minInterval + Math.random() * (stream.maxInterval - stream.minInterval);
@@ -288,8 +276,6 @@ export const spawnerTick = (world: World, dt: number) => {
       shielded: req.shielded,
       healAura: req.healAura,
       regen: req.regen,
-      elite: req.elite,
-      fierce: req.fierce,
       resists: req.resists,
       bossVariant: req.bossVariant,
     });

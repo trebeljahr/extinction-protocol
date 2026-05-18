@@ -104,12 +104,11 @@ Mapping: **enemies resistant to type X carry a tint hinting at X**. Decoupled fr
 
 The `Adapted` badge in `EnemyPanel` also pulls from this palette so badge hue matches the dino's body tint instead of a fixed amber.
 
-`ModelEnemyMesh.tsx`'s `apply()` branches in priority order (frost > matriarch > elite > adapted):
+`ModelEnemyMesh.tsx`'s `apply()` branches in priority order (frost > matriarch > adapted):
 
 ```ts
 if (frost > 0.01) /* existing */;
 else if (matriarch && matriarchMaterial) /* existing */;
-else if (elite) /* existing */;
 else if (adaptiveTint && adaptiveAmount > 0) {
   mm.color.copy(base).lerp(adaptiveTint, adaptiveAmount);
 }
@@ -124,11 +123,9 @@ streakBon = min(0.15, max(0, streak − 1) × 0.03)
 adaptiveTintAmount = min(0.65, base + streakBon)
 ```
 
-Stays below `ELITE_TINT_AMOUNT` (0.55) at the base, so an adapted-but-not-elite enemy never out-saturates an elite — keeps the elite chip's silhouette dominant. The streak bump can push it slightly past the elite ceiling, which is intended for long single-tower runs: at that point the player has earned the strong "this dino is hard-immune to your build" read.
+The streak bump is intended for long single-tower runs: at that point the player has earned the strong "this dino is hard-immune to your build" read.
 
-**Elite + adapted stacking:** elite branch wins on color (HP/threat read takes priority). Adaptation still telegraphs because the elite's per-kind tint clashes with the adaptive palette by design.
-
-**Emissive:** adapted enemies get a small inner glow from `ADAPTIVE_EMISSIVE_BY_TYPE`, multiplied by `adaptiveAmount * 0.6`. Only fires when no higher-priority emissive (flash/frost/matriarch/elite) is active, and stays subtle so L25+ doesn't turn into a disco.
+**Emissive:** adapted enemies get a small inner glow from `ADAPTIVE_EMISSIVE_BY_TYPE`, multiplied by `adaptiveAmount * 0.6`. Only fires when no higher-priority emissive (flash/frost/matriarch) is active, and stays subtle so L25+ doesn't turn into a disco.
 
 ---
 

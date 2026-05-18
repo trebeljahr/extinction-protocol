@@ -69,7 +69,7 @@ Base types, mapped to existing GLBs:
 - **Raptor** (fast, low HP) — velociraptors from enemies pack / fast dino GLBs
 - **Allosaur** (standard) — `Armored Allosaurus.glb`
 - **Stego** (armored, slow) — `Stegoknight.glb`
-- **Spino-Mech** (elite, regens) — `Spinosaurobot.glb`
+- **Spino-Mech** (regenerating boss) — `Spinosaurobot.glb`
 - **Swarm** (tiny, many) — small dino assets tiled
 
 Tiers multiply HP / speed / bounty. Bosses (every 5 waves) are oversized variants with unique abilities.

@@ -16,32 +16,28 @@ import type { DamageType, EnemyKind } from "../sim/types";
 import {
   ADAPTIVE_EMISSIVE_BY_TYPE,
   ADAPTIVE_TINT_BY_TYPE,
-  ELITE_TINT_BY_KIND,
   ENEMY_MODEL,
   HEAL_AURA_RANGE,
 } from "../sim/world";
 
 // Preview-only single-instance copies of the in-world effect renderers
-// (ShieldBubbles / HealAuras / RegenBadges / FierceHalos / model frost +
-// elite tint from ModelEnemyMesh). The instanced versions read from the
-// live world store, which we don't want to fake out for a static
-// preview — but the geometries, materials, colors and pulse math are
-// intentionally identical so the player sees the same visual in the
-// compendium that they get in-game.
+// (ShieldBubbles / HealAuras / RegenBadges / model frost + adaptation
+// tint from ModelEnemyMesh). The instanced versions read from the live
+// world store, which we don't want to fake out for a static preview —
+// but the geometries, materials, colors and pulse math are intentionally
+// identical so the player sees the same visual in the compendium that
+// they get in-game.
 
 // === Visual constants ===
-// Mirrored from src/render/{ShieldBubbles,HealAuras,FierceHalos}.tsx
-// and src/render/ModelEnemyMesh.tsx. Duplicated rather than re-
-// exported because the in-world files keep them as module-locals; one
-// number per effect is cheaper than a refactor that bloats the public
-// surface of the render layer.
+// Mirrored from src/render/{ShieldBubbles,HealAuras}.tsx and
+// src/render/ModelEnemyMesh.tsx. Duplicated rather than re-exported
+// because the in-world files keep them as module-locals; one number per
+// effect is cheaper than a refactor that bloats the public surface of
+// the render layer.
 const SHIELD_COLOR = "#7fc8ff";
 const HEAL_AURA_COLOR = "#7eff8a";
-const FIERCE_COLOR = "#ff3a30";
 const FROST_COLOR = new THREE.Color("#cfe6ff");
 const FROST_EMISSIVE = new THREE.Color("#3a6aa0");
-const ELITE_TINT_AMOUNT = 0.55;
-const ELITE_EMISSIVE_AMOUNT = 0.35;
 const REGEN_BADGE_COMPENDIUM_CLEARANCE = REGEN_PLUS_LENGTH * 0.25;
 
 // Mirrors SHIELD_RADIUS_BY_KIND in ShieldBubbles.tsx.
@@ -57,14 +53,11 @@ const SHIELD_RADIUS_BY_KIND: Record<EnemyKind, number> = {
 };
 
 // One representative dino per mechanic — silhouette chosen so the
-// effect reads obviously (a Triceratops shield bubble is unambiguous;
-// a T-Rex with a fierce halo screams "this one bites harder").
+// effect reads obviously.
 const PREVIEW_KIND: Record<MechanicId, EnemyKind> = {
   shielded: "armored",
   healAura: "para",
   regen: "stego",
-  elite: "raptor",
-  fierce: "allosaur",
   slow: "raptor",
   adaptation: "stego",
 };
@@ -94,14 +87,13 @@ const adaptPhaseAt = (t: number): AdaptPhase => {
 
 // === Creature ===
 // Same scale-fit + animation playback as EnemyPreview, but applies the
-// elite or frost tint from ModelEnemyMesh when the mechanic is "elite"
-// or "slow". Materials are cloned per-mesh so this preview Canvas
-// can't bleed material state into the main PlayScene renderer.
+// frost or adaptation tint from ModelEnemyMesh. Materials are cloned
+// per-mesh so this preview Canvas can't bleed material state into the
+// main PlayScene renderer.
 const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicId }) => {
   const cfg = ENEMY_MODEL[kind];
   const gltf = useGLTF(cfg.url);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
-  const eliteTint = useMemo(() => new THREE.Color(ELITE_TINT_BY_KIND[kind]), [kind]);
   const adaptTints = useMemo(() => {
     const out = {} as Record<DamageType, THREE.Color>;
     for (const t of ADAPT_PHASE_ORDER) out[t] = new THREE.Color(ADAPTIVE_TINT_BY_TYPE[t]);
@@ -173,13 +165,12 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
   useFrame((state, delta) => {
     mixerRef.current?.update(delta);
     // Frost = full chill (1.0) for the slow preview so the dino reads
-    // unambiguously frozen-blue. Elite stamps the kind-tint onto the
-    // base color. Adaptation cycles through the five ADAPTIVE tints so
-    // the player sees every body discoloration the herd can evolve.
+    // unambiguously frozen-blue. Adaptation cycles through the five
+    // ADAPTIVE tints so the player sees every body discoloration the
+    // herd can evolve.
     // Reset when no effect applies so re-entering this creature for a
     // different mechanic restores the original palette.
     const frost = effect === "slow" ? 1 : 0;
-    const isElite = effect === "elite";
     const isAdapt = effect === "adaptation";
     if (isAdapt) {
       const phase = adaptPhaseAt(state.clock.elapsedTime);
@@ -194,13 +185,11 @@ const MechanicCreature = ({ kind, effect }: { kind: EnemyKind; effect: MechanicI
         const base = mm.userData.baseColor as THREE.Color | undefined;
         if (base && mm.color) {
           if (frost > 0.01) mm.color.copy(base).lerp(FROST_COLOR, frost);
-          else if (isElite) mm.color.copy(base).lerp(eliteTint, ELITE_TINT_AMOUNT);
           else if (isAdapt) mm.color.copy(base).lerp(adaptTintTmp, ADAPT_TINT_AMOUNT);
           else mm.color.copy(base);
         }
         if (!mm.emissive) return;
         if (frost > 0.05) mm.emissive.copy(FROST_EMISSIVE).multiplyScalar(frost * 0.5);
-        else if (isElite) mm.emissive.copy(eliteTint).multiplyScalar(ELITE_EMISSIVE_AMOUNT);
         else if (isAdapt) mm.emissive.copy(adaptEmissiveTmp).multiplyScalar(ADAPT_EMISSIVE_AMOUNT);
         else mm.emissive.setRGB(0, 0, 0);
       };
@@ -347,84 +336,6 @@ const RegenBadgeEffect = ({ kind }: { kind: EnemyKind }) => {
   return <mesh ref={ref} geometry={geom} material={mat} renderOrder={6} />;
 };
 
-// Fierce now reads as a translucent red shell wrapped around the
-// creature — a slightly-larger copy of the dino's own mesh acting as a
-// forcefield. The shell is a *non-skinned* clone of the GLB scene
-// (geometry frozen at bind pose) with all materials replaced by a red
-// transparent shader-displaced material. Bind-pose is fine for the
-// compendium preview where the dino is on Idle and the camera orbits;
-// keeping it static lets us scale the whole shell uniformly outward
-// from the body center via a parent group, instead of fighting per-
-// submesh normals on a skinned hierarchy (which scatters the shell
-// because each sub-mesh inflates from its own local origin).
-const FIERCE_SHELL_SCALE = 1.06;
-
-const buildFierceShellMaterial = (): THREE.MeshBasicMaterial =>
-  new THREE.MeshBasicMaterial({
-    color: new THREE.Color(FIERCE_COLOR),
-    transparent: true,
-    opacity: 0.3,
-    depthWrite: false,
-    side: THREE.FrontSide,
-    toneMapped: false,
-  });
-
-// Walk the cloned tree and replace every SkinnedMesh with a plain Mesh
-// at the same place in the hierarchy. The plain Mesh renders the bind-
-// pose geometry without bone matrix processing — exactly the silhouette
-// we want for the forcefield shell.
-const desinewSkinnedMeshes = (root: THREE.Object3D, shellMat: THREE.Material) => {
-  const swaps: Array<{ parent: THREE.Object3D; old: THREE.Object3D; replacement: THREE.Mesh }> = [];
-  root.traverse((node) => {
-    const skin = node as THREE.SkinnedMesh;
-    const mesh = node as THREE.Mesh;
-    if (skin.isSkinnedMesh) {
-      const plain = new THREE.Mesh(skin.geometry, shellMat);
-      plain.position.copy(skin.position);
-      plain.rotation.copy(skin.rotation);
-      plain.scale.copy(skin.scale);
-      plain.frustumCulled = false;
-      plain.castShadow = false;
-      plain.receiveShadow = false;
-      plain.renderOrder = 5;
-      const parent = skin.parent;
-      if (parent) swaps.push({ parent, old: skin, replacement: plain });
-    } else if (mesh.isMesh) {
-      mesh.material = shellMat;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.renderOrder = 5;
-    }
-  });
-  for (const s of swaps) {
-    s.parent.remove(s.old);
-    s.parent.add(s.replacement);
-  }
-};
-
-const FierceShellEffect = ({ kind }: { kind: EnemyKind }) => {
-  const cfg = ENEMY_MODEL[kind];
-  const gltf = useGLTF(cfg.url);
-
-  const obj = useMemo(() => {
-    const measureBox = measureVisibleBox(gltf.scene);
-    const size = measureBox.getSize(new THREE.Vector3());
-    const center = measureBox.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    const s = cfg.targetSize / maxDim;
-    // .clone(true) keeps the bind-pose geometry but new Object3D nodes
-    // so the shell tree stays independent of MechanicCreature's tree.
-    const cloned = gltf.scene.clone(true);
-    cloned.scale.setScalar(s * FIERCE_SHELL_SCALE);
-    cloned.position.set(-center.x * s, -measureBox.min.y * s, -center.z * s);
-    const shellMat = buildFierceShellMaterial();
-    desinewSkinnedMeshes(cloned, shellMat);
-    return cloned;
-  }, [gltf.scene, cfg.targetSize]);
-
-  return <primitive object={obj} />;
-};
-
 // === Public component ===
 
 type Props = {
@@ -486,8 +397,7 @@ export const MechanicPreview = ({ id, size = 360 }: Props) => {
         {id === "shielded" && <ShieldEffect kind={kind} />}
         {id === "healAura" && <HealAuraEffect kind={kind} />}
         {id === "regen" && <RegenBadgeEffect kind={kind} />}
-        {id === "fierce" && <FierceShellEffect kind={kind} />}
-        {/* "elite" + "slow" + "adaptation" tint the creature itself; no overlay mesh. */}
+        {/* "slow" + "adaptation" tint the creature itself; no overlay mesh. */}
 
         <OrbitControls
           makeDefault

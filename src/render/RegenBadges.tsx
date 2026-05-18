@@ -9,8 +9,6 @@ const MAX_REGEN = 128;
 // Distinct from:
 //   - shielded blue bubble (around the body)
 //   - healAura green ring   (on the ground)
-//   - fierce red halo       (around the body)
-//   - elite material tint   (on the body itself)
 //
 // Hides when regen is paused (just took damage) so the badge tracks the
 // actual healing state — players see the icon go dark right after a

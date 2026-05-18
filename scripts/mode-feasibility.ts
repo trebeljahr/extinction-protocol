@@ -32,7 +32,6 @@ import {
   BOSS_VARIANT_CHILD,
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_STATS,
-  ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_STATS,
   ROBOT_RESPAWN_DELAY,
@@ -211,8 +210,7 @@ const effectiveDpsVsWave = (
     const stats = specStats(s);
     const hp = stats.hp * s.count;
     const baseMul = specResist(s, dmgType);
-    const eliteMul = s.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
-    weightedResist += eliteMul * (s.resists?.[dmgType] ?? 1) * hp;
+    weightedResist += baseMul * (s.resists?.[dmgType] ?? 1) * hp;
     totalHp += hp;
     if (s.kind === "boss" && s.bossVariant) {
       const child = BOSS_VARIANT_CHILD[s.bossVariant];
@@ -331,8 +329,7 @@ const waveResistVs = (spec: WaveSpec, dmgType: DamageType, longestPath: number):
     const stats = specStats(s);
     const hp = stats.hp * s.count;
     const baseMul = specResist(s, dmgType);
-    const eliteMul = s.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
-    weighted += eliteMul * (s.resists?.[dmgType] ?? 1) * hp;
+    weighted += baseMul * (s.resists?.[dmgType] ?? 1) * hp;
     totalHp += hp;
     if (s.kind === "boss" && s.bossVariant) {
       const child = BOSS_VARIANT_CHILD[s.bossVariant];

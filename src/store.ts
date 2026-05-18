@@ -162,8 +162,6 @@ type UiSnapshot = {
   inspectedEnemyMaxShield: number;
   inspectedEnemyHealAura: boolean;
   inspectedEnemyRegen: boolean;
-  inspectedEnemyElite: boolean;
-  inspectedEnemyFierce: boolean;
   // Resists chip — per-damage-type adaptation multipliers. Empty when
   // the inspected enemy has no resist chip applied.
   inspectedEnemyExtraResists: Partial<Record<DamageType, number>>;
@@ -214,8 +212,6 @@ const snapshot = (
   let maxShield = 0;
   let healAura = false;
   let regen = false;
-  let elite = false;
-  let fierce = false;
   let extraResists: Partial<Record<DamageType, number>> = {};
   let adaptiveType: DamageType | null = null;
   if (inspect.id !== null) {
@@ -227,8 +223,6 @@ const snapshot = (
       maxShield = e.maxShield;
       healAura = e.healAura;
       regen = e.regen;
-      elite = e.elite;
-      fierce = e.fierce;
       extraResists = e.extraResists;
       adaptiveType = e.adaptiveResistType ?? null;
     }
@@ -273,8 +267,6 @@ const snapshot = (
     inspectedEnemyMaxShield: maxShield,
     inspectedEnemyHealAura: healAura,
     inspectedEnemyRegen: regen,
-    inspectedEnemyElite: elite,
-    inspectedEnemyFierce: fierce,
     inspectedEnemyExtraResists: extraResists,
     inspectedEnemyAdaptiveType: adaptiveType,
     robotVariant: w.robot.variant,
@@ -335,8 +327,6 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.inspectedEnemyMaxShield === b.inspectedEnemyMaxShield &&
   a.inspectedEnemyHealAura === b.inspectedEnemyHealAura &&
   a.inspectedEnemyRegen === b.inspectedEnemyRegen &&
-  a.inspectedEnemyElite === b.inspectedEnemyElite &&
-  a.inspectedEnemyFierce === b.inspectedEnemyFierce &&
   a.inspectedEnemyAdaptiveType === b.inspectedEnemyAdaptiveType &&
   a.robotVariant === b.robotVariant &&
   a.robotSelected === b.robotSelected &&

@@ -68,7 +68,6 @@ import type {
 import { UPGRADES } from "../src/sim/upgrades";
 import {
   duplicateTowerCostMultiplier,
-  ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
   ENEMY_STATS,
@@ -170,7 +169,6 @@ type EnemyGroup = {
   hp: number; // total HP for this group (per-enemy hp × count, post hpMul)
   shielded: boolean; // applies SHIELD_BY_KIND[kind] to each enemy
   regen: boolean;
-  elite: boolean;
   extraResists: Partial<Record<DamageType, number>>; // resists chip
 };
 
@@ -212,7 +210,6 @@ const analyzeWavePerLane = (spec: WaveSpec, hpScale: number, numPaths: number): 
       hp: groupHp,
       shielded: !!s.shielded,
       regen: !!s.regen,
-      elite: !!s.elite,
       extraResists: s.resists ?? {},
     });
     if (stats.speed < w.slowestSpeed) w.slowestSpeed = stats.speed;
@@ -342,13 +339,11 @@ const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number =>
   const dmgType = TOWER_DAMAGE_TYPE[cfg.kind];
   let weightedResist = 0;
   let totalHp = 0;
-  // Iterate groups so per-spawn `resists` chip + `elite` chip override
-  // base resist on the right population. Weighting by group HP keeps a
-  // 12-of-20 flame-immune swarm correctly dropping flame's effective DPS.
+  // Iterate groups so per-spawn `resists` chip overrides base resist on
+  // the right population. Weighting by group HP keeps a 12-of-20
+  // flame-immune swarm correctly dropping flame's effective DPS.
   for (const g of wave.groups) {
     const baseMul = ENEMY_RESIST[g.kind][dmgType];
-    // Elite flatten — same formula as applyDamage.
-    const eliteMul = g.elite ? baseMul + (1 - baseMul) * ELITE_RESIST_FLATTEN : baseMul;
     let extra = g.extraResists[dmgType] ?? 1;
     // Pulse T3 (Annihilator): clamp adaptation-induced resists ≥1 for the
     // tower's own damage type. Adapted enemies stop dodging armour pierce.
@@ -356,7 +351,7 @@ const effectiveDpsForConfig = (cfg: TowerConfig, wave: WaveBreakdown): number =>
     // Chain T3 (Arc Furnace): per-hit strip pulls extraResist toward 1
     // over the combat window. Conservative midpoint approximation.
     else if (cfg.resistStrip > 0 && extra < 1) extra = (extra + 1) / 2;
-    weightedResist += eliteMul * extra * g.hp;
+    weightedResist += baseMul * extra * g.hp;
     totalHp += g.hp;
   }
   const avgResist = totalHp > 0 ? weightedResist / totalHp : 1;
