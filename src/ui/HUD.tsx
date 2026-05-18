@@ -58,6 +58,7 @@ export const HUD = () => {
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const progress = useGame((s) => s.progress);
+  const towerVersion = useGame((s) => s.towerVersion);
   // Mode chip + tower picker filtering both read the active mode.
   const runMode = useGame((s) => s.world.mode);
   const forbidden = useGame((s) => s.world.forbiddenTowers);
@@ -96,6 +97,8 @@ export const HUD = () => {
   useEffect(() => {
     if (selectedKind !== null) setPickerOpen(false);
   }, [selectedKind]);
+  const towers = useGame.getState().world.towers;
+  void towerVersion;
 
   // Bake every tower + enemy thumbnail as soon as the HUD mounts so
   // the mobile build drawer, new-enemy popup, and compendium don't
@@ -374,7 +377,8 @@ export const HUD = () => {
             (kind) =>
               !forbidden.has(kind) && (lockedLoadout === null || lockedLoadout.includes(kind)),
           ).map((kind) => {
-            const cost = effectiveTowerCost(kind, progress.metaSkills);
+            const existingSameKind = towers.filter((t) => t.kind === kind).length;
+            const cost = effectiveTowerCost(kind, progress.metaSkills, existingSameKind);
             const affordable = gold >= cost;
             const active = selectedKind === kind;
             const pill = towerPillInfo(kind);

@@ -22,10 +22,10 @@ export const TOWER_BEHAVIOR: Record<TowerKind, string> = {
   pulse:
     "Fires a single round per shot. Path A: damage; T3 ignores resist-chip immunity. Path B: fire rate; +1 range at T3.",
   chain:
-    "Hits the primary, then jumps to up to 7 nearby targets within 3.5 tiles. Damage falls 40% per jump (less with upgrades). Path A: more chains; T3 removes falloff. Path B: damage; T3 strips electric resist on hit.",
+    "Hits the primary, then jumps to up to 4 nearby targets within 3.5 tiles. Damage falls 40% per jump (less with upgrades). Path A: more chains; T3 removes falloff. Path B: damage; T3 strips electric resist on hit.",
   cryo: "Aura ticks every ~0.67s. Slows enemies in range to 40% speed for 1.5s. No damage at base. Path A: deeper slow; T3 pauses regen on frozen targets. Path B: range; T3 unlocks a cold-damage AoE.",
   mortar:
-    "Lobs an explosive shell at the target. 1.8-tile splash, 0.5 shots/sec. Spot mode pre-sights a chokepoint; shells drop when enemies enter the splash. Path B T3 (Singularity) deals 2× damage to shields.",
+    "Lobs an explosive shell at the target. 1.8-tile splash, 0.5 shots/sec. Spot mode pre-sights a chokepoint; shells drop when enemies enter the splash. Path B T3 (Singularity) deals 3× damage to shields.",
   flame:
     "60° forward cone at 5 ticks/sec. Low per-tick, constant; front ranks absorb most of the heat in giant crowds. Path A: damage; T3 (Napalm) suppresses regen on hit. Path B: fire rate and range.",
   hive: "Spawns 3 drones; assign them to nearby towers for +30% fire rate each. Path A: up to 6 drones. No more than 3 can stack on one tower. Path B: buff up to +50%. Idle drones orbit the hive.",

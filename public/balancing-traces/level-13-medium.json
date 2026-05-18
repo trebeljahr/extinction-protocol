@@ -77,7 +77,7 @@
     },
     {
       "id": 1,
-      "kind": "chain",
+      "kind": "pulse",
       "lanes": [0],
       "anchor": {
         "x": 0,
@@ -109,7 +109,7 @@
       "totalHp": 1708,
       "reqDpsByLane": [11.414851485148514],
       "dpsBeforeByLane": [0],
-      "dpsAfterByLane": [38.90958967954285],
+      "dpsAfterByLane": [36.49698925714285],
       "spentThisWave": 50,
       "goldIn": 150,
       "goldOut": 271,
@@ -133,8 +133,8 @@
       "archetype": "swarm",
       "totalHp": 1988.6,
       "reqDpsByLane": [30.27696140626081],
-      "dpsBeforeByLane": [49.184319701595086],
-      "dpsAfterByLane": [49.184319701595086],
+      "dpsBeforeByLane": [46.13463165644171],
+      "dpsAfterByLane": [46.13463165644171],
       "spentThisWave": 0,
       "goldIn": 271,
       "goldOut": 465,
@@ -146,8 +146,8 @@
       "archetype": "convoy",
       "totalHp": 610,
       "reqDpsByLane": [8.38701464035646],
-      "dpsBeforeByLane": [41.73110378495999],
-      "dpsAfterByLane": [41.73110378495999],
+      "dpsBeforeByLane": [39.14355455999999],
+      "dpsAfterByLane": [39.14355455999999],
       "spentThisWave": 0,
       "goldIn": 465,
       "goldOut": 541,
@@ -159,8 +159,8 @@
       "archetype": "heavy",
       "totalHp": 3531.8999999999996,
       "reqDpsByLane": [25.0555176037835],
-      "dpsBeforeByLane": [23.78181599104663],
-      "dpsAfterByLane": [47.56363198209326],
+      "dpsBeforeByLane": [22.307217575129535],
+      "dpsAfterByLane": [43.14659581347151],
       "spentThisWave": 50,
       "goldIn": 541,
       "goldOut": 739,
@@ -169,7 +169,7 @@
         {
           "type": "build",
           "towerId": 1,
-          "kind": "chain",
+          "kind": "pulse",
           "lanes": [0],
           "anchor": {
             "x": 0,
@@ -184,8 +184,8 @@
       "archetype": "chaos",
       "totalHp": 4324.9,
       "reqDpsByLane": [28.904034653465345],
-      "dpsBeforeByLane": [62.380539430273615],
-      "dpsAfterByLane": [62.380539430273615],
+      "dpsBeforeByLane": [46.573656349788436],
+      "dpsAfterByLane": [46.573656349788436],
       "spentThisWave": 0,
       "goldIn": 739,
       "goldOut": 1102,
@@ -197,11 +197,11 @@
       "archetype": "heavy",
       "totalHp": 12297.6,
       "reqDpsByLane": [58.90251922811218],
-      "dpsBeforeByLane": [44.244172799999994],
-      "dpsAfterByLane": [66.36625919999999],
-      "spentThisWave": 50,
+      "dpsBeforeByLane": [39.44087619047619],
+      "dpsAfterByLane": [60.19127619047619],
+      "spentThisWave": 57,
       "goldIn": 1102,
-      "goldOut": 1771,
+      "goldOut": 1764,
       "cleared": true,
       "actions": [
         {
@@ -213,7 +213,7 @@
             "x": 0,
             "y": 12
           },
-          "cost": 50
+          "cost": 57
         }
       ]
     },
@@ -222,11 +222,11 @@
       "archetype": "chaos",
       "totalHp": 6856.400000000001,
       "reqDpsByLane": [34.5999424196058],
-      "dpsBeforeByLane": [89.530681628242],
-      "dpsAfterByLane": [89.530681628242],
+      "dpsBeforeByLane": [72.39901517437721],
+      "dpsAfterByLane": [72.39901517437721],
       "spentThisWave": 0,
-      "goldIn": 1771,
-      "goldOut": 2258,
+      "goldIn": 1764,
+      "goldOut": 2251,
       "cleared": true,
       "actions": []
     },
@@ -235,17 +235,17 @@
       "archetype": "chaos",
       "totalHp": 12224.4,
       "reqDpsByLane": [58.465564603159024],
-      "dpsBeforeByLane": [82.10340808814368],
-      "dpsAfterByLane": [82.10340808814368],
+      "dpsBeforeByLane": [66.85867433133731],
+      "dpsAfterByLane": [66.85867433133731],
       "spentThisWave": 0,
-      "goldIn": 2258,
-      "goldOut": 3011,
+      "goldIn": 2251,
+      "goldOut": 3004,
       "cleared": true,
       "actions": []
     }
   ],
-  "finalPortfolio": "3×chain@L0",
-  "totalSpent": 150,
+  "finalPortfolio": "2×chain@L0, 1×pulse@L0",
+  "totalSpent": 157,
   "success": true,
-  "generatedAt": "2026-05-17T13:28:26.200Z"
+  "generatedAt": "2026-05-18T23:51:41.302Z"
 }

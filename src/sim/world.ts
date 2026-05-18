@@ -1708,7 +1708,7 @@ export const TOWER_STATS: Record<TowerKind, TowerBaseStats> = {
     damage: 9,
     fireRate: 1.2,
     splashRadius: 0,
-    chainCount: 7,
+    chainCount: 4,
     chainFalloff: 0.6,
     slowFactor: 1,
     slowDuration: 0,
@@ -1784,6 +1784,16 @@ export const TOWER_COST: Record<TowerKind, number> = {
   flame: 80,
   hive: 150,
 };
+
+// Repeated same-kind builds get a small supply surcharge in the current
+// run. The first copy stays at list price; every existing copy of that
+// kind makes the next one cost 12% more. Upgrades do not surcharge, so
+// late-run gold naturally tilts toward improving an anchor tower instead
+// of dropping the 12th identical base tower.
+export const DUPLICATE_TOWER_COST_STEP = 0.12;
+
+export const duplicateTowerCostMultiplier = (existingSameKind: number): number =>
+  1 + Math.max(0, existingSameKind) * DUPLICATE_TOWER_COST_STEP;
 
 export const TOWER_LABEL: Record<TowerKind, string> = {
   pulse: "Pulse Rifle",

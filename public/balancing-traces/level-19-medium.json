@@ -104,7 +104,7 @@
   "plannedTowers": [
     {
       "id": 0,
-      "kind": "cryo",
+      "kind": "flame",
       "lanes": [0, 1, 2],
       "anchor": {
         "x": -4,
@@ -123,32 +123,25 @@
     },
     {
       "id": 1,
-      "kind": "chain",
+      "kind": "cryo",
       "lanes": [0, 1, 2],
       "anchor": {
         "x": -4,
         "y": 0
       },
       "builtAtWave": 1,
-      "upgrades": [],
-      "finalTierA": 0,
+      "upgrades": [
+        {
+          "wave": 2,
+          "branch": "a",
+          "tier": 1
+        }
+      ],
+      "finalTierA": 1,
       "finalTierB": 0
     },
     {
       "id": 2,
-      "kind": "chain",
-      "lanes": [0, 1, 2],
-      "anchor": {
-        "x": -4,
-        "y": 0
-      },
-      "builtAtWave": 2,
-      "upgrades": [],
-      "finalTierA": 0,
-      "finalTierB": 0
-    },
-    {
-      "id": 3,
       "kind": "chain",
       "lanes": [1],
       "anchor": {
@@ -161,7 +154,7 @@
       "finalTierB": 0
     },
     {
-      "id": 4,
+      "id": 3,
       "kind": "chain",
       "lanes": [2],
       "anchor": {
@@ -174,12 +167,12 @@
       "finalTierB": 0
     },
     {
-      "id": 5,
-      "kind": "chain",
-      "lanes": [1, 2],
+      "id": 4,
+      "kind": "pulse",
+      "lanes": [2],
       "anchor": {
-        "x": 3,
-        "y": 5
+        "x": 0,
+        "y": 9
       },
       "builtAtWave": 2,
       "upgrades": [],
@@ -194,15 +187,26 @@
       "totalHp": 2772,
       "reqDpsByLane": [12.311786246321134, 12.311786246321134, 12.803673930239599],
       "dpsBeforeByLane": [0, 0, 0],
-      "dpsAfterByLane": [12.871032087272726, 12.871032087272726, 12.871032087272726],
-      "spentThisWave": 125,
+      "dpsAfterByLane": [19.806030840909088, 19.806030840909088, 19.806030840909088],
+      "spentThisWave": 155,
       "goldIn": 220,
-      "goldOut": 275,
+      "goldOut": 245,
       "cleared": true,
       "actions": [
         {
           "type": "build",
           "towerId": 0,
+          "kind": "flame",
+          "lanes": [0, 1, 2],
+          "anchor": {
+            "x": -4,
+            "y": 0
+          },
+          "cost": 80
+        },
+        {
+          "type": "build",
+          "towerId": 1,
           "kind": "cryo",
           "lanes": [0, 1, 2],
           "anchor": {
@@ -210,17 +214,6 @@
             "y": 0
           },
           "cost": 75
-        },
-        {
-          "type": "build",
-          "towerId": 1,
-          "kind": "chain",
-          "lanes": [0, 1, 2],
-          "anchor": {
-            "x": -4,
-            "y": 0
-          },
-          "cost": 50
         }
       ]
     },
@@ -229,16 +222,16 @@
       "archetype": "heavy",
       "totalHp": 12852,
       "reqDpsByLane": [53.586673394587706, 53.586673394587706, 55.8878834367554],
-      "dpsBeforeByLane": [7.235223551999999, 7.235223551999999, 7.235223551999999],
-      "dpsAfterByLane": [14.470447103999998, 47.028953087999994, 47.028953087999994],
-      "spentThisWave": 240,
-      "goldIn": 275,
-      "goldOut": 35,
+      "dpsBeforeByLane": [8.810771072610294, 8.810771072610294, 8.810771072610294],
+      "dpsAfterByLane": [14.09723371617647, 34.45703795147059, 55.69233206911765],
+      "spentThisWave": 242,
+      "goldIn": 245,
+      "goldOut": 3,
       "cleared": false,
       "actions": [
         {
           "type": "upgrade",
-          "towerId": 0,
+          "towerId": 1,
           "kind": "cryo",
           "branch": "a",
           "tier": 1,
@@ -248,17 +241,6 @@
           "type": "build",
           "towerId": 2,
           "kind": "chain",
-          "lanes": [0, 1, 2],
-          "anchor": {
-            "x": -4,
-            "y": 0
-          },
-          "cost": 50
-        },
-        {
-          "type": "build",
-          "towerId": 3,
-          "kind": "chain",
           "lanes": [1],
           "anchor": {
             "x": -7,
@@ -267,33 +249,41 @@
           "cost": 50
         },
         {
+          "type": "upgrade",
+          "towerId": 0,
+          "kind": "flame",
+          "branch": "a",
+          "tier": 1,
+          "cost": 45
+        },
+        {
           "type": "build",
-          "towerId": 4,
+          "towerId": 3,
           "kind": "chain",
           "lanes": [2],
           "anchor": {
             "x": -2,
             "y": 8
           },
-          "cost": 50
+          "cost": 57
         },
         {
           "type": "build",
-          "towerId": 5,
-          "kind": "chain",
-          "lanes": [1, 2],
+          "towerId": 4,
+          "kind": "pulse",
+          "lanes": [2],
           "anchor": {
-            "x": 3,
-            "y": 5
+            "x": 0,
+            "y": 9
           },
           "cost": 50
         }
       ]
     }
   ],
-  "finalPortfolio": "1×cryo@L0+1+2, 2×chain@L0+1+2, 1×chain@L1, 1×chain@L2, 1×chain@L1+2",
-  "totalSpent": 365,
+  "finalPortfolio": "1×flame@L0+1+2, 1×cryo@L0+1+2, 1×chain@L1, 1×chain@L2, 1×pulse@L2",
+  "totalSpent": 397,
   "success": false,
   "failedAt": 2,
-  "generatedAt": "2026-05-17T13:28:27.123Z"
+  "generatedAt": "2026-05-18T23:51:43.484Z"
 }

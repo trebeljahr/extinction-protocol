@@ -37,7 +37,8 @@
  * Budget per wave = startGold + sum(bounties, waves 1..N-1) + sum(5+wave, 1..N-1).
  * Tower + HQ-upgrade costs both pull from this pool — the optimizer picks
  * the split that maximises end-of-wave damage. Does NOT include early-call
- * bonuses (variable) or assume surviving towers from earlier waves.
+ * bonuses (variable) or assume surviving towers from earlier waves. Repeated
+ * same-kind copies pay the live duplicate-build surcharge; upgrades do not.
  *
  * Runtime spawn-time mutations modeled:
  *   - ensureImmunityCoverage (src/sim/immunityCoverage.ts) — replays the same
@@ -48,7 +49,8 @@
  *     ADAPT_TRIGGER_LEVEL the herd retunes against the dominant damage type
  *     the player relies on. Modeled here as a multiplicative DPS penalty
  *     against the picked tower's damage type:
- *       penalty = 1 − adaptiveCoverage(level) × adaptiveBoost(level)
+ *       penalty = 1 − adaptiveCoverage(level, streak, share)
+ *                   × adaptiveBoost(level, streak, share)
  *     Disable with --no-adapt to compare against the legacy "static
  *     resists only" baseline.
  *
@@ -222,6 +224,23 @@ const buildAllConfigs = (starBudget: number): TowerConfig[] => {
     }
   }
   return out;
+};
+
+const affordableCopies = (
+  cfg: TowerConfig,
+  budget: number,
+): { count: number; totalCost: number } => {
+  const baseCost = effectiveTowerCost(cfg.kind, cfg.meta, 0);
+  const upgradeCost = cfg.cost - baseCost;
+  let count = 0;
+  let totalCost = 0;
+  while (true) {
+    const nextCost = effectiveTowerCost(cfg.kind, cfg.meta, count) + upgradeCost;
+    if (totalCost + nextCost > budget) break;
+    totalCost += nextCost;
+    count++;
+  }
+  return { count, totalCost };
 };
 
 const summarizeMeta = (meta: AllMetaSkills, kind: TowerKind): string => {
@@ -748,14 +767,23 @@ type AnalysisOpts = {
 /**
  * Multiplicative DPS penalty for the dominant damage type once the herd's
  * adaptation kicks in (level >= ADAPT_TRIGGER_LEVEL). Mirrors world.ts —
- * a fraction `adaptiveCoverage(level)` of spawns gets resist boosted by
- * `adaptiveBoost(level)` against whatever the player has been leaning on.
+ * a fraction `adaptiveCoverage(level, streak, share)` of spawns gets resist
+ * boosted by `adaptiveBoost(level, streak, share)` against whatever the
+ * player has been leaning on.
  * Static feasibility doesn't track dominant-type per wave; we assume the
  * player's picked tower IS the dominant type (worst case for that pick).
  */
+const FEASIBILITY_ADAPT_STREAK = 3;
+const FEASIBILITY_ADAPT_SHARE = 0.8;
+
 const adaptivePenalty = (levelId: number): number => {
   if (levelId < ADAPT_TRIGGER_LEVEL) return 1;
-  return Math.max(0.1, 1 - adaptiveCoverage(levelId) * adaptiveBoost(levelId));
+  return Math.max(
+    0.1,
+    1 -
+      adaptiveCoverage(levelId, FEASIBILITY_ADAPT_STREAK, FEASIBILITY_ADAPT_SHARE) *
+        adaptiveBoost(levelId, FEASIBILITY_ADAPT_STREAK, FEASIBILITY_ADAPT_SHARE),
+  );
 };
 
 /**
@@ -791,7 +819,7 @@ const bestSetup = (
       // "cleared" by a tower the player literally can't place.
       if (forbidden.has(cfg.kind)) continue;
       if (lockedLoadout && !lockedLoadout.includes(cfg.kind)) continue;
-      const count = Math.floor(remaining / cfg.cost);
+      const { count, totalCost } = affordableCopies(cfg, remaining);
       if (count === 0) continue;
       const perTowerDps = effectiveDpsVsWave(cfg, wave, spec, longestPath);
       // Memoise pathCoverage by quantised range — paths are fixed per
@@ -810,7 +838,7 @@ const bestSetup = (
         tierA: cfg.tierA,
         tierB: cfg.tierB,
         metaLabel: summarizeMeta(cfg.meta, cfg.kind),
-        unitCost: cfg.cost,
+        unitCost: Math.round(totalCost / count),
         perTowerDps,
         count,
         towerDps,

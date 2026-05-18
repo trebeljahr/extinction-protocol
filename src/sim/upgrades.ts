@@ -40,10 +40,10 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Annihilator",
-          desc: "+90% damage, armor pierce",
+          desc: "+140% damage, armor pierce",
           cost: 95,
           apply: (t) => {
-            t.damage *= 1.9;
+            t.damage *= 2.4;
             // Armor pierce — modifier-induced resists below 1.0 get
             // clamped to 1.0 for kinetic hits, undoing flame-immune-style
             // adaptation on raptors / armored hit by Pulse.
@@ -73,10 +73,10 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Hyperfire",
-          desc: "+55% fire rate, +1 range",
+          desc: "+70% fire rate, +1 range",
           cost: 95,
           apply: (t) => {
-            t.fireRate *= 1.55;
+            t.fireRate *= 1.7;
             t.range += 1;
           },
         },
@@ -89,28 +89,32 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
       tiers: [
         {
           name: "Fork",
-          desc: "+2 chain targets",
+          desc: "+2 chain targets, less falloff, +20% fire rate",
           cost: 55,
           apply: (t) => {
             t.chainCount += 2;
+            t.chainFalloff = Math.min(1, t.chainFalloff + 0.1);
+            t.fireRate *= 1.2;
           },
         },
         {
           name: "Cascade",
-          desc: "+2 chain + less falloff",
+          desc: "+3 chain, much less falloff, +30% fire rate",
           cost: 100,
           apply: (t) => {
-            t.chainCount += 2;
+            t.chainCount += 3;
             t.chainFalloff = Math.min(1, t.chainFalloff + 0.2);
+            t.fireRate *= 1.3;
           },
         },
         {
           name: "Storm",
-          desc: "+2 chain, no falloff",
+          desc: "+4 chain, no falloff, +45% fire rate",
           cost: 175,
           apply: (t) => {
-            t.chainCount += 2;
+            t.chainCount += 4;
             t.chainFalloff = 1;
+            t.fireRate *= 1.45;
           },
         },
       ],
@@ -136,14 +140,14 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Arc Furnace",
-          desc: "+85% damage; strips electric resist per hit",
+          desc: "+120% damage; strips electric resist per hit",
           cost: 165,
           apply: (t) => {
-            t.damage *= 1.85;
+            t.damage *= 2.2;
             // Each chain hit pulls modifier-induced electric resist
-            // 10% closer to 1.0 — over ~10 hits, full electric immunity
+            // closer to 1.0 — over repeated hits, full electric immunity
             // is undone on a single target.
-            t.resistStrip = 0.1;
+            t.resistStrip = 0.16;
           },
         },
       ],
@@ -172,11 +176,11 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Cryo Lock",
-          desc: "Crawl + long chill; frozen enemies can't regen",
+          desc: "Near-stop + long chill; frozen enemies can't regen",
           cost: 150,
           apply: (t) => {
-            t.slowFactor = 0.12;
-            t.slowDuration = 2.3;
+            t.slowFactor = 0.1;
+            t.slowDuration = 2.6;
             // Regen-chip self-heal pauses for the full slow duration on
             // any enemy in range — combos with Pyre T3 / Hive aura as
             // a third regen-suppression option.
@@ -207,10 +211,10 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Absolute Zero",
-          desc: "16 cold damage AoE",
+          desc: "28 cold damage AoE",
           cost: 160,
           apply: (t) => {
-            t.damage = 16;
+            t.damage = 28;
           },
         },
       ],
@@ -238,11 +242,11 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Thermobaric",
-          desc: "+30% splash, +25% damage",
+          desc: "+50% splash, +55% damage",
           cost: 210,
           apply: (t) => {
-            t.splashRadius *= 1.3;
-            t.damage *= 1.25;
+            t.splashRadius *= 1.5;
+            t.damage *= 1.55;
           },
         },
       ],
@@ -268,15 +272,15 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Singularity",
-          desc: "+95% damage, +10% fire rate, 2× damage to shields",
+          desc: "+140% damage, +20% fire rate, 3× damage to shields",
           cost: 210,
           apply: (t) => {
-            t.damage *= 1.95;
-            t.fireRate *= 1.1;
+            t.damage *= 2.4;
+            t.fireRate *= 1.2;
             // Mortar's T3 cracks shielded enemies fast — compounds with
-            // Hive aura (×2 shield mul) for 4× shield damage when both
+            // Hive aura (×3 shield mul) for 6× shield damage when both
             // are committed to the lane.
-            t.shieldDamageMul = 2;
+            t.shieldDamageMul = 3;
           },
         },
       ],
@@ -304,16 +308,16 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Napalm",
-          desc: "+80% damage, +0.6 range; suppresses regen for 1.5s/hit",
+          desc: "+130% damage, +0.8 range; suppresses regen for 2s/hit",
           cost: 160,
           apply: (t) => {
-            t.damage *= 1.8;
-            t.range += 0.6;
+            t.damage *= 2.3;
+            t.range += 0.8;
             // Pyre's T3 turns a regen tank into a regen-locked target —
             // each hit extends the damage-pause window beyond the
             // default 1.5s, so flame's high tick rate keeps regen off
             // continuously.
-            t.regenSuppressOnHit = 1.5;
+            t.regenSuppressOnHit = 2;
           },
         },
       ],
@@ -340,11 +344,11 @@ export const UPGRADES: Record<TowerKind, UpgradeTree> = {
         },
         {
           name: "Sunflare",
-          desc: "+40% fire rate, +0.5 range",
+          desc: "+55% fire rate, +0.7 range",
           cost: 160,
           apply: (t) => {
-            t.fireRate *= 1.4;
-            t.range += 0.5;
+            t.fireRate *= 1.55;
+            t.range += 0.7;
           },
         },
       ],

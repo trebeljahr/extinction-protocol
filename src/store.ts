@@ -1104,7 +1104,12 @@ export const useGame = create<GameStore>((set, get) => ({
     if (
       s.selectedKind !== null &&
       !s.freeTowers &&
-      s.world.gold < effectiveTowerCost(s.selectedKind, s.progress.metaSkills)
+      s.world.gold <
+        effectiveTowerCost(
+          s.selectedKind,
+          s.progress.metaSkills,
+          s.world.towers.filter((t) => t.kind === s.selectedKind).length,
+        )
     ) {
       autoClosedSelection = true;
       emit(s.world, { type: "place-failed", reason: "gold" });
@@ -1932,7 +1937,8 @@ export const useGame = create<GameStore>((set, get) => ({
       emit(w, { type: "place-failed", reason: "spot" });
       return;
     }
-    const cost = effectiveTowerCost(s.selectedKind, s.progress.metaSkills);
+    const existingSameKind = w.towers.filter((t) => t.kind === s.selectedKind).length;
+    const cost = effectiveTowerCost(s.selectedKind, s.progress.metaSkills, existingSameKind);
     // Debug "free towers" mode skips both the affordability check and
     // the spend; lets a tester sanity-check matchups without grinding.
     const free = s.freeTowers;
@@ -1948,8 +1954,8 @@ export const useGame = create<GameStore>((set, get) => ({
     const placed = createTower(w, s.selectedKind, pos);
     // Bake meta-skill ranks into the new tower's base stats. Done after
     // createTower (rather than inside it) so world.ts stays decoupled
-    // from the progress system. totalSpent stays at the original
-    // TOWER_COST baseline so sell refunds aren't inflated by discounts.
+    // from the progress system. totalSpent records the actual paid price,
+    // including meta discounts and duplicate-build surcharge.
     applyMetaSkillsToTower(placed, s.progress.metaSkills);
     placed.totalSpent = cost;
     autoAssignDroneToNewTower(w, placed);
@@ -1965,7 +1971,9 @@ export const useGame = create<GameStore>((set, get) => ({
     // Close placement when the spend leaves the player unable to afford
     // the next one of the same kind, so the picker doesn't keep the
     // ghost armed and force a "no gold" reject on the very next click.
-    const stillAffordable = w.gold >= effectiveTowerCost(s.selectedKind, s.progress.metaSkills);
+    const nextExistingSameKind = w.towers.filter((t) => t.kind === s.selectedKind).length;
+    const stillAffordable =
+      w.gold >= effectiveTowerCost(s.selectedKind, s.progress.metaSkills, nextExistingSameKind);
     const nextSelectedKind = free || stillAffordable ? s.selectedKind : null;
     const nextPendingTouch = nextSelectedKind === null ? null : s.pendingTouchPlacement;
     set({

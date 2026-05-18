@@ -416,11 +416,18 @@ export const Placement = () => {
 
   const showPlacement =
     activeHover !== null && hoveredTower === null && status === "running" && selectedKind !== null;
+  const placementState = useGame.getState();
+  const selectedCost =
+    selectedKind === null
+      ? Infinity
+      : effectiveTowerCost(
+          selectedKind,
+          placementState.progress.metaSkills,
+          placementState.world.towers.filter((t) => t.kind === selectedKind).length,
+        );
 
   const canPlaceHere =
-    showPlacement &&
-    gold >= effectiveTowerCost(selectedKind!, useGame.getState().progress.metaSkills) &&
-    useGame.getState().canPlace(activeHover!);
+    showPlacement && gold >= selectedCost && placementState.canPlace(activeHover!);
 
   const placementColor = canPlaceHere ? "#3dff8a" : "#ff5a7a";
   const range = selectedKind ? TOWER_STATS[selectedKind].range : 0;

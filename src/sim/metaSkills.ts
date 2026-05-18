@@ -14,7 +14,7 @@
 // is one click in the panel.
 
 import type { Tower, TowerKind } from "./types";
-import { HIVE_MAX_DRONES, TOWER_COST } from "./world";
+import { duplicateTowerCostMultiplier, HIVE_MAX_DRONES, TOWER_COST } from "./world";
 
 export type BranchId = "a" | "b" | "c";
 export const BRANCH_IDS: readonly BranchId[] = ["a", "b", "c"];
@@ -501,16 +501,20 @@ export const applyMetaSkillsToTower = (tower: Tower, meta: AllMetaSkills): void 
   }
 };
 
-// Effective placement cost after the c-branch Surplus discount. Floored
-// at COST_FLOOR_FRACTION × base so spam-buying meta-discounted towers
-// never undercuts the price of upgrading an existing one — keeps the
-// "more towers vs upgrade what you have" decision honest.
-export const effectiveTowerCost = (kind: TowerKind, meta: AllMetaSkills): number => {
+// Effective placement cost after the c-branch Surplus discount and the
+// current-run duplicate surcharge. The first copy stays at list price;
+// repeated same-kind builds climb, while upgrades stay fixed-cost.
+export const effectiveTowerCost = (
+  kind: TowerKind,
+  meta: AllMetaSkills,
+  existingSameKind = 0,
+): number => {
   const base = TOWER_COST[kind];
   const cTier = clampTier(meta[kind]?.c);
   const discount = cTier > 0 ? COST_DISCOUNT[kind][cTier - 1] : 0;
   const floor = Math.ceil(base * COST_FLOOR_FRACTION);
-  return Math.max(floor, base - discount);
+  const discounted = Math.max(floor, base - discount);
+  return Math.ceil(discounted * duplicateTowerCostMultiplier(existingSameKind));
 };
 
 // Total stars allocated across the whole tree. Used by the panel header

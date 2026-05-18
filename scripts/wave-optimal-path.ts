@@ -23,8 +23,10 @@
  *   factor, modulated by per-enemy slow resist). Greedily pick the action
  *   (build kind K at placement-class P, or upgrade tower Y branch Z) with
  *   the best deficit-reducing score per gold, until every lane meets its
- *   reqDps or we run out of affordable actions. Towers persist; leftover
- *   gold rolls forward. Bounty + wave-clear bonus credited only on full
+ *   reqDps or we run out of affordable actions. Repeated same-kind builds
+ *   pay the live duplicate surcharge, while upgrades remain fixed-cost.
+ *   Towers persist; leftover gold rolls forward. Bounty + wave-clear bonus
+ *   credited only on full
  *   clear of every lane with enemies.
  *
  *   Greedy is myopic — it picks the locally-best action, which can lose
@@ -65,6 +67,7 @@ import type {
 } from "../src/sim/types";
 import { UPGRADES } from "../src/sim/upgrades";
 import {
+  duplicateTowerCostMultiplier,
   ELITE_RESIST_FLATTEN,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
@@ -418,14 +421,23 @@ const computePlacementOptions = (paths: Vec2[][]): PlacementOptions => {
   return out;
 };
 
+const buildCostForKind = (state: SimState, kind: TowerKind): number => {
+  let existingSameKind = 0;
+  for (const t of state.towers) {
+    if (t.kind === kind) existingSameKind++;
+  }
+  return Math.ceil(TOWER_COST[kind] * duplicateTowerCostMultiplier(existingSameKind));
+};
+
 const enumerateActions = (state: SimState, placements: PlacementOptions): Action[] => {
   const out: Action[] = [];
   for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
+    const cost = buildCostForKind(state, kind);
     for (const slot of placements[kind]) {
       out.push({
         type: "build",
         kind,
-        cost: TOWER_COST[kind],
+        cost,
         lanes: slot.lanes,
         anchor: slot.anchor,
       });
@@ -655,7 +667,7 @@ const prepAndClearWave = (
   const records: AppliedRecord[] = [];
 
   if (forceFirst) {
-    const cost = TOWER_COST[forceFirst.kind];
+    const cost = buildCostForKind(state, forceFirst.kind);
     if (cost <= state.gold) {
       const slot = placements[forceFirst.kind].find(
         (s) =>
@@ -941,7 +953,7 @@ const simulateBeam = (
 
       // Forced (kind, placement) variants — one per (kind × valid placement).
       for (const kind of Object.keys(TOWER_STATS) as TowerKind[]) {
-        if (TOWER_COST[kind] > node.state.gold) continue;
+        if (buildCostForKind(node.state, kind) > node.state.gold) continue;
         for (const slot of placements[kind]) {
           const r2 = prepAndClearWave(
             node.state,
