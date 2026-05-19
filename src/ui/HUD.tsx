@@ -266,7 +266,7 @@ export const HUD = () => {
         <button
           type="button"
           onClick={() => setDifficultyPickerOpen(true)}
-          className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
+          className="pointer-events-auto bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
           title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]} · Change`}
           aria-label="Change difficulty"
         >
