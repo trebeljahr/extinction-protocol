@@ -176,12 +176,12 @@ export const WorldMapUI = () => {
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setAchievementsOpen(true)}
-          aria-label="Open achievements"
-          title="Achievements"
+          onClick={() => setCompendiumOpen(true, "lore")}
+          aria-label="Open lore codex"
+          title="Lore — recovered field documents"
         >
-          <IconTrophy size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Achievements</span>
+          <IconScroll size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
         </button>
         <button
           type="button"
@@ -192,6 +192,32 @@ export const WorldMapUI = () => {
         >
           <IconBook size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">Compendium</span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setAchievementsOpen(true)}
+          aria-label="Open achievements"
+          title="Achievements"
+        >
+          <IconTrophy size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Achievements</span>
+        </button>
+        <button
+          type="button"
+          className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+          onClick={() => setRobotShopOpen(true)}
+          aria-label="Open robot roster"
+          title={`Pilot roster — ${bolts} bolt${bolts === 1 ? "" : "s"} gathered`}
+        >
+          <IconSquad size={16} className="shrink-0" />
+          <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
+          <span
+            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-[rgba(215,191,130,0.95)] text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
+          >
+            <IconBolt size={10} className="shrink-0" />
+            {bolts}
+          </span>
         </button>
         <button
           type="button"
@@ -212,32 +238,6 @@ export const WorldMapUI = () => {
             <IconStar size={10} className="shrink-0" />
             {availableStars}
           </span>
-        </button>
-        <button
-          type="button"
-          className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setRobotShopOpen(true)}
-          aria-label="Open robot roster"
-          title={`Pilot roster — ${bolts} bolt${bolts === 1 ? "" : "s"} gathered`}
-        >
-          <IconSquad size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
-          <span
-            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-[rgba(215,191,130,0.95)] text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
-          >
-            <IconBolt size={10} className="shrink-0" />
-            {bolts}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
-          onClick={() => setCompendiumOpen(true, "lore")}
-          aria-label="Open lore codex"
-          title="Lore — recovered field documents"
-        >
-          <IconScroll size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
         </button>
       </div>
 
