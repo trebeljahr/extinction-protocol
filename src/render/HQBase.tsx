@@ -51,14 +51,6 @@ type PrimitiveDef = {
 // + small margin so dinos cleanly path past.
 const BASE_PROPS: PropDef[] = [
   {
-    url: "/models/scifi/hangar_smallA.glb",
-    right: -1.55,
-    fwd: -1.75,
-    targetHeight: 1.08,
-    clearRadius: 1.05,
-    facesHQ: true,
-  },
-  {
     url: "/models/scifi/structure_detailed.glb",
     right: 1.55,
     fwd: -1.75,
