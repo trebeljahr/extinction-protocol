@@ -320,6 +320,9 @@ export type RobotPayloadState =
       // The robot is locked in place during chargeTime; fireAt is when the
       // shot lands. End-of-payload happens immediately after fire.
       targetId: EntityId;
+      // Last known impact point for the locked target. Keeps the warhead
+      // visual deterministic even if the target dies during chargeTime.
+      targetPos: Vec2;
       fireAt: number;
       endAt: number;
       damage: number;

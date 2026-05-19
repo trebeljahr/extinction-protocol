@@ -550,29 +550,39 @@ const tickPayload = (
   const idle = { dmgMul: 1, rateMul: 1 };
   if (!p) return idle;
   if (p.kind === "killshot") {
+    const target = world.enemyById.get(p.targetId);
+    const lockedTarget = target && isEnemyTargetable(target) ? target : null;
+    if (lockedTarget) {
+      p.targetPos.x = lockedTarget.pos.x;
+      p.targetPos.y = lockedTarget.pos.y;
+    }
     if (world.time >= p.fireAt) {
-      const target = world.enemyById.get(p.targetId);
-      if (target && isEnemyTargetable(target)) {
-        createBeam(world, [robotMuzzlePoint(robot), enemyLightningPoint(target)], "#ffe9a0", 0.25);
-        applyDamage(world, target, p.damage, p.damageType, "#fff4d6", 28, false, {
+      const impactPos: Vec2 = { x: p.targetPos.x, y: p.targetPos.y };
+      const impactPoint = lockedTarget
+        ? enemyLightningPoint(lockedTarget)
+        : { x: impactPos.x, y: impactPos.y, h: 0.85 };
+      createBeam(world, [robotMuzzlePoint(robot), impactPoint], "#ffe9a0", 0.25);
+      if (lockedTarget) {
+        applyDamage(world, lockedTarget, p.damage, p.damageType, "#fff4d6", 28, false, {
           fromRobot: true,
         });
-        // Splash at impact point so escorts die with the priority target.
-        const r2 = p.splashRadius * p.splashRadius;
-        for (const e of world.enemies) {
-          if (!isEnemyTargetable(e)) continue;
-          if (e === target) continue;
-          if (distSq(e.pos, target.pos) > r2) continue;
-          applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 10, false, {
-            fromRobot: true,
-          });
-        }
-        createExplosion(world, target.pos, p.splashRadius, 0.55);
-        spawnParticles(world, target.pos, 48, "#ffb04a", [4, 10], 0.7);
-        spawnParticles(world, target.pos, 28, "#ffe9a0", [3, 7], 0.5);
-        addShake(world, 0.7, 5);
-        emit(world, { type: "impact", pos: target.pos });
       }
+      // Splash at the locked impact point so escorts still eat the
+      // warhead when the priority target dies during chargeTime.
+      const r2 = p.splashRadius * p.splashRadius;
+      for (const e of world.enemies) {
+        if (!isEnemyTargetable(e)) continue;
+        if (lockedTarget && e.id === lockedTarget.id) continue;
+        if (distSq(e.pos, impactPos) > r2) continue;
+        applyDamage(world, e, p.splashDamage, p.damageType, "#ffe9a0", 10, false, {
+          fromRobot: true,
+        });
+      }
+      createExplosion(world, impactPos, p.splashRadius, 0.55);
+      spawnParticles(world, impactPos, 48, "#ffb04a", [4, 10], 0.7);
+      spawnParticles(world, impactPos, 28, "#ffe9a0", [3, 7], 0.5);
+      addShake(world, 0.7, 5);
+      emit(world, { type: "impact", pos: impactPos });
       robot.payload = null;
     }
     return idle;
@@ -1287,6 +1297,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     robot.payload = {
       kind: "killshot",
       targetId: target.id,
+      targetPos: { x: target.pos.x, y: target.pos.y },
       fireAt: world.time + spec.chargeTime,
       endAt: world.time + spec.chargeTime + 0.05,
       damage: spec.damage,
