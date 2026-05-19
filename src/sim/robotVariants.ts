@@ -4,7 +4,7 @@
 // Skill-tree ranks layer on top via applyRobotSkillsToRobot — variant
 // numbers are the "rank 0" baseline.
 
-import type { DamageType, RobotVariant } from "./types";
+import type { DamageType, RobotAbilitySlot, RobotVariant } from "./types";
 
 export const ROBOT_VARIANTS: readonly RobotVariant[] = ["george", "leela", "mike", "stan"];
 
@@ -228,14 +228,14 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
       },
     ],
     tint: "#9fd8ff",
-    abilityLabels: ["Sidestep", "Shockwave", "Spotter Drone", "Bullet Storm"],
+    abilityLabels: ["Sidestep", "Shockwave", "Spotter", "Bullet Storm"],
     abilityGlyphs: ["»", "✺", "◎", "✦"],
     abilityBlurbs: [
-      "Hitscan kinetic sniper rifle. Tracer beam draws to target — long range, slow cadence, very high per-shot damage. No splash.",
-      "Lateral hop with i-frames. The next auto-attack lands as a piercing crit (×2.5 damage). Use to slip a grapple and answer with a body shot.",
-      "Kinetic shockwave centered on the robot. Heavy single-pulse damage and a short push that knocks enemies back along the path.",
-      "Scope-in stance: +60% range, +80% damage, –15% fire rate, –50% speed, 40% resist for 5s. Hold the line and snipe.",
-      "Bullet Storm: ×7 fire rate, +50% damage for 3.5s. Auto-attacks erupt as a torrent of tracer hits — chew through whole columns in one window.",
+      "Sniper beam. Long reach, slow cadence, huge kinetic hit.",
+      "Short i-frame hop; next shot is a piercing x2.5 crit.",
+      "Close kinetic pulse for 95 damage and a small path push.",
+      "Scope stance: more range and damage, slower feet, 40% resist.",
+      "3.5s frenzy: x7 fire rate and +50% damage.",
     ],
   },
   leela: {
@@ -300,11 +300,11 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     abilityLabels: ["Phase Step", "Tesla Pulse", "Phase Veil", "Storm Surge"],
     abilityGlyphs: ["»", "⚡", "◈", "✺"],
     abilityBlurbs: [
-      "Hitscan electric zap. Every shot arcs to two nearby targets for 5 bonus damage each. Fast cadence — best inside a pack.",
-      "Forward dash with i-frames. On lunge end, lightning arcs to the 3 closest enemies for 24 electric damage each.",
-      "Radial electric blast at the robot (70 dmg). Then forks chain lightning to 4 more enemies in 6 range for 35 dmg per hop.",
-      "Phase Veil: +70% speed, +60% fire rate, +15% damage, 80% resist for 3s. Use to reposition through a clog.",
-      "Storm Surge: a 7-radius lightning storm engulfs the robot for 5s. Every 0.2s, 4 of the nearest enemies eat 26 electric damage.",
+      "Fast electric zap. Each shot chains to two nearby targets.",
+      "I-frame dash; end arcs hit 3 enemies for 24 electric.",
+      "4-radius electric pulse, then 4 chain hops for 35 each.",
+      "3s veil: speed, fire rate, damage, and 80% resist.",
+      "5s storm: 4 electric bolts every 0.2s inside 7 radius.",
     ],
   },
   mike: {
@@ -362,14 +362,14 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
       },
     ],
     tint: "#ff8a3a",
-    abilityLabels: ["Thruster Burst", "Flame Nova", "Ignition", "Inferno Ring"],
+    abilityLabels: ["Thruster", "Flame Nova", "Ignition", "Inferno"],
     abilityGlyphs: ["»", "🔥", "✱", "✷"],
     abilityBlurbs: [
-      "Heavy short-range flame splash (1.1 radius) — every shot hits a group. Slower cadence than Leela, way more pop per hit.",
-      "Forward dash with i-frames. Drops a 2.6s burning coal trail (22 dps tick) behind you — ideal for running through a marching column.",
-      "Radial flame burst (4.5 radius, 95 dmg) plus a 4-second burn (40 total) on every enemy hit.",
-      "Ignition: ×2 fire rate, +30% damage, 35% resist for 4s. While active, every auto-attack adds a 2s burn DoT (12 total).",
-      "Inferno Ring: 3 expanding rings of flame wash out from the robot, each dealing 95 flame damage + a 3s burn to anything caught in its band.",
+      "Short-range flame splash. Every shot hits a small pack.",
+      "I-frame dash that leaves a 2.6s burning coal trail.",
+      "4.5-radius nova for 95 flame, plus 40 burn.",
+      "4s ignition: x2 fire rate, +30% damage, 35% resist.",
+      "3 expanding flame rings, 95 each, plus burn.",
     ],
   },
   stan: {
@@ -436,13 +436,32 @@ export const ROBOT_SPECS: Record<RobotVariant, RobotVariantSpec> = {
     abilityLabels: ["Ground Pound", "Quake", "Bulwark", "Annihilator"],
     abilityGlyphs: ["»", "✺", "▣", "❖"],
     abilityBlurbs: [
-      "Every shell explodes on impact (1.5 splash). Slow cadence, long range — pre-aim a clump and watch the whole row go up.",
-      "Short dash with i-frames. On landing, detonates a 3.5-radius explosion for 110 explosive damage.",
-      "Radial explosive blast (5 radius, 160 dmg). Knocks every enemy hit backwards 1.6 units along the path.",
-      "Bulwark: roots Stan (×0.5 speed), +40% damage, 75% damage resist for 5s. Brace and bombard.",
-      "Annihilator Missile: locks the most-advanced enemy within 12 range, charges 0.9s, then drops a 700-dmg warhead with a 4-radius, 320-dmg splash.",
+      "Long-range explosive shells. Slow, wide splash, high impact.",
+      "Short i-frame leap; landing blast deals 110 explosive.",
+      "5-radius quake for 160 explosive and heavy path push.",
+      "5s brace: +40% damage, 75% resist, half speed.",
+      "Charged warhead: 700 direct, 320 splash.",
     ],
   },
+};
+
+export const robotAbilityDamageType = (
+  spec: RobotVariantSpec,
+  slot: RobotAbilitySlot,
+): DamageType => {
+  const ability = spec.abilities[slot];
+  if (ability.type === "dash") {
+    if (ability.endChain) return ability.endChain.damageType;
+    if (ability.landingBlast) return ability.landingBlast.damageType;
+    if (spec.variant === "mike") return "flame";
+    return spec.damageType;
+  }
+  if (ability.type === "buff") {
+    if (ability.igniteOnHit) return "flame";
+    return spec.damageType;
+  }
+  if (ability.type === "frenzy") return spec.damageType;
+  return ability.damageType;
 };
 
 export const robotSpec = (variant: RobotVariant): RobotVariantSpec => ROBOT_SPECS[variant];

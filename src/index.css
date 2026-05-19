@@ -4215,12 +4215,12 @@
   }
   .robot-abilities {
     display: flex;
-    gap: 6px;
+    gap: 5px;
   }
   .robot-ability {
     position: relative;
-    width: 64px;
-    height: 50px;
+    width: 56px;
+    height: 44px;
     background: rgba(14, 20, 28, 0.7);
     border: 1px solid rgba(120, 160, 200, 0.22);
     border-radius: 6px;
@@ -4261,13 +4261,13 @@
       0 0 14px rgba(90, 214, 255, 0.58);
   }
   .robot-ability-glyph {
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
     color: var(--color-blue);
     text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
   }
   .robot-ability-key {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--color-fg-soft);
     letter-spacing: 0.06em;
@@ -4284,7 +4284,7 @@
     position: absolute;
     top: 3px;
     right: 5px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--color-fg);
     background: rgba(0, 0, 0, 0.55);
@@ -4443,7 +4443,7 @@
   .robot-sel-abilities {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
     margin-bottom: 12px;
   }
   /* Read-only ability info card. No trigger affordance — the overlay is
@@ -4452,10 +4452,10 @@
   .robot-sel-ability-info {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 8px 10px;
-    background: rgba(14, 20, 28, 0.55);
-    border: 1px solid rgba(120, 160, 200, 0.18);
+    gap: 5px;
+    padding: 7px 9px;
+    background: rgba(8, 12, 18, 0.52);
+    border: 1px solid rgba(120, 160, 200, 0.14);
     border-radius: 6px;
     color: var(--color-fg);
   }
@@ -4466,17 +4466,19 @@
   }
   .robot-sel-ability-info-title {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 3px;
     min-width: 0;
   }
   .robot-sel-ability-glyph {
-    font-size: 22px;
+    font-size: 18px;
     line-height: 1;
     color: var(--color-blue);
     text-shadow: 0 0 6px rgba(159, 216, 255, 0.4);
-    width: 28px;
+    width: 24px;
     text-align: center;
     flex-shrink: 0;
   }
@@ -4487,6 +4489,7 @@
     font-size: var(--fs-sm);
     font-weight: 700;
     color: var(--color-fg);
+    min-width: 0;
   }
   .robot-sel-ability-key {
     font-size: 10px;
@@ -4499,27 +4502,29 @@
   }
   .robot-sel-ability-blurb {
     margin: 0;
-    font-size: 11px;
-    line-height: 1.45;
-    color: var(--color-fg);
-    opacity: 0.92;
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    color: #c5cfda;
   }
   .robot-sel-ability-stats {
     margin: 0;
     padding: 0;
     list-style: none;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 10px;
+    flex-flow: row wrap;
+    gap: 4px;
+    font-size: var(--fs-2xs);
     font-weight: 600;
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
+    line-height: 1.25;
   }
   .robot-sel-ability-stats li {
-    padding-left: 8px;
-    border-left: 2px solid rgba(159, 216, 255, 0.18);
+    padding: 2px 5px;
+    border: 1px solid rgba(120, 160, 200, 0.12);
+    border-radius: 4px;
+    background: rgba(159, 216, 255, 0.05);
   }
   .robot-sel-blurb {
     font-size: 11px;
@@ -4865,13 +4870,13 @@
     font: inherit;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 7px 10px;
+    gap: 7px;
+    padding: 6px 9px;
     cursor: pointer;
     text-align: left;
   }
   .robot-ability-summary .robot-ability-glyph {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1;
     color: var(--color-blue);
     flex-shrink: 0;
@@ -4880,9 +4885,15 @@
     font-size: 12px;
     font-weight: 700;
     color: var(--color-fg);
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
     flex: 1;
     min-width: 0;
+  }
+  .robot-ability-type {
+    font-size: var(--fs-2xs);
+    padding: 1px 5px;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
   }
   .robot-ability-toggle {
     font-size: 14px;
@@ -4892,30 +4903,35 @@
     flex-shrink: 0;
   }
   .robot-ability-detail {
-    padding: 0 10px 8px 32px;
+    padding: 0 9px 7px 29px;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
   }
   .robot-ability-blurb {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--fs-xs);
     color: #b6c2cf;
-    line-height: 1.45;
+    line-height: 1.35;
   }
   .robot-ability-stats {
     margin: 0;
     padding: 0;
     list-style: none;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-flow: row wrap;
+    gap: 4px;
   }
   .robot-ability-stats li {
-    font-size: 10px;
+    font-size: var(--fs-2xs);
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
+    line-height: 1.25;
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(120, 160, 200, 0.12);
+    background: rgba(159, 216, 255, 0.05);
   }
 
   /* Level + XP block. Single prominent bar with level and points-per-

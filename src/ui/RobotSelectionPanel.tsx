@@ -1,4 +1,4 @@
-import { ROBOT_SPECS } from "../sim/robotVariants";
+import { ROBOT_SPECS, robotAbilityDamageType } from "../sim/robotVariants";
 import type { RobotAbilitySlot } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
@@ -6,19 +6,6 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { RobotPreview } from "./RobotPreview";
 import { formatAbilityStats } from "./RobotShop";
-
-// Per-ability damage type lookup. Buff/dash abilities have no innate
-// damage type, so they read the robot's base type for the badge — keeps
-// the panel visually consistent without lying about what the ability
-// itself inflicts (the stat lines spell out the actual numbers).
-const abilityDamageType = (
-  spec: (typeof ROBOT_SPECS)[keyof typeof ROBOT_SPECS],
-  slot: RobotAbilitySlot,
-) => {
-  const a = spec.abilities[slot];
-  if ("damageType" in a && a.damageType) return a.damageType;
-  return spec.damageType;
-};
 
 const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
   { slot: 0, key: "Q" },
@@ -111,7 +98,7 @@ export const RobotSelectionPanel = () => {
       <div className="robot-sel-section-title">Abilities</div>
       <div className="robot-sel-abilities">
         {SLOT_KEYS.map(({ slot, key }) => {
-          const dt = abilityDamageType(spec, slot);
+          const dt = robotAbilityDamageType(spec, slot);
           const stats = formatAbilityStats(spec, slot);
           return (
             <div key={key} className="robot-sel-ability-info">

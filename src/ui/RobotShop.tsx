@@ -12,10 +12,11 @@ import {
   robotSkillPointsAvailable,
   xpProgressInLevel,
 } from "../sim/robotSkills";
-import { ROBOT_SPECS, type RobotVariantSpec } from "../sim/robotVariants";
+import { ROBOT_SPECS, type RobotVariantSpec, robotAbilityDamageType } from "../sim/robotVariants";
 import type { RobotVariant } from "../sim/types";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
+import { DamageIcon } from "./DamageIcon";
 import { IconBoot, IconCore, IconCrosshair, IconShield, type MenuIconProps } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { RobotDiorama } from "./RobotDiorama";
@@ -181,92 +182,90 @@ export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): s
   const a = spec.abilities[slot];
   if (a.type === "dash") {
     const lines = [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Duration ${a.duration.toFixed(2)}s`,
+      `CD ${a.cooldown.toFixed(1)}s`,
+      `${a.duration.toFixed(2)}s lunge`,
       `Speed ${a.speed.toFixed(1)}`,
-      "Grants i-frames during lunge",
+      "I-frames",
     ];
     if (a.nextShotCrit) {
       lines.push(
-        `Next shot: ×${a.nextShotCrit.mul.toFixed(1)} damage${a.nextShotCrit.pierce ? ", pierces" : ""}`,
+        `Next shot x${a.nextShotCrit.mul.toFixed(1)}${a.nextShotCrit.pierce ? " · pierces" : ""}`,
       );
     }
     if (a.endChain) {
       lines.push(
-        `On end: chain ${a.endChain.hops}× ${a.endChain.damagePerHop} ${DAMAGE_TYPE_LABEL[a.endChain.damageType]}`,
+        `End chain ${a.endChain.hops}x${a.endChain.damagePerHop} ${DAMAGE_TYPE_LABEL[a.endChain.damageType]}`,
       );
     }
     if (a.landingBlast) {
       lines.push(
-        `Landing blast: ${a.landingBlast.damage} ${DAMAGE_TYPE_LABEL[a.landingBlast.damageType]} (${a.landingBlast.radius.toFixed(1)} radius)`,
+        `Land blast ${a.landingBlast.damage} · ${a.landingBlast.radius.toFixed(1)} radius`,
       );
     }
     return lines;
   }
   if (a.type === "burst") {
     const lines = [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Damage ${a.damage}`,
-      `Radius ${a.radius.toFixed(1)}`,
-      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+      `CD ${a.cooldown.toFixed(1)}s`,
+      `${a.damage} damage`,
+      `${a.radius.toFixed(1)} radius`,
     ];
     if (a.chainHops) {
-      lines.push(`Chains to ${a.chainHops.hops} more (${a.chainHops.damagePerHop} dmg each)`);
+      lines.push(`${a.chainHops.hops} chain hops · ${a.chainHops.damagePerHop} each`);
     }
     if (a.burn) {
-      lines.push(`Burn: ${a.burn.totalDamage} over ${a.burn.duration.toFixed(1)}s`);
+      lines.push(`Burn ${a.burn.totalDamage}/${a.burn.duration.toFixed(1)}s`);
     }
     if (a.knockback) {
-      lines.push(`Pushes enemies ${a.knockback.pathPush.toFixed(1)} back along path`);
+      lines.push(`Push ${a.knockback.pathPush.toFixed(1)} path`);
     }
     return lines;
   }
   if (a.type === "storm") {
     return [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Duration ${a.duration.toFixed(1)}s · Radius ${a.radius.toFixed(1)}`,
-      `${a.boltsPerTick} bolts every ${a.tickInterval.toFixed(2)}s, ${a.damagePerBolt} ${DAMAGE_TYPE_LABEL[a.damageType]} each`,
+      `CD ${a.cooldown.toFixed(1)}s`,
+      `${a.duration.toFixed(1)}s · ${a.radius.toFixed(1)} radius`,
+      `${a.boltsPerTick} bolts/${a.tickInterval.toFixed(2)}s · ${a.damagePerBolt} each`,
     ];
   }
   if (a.type === "flameRings") {
     const lines = [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
+      `CD ${a.cooldown.toFixed(1)}s`,
       `${a.ringCount} rings · ${a.ringInterval.toFixed(1)}s apart`,
-      `Each ring expands to ${a.maxRadius.toFixed(1)} at ${a.expandSpeed.toFixed(1)} u/s`,
-      `Damage ${a.damagePerRing} ${DAMAGE_TYPE_LABEL[a.damageType]} per ring`,
+      `${a.maxRadius.toFixed(1)} radius · ${a.expandSpeed.toFixed(1)} u/s`,
+      `${a.damagePerRing} damage/ring`,
     ];
     if (a.burn) {
-      lines.push(`Burn ${a.burn.totalDamage} over ${a.burn.duration.toFixed(1)}s`);
+      lines.push(`Burn ${a.burn.totalDamage}/${a.burn.duration.toFixed(1)}s`);
     }
     return lines;
   }
   if (a.type === "frenzy") {
     return [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Duration ${a.duration.toFixed(1)}s`,
-      `Damage ×${a.damageMul.toFixed(2)} · Fire rate ×${a.fireRateMul.toFixed(1)}`,
+      `CD ${a.cooldown.toFixed(1)}s`,
+      `${a.duration.toFixed(1)}s active`,
+      `Damage x${a.damageMul.toFixed(2)}`,
+      `Fire rate x${a.fireRateMul.toFixed(1)}`,
     ];
   }
   if (a.type === "buff") {
-    const lines = [`Cooldown ${a.cooldown.toFixed(1)}s`, `Duration ${a.duration.toFixed(1)}s`];
+    const lines = [`CD ${a.cooldown.toFixed(1)}s`, `${a.duration.toFixed(1)}s active`];
     if (a.damageMul !== 1) lines.push(`Damage ${signedPct(a.damageMul)}`);
     if (a.fireRateMul !== 1) lines.push(`Fire rate ${signedPct(a.fireRateMul)}`);
     if (a.speedMul !== 1) lines.push(`Speed ${signedPct(a.speedMul)}`);
     if (a.rangeMul && a.rangeMul !== 1) lines.push(`Range ${signedPct(a.rangeMul)}`);
     if (a.damageResist > 0) lines.push(`Damage resist ${Math.round(a.damageResist * 100)}%`);
     if (a.igniteOnHit) {
-      lines.push(
-        `Auto-shots ignite: ${a.igniteOnHit.totalDamage} over ${a.igniteOnHit.duration.toFixed(1)}s`,
-      );
+      lines.push(`Ignite ${a.igniteOnHit.totalDamage}/${a.igniteOnHit.duration.toFixed(1)}s`);
     }
     return lines;
   }
   if (a.type === "killshot") {
     return [
-      `Cooldown ${a.cooldown.toFixed(1)}s`,
-      `Range ${a.range.toFixed(1)} · Charge ${a.chargeTime.toFixed(1)}s`,
-      `Direct ${a.damage} + splash ${a.splashDamage} (${a.splashRadius.toFixed(1)} radius)`,
-      `Type ${DAMAGE_TYPE_LABEL[a.damageType]}`,
+      `CD ${a.cooldown.toFixed(1)}s`,
+      `${a.range.toFixed(1)} range · ${a.chargeTime.toFixed(1)}s charge`,
+      `${a.damage} direct`,
+      `${a.splashDamage} splash · ${a.splashRadius.toFixed(1)} radius`,
     ];
   }
   return [];
@@ -275,7 +274,6 @@ export const formatAbilityStats = (spec: RobotVariantSpec, slot: AbilitySlot): s
 const formatAutoAttack = (spec: RobotVariantSpec): string[] => {
   const lines = [
     `Damage ${spec.damage} · Fire rate ${spec.fireRate.toFixed(1)}/s · Range ${spec.range.toFixed(1)}`,
-    `Type ${DAMAGE_TYPE_LABEL[spec.damageType]}`,
   ];
   if (spec.attackSplashRadius > 0) {
     lines.push(`Splash radius ${spec.attackSplashRadius.toFixed(1)} per shot`);
@@ -306,6 +304,7 @@ const AbilityCard = ({
   const label = spec.abilityLabels[slot];
   const glyph = spec.abilityGlyphs[slot];
   const blurb = spec.abilityBlurbs[slot + 1];
+  const damageType = robotAbilityDamageType(spec, slot);
   return (
     <div className={`robot-ability-card ${expanded ? "expanded" : ""}`}>
       <button
@@ -318,6 +317,16 @@ const AbilityCard = ({
           {glyph}
         </span>
         <span className="robot-ability-name">{label}</span>
+        <span
+          className="robot-ability-type dmg-tag"
+          style={{
+            color: DAMAGE_TYPE_COLOR[damageType],
+            borderColor: DAMAGE_TYPE_COLOR[damageType],
+          }}
+        >
+          <DamageIcon type={damageType} size={10} title={DAMAGE_TYPE_LABEL[damageType]} />
+          {DAMAGE_TYPE_LABEL[damageType]}
+        </span>
         <span className="robot-ability-toggle" aria-hidden>
           {expanded ? "−" : "+"}
         </span>
@@ -356,6 +365,16 @@ const AutoAttackCard = ({
         ◉
       </span>
       <span className="robot-ability-name">Basic Attack</span>
+      <span
+        className="robot-ability-type dmg-tag"
+        style={{
+          color: DAMAGE_TYPE_COLOR[spec.damageType],
+          borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
+        }}
+      >
+        <DamageIcon type={spec.damageType} size={10} title={DAMAGE_TYPE_LABEL[spec.damageType]} />
+        {DAMAGE_TYPE_LABEL[spec.damageType]}
+      </span>
       <span className="robot-ability-toggle" aria-hidden>
         {expanded ? "−" : "+"}
       </span>
