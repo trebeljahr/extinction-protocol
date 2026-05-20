@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
-import { LEVELS, type LevelConfig, levelHasMode } from "../levels";
+import { type LevelConfig, levelHasMode } from "../levels";
 import {
   getModeStars,
   getStars,
@@ -247,14 +247,15 @@ const DebugLevelControl = ({ levelId, levelName }: { levelId: number; levelName:
   const progress = useGame((s) => s.progress);
   const debugSetLevelStars = useGame((s) => s.debugSetLevelStars);
   const debugUnlockThroughLevel = useGame((s) => s.debugUnlockThroughLevel);
+  const debugLockFromLevel = useGame((s) => s.debugLockFromLevel);
+  const unlocked = isLevelUnlocked(levelId, progress);
   const stars = getStars(progress, levelId);
-  const nextStars = ((stars + 1) % 4) as Stars;
-  const fullyUnlockedThrough = LEVELS.every(
-    (level) => level.id > levelId || getStars(progress, level.id) >= 3,
-  );
-  const unlockLabel = fullyUnlockedThrough
-    ? `Unlocked through ${levelName}`
+  const unlockLabel = unlocked
+    ? levelId === 1
+      ? "Clear all stars and reset the tech tree"
+      : `Lock ${levelName} and later, clear earned stars, reset the tech tree`
     : `Unlock through ${levelName} with 3 stars`;
+  const starValues = [1, 2, 3] as const satisfies readonly Stars[];
 
   return (
     <Html
@@ -264,34 +265,40 @@ const DebugLevelControl = ({ levelId, levelName }: { levelId: number; levelName:
       wrapperClass="debug-level-control-wrap"
     >
       <div
-        className={`debug-level-control ${fullyUnlockedThrough ? "is-complete" : "is-locked"}`}
+        className={`debug-level-control ${unlocked ? "is-complete" : "is-locked"}`}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          className="debug-level-stars"
-          onClick={(e) => {
-            e.stopPropagation();
-            debugSetLevelStars(levelId, nextStars);
-          }}
-          title={`Cycle ${levelName} stars`}
-          aria-label={`Cycle ${levelName} stars. Current ${stars}`}
-          aria-pressed={stars > 0}
-        >
-          <IconStar size={10} className="debug-level-star-icon" />
-          <span>{stars}</span>
-        </button>
+        <fieldset className="debug-level-stars" aria-label={`${levelName} stars`}>
+          {starValues.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={`debug-level-star-button ${value <= stars ? "is-filled" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                debugSetLevelStars(levelId, value);
+              }}
+              title={`Set ${levelName} to ${value} star${value === 1 ? "" : "s"}`}
+              aria-label={`Set ${levelName} to ${value} star${value === 1 ? "" : "s"}`}
+              aria-pressed={stars === value}
+            >
+              <IconStar size={10} className="debug-level-star-icon" />
+            </button>
+          ))}
+        </fieldset>
         <button
           type="button"
           className="debug-level-unlock"
           onClick={(e) => {
             e.stopPropagation();
-            debugUnlockThroughLevel(levelId);
+            if (unlocked) debugLockFromLevel(levelId);
+            else debugUnlockThroughLevel(levelId);
           }}
           title={unlockLabel}
           aria-label={unlockLabel}
+          aria-pressed={unlocked}
         >
-          {fullyUnlockedThrough ? <IconUnlock size={12} /> : <IconLock size={12} />}
+          {unlocked ? <IconUnlock size={12} /> : <IconLock size={12} />}
         </button>
       </div>
     </Html>

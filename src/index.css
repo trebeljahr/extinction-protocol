@@ -2815,11 +2815,25 @@
     outline-offset: -2px;
   }
   .debug-level-stars {
+    display: inline-flex;
+    align-items: stretch;
     gap: 3px;
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
     border-right: 1px solid rgba(255, 214, 106, 0.2) !important;
   }
+  .debug-level-star-button {
+    min-width: 20px !important;
+    padding: 0 3px !important;
+    color: #465363 !important;
+  }
+  .debug-level-star-button.is-filled {
+    color: var(--color-gold, #ffd66a) !important;
+  }
   .debug-level-star-icon {
-    color: var(--color-gold, #ffd66a);
+    color: currentColor;
   }
   .debug-level-unlock {
     width: 24px;
@@ -3296,6 +3310,10 @@
       min-width: 28px;
       padding: 0 8px;
       font-size: 12px;
+    }
+    .debug-level-star-button {
+      min-width: 24px !important;
+      padding: 0 4px !important;
     }
     .debug-level-unlock {
       width: 28px;

@@ -636,6 +636,7 @@ type GameStore = {
   debugSetLevelStars: (levelId: number, stars: Stars) => void;
   debugLoadSuggestedBuild: (trace: PlannerTrace) => void;
   debugUnlockThroughLevel: (levelId: number) => void;
+  debugLockFromLevel: (levelId: number) => void;
   debugResetProgress: () => void;
 };
 
@@ -2434,7 +2435,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
   debugSetLevelStars: (levelId, stars) => {
     const s = get();
-    const next: ProgressData = {
+    let next: ProgressData = {
       ...s.progress,
       starsByLevel: { ...s.progress.starsByLevel },
     };
@@ -2450,6 +2451,9 @@ export const useGame = create<GameStore>((set, get) => ({
         heroic: prev?.heroic ?? 0,
         iron: prev?.iron ?? 0,
       };
+    }
+    if (spentMetaStars(next.metaSkills) > totalStars(next)) {
+      next = { ...next, metaSkills: resetAllRanks() };
     }
     // Re-run checks so progress-only achievements (campaign, perfect_run)
     // unlock when stars cross their thresholds via this debug path.
@@ -2505,6 +2509,22 @@ export const useGame = create<GameStore>((set, get) => ({
       progress: res.progress,
       achievementToasts: [...s.achievementToasts, ...newToasts],
     });
+  },
+
+  debugLockFromLevel: (levelId) => {
+    const s = get();
+    const firstStarLevelToClear = Math.max(1, Math.floor(levelId) - 1);
+    const nextStarsByLevel = { ...s.progress.starsByLevel };
+    for (const level of LEVELS) {
+      if (level.id >= firstStarLevelToClear) delete nextStarsByLevel[level.id];
+    }
+    const next: ProgressData = {
+      ...s.progress,
+      starsByLevel: nextStarsByLevel,
+      metaSkills: resetAllRanks(),
+    };
+    persistProgress(s.activeSlot, next);
+    set({ progress: next });
   },
 
   debugResetProgress: () => {
