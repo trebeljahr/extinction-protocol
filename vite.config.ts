@@ -4,9 +4,78 @@ import { createLogger, defineConfig, loadEnv, type PluginOption } from "vite";
 
 const DEV_PORT = 3286;
 const HATCHKIT_VITE_PLUGIN = "@hatchkit/dev-plugin-vite";
+const SOURCEMAP_TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+const PHYSICS_CHUNK_PACKAGES = [
+  "/node_modules/@dimforge/",
+  "/node_modules/@react-three/rapier/",
+  "/node_modules/three-bvh-csg/",
+  "/node_modules/three-mesh-bvh/",
+];
+const THREE_CHUNK_PACKAGES = [
+  "/node_modules/@react-three/",
+  "/node_modules/@react-spring/three/",
+  "/node_modules/@monogrid/gainmap-js/",
+  "/node_modules/camera-controls/",
+  "/node_modules/detect-gpu/",
+  "/node_modules/glsl-noise/",
+  "/node_modules/maath/",
+  "/node_modules/meshline/",
+  "/node_modules/n8ao/",
+  "/node_modules/postprocessing/",
+  "/node_modules/stats-gl/",
+  "/node_modules/three/",
+  "/node_modules/three-stdlib/",
+  "/node_modules/troika-three-text/",
+  "/node_modules/troika-three-utils/",
+];
+const UI_HEAVY_CHUNK_PACKAGES = [
+  "/node_modules/react/",
+  "/node_modules/react-dom/",
+  "/node_modules/react-reconciler/",
+  "/node_modules/scheduler/",
+  "/node_modules/use-sync-external-store/",
+  "/node_modules/zustand/",
+];
 
 type HatchkitViteModule = {
   localDev?: (options: { slug: string }) => PluginOption;
+};
+
+type BuildSourcemap = boolean | "hidden" | "inline";
+
+const getBuildSourcemap = (value?: string): BuildSourcemap => {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === "hidden" || normalized === "inline") {
+    return normalized;
+  }
+
+  return SOURCEMAP_TRUE_VALUES.has(normalized ?? "");
+};
+
+const matchesAnyPackage = (id: string, packages: string[]) =>
+  packages.some((packagePath) => id.includes(packagePath));
+
+const manualChunks = (id: string): string | undefined => {
+  const normalizedId = id.replaceAll("\\", "/");
+
+  if (!normalizedId.includes("/node_modules/")) {
+    return undefined;
+  }
+
+  if (matchesAnyPackage(normalizedId, PHYSICS_CHUNK_PACKAGES)) {
+    return "physics";
+  }
+
+  if (matchesAnyPackage(normalizedId, THREE_CHUNK_PACKAGES)) {
+    return "three";
+  }
+
+  if (matchesAnyPackage(normalizedId, UI_HEAVY_CHUNK_PACKAGES)) {
+    return "ui-heavy";
+  }
+
+  return "vendor";
 };
 
 const loadHatchkitLocalDev = async (): Promise<PluginOption[]> => {
@@ -40,6 +109,7 @@ export default defineConfig(async ({ command, mode }) => {
   // surfaced to Vite through the matching `ENV VITE_BUILD_SHA` in
   // the Dockerfile. Falls back to "dev" for local builds.
   const buildSha = env.VITE_BUILD_SHA ?? "dev";
+  const buildSourcemap = getBuildSourcemap(env.BUILD_SOURCEMAP ?? env.VITE_BUILD_SOURCEMAP);
   const buildShaTag = `<meta name="build-sha" content="${buildSha}" />`;
   const plausibleTag = plausibleDomain
     ? `<script>
@@ -145,7 +215,12 @@ export default defineConfig(async ({ command, mode }) => {
     },
     build: {
       target: "es2022",
-      sourcemap: true,
+      sourcemap: buildSourcemap,
+      rollupOptions: {
+        output: {
+          manualChunks,
+        },
+      },
     },
   };
 });
