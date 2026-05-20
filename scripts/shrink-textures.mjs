@@ -6,16 +6,25 @@
 // on the longer side, re-encode as WebP at quality 80. WebP is supported
 // by every browser the game targets.
 //
+// Requires the project devDependency `sharp`.
+//
 // Usage: node scripts/shrink-textures.mjs <path-to-glb> [<path>...]
 import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 
-// Borrow sharp from conv3d's nested install — we don't want to add it
-// as a project dep just for an offline asset script.
-const require = createRequire(
-  "/Users/rico/projects/conv3d/node_modules/.pnpm/sharp@0.33.5/node_modules/sharp/package.json",
-);
-const sharp = require("sharp");
+const loadSharp = async () => {
+  try {
+    const { default: sharp } = await import("sharp");
+    return sharp;
+  } catch (error) {
+    console.error(
+      "scripts/shrink-textures.mjs requires the `sharp` devDependency. Run `pnpm install` and try again.",
+    );
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+};
+
+const sharp = await loadSharp();
 
 const MAGIC = 0x46546c67;
 const JSON_CHUNK = 0x4e4f534a;

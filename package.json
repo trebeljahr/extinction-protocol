@@ -52,16 +52,16 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "playwright": "^1.60.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.2.4",
     "three-stdlib": "^2.36.1",
+    "tsx": "^4.22.3",
     "typescript": "^5.6.2",
     "vite": "^5.4.8"
   },
   "pnpm": {
     "overrides": {
-      "postprocessing": "~6.37.0",
-      "@hatchkit/dev-plugin-vite": "link:/Users/rico/projects/hatchkit/packages/dev-plugin-vite",
-      "@hatchkit/dev-shared": "link:/Users/rico/projects/hatchkit/packages/dev-shared"
+      "postprocessing": "~6.37.0"
     }
   },
   "lint-staged": {
