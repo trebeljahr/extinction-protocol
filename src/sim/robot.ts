@@ -1241,7 +1241,7 @@ export const triggerRobotAbility = (world: World, slot: RobotAbilitySlot): boole
     robot.payload = {
       kind: "storm",
       endAt: world.time + spec.duration,
-      nextTickAt: world.time + 0.05,
+      nextTickAt: world.time,
       tickInterval: spec.tickInterval,
       radius: spec.radius,
       arcsPerTick: spec.arcsPerTick,

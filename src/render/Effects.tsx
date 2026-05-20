@@ -6,7 +6,7 @@ import { useGame } from "../store";
 const MAX_PARTICLES = 1024;
 const MAX_EXPLOSIONS = 32;
 const MAX_CRYO_WAVES = 16;
-const MAX_BEAMS = 32;
+const MAX_BEAMS = 64;
 const MAX_BEAM_POINTS = 16;
 const BEAM_SUBDIVISIONS = 6; // interior noise points per source segment
 const MAX_BEAM_VERTS = (MAX_BEAM_POINTS - 1) * BEAM_SUBDIVISIONS + 1;
@@ -244,10 +244,12 @@ export const Effects = () => {
     }
 
     let idx = 0;
-    for (const b of world.beams) {
-      if (idx >= MAX_BEAMS) break;
+    // Keep newest beams so short-lived robot ult arcs don't starve behind
+    // older tower/auto-attack tracers during dense volleys.
+    const firstVisibleBeam = Math.max(0, world.beams.length - MAX_BEAMS);
+    for (let beamIdx = firstVisibleBeam; beamIdx < world.beams.length; beamIdx++) {
+      const b = world.beams[beamIdx];
       if (b.points.length < 2 || b.points.length > MAX_BEAM_POINTS) {
-        idx++;
         continue;
       }
 

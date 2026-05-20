@@ -11,6 +11,7 @@ import { useGame } from "../store";
 const ROBOT_DEATH_DURATION = 0.85;
 const ROBOT_DEATH_EXPLOSION_DURATION = 0.7;
 const ROBOT_DEATH_CORE_DURATION = 0.22;
+const STORM_RING_Y = 0.18;
 
 // Arrow geometry lives in the local XZ plane with +Z as "forward"
 // (the dash direction). The aim group's yaw rotation maps local +Z
@@ -19,6 +20,7 @@ const ARROW_BASE_W = 0.32;
 const ARROW_TIP_W = 0.42;
 // Three sliding chevrons ride the shaft to signal "armed and ready".
 const CHEVRON_COUNT = 3;
+const CHEVRON_IDS = Array.from({ length: CHEVRON_COUNT }, (_, i) => `chevron-${i}`);
 const CHEVRON_GLYPH = (() => {
   const g = new THREE.BufferGeometry();
   // Forward-pointing chevron lying on the XZ plane. Tip at +Z, wings
@@ -123,15 +125,15 @@ export const RobotHud = () => {
         const radius = storm.radius;
         const fade = Math.min(1, Math.max(0, (storm.endAt - world.time) / 0.35));
         const pulse = 1 + Math.sin(world.time * 8) * 0.025;
-        stormFill.position.set(robot.pos.x, 0.047, -robot.pos.y);
+        stormFill.position.set(robot.pos.x, STORM_RING_Y, -robot.pos.y);
         stormFill.rotation.set(-Math.PI / 2, 0, 0);
         stormFill.scale.setScalar(radius);
         (stormFill.material as THREE.MeshBasicMaterial).opacity = 0.1 * fade;
-        stormRing.position.set(robot.pos.x, 0.072, -robot.pos.y);
+        stormRing.position.set(robot.pos.x, STORM_RING_Y + 0.01, -robot.pos.y);
         stormRing.rotation.set(-Math.PI / 2, 0, world.time * 0.55);
         stormRing.scale.setScalar(radius * pulse);
         (stormRing.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade;
-        stormPulse.position.set(robot.pos.x, 0.074, -robot.pos.y);
+        stormPulse.position.set(robot.pos.x, STORM_RING_Y + 0.012, -robot.pos.y);
         stormPulse.rotation.set(-Math.PI / 2, 0, -world.time * 0.75);
         stormPulse.scale.setScalar(radius * (0.9 + Math.sin(world.time * 5.4) * 0.07));
         (stormPulse.material as THREE.MeshBasicMaterial).opacity = 0.48 * fade;
@@ -259,6 +261,7 @@ export const RobotHud = () => {
           opacity={0}
           toneMapped={false}
           depthWrite={false}
+          depthTest={false}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -269,6 +272,7 @@ export const RobotHud = () => {
           opacity={0}
           toneMapped={false}
           depthWrite={false}
+          depthTest={false}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -279,6 +283,7 @@ export const RobotHud = () => {
           opacity={0}
           toneMapped={false}
           depthWrite={false}
+          depthTest={false}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -307,9 +312,9 @@ export const RobotHud = () => {
             side={THREE.DoubleSide}
           />
         </mesh>
-        {Array.from({ length: CHEVRON_COUNT }, (_, i) => (
+        {CHEVRON_IDS.map((id, i) => (
           <mesh
-            key={i}
+            key={id}
             ref={(m) => {
               chevronRefs.current[i] = m;
             }}
