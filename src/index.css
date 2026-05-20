@@ -278,6 +278,14 @@
     animation: call-wave-pulse 1.4s ease-in-out infinite;
   }
 
+  .difficulty-open-button {
+    pointer-events: auto;
+  }
+
+  .difficulty-open-button * {
+    pointer-events: none;
+  }
+
   .call-wave-btn:hover {
     background: rgba(40, 80, 56, 0.82);
     border-color: var(--color-mint);

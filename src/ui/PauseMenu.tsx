@@ -6,7 +6,7 @@ import { getLevel } from "../levels";
 import { useGame } from "../store";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugProgressSettings } from "./DebugProgressSettings";
-import { DifficultyTag } from "./DifficultyTag";
+import { DifficultyButton } from "./DifficultyButton";
 import { FullscreenToggle } from "./FullscreenToggle";
 import { IconBook, IconMap, IconRefresh, IconTrophy } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
@@ -23,8 +23,6 @@ export const PauseMenu = ({ onResume }: Props) => {
   const retry = useGame((s) => s.retryCurrentLevel);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
-  const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
-  const difficulty = useGame((s) => s.progress.difficulty);
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
   const showKeyboardHints = useKeyboardHintsVisible();
 
@@ -70,16 +68,14 @@ export const PauseMenu = ({ onResume }: Props) => {
       closeTitle={showKeyboardHints ? "Resume (Esc)" : "Resume"}
     >
       <div className="menu-panel-scroll">
-        <button
-          type="button"
-          onClick={() => setDifficultyPickerOpen(true)}
+        <DifficultyButton
           className="w-full mb-3 bg-surface-1 border border-border rounded-md px-3 py-2 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
-          aria-label="Change difficulty"
           title="Change difficulty"
-        >
-          <DifficultyTag difficulty={difficulty} textStackClassName="flex-1" />
-          <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
-        </button>
+          textStackClassName="flex-1"
+          trailing={
+            <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
+          }
+        />
         <SoundControls />
         <FullscreenToggle />
         {isDebug && <DebugProgressSettings />}

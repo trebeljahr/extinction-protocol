@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { getLevel, getLevelOrdinal } from "../levels";
-import { DIFFICULTY_LABEL } from "../progress";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
 import { TOWER_LABEL, towerPillInfo } from "../sim/world";
@@ -8,7 +7,7 @@ import { useGame } from "../store";
 import { BasePanel } from "./BasePanel";
 import { BossBanner } from "./BossBanner";
 import { DamageIcon } from "./DamageIcon";
-import { DifficultyTag } from "./DifficultyTag";
+import { DifficultyButton } from "./DifficultyButton";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { EnemyPanel } from "./EnemyPanel";
 import { IconCog } from "./MenuIcons";
@@ -54,8 +53,6 @@ export const HUD = () => {
   const togglePause = useGame((s) => s.togglePause);
   const callWaveEarly = useGame((s) => s.callWaveEarly);
   const selectedLevelId = useGame((s) => s.selectedLevelId);
-  const difficulty = useGame((s) => s.progress.difficulty);
-  const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const progress = useGame((s) => s.progress);
   const towerVersion = useGame((s) => s.towerVersion);
@@ -263,15 +260,11 @@ export const HUD = () => {
             </div>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setDifficultyPickerOpen(true)}
-          className="pointer-events-auto bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
-          title={`Difficulty · ${DIFFICULTY_LABEL[difficulty]} · Change`}
-          aria-label="Change difficulty"
-        >
-          <DifficultyTag difficulty={difficulty} label="Mode" size="sm" />
-        </button>
+        <DifficultyButton
+          className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
+          label="Mode"
+          size="sm"
+        />
         {runMode !== "normal" && (
           <div
             className={`rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide border ${
@@ -280,7 +273,6 @@ export const HUD = () => {
                 : "border-red text-red bg-[rgba(255,90,122,0.10)]"
             }`}
             title={runMode === "heroic" ? "Heroic challenge mode" : "Iron challenge mode"}
-            aria-label={`${runMode} mode`}
           >
             <span aria-hidden>{runMode === "heroic" ? "✦" : "▣"}</span>
             <span>{runMode}</span>

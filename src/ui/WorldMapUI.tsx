@@ -6,18 +6,11 @@ import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from ".
 import { useGamepadMenuNavigation } from "../input/useGamepadMenuNavigation";
 import { LEVELS } from "../levels";
 import { LEVEL_BRIEFING } from "../levels/briefings";
-import {
-  DIFFICULTY_LABEL,
-  getStars,
-  hasUnlockedChallengeModes,
-  isLevelUnlocked,
-  totalStars,
-} from "../progress";
+import { getStars, hasUnlockedChallengeModes, isLevelUnlocked, totalStars } from "../progress";
 import { spentMetaStars } from "../sim/metaSkills";
 import { useGame } from "../store";
 import { DebugProgressSettings } from "./DebugProgressSettings";
-import { DifficultyModelIcon } from "./DifficultyModelIcon";
-import { DifficultyTag } from "./DifficultyTag";
+import { DifficultyButton } from "./DifficultyButton";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { FullscreenToggle } from "./FullscreenToggle";
 import {
@@ -62,7 +55,6 @@ export const WorldMapUI = () => {
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
-  const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
   const setSkillTreeOpen = useGame((s) => s.setSkillTreeOpen);
   const setRobotShopOpen = useGame((s) => s.setRobotShopOpen);
   const goToSlots = useGame((s) => s.goToSlots);
@@ -71,7 +63,6 @@ export const WorldMapUI = () => {
   // stars on any level. Skipped if the slot has already dismissed it.
   const showModesUnlocked =
     !progress.seenModesUnlockExplainer && hasUnlockedChallengeModes(progress);
-  const difficulty = progress.difficulty;
   const navRepeatRef = useRef<{ direction: -1 | 1 | 0; nextAt: number }>({
     direction: 0,
     nextAt: 0,
@@ -161,15 +152,10 @@ export const WorldMapUI = () => {
       </div>
 
       <div className="world-map-difficulty absolute bottom-6 left-6 pointer-events-none">
-        <button
-          type="button"
+        <DifficultyButton
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
-          onClick={() => setDifficultyPickerOpen(true)}
-          aria-label="Change difficulty"
           title="Change difficulty"
-        >
-          <DifficultyTag difficulty={difficulty} />
-        </button>
+        />
       </div>
 
       <div className="world-map-rd absolute bottom-6 right-6 pointer-events-none flex flex-col items-end gap-2">
@@ -248,17 +234,12 @@ export const WorldMapUI = () => {
             <FullscreenToggle />
             {isDebug && <DebugProgressSettings />}
             <div className="menu-panel-actions">
-              <button
-                type="button"
+              <DifficultyButton
                 className="btn btn-ghost w-full flex items-center justify-center gap-2"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDifficultyPickerOpen(true);
-                }}
-              >
-                <DifficultyModelIcon difficulty={difficulty} className="w-5 h-5 shrink-0" />
-                Difficulty · {DIFFICULTY_LABEL[difficulty]}
-              </button>
+                label="Difficulty"
+                size="sm"
+                onBeforeOpen={() => setMenuOpen(false)}
+              />
               <button
                 type="button"
                 className="btn btn-ghost w-full flex items-center justify-center gap-2"
