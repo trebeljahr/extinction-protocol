@@ -105,6 +105,13 @@ export const App = () => {
     modePickerOpen ||
     skillTreeOpen ||
     robotShopOpen;
+  const sceneBlockingModalOpen =
+    compendiumOpen ||
+    achievementsOpen ||
+    creditsOpen ||
+    modePickerOpen ||
+    skillTreeOpen ||
+    robotShopOpen;
   const isMobile = useIsMobile();
   useInputModeSignal();
   useAudioBridge();
@@ -181,7 +188,7 @@ export const App = () => {
 
   return (
     <>
-      {!modalOpen && (
+      {!sceneBlockingModalOpen && (
         <ErrorBoundary fallback={(error, reset) => <CanvasFailure error={error} reset={reset} />}>
           <Canvas shadows dpr={dprCap} gl={{ antialias: true }}>
             <SceneRoot />
@@ -198,10 +205,10 @@ export const App = () => {
         </ErrorBoundary>
       )}
 
-      {screen === "worldMap" && !modalOpen && <WorldMapUI />}
-      {screen !== "worldMap" && !modalOpen && <HUD />}
-      {screen === "playing" && !modalOpen && <PlannerHud />}
-      {screen === "results" && !modalOpen && <ResultsScreen />}
+      {screen === "worldMap" && !sceneBlockingModalOpen && <WorldMapUI />}
+      {screen !== "worldMap" && !sceneBlockingModalOpen && <HUD />}
+      {screen === "playing" && !sceneBlockingModalOpen && <PlannerHud />}
+      {screen === "results" && !sceneBlockingModalOpen && <ResultsScreen />}
       {compendiumOpen && (
         <Suspense fallback={null}>
           <Compendium />

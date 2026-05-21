@@ -49,19 +49,19 @@ export const DifficultyPicker = () => {
   }, [setOpen]);
 
   return (
-    <div className="overlay achievements-overlay">
-      <div className="achievements-card">
-        <header className="achievements-header">
+    <div className="overlay difficulty-overlay">
+      <div className="difficulty-card">
+        <header className="difficulty-header">
           <div>
             <h1>Difficulty</h1>
-            <div className="achievements-subtitle">Currently · {DIFFICULTY_LABEL[current]}</div>
+            <div className="difficulty-subtitle">Currently · {DIFFICULTY_LABEL[current]}</div>
           </div>
           <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
             Close<span className="kbd-only"> (Esc)</span>
           </button>
         </header>
 
-        <div className="grid grid-cols-4 gap-2 p-3 sm:gap-3 sm:p-5 overflow-y-auto">
+        <div className="difficulty-grid">
           {DIFFICULTIES.map((d) => {
             const m = DIFFICULTY_MULTIPLIERS[d];
             const accent = DIFFICULTY_ACCENT[d];
@@ -74,30 +74,22 @@ export const DifficultyPicker = () => {
                   setDifficulty(d);
                   audio.ui("select");
                 }}
-                className={`relative flex flex-col items-center gap-1 p-2 sm:gap-2 sm:p-4 rounded-lg border bg-surface-1 transition-all text-left cursor-pointer ${
+                className={`difficulty-option ${
                   active
                     ? `${accent.border} ${GLOW[d]}`
                     : "border-border hover:border-border-strong"
                 }`}
                 aria-pressed={active}
               >
-                {active && (
-                  <span
-                    className={`absolute top-1 right-1 sm:top-2 sm:right-2 text-[9px] font-bold tracking-wide uppercase ${accent.text}`}
-                  >
-                    Active
-                  </span>
-                )}
-                <div className="w-12 h-12 sm:w-full sm:h-auto sm:aspect-square rounded-md flex items-center justify-center bg-surface-2 border border-border-faint">
+                {active && <span className={`difficulty-active-badge ${accent.text}`}>Active</span>}
+                <div className="difficulty-option-icon">
                   <DifficultyModelIcon difficulty={d} className="w-full h-full" />
                 </div>
-                <div className={`text-xs sm:text-base font-bold ${accent.text} tracking-mid`}>
+                <div className={`difficulty-option-label ${accent.text}`}>
                   {DIFFICULTY_LABEL[d]}
                 </div>
-                <div className="hidden sm:block text-[11px] text-fg-muted text-center min-h-[28px]">
-                  {DIFFICULTY_TAGLINE[d]}
-                </div>
-                <ul className="hidden sm:flex w-full text-[11px] text-fg-muted flex-col gap-1 mt-1 border-t border-border-faint pt-2 tabular-nums">
+                <div className="difficulty-option-tagline">{DIFFICULTY_TAGLINE[d]}</div>
+                <ul className="difficulty-option-stats">
                   <Stat label="Enemy HP" value={formatPercent(m.hp)} />
                   <Stat label="Start gold" value={formatPercent(m.startGold)} />
                   <Stat label="Gold/kill" value={formatPercent(m.goldKill)} />
