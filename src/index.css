@@ -799,34 +799,47 @@
     border-radius: 8px;
     background: rgba(6, 10, 14, 0.4);
     overflow: hidden;
+    min-height: 40px;
   }
-  .mobile-fold > summary {
-    list-style: none;
+  .tower-info-fold.open {
+    min-height: 260px;
+  }
+  .targeting-fold.open {
+    min-height: 180px;
+  }
+  .mobile-fold-summary {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--color-blue);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    min-height: 38px;
-    padding: 8px 10px;
-    color: var(--color-blue);
+    font-family: inherit;
     font-size: var(--fs-sm);
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     cursor: pointer;
   }
-  .mobile-fold > summary::-webkit-details-marker {
-    display: none;
+  .mobile-fold-summary:focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: -2px;
   }
-  .mobile-fold > summary::after {
+  .mobile-fold-toggle::before {
     content: "+";
+  }
+  .mobile-fold.open .mobile-fold-toggle::before {
+    content: "−";
+  }
+  .mobile-fold-toggle {
     flex: 0 0 auto;
     color: var(--color-fg-muted);
     font-size: var(--fs-lg);
     line-height: 1;
-  }
-  .mobile-fold[open] > summary::after {
-    content: "−";
   }
   .mobile-fold-status {
     margin-left: auto;

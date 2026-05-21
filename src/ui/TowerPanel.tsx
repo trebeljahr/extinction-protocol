@@ -64,6 +64,7 @@ export const TowerPanel = () => {
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
   const isMobile = useIsMobile();
+  const [infoOpen, setInfoOpen] = useState(false);
   // Iron mode disables selling; we still render the panel so upgrades
   // and targeting modes are reachable. SellFooter hides itself when
   // sellDisabled is true.
@@ -160,18 +161,26 @@ export const TowerPanel = () => {
       </div>
 
       {isMobile ? (
-        <details className="mobile-fold tower-info-fold">
-          <summary>
+        <div className={`mobile-fold tower-info-fold ${infoOpen ? "open" : ""}`}>
+          <button
+            type="button"
+            className="mobile-fold-summary"
+            aria-expanded={infoOpen}
+            onClick={() => setInfoOpen((open) => !open)}
+          >
             <span>Info</span>
             <span className="mobile-fold-status">stats + resist</span>
-          </summary>
-          <div className="mobile-fold-body">
-            <div className="panel-stats panel-stats-mobile">
-              <TowerStatsText tower={tower} />
+            <span className="mobile-fold-toggle" aria-hidden />
+          </button>
+          {infoOpen && (
+            <div className="mobile-fold-body">
+              <div className="panel-stats panel-stats-mobile">
+                <TowerStatsText tower={tower} />
+              </div>
+              <ResistRow damageType={damageType} />
             </div>
-            <ResistRow damageType={damageType} />
-          </div>
-        </details>
+          )}
+        </div>
       ) : (
         <ResistRow damageType={damageType} />
       )}
@@ -229,6 +238,7 @@ const ResistRow = ({ damageType }: { damageType: DamageType }) => (
 );
 
 const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) => {
+  const [open, setOpen] = useState(false);
   const currentMode =
     tower.targetingMode === "spot"
       ? "Spot"
@@ -274,13 +284,19 @@ const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) 
   if (!mobile) return controls;
 
   return (
-    <details className="mobile-fold targeting-fold">
-      <summary>
+    <div className={`mobile-fold targeting-fold ${open ? "open" : ""}`}>
+      <button
+        type="button"
+        className="mobile-fold-summary"
+        aria-expanded={open}
+        onClick={() => setOpen((expanded) => !expanded)}
+      >
         <span>Target</span>
         <span className="mobile-fold-status">{currentMode}</span>
-      </summary>
-      <div className="mobile-fold-body">{controls}</div>
-    </details>
+        <span className="mobile-fold-toggle" aria-hidden />
+      </button>
+      {open && <div className="mobile-fold-body">{controls}</div>}
+    </div>
   );
 };
 
