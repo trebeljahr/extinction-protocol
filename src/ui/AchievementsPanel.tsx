@@ -38,10 +38,12 @@ export const AchievementsPanel = () => {
           </div>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn-close"
             onClick={() => setAchievementsOpen(false)}
+            aria-label="Close achievements"
+            title="Close achievements"
           >
-            Close<span className="kbd-only"> (Esc)</span>
+            ×
           </button>
         </header>
 

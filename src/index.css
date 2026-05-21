@@ -3527,7 +3527,16 @@
       font-size: var(--fs-xs);
       letter-spacing: 0.14em;
     }
-    .difficulty-header .btn {
+    .achievements-header .btn-close,
+    .difficulty-header .btn-close {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      font-size: var(--fs-lg);
+      flex-shrink: 0;
+    }
+    .difficulty-header .btn:not(.btn-close) {
       min-width: 76px;
       min-height: 44px;
       padding: 8px 12px;

@@ -65,8 +65,14 @@ export const ModePicker = () => {
             <h1>{level.name}</h1>
             <div className="achievements-subtitle">Choose a challenge mode</div>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={close}>
-            Close<span className="kbd-only"> (Esc)</span>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={close}
+            aria-label="Close mode picker"
+            title="Close mode picker"
+          >
+            ×
           </button>
         </header>
 

@@ -488,8 +488,14 @@ export const CreditsPanel = () => {
             <h1>Credits</h1>
             <div className="achievements-subtitle">Assets, libraries, and tools</div>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={() => setCreditsOpen(false)}>
-            Close<span className="kbd-only"> (Esc)</span>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setCreditsOpen(false)}
+            aria-label="Close credits"
+            title="Close credits"
+          >
+            ×
           </button>
         </header>
 

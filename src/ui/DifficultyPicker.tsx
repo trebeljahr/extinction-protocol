@@ -56,8 +56,14 @@ export const DifficultyPicker = () => {
             <h1>Difficulty</h1>
             <div className="difficulty-subtitle">Currently · {DIFFICULTY_LABEL[current]}</div>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-            Close<span className="kbd-only"> (Esc)</span>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setOpen(false)}
+            aria-label="Close difficulty picker"
+            title="Close difficulty picker"
+          >
+            ×
           </button>
         </header>
 
