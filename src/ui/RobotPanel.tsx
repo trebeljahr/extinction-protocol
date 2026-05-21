@@ -2,6 +2,7 @@ import type { RobotAbilitySlot } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { fmtCompact } from "./format";
+import { useKeyboardHintsVisible } from "./useInputMode";
 
 // QWER hotkey map. Slot 3 (R) is always the ultimate so the climactic
 // move sits on the same key across pilots — League-style muscle memory.
@@ -17,6 +18,7 @@ const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> =
 // robot overview overlay. Clicking an ability triggers it the same way
 // the hotkey would.
 export const RobotPanel = () => {
+  const showKeyboardHints = useKeyboardHintsVisible();
   const label = useGame((s) => s.ui.robotLabel);
   const hp = useGame((s) => s.ui.robotHp);
   const maxHp = useGame((s) => s.ui.robotMaxHp);
@@ -82,9 +84,10 @@ export const RobotPanel = () => {
           const max = maxCooldowns[slot];
           const ready = cd === 0 && alive;
           const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
+          const hint = showKeyboardHints ? ` [${key}]` : "";
           const title = active
-            ? `${labels[slot]} [${key}] - Active ${activeRemaining[slot].toFixed(1)}s remaining`
-            : `${labels[slot]} [${key}]`;
+            ? `${labels[slot]}${hint} - Active ${activeRemaining[slot].toFixed(1)}s remaining`
+            : `${labels[slot]}${hint}`;
           return (
             <button
               key={key}
@@ -97,7 +100,7 @@ export const RobotPanel = () => {
               title={title}
             >
               <span className="robot-ability-glyph">{glyphs[slot]}</span>
-              <span className="robot-ability-key">{key}</span>
+              <span className="robot-ability-key kbd-only">{key}</span>
               <div className="robot-ability-fill" style={{ width: `${fillPct * 100}%` }} />
               {active && <span className="robot-ability-active">ON</span>}
               {cd > 0 && <span className="robot-ability-cd">{cd.toFixed(1)}</span>}

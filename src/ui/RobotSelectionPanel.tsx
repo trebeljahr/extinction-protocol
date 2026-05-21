@@ -6,6 +6,7 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { RobotPreview } from "./RobotPreview";
 import { formatAbilityStats } from "./RobotShop";
+import { useKeyboardHintsVisible } from "./useInputMode";
 
 const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
   { slot: 0, key: "Q" },
@@ -15,6 +16,7 @@ const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> =
 ];
 
 export const RobotSelectionPanel = () => {
+  const showKeyboardHints = useKeyboardHintsVisible();
   const open = useGame((s) => s.robotPanelOpen);
   const status = useGame((s) => s.ui.status);
   const variant = useGame((s) => s.ui.robotVariant);
@@ -107,7 +109,7 @@ export const RobotSelectionPanel = () => {
                 <div className="robot-sel-ability-info-title">
                   <div className="robot-sel-ability-name">
                     {labels[slot]}
-                    <span className="robot-sel-ability-key">{key}</span>
+                    {showKeyboardHints && <span className="robot-sel-ability-key">{key}</span>}
                   </div>
                   <span
                     className="dmg-tag"
