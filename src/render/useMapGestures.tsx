@@ -18,9 +18,8 @@ export type MapGestureConfig = {
   zoomSpeed?: number;
   reserveLeftClick?: boolean;
   reserveTouchPlacement?: boolean;
-  // Orbit-around-target controls. Off by default so in-level usage keeps
-  // the locked top-down view; the world map opts in to let players tilt /
-  // rotate the camera and see the map is actually 3D.
+  // Orbit-around-target controls. Off by default so callers keep their
+  // authored camera angle unless they explicitly opt into orbit gestures.
   enableRotate?: boolean;
   // Polar angle clamps (radians from world +Y). 0 = straight down,
   // π/2 = horizon. Defaults keep the camera above the ground plane.
@@ -28,8 +27,8 @@ export type MapGestureConfig = {
   maxPolarAngle?: number;
   rotateSpeed?: number;
   // Right-mouse default in OrbitControls is ROTATE; the touchTwo override
-  // lets the world map pick DOLLY_ROTATE (pinch-zoom + twist rotates) so
-  // mobile keeps pinch zoom AND gets orbit via two-finger twist/drag.
+  // lets rotate-enabled callers pick DOLLY_ROTATE so mobile can keep pinch
+  // zoom while adding orbit via two-finger twist/drag.
   touchTwo?: THREE.TOUCH;
 };
 
@@ -91,10 +90,9 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
     // doesn't simultaneously pan the camera. Two-finger DOLLY_PAN
     // still works for camera adjustment mid-placement.
     //
-    // World map opts into rotate; the touchTwo override picks
-    // DOLLY_ROTATE there so two-finger pinch still zooms while a
-    // two-finger twist orbits the camera. In-level usage keeps the
-    // default DOLLY_PAN since the locked top-down view never rotates.
+    // Rotate-enabled callers can override touchTwo to DOLLY_ROTATE so
+    // two-finger pinch still zooms while a two-finger twist orbits the
+    // camera. Non-rotating callers keep the default DOLLY_PAN.
     const touches = useMemo(
       () => ({
         ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
