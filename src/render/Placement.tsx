@@ -324,16 +324,15 @@ export const Placement = () => {
     suppressClickUntilRef.current = Date.now() + TOUCH_CLICK_SUPPRESS_MS;
 
     // Drag → park preview at lift point and arm the Confirm pill so
-    // the player can fine-tune before committing. Tap → place inline
-    // for the snappy quick-tap UX.
+    // the player can fine-tune before committing. Tap → run the same
+    // ground command as click (robot move/dash, then placement/select).
     if (wasDragged) {
       setHoverState(pos);
       useGame.getState().setPendingTouchPlacement(pos);
       return;
     }
 
-    if (useGame.getState().towerAtPos(pos)) audio.ui("select");
-    useGame.getState().tryPlaceOrSelect(pos, { clearSelectionAfterPlacement: true });
+    handleGroundTap(pos, { clearSelectionAfterPlacement: true });
   };
 
   const onPointerCancel = (e: ThreeEvent<PointerEvent>) => {
@@ -351,10 +350,7 @@ export const Placement = () => {
     if (!controllerActiveRef.current) setHoverState(null);
   };
 
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation();
-    if (Date.now() < suppressClickUntilRef.current) return;
-    const pos = eventPoint(e);
+  const handleGroundTap = (pos: Vec2, opts: { clearSelectionAfterPlacement?: boolean } = {}) => {
     const state = useGame.getState();
     // Dash aim active (any dash robot): a ground click commits the dash
     // in the current aim direction and swallows the click so we don't
@@ -378,7 +374,13 @@ export const Placement = () => {
       return;
     }
     if (state.towerAtPos(pos)) audio.ui("select");
-    state.tryPlaceOrSelect(pos);
+    state.tryPlaceOrSelect(pos, opts);
+  };
+
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (Date.now() < suppressClickUntilRef.current) return;
+    handleGroundTap(eventPoint(e));
   };
 
   // Right-click = move-order for the robot, but only while the robot is
