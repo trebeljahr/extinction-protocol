@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { effectiveFireRate } from "../sim/towers";
-import type { EnemyKind, TargetingMode, Tower } from "../sim/types";
+import type { DamageType, EnemyKind, TargetingMode, Tower } from "../sim/types";
 import {
   formatStat,
   nextUpgrade,
@@ -24,6 +24,7 @@ import { DamageIcon } from "./DamageIcon";
 import { fmtCompact } from "./format";
 import { HiveDronePanel } from "./HiveDronePanel";
 import { TowerPreview } from "./TowerPreview";
+import { useIsMobile } from "./useMediaQuery";
 
 const ENEMY_ORDER: EnemyKind[] = [
   "raptor",
@@ -62,6 +63,7 @@ export const TowerPanel = () => {
   useGame((s) => s.ui.towerVersion);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
+  const isMobile = useIsMobile();
   // Iron mode disables selling; we still render the panel so upgrades
   // and targeting modes are reachable. SellFooter hides itself when
   // sellDisabled is true.
@@ -141,23 +143,11 @@ export const TowerPanel = () => {
               {pill.label}
             </span>
           </div>
-          <div className="panel-stats">
-            DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG{" "}
-            {tower.range.toFixed(1)} · DPS {(tower.damage * effectiveFireRate(tower)).toFixed(1)} ·
-            KILLS {tower.kills} · DEALT {fmtCompact(tower.damageDealt)}
-            {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
-            {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
-            {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}
-            {tower.serviceFireRateBonus > 0 && (
-              <>
-                {" "}
-                ·{" "}
-                <span style={{ color: "#bbffc8" }}>
-                  SUPPORT +{Math.round(tower.serviceFireRateBonus * 100)}%
-                </span>
-              </>
-            )}
-          </div>
+          {!isMobile && (
+            <div className="panel-stats">
+              <TowerStatsText tower={tower} />
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -169,57 +159,24 @@ export const TowerPanel = () => {
         </button>
       </div>
 
-      <div className="resist-row">
-        {ENEMY_ORDER.map((k) => {
-          const mul = ENEMY_RESIST[k][damageType];
-          const pct = Math.round((mul - 1) * 100);
-          const cls = pct > 0 ? "good" : pct < 0 ? "bad" : "neutral";
-          return (
-            <div
-              key={k}
-              className={`resist-chip ${cls}`}
-              title={`vs ${ENEMY_LABEL[k]}: ${mul.toFixed(2)}×`}
-            >
-              <span className="resist-name">{ENEMY_LABEL[k]}</span>
-              <span className="resist-val">{pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}</span>
+      {isMobile ? (
+        <details className="mobile-fold tower-info-fold">
+          <summary>
+            <span>Info</span>
+            <span className="mobile-fold-status">stats + resist</span>
+          </summary>
+          <div className="mobile-fold-body">
+            <div className="panel-stats panel-stats-mobile">
+              <TowerStatsText tower={tower} />
             </div>
-          );
-        })}
-      </div>
-
-      {tower.kind !== "cryo" && (
-        <div className="targeting-row">
-          <div className="targeting-label">Target</div>
-          <div className="targeting-buttons">
-            {TARGETING_MODES.map(({ mode, label, title }) => (
-              <button
-                type="button"
-                key={mode}
-                className={`targeting-btn ${tower.targetingMode === mode ? "active" : ""}`}
-                onClick={() => useGame.getState().setTargetingMode(mode)}
-                title={title}
-              >
-                {label}
-              </button>
-            ))}
-            {tower.kind === "mortar" && (
-              <button
-                type="button"
-                className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
-                onClick={() => useGame.getState().setTargetingMode("spot")}
-                title="Fire only at a fixed map spot — click the map to set it"
-              >
-                Spot
-              </button>
-            )}
+            <ResistRow damageType={damageType} />
           </div>
-        </div>
+        </details>
+      ) : (
+        <ResistRow damageType={damageType} />
       )}
-      {tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot && (
-        <div className="targeting-hint">
-          Click a spot on the map within range to set the aim point.
-        </div>
-      )}
+
+      {tower.kind !== "cryo" && <TargetingSection tower={tower} mobile={isMobile} />}
 
       <div className="branches">
         <BranchView tower={tower} branchId="a" gold={gold} />
@@ -228,6 +185,102 @@ export const TowerPanel = () => {
 
       <SellFooter tower={tower} sellDisabled={sellDisabled} />
     </div>
+  );
+};
+
+const TowerStatsText = ({ tower }: { tower: Tower }) => (
+  <>
+    DMG {tower.damage.toFixed(1)} · RATE {tower.fireRate.toFixed(2)}/s · RNG{" "}
+    {tower.range.toFixed(1)} · DPS {(tower.damage * effectiveFireRate(tower)).toFixed(1)} · KILLS{" "}
+    {tower.kills} · DEALT {fmtCompact(tower.damageDealt)}
+    {tower.splashRadius > 0 && ` · SPL ${tower.splashRadius.toFixed(1)}`}
+    {tower.chainCount > 0 && ` · CHN ${tower.chainCount}`}
+    {tower.slowFactor < 1 && ` · SLOW ${(1 - tower.slowFactor).toFixed(2)}`}
+    {tower.serviceFireRateBonus > 0 && (
+      <>
+        {" "}
+        ·{" "}
+        <span style={{ color: "#bbffc8" }}>
+          SUPPORT +{Math.round(tower.serviceFireRateBonus * 100)}%
+        </span>
+      </>
+    )}
+  </>
+);
+
+const ResistRow = ({ damageType }: { damageType: DamageType }) => (
+  <div className="resist-row">
+    {ENEMY_ORDER.map((k) => {
+      const mul = ENEMY_RESIST[k][damageType];
+      const pct = Math.round((mul - 1) * 100);
+      const cls = pct > 0 ? "good" : pct < 0 ? "bad" : "neutral";
+      return (
+        <div
+          key={k}
+          className={`resist-chip ${cls}`}
+          title={`vs ${ENEMY_LABEL[k]}: ${mul.toFixed(2)}×`}
+        >
+          <span className="resist-name">{ENEMY_LABEL[k]}</span>
+          <span className="resist-val">{pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}</span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) => {
+  const currentMode =
+    tower.targetingMode === "spot"
+      ? "Spot"
+      : (TARGETING_MODES.find(({ mode }) => mode === tower.targetingMode)?.label ?? "Near");
+  const showSpotHint =
+    tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot;
+  const controls = (
+    <>
+      <div className="targeting-row">
+        <div className="targeting-label">Target</div>
+        <div className="targeting-buttons">
+          {TARGETING_MODES.map(({ mode, label, title }) => (
+            <button
+              type="button"
+              key={mode}
+              className={`targeting-btn ${tower.targetingMode === mode ? "active" : ""}`}
+              onClick={() => useGame.getState().setTargetingMode(mode)}
+              title={title}
+            >
+              {label}
+            </button>
+          ))}
+          {tower.kind === "mortar" && (
+            <button
+              type="button"
+              className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
+              onClick={() => useGame.getState().setTargetingMode("spot")}
+              title="Fire only at a fixed map spot — click the map to set it"
+            >
+              Spot
+            </button>
+          )}
+        </div>
+      </div>
+      {showSpotHint && (
+        <div className="targeting-hint">
+          Click a spot on the map within range to set the aim point.
+        </div>
+      )}
+    </>
+  );
+
+  if (!mobile) return controls;
+
+  return (
+    <details className="mobile-fold targeting-fold">
+      <summary>
+        <span>Target</span>
+        <span className="mobile-fold-status">{currentMode}</span>
+      </summary>
+      <div className="mobile-fold-body">{controls}</div>
+    </details>
   );
 };
 
