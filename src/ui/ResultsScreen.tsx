@@ -1,6 +1,5 @@
 import type React from "react";
 import { useEffect } from "react";
-import { ACHIEVEMENT_BY_ID } from "../achievements";
 import { audio } from "../audio/AudioManager";
 import { LEVELS } from "../levels";
 import { isLevelUnlocked, LEVEL_MODE_LABEL } from "../progress";
@@ -96,26 +95,9 @@ export const ResultsScreen = () => {
               )
             }
           />
-          {result.improved && (
-            <div className="mt-2.5 text-center text-[11px] tracking-uber text-gold font-bold">
-              NEW BEST
-            </div>
-          )}
           {showNext && (
             <div className="mt-1.5 text-center text-xs text-cyan tracking-[0.06em]">
               Unlocked: {nextLevel!.name}
-            </div>
-          )}
-          {result.unlockedAchievements.length > 0 && (
-            <div className="mt-3.5 px-3 py-2.5 rounded-lg bg-tint-gold-soft border border-[rgba(255,214,106,0.35)] text-left">
-              <div className="text-[10px] font-bold tracking-[0.18em] text-gold mb-1.5">
-                Achievements unlocked
-              </div>
-              {result.unlockedAchievements.map((id) => (
-                <div key={id} className="text-[13px] font-semibold text-fg py-0.5">
-                  {ACHIEVEMENT_BY_ID[id].name}
-                </div>
-              ))}
             </div>
           )}
         </div>
