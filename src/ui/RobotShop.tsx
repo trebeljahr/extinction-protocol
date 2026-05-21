@@ -1,4 +1,4 @@
-import { type FC, useState } from "react";
+import { type FC, useId, useState } from "react";
 import { isDebug } from "../debug";
 import { robotSkillBoltDelta } from "../sim/robotBolts";
 import {
@@ -326,6 +326,31 @@ const formatAutoAttack = (spec: RobotVariantSpec): string[] => {
   return lines;
 };
 
+const AttackDetail = ({
+  id,
+  expanded,
+  blurb,
+  stats,
+}: {
+  id: string;
+  expanded: boolean;
+  blurb: string;
+  stats: string[];
+}) => (
+  <div id={id} className="robot-ability-detail-wrap" aria-hidden={!expanded}>
+    <div className="robot-ability-detail">
+      <div className="robot-ability-detail-inner">
+        <p className="robot-ability-blurb">{blurb}</p>
+        <ul className="robot-ability-stats">
+          {stats.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </div>
+);
+
 const AbilityCard = ({
   spec,
   slot,
@@ -341,6 +366,7 @@ const AbilityCard = ({
   const glyph = spec.abilityGlyphs[slot];
   const blurb = spec.abilityBlurbs[slot + 1];
   const damageType = robotAbilityDamageType(spec, slot);
+  const detailId = useId();
   return (
     <div className={`robot-ability-card ${expanded ? "expanded" : ""}`}>
       <button
@@ -348,6 +374,7 @@ const AbilityCard = ({
         className="robot-ability-summary"
         onClick={onToggle}
         aria-expanded={expanded}
+        aria-controls={detailId}
       >
         <span className="robot-ability-glyph" aria-hidden>
           {glyph}
@@ -367,16 +394,12 @@ const AbilityCard = ({
           {expanded ? "−" : "+"}
         </span>
       </button>
-      {expanded && (
-        <div className="robot-ability-detail">
-          <p className="robot-ability-blurb">{blurb}</p>
-          <ul className="robot-ability-stats">
-            {formatAbilityStats(spec, slot).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <AttackDetail
+        id={detailId}
+        expanded={expanded}
+        blurb={blurb}
+        stats={formatAbilityStats(spec, slot)}
+      />
     </div>
   );
 };
@@ -389,44 +412,44 @@ const AutoAttackCard = ({
   spec: RobotVariantSpec;
   expanded: boolean;
   onToggle: () => void;
-}) => (
-  <div className={`robot-ability-card ${expanded ? "expanded" : ""}`}>
-    <button
-      type="button"
-      className="robot-ability-summary"
-      onClick={onToggle}
-      aria-expanded={expanded}
-    >
-      <span className="robot-ability-glyph" aria-hidden>
-        ◉
-      </span>
-      <span className="robot-ability-name">Basic Attack</span>
-      <span
-        className="robot-ability-type dmg-tag"
-        style={{
-          color: DAMAGE_TYPE_COLOR[spec.damageType],
-          borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
-        }}
+}) => {
+  const detailId = useId();
+  return (
+    <div className={`robot-ability-card ${expanded ? "expanded" : ""}`}>
+      <button
+        type="button"
+        className="robot-ability-summary"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={detailId}
       >
-        <DamageIcon type={spec.damageType} size={10} title={DAMAGE_TYPE_LABEL[spec.damageType]} />
-        {DAMAGE_TYPE_LABEL[spec.damageType]}
-      </span>
-      <span className="robot-ability-toggle" aria-hidden>
-        {expanded ? "−" : "+"}
-      </span>
-    </button>
-    {expanded && (
-      <div className="robot-ability-detail">
-        <p className="robot-ability-blurb">{spec.abilityBlurbs[0]}</p>
-        <ul className="robot-ability-stats">
-          {formatAutoAttack(spec).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      </div>
-    )}
-  </div>
-);
+        <span className="robot-ability-glyph" aria-hidden>
+          ◉
+        </span>
+        <span className="robot-ability-name">Basic Attack</span>
+        <span
+          className="robot-ability-type dmg-tag"
+          style={{
+            color: DAMAGE_TYPE_COLOR[spec.damageType],
+            borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
+          }}
+        >
+          <DamageIcon type={spec.damageType} size={10} title={DAMAGE_TYPE_LABEL[spec.damageType]} />
+          {DAMAGE_TYPE_LABEL[spec.damageType]}
+        </span>
+        <span className="robot-ability-toggle" aria-hidden>
+          {expanded ? "−" : "+"}
+        </span>
+      </button>
+      <AttackDetail
+        id={detailId}
+        expanded={expanded}
+        blurb={spec.abilityBlurbs[0]}
+        stats={formatAutoAttack(spec)}
+      />
+    </div>
+  );
+};
 
 const RobotDetail = ({
   variant,

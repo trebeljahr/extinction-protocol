@@ -4845,7 +4845,9 @@
     border: 1px solid var(--color-border-faint);
     border-radius: 8px;
     overflow: hidden;
-    transition: border-color 0.12s, background 0.12s;
+    transition:
+      border-color 0.14s ease,
+      background 0.14s ease;
   }
   .robot-ability-card.expanded {
     border-color: rgba(159, 216, 255, 0.45);
@@ -4890,8 +4892,34 @@
     width: 18px;
     text-align: center;
     flex-shrink: 0;
+    transition:
+      color 0.14s ease,
+      transform 0.14s ease;
+  }
+  .robot-ability-card.expanded .robot-ability-toggle {
+    color: var(--color-blue);
+    transform: translateY(-1px);
+  }
+  .robot-ability-detail-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-3px);
+    transition:
+      grid-template-rows 0.18s ease,
+      opacity 0.14s ease,
+      transform 0.18s ease;
+  }
+  .robot-ability-card.expanded .robot-ability-detail-wrap {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
   }
   .robot-ability-detail {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .robot-ability-detail-inner {
     padding: 0 9px 7px 29px;
     display: flex;
     flex-direction: column;
@@ -5226,7 +5254,7 @@
       align-items: flex-start;
       gap: 2px;
     }
-    .robot-ability-detail {
+    .robot-ability-detail-inner {
       padding: 0 10px 8px 14px;
     }
   }
