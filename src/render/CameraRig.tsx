@@ -2,7 +2,6 @@ import { OrthographicCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import type { OrthographicCamera as OrthographicCameraImpl } from "three";
-import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_ENTRY_MARGIN_X, PATH_ENTRY_MARGIN_Y } from "../level";
 import { useGame } from "../store";
@@ -234,13 +233,11 @@ export const CameraRig = () => {
         // spin the camera mid-placement. Also disabled once the run is
         // lost so the HQ-death rumble doesn't get mistaken for a rotate
         // gesture and spin the whole map under the player. Right-mouse
-        // drag on desktop, two-finger twist on mobile (DOLLY_ROTATE keeps
-        // pinch zoom).
+        // drag on desktop only; touch remains pan + pinch/pan.
         enableRotate={selectedKind === null && status !== "lost"}
         minPolarAngle={BATTLE_MIN_POLAR}
         maxPolarAngle={BATTLE_MAX_POLAR}
         rotateSpeed={0.6}
-        touchTwo={THREE.TOUCH.DOLLY_ROTATE}
       />
     </>
   );

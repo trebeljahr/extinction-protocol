@@ -112,7 +112,8 @@ Each map is a hand-designed base layout + procedural path variant on run start. 
 
 ## 6. Art Direction
 
-- **Camera**: fixed orthographic, top-down, slight tilt (~70° from horizontal). Camera rotates in 90° snaps for player convenience.
+- **Camera**: fixed orthographic, top-down, slight tilt (~70° from horizontal). Desktop can orbit with right-drag; mobile touch stays pan + pinch zoom only.
+- **Mobile camera alternatives considered**: explicit rotate/tilt button mode, edge-hold rotate handles, or temporary two-finger orbit behind a visible modifier. Avoid implicit twist/tilt gestures until one feels intentional.
 - **Palette**: cold teals and steel for player side, bioluminescent organics for enemies. High contrast between.
 - **VFX budget**: screenshake on big hits, hit-flash on enemies, muzzle flashes for towers, dust puffs for deaths. No particles that obscure readability.
 - **Scale**: 1 world unit = 1 meter. Tile grid = 2m. Map ~40×30 tiles.

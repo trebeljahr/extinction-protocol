@@ -26,10 +26,6 @@ export type MapGestureConfig = {
   minPolarAngle?: number;
   maxPolarAngle?: number;
   rotateSpeed?: number;
-  // Right-mouse default in OrbitControls is ROTATE; the touchTwo override
-  // lets rotate-enabled callers pick DOLLY_ROTATE so mobile can keep pinch
-  // zoom while adding orbit via two-finger twist/drag.
-  touchTwo?: THREE.TOUCH;
 };
 
 export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureConfig>(
@@ -48,7 +44,6 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
       minPolarAngle = 0,
       maxPolarAngle = Math.PI,
       rotateSpeed = 0.7,
-      touchTwo,
     },
     ref,
   ) {
@@ -83,22 +78,15 @@ export const MapOrbitControls = forwardRef<OrbitControlsImpl | null, MapGestureC
 
     useDragGate(controlsRef, reserveLeftClick, gl);
 
-    // While a tower kind is armed, one-finger touch belongs to the
-    // placement gesture (Placement parks a ghost + Confirm pill on
-    // drag, or places inline on tap). Park OrbitControls — ROTATE
-    // is a no-op here because enableRotate is false — so the drag
-    // doesn't simultaneously pan the camera. Two-finger DOLLY_PAN
-    // still works for camera adjustment mid-placement.
-    //
-    // Rotate-enabled callers can override touchTwo to DOLLY_ROTATE so
-    // two-finger pinch still zooms while a two-finger twist orbits the
-    // camera. Non-rotating callers keep the default DOLLY_PAN.
+    // Touch stays pan + pinch/pan only. Mobile orbit gestures made camera
+    // rotation/tilt feel accidental, so desktop keeps right-mouse orbit
+    // while touch keeps camera adjustment predictable.
     const touches = useMemo(
       () => ({
         ONE: reserveTouchPlacement ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
-        TWO: touchTwo ?? THREE.TOUCH.DOLLY_PAN,
+        TWO: THREE.TOUCH.DOLLY_PAN,
       }),
-      [reserveTouchPlacement, touchTwo],
+      [reserveTouchPlacement],
     );
 
     return (
