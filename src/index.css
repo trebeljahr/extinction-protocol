@@ -1025,6 +1025,32 @@
     letter-spacing: 0.02em;
   }
 
+  .menu-overlay-header {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .menu-overlay-leading {
+    min-width: 0;
+  }
+  .menu-overlay-leading:empty {
+    visibility: hidden;
+  }
+  .menu-overlay-title-group {
+    min-width: 0;
+  }
+  .overlay-card .menu-overlay-title {
+    margin: 0;
+  }
+  .overlay-card .menu-overlay-subtitle {
+    margin: 4px 0 0;
+  }
+  .menu-overlay-close {
+    justify-self: end;
+  }
+
   /* Compendium */
   .compendium-overlay {
     padding: 24px;
@@ -4726,17 +4752,24 @@
   .robot-detail {
     display: flex;
     flex-direction: column;
-    gap: 12px;
   }
   .robot-detail-back {
+    min-height: 40px;
+    min-width: 82px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     align-self: flex-start;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     color: var(--color-fg-muted);
     background: rgba(8, 12, 18, 0.55);
     border: 1px solid var(--color-border-faint);
-    padding: 5px 10px;
+    padding: 0 13px;
     border-radius: 6px;
     cursor: pointer;
+    white-space: nowrap;
   }
   .robot-detail-back:hover {
     color: var(--color-fg);
@@ -4872,6 +4905,7 @@
   }
   .robot-ability-summary {
     width: 100%;
+    min-height: 40px;
     background: transparent;
     border: 0;
     color: inherit;
@@ -4879,7 +4913,7 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 6px 9px;
+    padding: 8px 10px;
     cursor: pointer;
     text-align: left;
   }
@@ -4904,17 +4938,30 @@
     flex-shrink: 0;
   }
   .robot-ability-toggle {
-    font-size: 14px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(120, 160, 200, 0.18);
+    border-radius: 6px;
+    background: rgba(8, 12, 18, 0.42);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
     color: var(--color-fg-muted);
-    width: 18px;
-    text-align: center;
     flex-shrink: 0;
     transition:
+      border-color 0.14s ease,
+      background 0.14s ease,
       color 0.14s ease,
       transform 0.14s ease;
   }
   .robot-ability-card.expanded .robot-ability-toggle {
     color: var(--color-blue);
+    border-color: rgba(159, 216, 255, 0.45);
+    background: rgba(159, 216, 255, 0.08);
     transform: translateY(-1px);
   }
   .robot-ability-detail-wrap {
@@ -5089,12 +5136,12 @@
   }
   .robot-skill-pips {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     flex-shrink: 0;
   }
   .robot-skill-pip {
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     border: 2px solid;
     transition: background 0.12s, border-color 0.12s, transform 0.12s;
@@ -5166,13 +5213,14 @@
   }
   .robot-skill-refund {
     align-self: flex-start;
+    min-height: 40px;
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--color-fg);
     background: rgba(255, 214, 106, 0.06);
     border: 1px solid var(--color-border-faint);
-    padding: 8px 16px;
+    padding: 0 16px;
     border-radius: 8px;
     cursor: pointer;
     transition: color 0.12s, border-color 0.12s, background 0.12s;
@@ -5245,23 +5293,98 @@
     margin-left: 2px;
   }
 
+  .robot-shop-card .menu-overlay-close {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+
+  .robot-shop-card--detail .menu-overlay-title-group {
+    align-self: center;
+  }
+
   @media (max-width: 640px) {
+    .robot-shop-card--detail .menu-overlay-header {
+      grid-template-columns: minmax(82px, max-content) minmax(0, 1fr) 44px;
+      align-items: start;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .robot-shop-card--detail .menu-overlay-title-group {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+      padding-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .robot-shop-card--detail .menu-overlay-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: var(--fs-2xl);
+      line-height: 1;
+      letter-spacing: 0.01em;
+    }
+    .robot-shop-card--detail .menu-overlay-subtitle {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      line-height: 1;
+      margin: 0;
+    }
+    .robot-shop-card .menu-overlay-close,
+    .robot-detail-back {
+      width: auto;
+      height: 44px;
+      min-height: 44px;
+    }
+    .robot-shop-card .menu-overlay-close {
+      width: 44px;
+      font-size: 19px;
+    }
+    .robot-detail-back {
+      min-width: 82px;
+      padding: 0 11px;
+      font-size: 12px;
+    }
+    .robot-ability-summary {
+      min-height: 44px;
+      padding: 8px 10px;
+    }
+    .robot-ability-toggle {
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
+      font-size: 20px;
+    }
     .robot-skill-card {
-      padding: 7px 8px;
+      padding: 9px 10px;
       gap: 8px;
     }
     .robot-skill-icon {
-      width: 30px;
-      height: 30px;
+      width: 34px;
+      height: 34px;
     }
     .robot-skill-head {
       flex-direction: column;
       align-items: flex-start;
-      gap: 5px;
+      gap: 7px;
+    }
+    .robot-skill-pips {
+      gap: 8px;
     }
     .robot-skill-pip {
-      width: 22px;
-      height: 22px;
+      width: 34px;
+      height: 34px;
+    }
+    .robot-skill-refund,
+    .robot-shop-card--detail .btn {
+      min-height: 44px;
     }
     .robot-detail-stats {
       grid-template-columns: repeat(2, 1fr);

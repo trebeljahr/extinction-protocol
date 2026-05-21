@@ -456,13 +456,11 @@ const RobotDetail = ({
   availableBolts,
   activeRobot,
   unlocked,
-  onBack,
 }: {
   variant: RobotVariant;
   availableBolts: number;
   activeRobot: RobotVariant;
   unlocked: boolean;
-  onBack: () => void;
 }) => {
   const spec = ROBOT_SPECS[variant];
   const progress = useGame((s) => s.progress);
@@ -484,14 +482,6 @@ const RobotDetail = ({
 
   return (
     <div className="robot-detail">
-      <button
-        type="button"
-        className="robot-detail-back"
-        onClick={onBack}
-        aria-label="Back to roster"
-      >
-        ← Roster
-      </button>
       <div className="robot-detail-grid">
         <div className="robot-detail-preview">
           <RobotDiorama variant={variant} />
@@ -655,7 +645,19 @@ export const RobotShop = () => {
       title={selected ? ROBOT_SPECS[selected].label : "Pilot Roster"}
       subtitle={selected ? ROBOT_SPECS[selected].callsign : null}
       onClose={handleClose}
-      cardClassName="!w-[min(1100px,calc(100vw-24px))] !max-w-none !min-w-0 !px-4 sm:!px-6 md:!px-8"
+      headerLeading={
+        selected ? (
+          <button
+            type="button"
+            className="robot-detail-back"
+            onClick={() => setSelected(null)}
+            aria-label="Back to roster"
+          >
+            ← Roster
+          </button>
+        ) : null
+      }
+      cardClassName={`robot-shop-card ${selected ? "robot-shop-card--detail" : ""} !w-[min(1100px,calc(100vw-24px))] !max-w-none !min-w-0 !px-4 sm:!px-6 md:!px-8`}
     >
       <div className="robot-shop-panel w-full">
         {selected ? (
@@ -664,7 +666,6 @@ export const RobotShop = () => {
             availableBolts={availableBolts}
             activeRobot={progress.activeRobot}
             unlocked={!!progress.robotUnlocks[selected]}
-            onBack={() => setSelected(null)}
           />
         ) : (
           <div className="robot-roster-grid">
