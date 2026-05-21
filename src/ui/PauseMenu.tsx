@@ -4,6 +4,7 @@ import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { getLevel } from "../levels";
 import { useGame } from "../store";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugProgressSettings } from "./DebugProgressSettings";
 import { DifficultyButton } from "./DifficultyButton";
@@ -35,27 +36,15 @@ export const PauseMenu = ({ onResume }: Props) => {
   if (confirming) {
     const isRestart = confirming === "restart";
     return (
-      <MenuOverlay
+      <ConfirmationDialog
         title={isRestart ? "Restart Level?" : "Return to World Map?"}
-        onClose={() => setConfirming(null)}
-        closeLabel="Cancel"
+        confirmLabel={isRestart ? "Restart" : "Return"}
+        confirmClassName={isRestart ? "btn-warn" : "btn-danger"}
+        onCancel={() => setConfirming(null)}
+        onConfirm={isRestart ? retry : goToWorldMap}
       >
-        <div className="text-center text-[13px] text-fg-muted mb-5 leading-[1.4]">
-          Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
-        </div>
-        <ActionsRow>
-          <button type="button" className="btn btn-secondary" onClick={() => setConfirming(null)}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={isRestart ? retry : goToWorldMap}
-          >
-            {isRestart ? "Restart" : "Return"}
-          </button>
-        </ActionsRow>
-      </MenuOverlay>
+        Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
+      </ConfirmationDialog>
     );
   }
 
@@ -69,7 +58,7 @@ export const PauseMenu = ({ onResume }: Props) => {
     >
       <div className="menu-panel-scroll">
         <DifficultyButton
-          className="w-full mb-3 bg-surface-1 border border-border rounded-md px-3 py-2 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
+          className="w-full min-h-11 mb-3 bg-surface-1 border border-border rounded-md px-3 py-2.5 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
           title="Change difficulty"
           textStackClassName="flex-1"
           trailing={
@@ -122,10 +111,6 @@ export const PauseMenu = ({ onResume }: Props) => {
     </MenuOverlay>
   );
 };
-
-const ActionsRow = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex gap-2.5 justify-center flex-wrap">{children}</div>
-);
 
 const ActionsCol = ({ children }: { children: React.ReactNode }) => (
   <div className="menu-panel-actions">{children}</div>

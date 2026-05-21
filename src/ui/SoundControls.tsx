@@ -83,15 +83,15 @@ export const SoundControls = () => {
   };
 
   return (
-    <section className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg pt-3 px-4 pb-3 mb-5">
-      <div className="flex items-center justify-between mb-2.5">
+    <section className="settings-section sound-controls-section bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg pt-3 px-4 pb-3 mb-5">
+      <div className="settings-section-header flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-uber text-gold">
           <IconSpeaker size={14} className="shrink-0" />
           SOUND
         </div>
         <button
           type="button"
-          className={`px-2.5 py-1 rounded-[5px] border text-[10px] font-bold tracking-uber font-[inherit] cursor-pointer ${
+          className={`settings-toggle-btn px-2.5 py-1 rounded-[5px] border text-[10px] font-bold tracking-uber font-[inherit] cursor-pointer ${
             prefs.muted
               ? "bg-tint-pink border-[rgba(255,122,154,0.45)] text-pink"
               : "bg-[rgba(61,209,255,0.12)] border-[rgba(61,209,255,0.4)] text-cyan"
@@ -115,7 +115,7 @@ export const SoundControls = () => {
             onChange={(e) => updateBus(key, Number(e.target.value))}
             onPointerUp={() => commitPreview(key)}
             onKeyUp={() => commitPreview(key)}
-            className="flex-1 accent-cyan"
+            className="sound-control-slider flex-1 accent-cyan"
           />
           <Value value={prefs[key]} />
         </Row>
@@ -125,11 +125,11 @@ export const SoundControls = () => {
 };
 
 const Row = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-3 my-2">{children}</div>
+  <div className="sound-control-row flex items-center gap-3 my-2">{children}</div>
 );
 
 const Label = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => {
-  const cls = "w-16 text-xs tracking-[0.06em] text-fg-muted";
+  const cls = "sound-control-label w-16 text-xs tracking-[0.06em] text-fg-muted";
   return (
     <label className={cls} htmlFor={htmlFor}>
       {children}
@@ -138,7 +138,7 @@ const Label = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: str
 };
 
 const Value = ({ value }: { value: number }) => (
-  <span className="w-[34px] text-right tabular-nums text-xs text-fg-secondary font-bold">
+  <span className="sound-control-value w-[34px] text-right tabular-nums text-xs text-fg-secondary font-bold">
     {Math.round(value * 100)}
   </span>
 );

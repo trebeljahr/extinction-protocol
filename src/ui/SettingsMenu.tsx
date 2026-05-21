@@ -15,7 +15,7 @@ export const SettingsMenu = () => {
     <>
       <button
         type="button"
-        className="settings-menu-btn absolute top-4 right-4 z-30 bg-surface-1 border border-border rounded-md p-2 backdrop-blur-sm flex items-center justify-center pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+        className="settings-menu-btn absolute top-4 right-4 z-30 bg-surface-1 border border-border rounded-md w-11 h-11 p-0 backdrop-blur-sm flex items-center justify-center pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
         onClick={() => setOpen(true)}
         aria-label="Open settings"
         title="Settings"

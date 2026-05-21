@@ -1051,6 +1051,39 @@
     justify-self: end;
   }
 
+  .confirmation-dialog-body {
+    margin-bottom: 20px;
+    color: var(--color-fg-muted);
+    font-size: var(--fs-base);
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .confirmation-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .confirmation-dialog-actions .btn {
+    min-width: 112px;
+    min-height: 40px;
+  }
+
+  .settings-toggle-btn {
+    display: inline-flex;
+    min-width: 40px;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sound-control-slider {
+    min-height: 28px;
+    cursor: pointer;
+  }
+
   /* Compendium */
   .compendium-overlay {
     padding: 24px;
@@ -3016,15 +3049,21 @@
       right: calc(8px + var(--safe-right)) !important;
     }
     .hud-menu-btn {
-      flex: 0 0 36px;
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
-      min-height: 36px;
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
       padding: 0;
       gap: 0;
       justify-content: center;
       font-size: var(--fs-md);
+    }
+    .quick-settings-btn {
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px;
+      min-height: 44px;
     }
     .hud-menu-btn .text-sm {
       font-size: var(--fs-md);
@@ -3285,6 +3324,50 @@
       padding: calc(18px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)) !important;
       background: #121a24;
     }
+    .menu-overlay-close {
+      width: 44px;
+      height: 44px;
+      font-size: var(--fs-lg);
+    }
+    .confirmation-dialog-overlay {
+      padding: calc(14px + var(--safe-top)) 16px calc(14px + var(--safe-bottom));
+      place-items: center;
+      background: rgba(8, 12, 18, 0.72);
+    }
+    .menu-overlay.confirmation-dialog-overlay .confirmation-dialog-card {
+      width: min(calc(100vw - 32px), 420px);
+      max-width: 420px;
+      min-width: 0 !important;
+      min-height: 0;
+      max-height: calc(100dvh - 28px - var(--safe-top) - var(--safe-bottom));
+      padding: 22px 16px 16px !important;
+      border: 1px solid rgba(120, 160, 200, 0.22);
+      border-radius: var(--radius-xl);
+      background: rgba(18, 26, 36, 0.98);
+    }
+    .confirmation-dialog-card .menu-overlay-header {
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      margin-bottom: 14px;
+    }
+    .confirmation-dialog-card .menu-overlay-title {
+      font-size: var(--fs-2xl);
+      line-height: 1.1;
+    }
+    .confirmation-dialog-body {
+      margin-bottom: 18px;
+      font-size: var(--fs-base);
+    }
+    .confirmation-dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .confirmation-dialog-actions .btn {
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      padding: 10px 12px;
+    }
     .overlay-card:not(.menu-overlay-card) {
       min-width: 0 !important;
       width: calc(100vw - 24px);
@@ -3295,8 +3378,8 @@
     .settings-menu-btn {
       top: calc(8px + var(--safe-top)) !important;
       right: calc(8px + var(--safe-right)) !important;
-      padding: 8px;
-      min-width: 40px;
+      min-width: 44px;
+      min-height: 44px;
       justify-content: center;
     }
     .settings-menu-btn .text-xs {
@@ -3331,11 +3414,11 @@
       flex: 0 0 auto;
     }
     .world-map-actions > .world-map-utility-btn {
-      flex: 0 0 36px;
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
-      min-height: 36px;
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
       padding: 0;
     }
     .world-map-meta {
@@ -3352,7 +3435,43 @@
     .world-map-utility-btn {
       flex: 1 1 calc(50% - 3px);
       justify-content: center;
-      min-height: 40px;
+      min-height: 44px;
+    }
+
+    .settings-section {
+      padding: 14px 14px 12px !important;
+      margin-bottom: 14px;
+    }
+    .settings-section-header {
+      min-height: 44px;
+    }
+    .settings-toggle-btn {
+      min-width: 52px;
+      min-height: 44px;
+      padding: 0 12px;
+      font-size: var(--fs-xs);
+    }
+    .sound-controls-section {
+      padding-bottom: 16px !important;
+    }
+    .sound-control-row {
+      gap: 10px;
+      min-height: 44px;
+      margin: 8px 0;
+    }
+    .sound-control-label {
+      width: 64px;
+      font-size: var(--fs-md);
+    }
+    .sound-control-slider {
+      min-height: 36px;
+    }
+    .sound-control-value {
+      width: 38px;
+      font-size: var(--fs-md);
+    }
+    .menu-overlay .difficulty-open-button {
+      min-height: 48px;
     }
     .world-map-hover-card {
       left: 8px !important;

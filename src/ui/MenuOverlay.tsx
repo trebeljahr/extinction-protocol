@@ -8,6 +8,7 @@ type Props = {
   closeLabel?: string;
   closeTitle?: string;
   headerLeading?: React.ReactNode;
+  overlayClassName?: string;
   // Extra classes appended to the card. Use `!w-…` to override the
   // default 560px max-width when a wider modal is needed.
   cardClassName?: string;
@@ -21,6 +22,7 @@ export const MenuOverlay = ({
   closeLabel = "Close",
   closeTitle,
   headerLeading,
+  overlayClassName = "",
   cardClassName = "",
   children,
 }: Props) => {
@@ -43,7 +45,7 @@ export const MenuOverlay = ({
        the backdrop is a click target for "click-outside-to-close". The
        card inside is the interactive region with focusable controls. */
     <div
-      className="overlay menu-overlay"
+      className={`overlay menu-overlay ${overlayClassName}`}
       role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
