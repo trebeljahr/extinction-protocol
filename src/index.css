@@ -2981,8 +2981,14 @@
       right: calc(8px + var(--safe-right)) !important;
     }
     .hud-menu-btn {
-      padding: 6px 10px;
-      gap: 6px;
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      gap: 0;
+      justify-content: center;
       font-size: var(--fs-md);
     }
     .hud-menu-btn .text-sm {
@@ -3285,6 +3291,17 @@
       max-width: none;
       gap: 6px;
       justify-content: flex-start;
+    }
+    .world-map-actions .quick-settings {
+      flex: 0 0 auto;
+    }
+    .world-map-actions > .world-map-utility-btn {
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
     }
     .world-map-meta {
       min-width: 0;
