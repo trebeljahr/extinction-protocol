@@ -2238,6 +2238,9 @@
     color: var(--color-fg);
     font-family: inherit;
     cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
     backdrop-filter: blur(8px);
     box-shadow:
       0 0 0 1px rgba(255, 214, 106, 0.15),
@@ -2246,6 +2249,12 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    will-change: transform, opacity;
+  }
+
+  .achievement-toast[data-dragging="true"] {
+    cursor: grabbing;
+    transition: none;
   }
 
   .achievement-toast-icon {
@@ -3390,16 +3399,20 @@
       overflow-y: visible;
     }
 
-    /* Achievement toasts — full-width strip from the top so they
-       don't collide with HUD pills below the safe-area inset. */
+    /* Achievement toasts stay under top-right menu controls on phones
+       without becoming a full-width banner. */
     .achievement-toast-stack {
-      top: calc(60px + var(--safe-top));
-      left: 12px;
-      right: 12px;
+      top: calc(52px + var(--safe-top));
+      left: auto;
+      right: calc(8px + var(--safe-right));
+      align-items: flex-end;
+      max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
     }
     .achievement-toast {
       min-width: 0;
-      max-width: none;
+      width: min(340px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+      max-width: 340px;
+      padding: 10px 12px;
     }
   }
 
