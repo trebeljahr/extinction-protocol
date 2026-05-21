@@ -333,7 +333,7 @@ export const Placement = () => {
     }
 
     if (useGame.getState().towerAtPos(pos)) audio.ui("select");
-    useGame.getState().tryPlaceOrSelect(pos);
+    useGame.getState().tryPlaceOrSelect(pos, { clearSelectionAfterPlacement: true });
   };
 
   const onPointerCancel = (e: ThreeEvent<PointerEvent>) => {

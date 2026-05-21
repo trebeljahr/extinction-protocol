@@ -527,7 +527,7 @@ type GameStore = {
   tick: (realTimeSec: number) => void;
 
   setSelectedKind: (kind: TowerKind | null) => void;
-  tryPlaceOrSelect: (pos: Vec2) => void;
+  tryPlaceOrSelect: (pos: Vec2, options?: { clearSelectionAfterPlacement?: boolean }) => void;
   canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
   clearSelection: () => void;
@@ -1549,7 +1549,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const pos = get().pendingTouchPlacement;
     if (!pos) return;
     set({ pendingTouchPlacement: null });
-    get().tryPlaceOrSelect(pos);
+    get().tryPlaceOrSelect(pos, { clearSelectionAfterPlacement: true });
   },
 
   inspectEnemy: (id, kind, maxHp, bossVariant) => {
@@ -1846,7 +1846,7 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
-  tryPlaceOrSelect: (pos) => {
+  tryPlaceOrSelect: (pos, options) => {
     const s = get();
     const w = s.world;
 
@@ -1981,13 +1981,15 @@ export const useGame = create<GameStore>((set, get) => ({
     // Don't auto-select the freshly dropped tower — being thrown into
     // the upgrade panel after every placement is noisy mid-wave.
     const newVersion = s.towerVersion + 1;
-    // Close placement when the spend leaves the player unable to afford
-    // the next one of the same kind, so the picker doesn't keep the
-    // ghost armed and force a "no gold" reject on the very next click.
+    // Desktop/gamepad can keep placing while the tower remains affordable.
+    // Touch placement is one-shot so a stray follow-up tap does not spend
+    // another tower by accident.
     const nextExistingSameKind = w.towers.filter((t) => t.kind === s.selectedKind).length;
     const stillAffordable =
       w.gold >= effectiveTowerCost(s.selectedKind, s.progress.metaSkills, nextExistingSameKind);
-    const nextSelectedKind = free || stillAffordable ? s.selectedKind : null;
+    const keepSelectedAfterPlacement =
+      !options?.clearSelectionAfterPlacement && (free || stillAffordable);
+    const nextSelectedKind = keepSelectedAfterPlacement ? s.selectedKind : null;
     const nextPendingTouch = nextSelectedKind === null ? null : s.pendingTouchPlacement;
     set({
       towerVersion: newVersion,
