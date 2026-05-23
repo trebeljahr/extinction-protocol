@@ -259,8 +259,12 @@ export const earlyCallBonus = (world: World): number => {
   return Math.ceil(base * frac);
 };
 
+// Whether the "call next wave" affordance applies to the current wave
+// phase. Deliberately phase-only — it does NOT gate on pause, so the HUD
+// keeps showing the call-wave button while paused instead of falling back
+// to the between-waves "{n}s" countdown. The pause guard lives in
+// `callWaveEarly` so the action itself stays a no-op while frozen.
 export const canCallEarly = (world: World): boolean => {
-  if (world.status !== "running") return false;
   if (!world.endless && world.wave >= world.totalWaves) return false;
   if (!world.waveActive) return true;
   return midwaveThresholdCrossed(world) && world.midwaveTimerMax > 0;
@@ -275,6 +279,7 @@ export const earlyCallTimerSec = (world: World): number => {
 };
 
 export const callWaveEarly = (world: World): boolean => {
+  if (world.status !== "running") return false;
   if (!canCallEarly(world)) return false;
   world.gold += earlyCallBonus(world);
   world.nextWaveIn = 0;
