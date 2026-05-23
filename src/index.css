@@ -3017,23 +3017,22 @@
     /* Hidden on desktop — this control only mounts when isMobile. */
   }
 
-  /* When the picker pops open on mobile it sits as a wrapping flex
-     row that hugs its content (vs. the desktop single-row that would
-     overflow). Centered horizontally and clamped to the viewport so it
-     never butts up against the edges. The .tower-picker base rule still
-     anchors it to the bottom of the screen. */
+  /* On mobile the picker pops open as a 3-col grid (6 towers => two
+     rows), anchored bottom-right and stretching ~half the viewport
+     width. Two rows keeps it short so it clears the top-right menu
+     buttons; the old narrow 2-col stack grew too tall and overlapped
+     them. The .tower-picker base rule still anchors it to the bottom. */
   .tower-picker-mobile-open {
     position: absolute;
     left: auto;
     right: calc(8px + var(--safe-right, 0px));
     bottom: calc(12px + var(--safe-bottom));
     transform: none;
-    max-width: calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px));
-    width: 172px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
+    width: clamp(248px, 50vw, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-content: end;
+    gap: 8px 6px;
     padding: 12px 10px 10px;
     background: rgba(14, 20, 28, 0.92);
     border: 1px solid rgba(120, 160, 200, 0.28);
@@ -3041,6 +3040,15 @@
     backdrop-filter: blur(var(--blur-md));
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
     z-index: 26;
+  }
+  /* Let cards fill their grid cell (override the fixed desktop width)
+     so the menu visually spans the half-width container, and recenter
+     the fixed-size preview inside the now-wider card. */
+  .tower-picker-mobile-open .tower-card {
+    width: auto;
+  }
+  .tower-picker-mobile-open .tower-preview-wrap {
+    margin-inline: auto;
   }
 
   .menu-panel-actions {
