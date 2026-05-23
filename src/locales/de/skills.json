@@ -1,0 +1,196 @@
+{
+  "branch": {
+    "pulse": {
+      "a": {
+        "label": "Ballistik",
+        "blurb": "Schwerere Geschosse, dann Krits.",
+        "tier": {
+          "0": { "name": "Laufzüge", "desc": "+6% Schaden" },
+          "1": { "name": "Treibspiegelgeschoss", "desc": "+12% Schaden" },
+          "2": { "name": "Kritischer Treffer", "desc": "15% Krit · 2× Schaden" },
+          "3": { "name": "Vernichter", "desc": "+18% Schaden, +15% Krit" }
+        }
+      },
+      "b": {
+        "label": "Lademechanik",
+        "blurb": "Schnellere Kadenz, mehr Reichweite.",
+        "tier": {
+          "0": { "name": "Schnellanlauf", "desc": "+6% Feuerrate" },
+          "1": { "name": "Heißes Verschlussstück", "desc": "+12% Feuerrate" },
+          "2": { "name": "Übertaktung", "desc": "+20% Feuerrate" },
+          "3": { "name": "Hyperfeuer", "desc": "+15% Feuerrate, +0,5 Reichweite" }
+        }
+      },
+      "c": {
+        "label": "Logistik",
+        "blurb": "Günstigere Gewehre, längere Zielfernrohre.",
+        "tier": {
+          "0": { "name": "Überschusslager", "desc": "-2g Baukosten" },
+          "1": { "name": "Großbestellung", "desc": "-2g Baukosten (-4g gesamt)" },
+          "2": { "name": "Langes Zielfernrohr", "desc": "+0,6 Reichweite" },
+          "3": { "name": "Munitionsdepot", "desc": "-3g (-7g gesamt), +0,4 Reichweite" }
+        }
+      }
+    },
+    "chain": {
+      "a": {
+        "label": "Spannung",
+        "blurb": "Höhere Grundspannung pro Bogen.",
+        "tier": {
+          "0": { "name": "Gestufte Spulen", "desc": "+6% Schaden" },
+          "1": { "name": "Hochspannung", "desc": "+12% Schaden" },
+          "2": { "name": "Resonanz", "desc": "+1 Kettenziel" },
+          "3": { "name": "Lichtbogenofen", "desc": "+15% Schaden, +1 Kettenziel" }
+        }
+      },
+      "b": {
+        "label": "Leiter",
+        "blurb": "Weitere Bögen, Schock-Verlangsamung.",
+        "tier": {
+          "0": { "name": "Kondensatorbank", "desc": "+0,5 Reichweite" },
+          "1": { "name": "Schnellentladung", "desc": "+8% Feuerrate" },
+          "2": { "name": "Statisches Feld", "desc": "Kettentreffer verlangsamen 20% · 0,5s" },
+          "3": { "name": "Überladung", "desc": "+12% Rate, Verlangsamung 30% · 0,7s" }
+        }
+      },
+      "c": {
+        "label": "Spulenwerk",
+        "blurb": "Günstigere Spulen, größere Reichweite.",
+        "tier": {
+          "0": { "name": "Überschuss-Spulen", "desc": "-2g Baukosten" },
+          "1": { "name": "Großbestellung", "desc": "-2g Baukosten (-4g gesamt)" },
+          "2": { "name": "Linsenantenne", "desc": "+0,5 Reichweite" },
+          "3": { "name": "Rückgewinnung", "desc": "-3g (-7g gesamt), +0,1 Abfall" }
+        }
+      }
+    },
+    "cryo": {
+      "a": {
+        "label": "Unter Null",
+        "blurb": "Treibt die Kälte bis zum völligen Stillstand.",
+        "tier": {
+          "0": { "name": "Kryogen-Gemisch", "desc": "Verlangsamungsfaktor 0,37" },
+          "1": { "name": "Tiefkälte", "desc": "Verlangsamungsfaktor 0,34" },
+          "2": { "name": "Blitzfrost", "desc": "12% Einfrierchance · 0,5s" },
+          "3": { "name": "Absoluter Nullpunkt", "desc": "Verlangsamung 0,30, +8% Einfrieren (20%)" }
+        }
+      },
+      "b": {
+        "label": "Resonator",
+        "blurb": "Größere Reichweite, anhaltender Frost.",
+        "tier": {
+          "0": { "name": "Splitterfeld", "desc": "+0,4 Reichweite" },
+          "1": { "name": "Kristalllinse", "desc": "+0,4 Reichweite (+0,8 gesamt)" },
+          "2": { "name": "Anhaltender Frost", "desc": "+0,7s Frostdauer" },
+          "3": { "name": "Frostkegel", "desc": "+0,4 Reichweite, +0,5s Frost" }
+        }
+      },
+      "c": {
+        "label": "Kältewerk",
+        "blurb": "Günstigeres Kühlmittel, schärfere Kälte.",
+        "tier": {
+          "0": { "name": "Kryo-Überschuss", "desc": "-3g Baukosten" },
+          "1": { "name": "Kühlmittel in Masse", "desc": "-3g Baukosten (-6g gesamt)" },
+          "2": { "name": "Isolierte Kerne", "desc": "+0,3 Reichweite" },
+          "3": { "name": "Industriekälte", "desc": "-4g (-10g gesamt), Verlangsamung -0,02" }
+        }
+      }
+    },
+    "mortar": {
+      "a": {
+        "label": "Schwere Granaten",
+        "blurb": "Dichtere Ladungen, größere Fläche.",
+        "tier": {
+          "0": { "name": "Dichte Packung", "desc": "+6% Schaden" },
+          "1": { "name": "Thermobar", "desc": "+12% Schaden" },
+          "2": { "name": "Splittergranaten", "desc": "+20% Flächenradius" },
+          "3": { "name": "Vernichter", "desc": "+15% Schaden, +15% Fläche" }
+        }
+      },
+      "b": {
+        "label": "Zielerfassung",
+        "blurb": "Schnellere, klügere Granaten.",
+        "tier": {
+          "0": { "name": "Aufklärer", "desc": "+0,4 Reichweite" },
+          "1": { "name": "Feuerleitung", "desc": "+8% Feuerrate" },
+          "2": { "name": "Intelligente Munition", "desc": "+25% Schaden gg. Cluster (3+)" },
+          "3": { "name": "Sättigung", "desc": "+10% Rate, Cluster-Bonus → 40%" }
+        }
+      },
+      "c": {
+        "label": "Depot",
+        "blurb": "Günstigere Granaten, größerer Knall.",
+        "tier": {
+          "0": { "name": "Überschuss-Granaten", "desc": "-5g Baukosten" },
+          "1": { "name": "Großbestellung", "desc": "-5g Baukosten (-10g gesamt)" },
+          "2": { "name": "Aufklärungsanlage", "desc": "+0,4 Reichweite" },
+          "3": { "name": "Munitionsreserve", "desc": "-8g (-18g gesamt), +6% Fläche" }
+        }
+      }
+    },
+    "flame": {
+      "a": {
+        "label": "Verbrennung",
+        "blurb": "Heißeres Gemisch, anhaltender Brand.",
+        "tier": {
+          "0": { "name": "Heißes Gemisch", "desc": "+8% Schaden" },
+          "1": { "name": "Brandbeschleuniger", "desc": "+14% Schaden" },
+          "2": { "name": "Entzünden", "desc": "Brand 2s nach Reichweite · 4 Schaden/s" },
+          "3": { "name": "Napalm", "desc": "+15% Schaden, Brand 3s · 7 Schaden/s" }
+        }
+      },
+      "b": {
+        "label": "Druck",
+        "blurb": "Längere Düse, heißerer Strahl.",
+        "tier": {
+          "0": { "name": "Düsen-Tuning", "desc": "+0,3 Reichweite" },
+          "1": { "name": "Doppelbrenner", "desc": "+10% Feuerrate" },
+          "2": { "name": "Langbrand", "desc": "+0,4 Reichweite, +5% Rate" },
+          "3": { "name": "Sonneneruption", "desc": "+0,5 Reichweite, +10% Rate" }
+        }
+      },
+      "c": {
+        "label": "Raffinerie",
+        "blurb": "Günstigerer Treibstoff, größere Reichweite.",
+        "tier": {
+          "0": { "name": "Treibstoff-Überschuss", "desc": "-3g Baukosten" },
+          "1": { "name": "Gemisch in Masse", "desc": "-3g Baukosten (-6g gesamt)" },
+          "2": { "name": "Vorwärmer", "desc": "+0,3 Reichweite" },
+          "3": { "name": "Pyrolyse-Brenner", "desc": "-6g (-12g gesamt), +5% Schaden" }
+        }
+      }
+    },
+    "hive": {
+      "a": {
+        "label": "Drohnenhangar",
+        "blurb": "Mehr Drohnen, stärkere Buffs.",
+        "tier": {
+          "0": { "name": "Ersatzdrohne", "desc": "+1 Drohne (4 gesamt)" },
+          "1": { "name": "Doppelhangar", "desc": "+1 Drohne (5 gesamt)" },
+          "2": { "name": "Verstärkte Drohnen", "desc": "Drohnen geben +5% Schaden" },
+          "3": { "name": "Volle Staffel", "desc": "+1 Drohne (6), +5% Schaden-Buff" }
+        }
+      },
+      "b": {
+        "label": "Servicelink",
+        "blurb": "Stärkere Feuerraten-Buffs.",
+        "tier": {
+          "0": { "name": "Abgestimmte Spulen", "desc": "+3% Buff pro Drohne" },
+          "1": { "name": "Verstärkter Link", "desc": "+5% Buff pro Drohne" },
+          "2": { "name": "Harmonische Resonanz", "desc": "+8% Buff pro Drohne" },
+          "3": { "name": "Overdrive", "desc": "+10% Buff pro Drohne" }
+        }
+      },
+      "c": {
+        "label": "Werkstatt",
+        "blurb": "Günstigere Stöcke, mehr Feinschliff.",
+        "tier": {
+          "0": { "name": "Überschuss", "desc": "-6g Baukosten" },
+          "1": { "name": "Großbestellung", "desc": "-6g Baukosten (-12g gesamt)" },
+          "2": { "name": "Umrüstcrew", "desc": "+3% Buff pro Drohne" },
+          "3": { "name": "Industriestock", "desc": "-10g (-22g gesamt), +5% Buff" }
+        }
+      }
+    }
+  }
+}

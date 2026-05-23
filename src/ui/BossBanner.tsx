@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store";
 
 const SHOW_SEC = 5.4;
@@ -8,6 +9,7 @@ const SHOW_SEC = 5.4;
 // or when a boss-defeated event lands (so wins close the banner if it
 // somehow lingered through the wave).
 export const BossBanner = () => {
+  const { t } = useTranslation();
   const onEvent = useGame((s) => s.onEvent);
   const [wave, setWave] = useState<number | null>(null);
 
@@ -36,9 +38,9 @@ export const BossBanner = () => {
   return (
     <div className="boss-banner-overlay" aria-live="polite">
       <div className="boss-banner-card">
-        <div className="boss-banner-eyebrow">Threat detected</div>
-        <div className="boss-banner-title">MATRIARCH INCOMING</div>
-        <div className="boss-banner-sub">Wave {wave} · cryo recommended · she takes the lane</div>
+        <div className="boss-banner-eyebrow">{t("boss.eyebrow")}</div>
+        <div className="boss-banner-title">{t("boss.title")}</div>
+        <div className="boss-banner-sub">{t("boss.sub", { wave })}</div>
       </div>
     </div>
   );

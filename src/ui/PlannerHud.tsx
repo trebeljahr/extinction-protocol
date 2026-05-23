@@ -6,6 +6,7 @@
 // production strips it.
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { isDebug } from "../debug";
 import { fetchPlannerTrace, type PlannerTrace, type PlannerWaveAction } from "../debugPlannerTrace";
 import { useGame } from "../store";
@@ -25,6 +26,7 @@ export const PlannerHud = () => {
 };
 
 const PlannerHudInner = () => {
+  const { t } = useTranslation();
   const levelId = useGame((s) => s.world.levelId);
   const difficulty = useGame((s) => s.progress.difficulty);
   const [trace, setTrace] = useState<PlannerTrace | null>(null);
@@ -50,7 +52,7 @@ const PlannerHudInner = () => {
       <button
         type="button"
         onClick={() => setCollapsed(false)}
-        title="Show suggested build order"
+        title={t("planner.showHint")}
         style={{
           position: "fixed",
           top: "calc(16px + var(--safe-top, 0px))",
@@ -70,7 +72,7 @@ const PlannerHudInner = () => {
           pointerEvents: "auto",
         }}
       >
-        PLAN
+        {t("planner.tag")}
       </button>
     );
   }
@@ -108,7 +110,9 @@ const PlannerHudInner = () => {
           letterSpacing: "0.06em",
         }}
       >
-        <span>PLAN · {trace.levelName}</span>
+        <span>
+          {t("planner.tag")} · {trace.levelName}
+        </span>
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -129,7 +133,7 @@ const PlannerHudInner = () => {
         {trace.effectiveStartGold}
       </div>
       <div style={{ marginBottom: 6 }}>
-        <span style={{ color: "#ffd66a" }}>Robot:</span> {trace.suggestedRobot}
+        <span style={{ color: "#ffd66a" }}>{t("planner.robot")}</span> {trace.suggestedRobot}
         <div style={{ color: "#7da3c2", fontSize: 10 }}>{trace.suggestedRobotReason}</div>
       </div>
       <div
@@ -139,8 +143,8 @@ const PlannerHudInner = () => {
         }}
       >
         {trace.success
-          ? `CLEARED · ${trace.totalSpent}g · ${trace.finalPortfolio}`
-          : `INFEASIBLE @ W${trace.failedAt} · ${trace.totalSpent}g · ${trace.finalPortfolio}`}
+          ? `${t("planner.cleared")} · ${trace.totalSpent}g · ${trace.finalPortfolio}`
+          : `${t("planner.infeasible", { wave: trace.failedAt })} · ${trace.totalSpent}g · ${trace.finalPortfolio}`}
       </div>
       {!collapsed &&
         trace.waves.map((w) => (
@@ -157,7 +161,7 @@ const PlannerHudInner = () => {
               {fmtLane(w.dpsAfterByLane)} · {w.goldIn}→{w.goldOut}g
             </div>
             {w.actions.length === 0 ? (
-              <div style={{ color: "#7da3c2" }}> (no actions)</div>
+              <div style={{ color: "#7da3c2" }}> {t("planner.noActions")}</div>
             ) : (
               w.actions.map((a) => (
                 <div

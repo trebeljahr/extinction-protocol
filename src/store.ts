@@ -10,7 +10,7 @@ import { isOnFlowSurface } from "./flowGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS, levelHasMode, resolveLevelMode } from "./levels";
-import { LEVEL_BRIEFING } from "./levels/briefings";
+import { hasLevelBriefing } from "./levels/briefings";
 import { getEndlessArena } from "./levels/endless";
 import { LORE_FRAGMENT_ORDER } from "./levels/lore";
 import type { Difficulty, LevelMode, ProgressData, SlotId, Stars } from "./progress";
@@ -161,6 +161,7 @@ type UiSnapshot = {
   endless: boolean;
   endlessBestWave: number;
   endlessMapName: string;
+  endlessMapId: string;
   status: RunStatus;
   waveActive: boolean;
   nextWaveIn: number;
@@ -272,6 +273,7 @@ const snapshot = (
     endless: w.endless !== null,
     endlessBestWave: w.endless?.bestWave ?? 0,
     endlessMapName: w.endless?.mapName ?? "",
+    endlessMapId: w.endless?.mapId ?? "",
     status: w.status,
     waveActive: w.waveActive,
     nextWaveIn: Math.ceil(w.nextWaveIn),
@@ -335,6 +337,7 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.endless === b.endless &&
   a.endlessBestWave === b.endlessBestWave &&
   a.endlessMapName === b.endlessMapName &&
+  a.endlessMapId === b.endlessMapId &&
   a.status === b.status &&
   a.waveActive === b.waveActive &&
   a.nextWaveIn === b.nextWaveIn &&
@@ -900,7 +903,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Carry the debug invincibility flag across level starts/retries so a
       // toggled-on tester doesn't have to flip it again every restart.
       built.world.invincible = cur.invincible;
-      const showIntro = !!LEVEL_BRIEFING[id] && !progress.seenIntros?.[id];
+      const showIntro = hasLevelBriefing(id) && !progress.seenIntros?.[id];
       if (showIntro) built.world.status = "paused";
       set({
         ...built,

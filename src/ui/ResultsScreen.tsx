@@ -143,7 +143,7 @@ export const ResultsScreen = () => {
           />
           {showNext && (
             <div className="mt-1.5 text-center text-xs text-cyan tracking-[0.06em]">
-              {t("results.unlocked", { level: nextLevel!.name })}
+              {t("results.unlocked", { level: t(`levels:names.${nextLevel!.id}`) })}
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLevel, getLevelOrdinal } from "../levels";
+import { getLevelOrdinal } from "../levels";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
 import { TOWER_LABEL, towerPillInfo } from "../sim/world";
@@ -46,6 +46,7 @@ export const HUD = () => {
   const endless = useGame((s) => s.ui.endless);
   const endlessBestWave = useGame((s) => s.ui.endlessBestWave);
   const endlessMapName = useGame((s) => s.ui.endlessMapName);
+  const endlessMapId = useGame((s) => s.ui.endlessMapId);
   const status = useGame((s) => s.ui.status);
   const waveActive = useGame((s) => s.ui.waveActive);
   const nextWaveIn = useGame((s) => s.ui.nextWaveIn);
@@ -70,14 +71,16 @@ export const HUD = () => {
   // endless runs so getLevel is never called with an arena id). Campaign
   // keeps the outpost name + ordinal.
   const levelName = endless
-    ? endlessMapName
+    ? endlessMapId
+      ? t(`levels:endless.${endlessMapId}.name`)
+      : endlessMapName
     : selectedLevelId
-      ? getLevel(selectedLevelId).name
+      ? t(`levels:names.${selectedLevelId}`)
       : "";
   const levelOrdinal = !endless && selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
   const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}` : "";
   const outpostLabel = endless
-    ? "ENDLESS"
+    ? t("hud.endless")
     : `${t("hud.outpost")}${levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}`;
   const paused = status === "paused";
   // On the final wave the label embeds the n/m count, so the value

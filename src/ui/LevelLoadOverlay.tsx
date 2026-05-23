@@ -21,11 +21,13 @@
 // that weren't yet cached at click time. Pure decorative when those
 // are all cache hits.
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store";
 
 const FADE_MS = 220;
 
 export const LevelLoadOverlay = () => {
+  const { t } = useTranslation();
   const screen = useGame((s) => s.screen);
   const ready = useGame((s) => s.assetsPrewarmed);
   const pending = useGame((s) => s.levelLoadPending);
@@ -62,7 +64,7 @@ export const LevelLoadOverlay = () => {
   return (
     <div className={`level-load-overlay ${exiting ? "level-load-overlay-exit" : ""}`}>
       <div className="level-load-card">
-        <div className="level-load-eyebrow">Deploying Outpost</div>
+        <div className="level-load-eyebrow">{t("levelLoad.eyebrow")}</div>
         <div className="level-load-bar">
           <div
             className={`level-load-bar-fill ${pct === null ? "is-indeterminate" : ""}`}
@@ -70,7 +72,9 @@ export const LevelLoadOverlay = () => {
           />
         </div>
         <div className="level-load-status">
-          {pct === null ? "compiling shaders…" : `loading assets… ${Math.round(pct)}%`}
+          {pct === null
+            ? t("levelLoad.compiling")
+            : t("levelLoad.loading", { pct: Math.round(pct) })}
         </div>
       </div>
     </div>

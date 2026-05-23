@@ -85,7 +85,7 @@ export const ModePicker = () => {
       <div className="achievements-card">
         <header className="achievements-header">
           <div>
-            <h1>{level.name}</h1>
+            <h1>{t(`levels:names.${level.id}`)}</h1>
             <div className="achievements-subtitle">{t("modePicker.subtitle")}</div>
           </div>
           <button

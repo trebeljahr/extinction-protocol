@@ -1,0 +1,133 @@
+{
+  "tower": {
+    "pulse": {
+      "a": {
+        "label": "Ballistics",
+        "tier": {
+          "0": { "name": "Overbore", "desc": "+75% damage" },
+          "1": { "name": "Piercing", "desc": "+70% damage" },
+          "2": { "name": "Annihilator", "desc": "+140% damage, armor pierce" }
+        }
+      },
+      "b": {
+        "label": "Autoloader",
+        "tier": {
+          "0": { "name": "Spool", "desc": "+40% fire rate" },
+          "1": { "name": "Overclock", "desc": "+50% fire rate" },
+          "2": { "name": "Hyperfire", "desc": "+70% fire rate, +1 range" }
+        }
+      }
+    },
+    "chain": {
+      "a": {
+        "label": "Arc Reach",
+        "tier": {
+          "0": { "name": "Fork", "desc": "+2 chain targets, less falloff, +20% fire rate" },
+          "1": { "name": "Cascade", "desc": "+3 chain, much less falloff, +30% fire rate" },
+          "2": { "name": "Storm", "desc": "+4 chain, no falloff, +45% fire rate" }
+        }
+      },
+      "b": {
+        "label": "Voltage",
+        "tier": {
+          "0": { "name": "Step Up", "desc": "+55% damage" },
+          "1": { "name": "High Tension", "desc": "+70% damage" },
+          "2": { "name": "Arc Furnace", "desc": "+120% damage; strips electric resist per hit" }
+        }
+      }
+    },
+    "cryo": {
+      "a": {
+        "label": "Subzero",
+        "tier": {
+          "0": { "name": "Deep Chill", "desc": "Slower enemies" },
+          "1": { "name": "Rime", "desc": "Near-halt + longer chill" },
+          "2": { "name": "Cryo Lock", "desc": "Near-stop + long chill; frozen enemies can't regen" }
+        }
+      },
+      "b": {
+        "label": "Resonator",
+        "tier": {
+          "0": { "name": "Shard", "desc": "+1.2 range" },
+          "1": { "name": "Freeze Burn", "desc": "+1.2 range, +0.6s chill" },
+          "2": { "name": "Absolute Zero", "desc": "28 cold damage AoE" }
+        }
+      }
+    },
+    "mortar": {
+      "a": {
+        "label": "Payload",
+        "tier": {
+          "0": { "name": "Wider Spread", "desc": "+40% splash radius" },
+          "1": { "name": "Heavy Shell", "desc": "+35% splash radius" },
+          "2": { "name": "Thermobaric", "desc": "+50% splash, +55% damage" }
+        }
+      },
+      "b": {
+        "label": "Breach",
+        "tier": {
+          "0": { "name": "HE Rounds", "desc": "+75% damage" },
+          "1": { "name": "Bunker Buster", "desc": "+90% damage" },
+          "2": {
+            "name": "Singularity",
+            "desc": "+140% damage, +20% fire rate, 3× damage to shields"
+          }
+        }
+      }
+    },
+    "flame": {
+      "a": {
+        "label": "Combustion",
+        "tier": {
+          "0": { "name": "Accelerant", "desc": "+60% damage" },
+          "1": { "name": "Thermite", "desc": "+70% damage" },
+          "2": { "name": "Napalm", "desc": "+130% damage, +0.8 range; suppresses regen for 2s/hit" }
+        }
+      },
+      "b": {
+        "label": "Nozzle",
+        "tier": {
+          "0": { "name": "Pressurized", "desc": "+30% fire rate" },
+          "1": { "name": "Twin Burner", "desc": "+35% fire rate, +0.5 range" },
+          "2": { "name": "Sunflare", "desc": "+55% fire rate, +0.7 range" }
+        }
+      }
+    },
+    "hive": {
+      "a": {
+        "label": "Drone Bay",
+        "tier": {
+          "0": { "name": "Spare Drone", "desc": "+1 drone (4 total)" },
+          "1": { "name": "Twin Bay", "desc": "+1 drone (5 total)" },
+          "2": { "name": "Full Squadron", "desc": "+1 drone (6 total)" }
+        }
+      },
+      "b": {
+        "label": "Service Link",
+        "tier": {
+          "0": { "name": "Tuned Coils", "desc": "+5% service buff (35% total)" },
+          "1": { "name": "Boosted Link", "desc": "+5% service buff (40% total)" },
+          "2": { "name": "Overdrive", "desc": "+10% service buff (50% total)" }
+        }
+      }
+    }
+  },
+  "base": {
+    "a": {
+      "label": "Focusing Lens",
+      "tier": {
+        "0": { "name": "Tuned Lens", "desc": "+60% damage" },
+        "1": { "name": "Phase Array", "desc": "+70% damage" },
+        "2": { "name": "Annihilation Beam", "desc": "+80% damage, +0.4 range" }
+      }
+    },
+    "b": {
+      "label": "Capacitor Bank",
+      "tier": {
+        "0": { "name": "Quick-Cycle", "desc": "+30% fire rate" },
+        "1": { "name": "Overcharge", "desc": "+35% fire rate, +0.4 range" },
+        "2": { "name": "Continuous Beam", "desc": "+40% fire rate, +0.6 range" }
+      }
+    }
+  }
+}

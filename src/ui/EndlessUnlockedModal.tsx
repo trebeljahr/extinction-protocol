@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store";
 import { MenuOverlay } from "./MenuOverlay";
 
@@ -5,25 +6,21 @@ import { MenuOverlay } from "./MenuOverlay";
 // cleared the final campaign outpost. Mirrors ModesUnlockedModal; the
 // dismissed flag is persisted so it never reappears on this slot.
 export const EndlessUnlockedModal = () => {
+  const { t } = useTranslation();
   const dismiss = useGame((s) => s.dismissEndlessUnlockExplainer);
 
   return (
     <MenuOverlay
-      title="Endless Mode Unlocked"
-      subtitle="Final outpost held — now survive as long as you can"
+      title={t("endlessUnlocked.title")}
+      subtitle={t("endlessUnlocked.subtitle")}
       onClose={dismiss}
-      closeLabel="Got it"
+      closeLabel={t("endlessUnlocked.close")}
       cardClassName="!max-w-[560px]"
     >
-      <p className="text-[13px] leading-snug text-fg-muted mb-4">
-        With the campaign's last outpost secured, the Endless protocol is live. Pick a dedicated
-        arena and hold the line against waves that never stop and only escalate — more enemies,
-        tougher hides, faster packs, and a matriarch every five waves. There is no win condition;
-        the run ends when your lives run out. Your best wave per arena is saved locally.
-      </p>
+      <p className="text-[13px] leading-snug text-fg-muted mb-4">{t("endlessUnlocked.body")}</p>
       <div className="flex justify-end mt-5">
         <button type="button" className="btn btn-primary" onClick={dismiss}>
-          Got it
+          {t("endlessUnlocked.close")}
         </button>
       </div>
     </MenuOverlay>

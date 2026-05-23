@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Tower } from "../sim/types";
 import { TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
@@ -11,6 +12,7 @@ import { useKeyboardHintsVisible } from "./useInputMode";
 type Props = { hive: Tower };
 
 export const HiveDronePanel = ({ hive }: Props) => {
+  const { t } = useTranslation();
   // Subscribe to the assignment cursor so the slot button highlights
   // the slot currently being targeted. Subscribing to towerVersion as
   // well isn't needed — re-renders flow from the parent panel.
@@ -52,7 +54,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
   return (
     <div className="hive-drone-panel mb-3">
       <div className="text-[11px] font-bold tracking-wide text-fg-muted uppercase mb-1.5">
-        Drone slots
+        {t("hiveDrone.slotsTitle")}
       </div>
       <div className="hive-drone-grid">
         {slots.map((slot) => {
@@ -62,7 +64,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
               <div className="hive-drone-slot-head">
                 <span className="hive-drone-slot-id">D{slot.droneIdx + 1}</span>
                 <span className="hive-drone-slot-target" style={{ color: statusColor }}>
-                  {slot.targetName ?? "Idle"}
+                  {slot.targetName ?? t("hiveDrone.idle")}
                 </span>
               </div>
               <div className="hive-drone-slot-actions">
@@ -72,19 +74,21 @@ export const HiveDronePanel = ({ hive }: Props) => {
                     className="hive-drone-btn hive-drone-btn-active"
                     onClick={cancel}
                     title={
-                      showKeyboardHints ? "Cancel pick - click the map or press Esc" : "Cancel pick"
+                      showKeyboardHints
+                        ? t("hiveDrone.cancelPickHintKeyboard")
+                        : t("hiveDrone.cancelPickHint")
                     }
                   >
-                    Cancel
+                    {t("hiveDrone.cancel")}
                   </button>
                 ) : (
                   <button
                     type="button"
                     className="hive-drone-btn"
                     onClick={() => begin(hive.id, slot.droneIdx)}
-                    title="Click a tower on the map to assign"
+                    title={t("hiveDrone.pickHint")}
                   >
-                    Pick
+                    {t("hiveDrone.pick")}
                   </button>
                 )}
                 {slot.targetName && !slot.isPicking && (
@@ -92,7 +96,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
                     type="button"
                     className="hive-drone-btn hive-drone-btn-clear"
                     onClick={() => clear(hive.id, slot.droneIdx)}
-                    title="Send this drone home"
+                    title={t("hiveDrone.clearHint")}
                   >
                     ×
                   </button>
@@ -111,7 +115,7 @@ export const HiveDronePanel = ({ hive }: Props) => {
             background: "rgba(255,176,48,0.10)",
           }}
         >
-          Click a tower to assign D{assigning.droneIdx + 1} · click empty ground to cancel
+          {t("hiveDrone.assignHint", { n: assigning.droneIdx + 1 })}
         </div>
       )}
     </div>

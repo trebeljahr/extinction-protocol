@@ -29,7 +29,9 @@ export const PauseMenu = ({ onResume }: Props) => {
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
   const showKeyboardHints = useKeyboardHintsVisible();
 
-  const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
+  const levelName = selectedLevelId
+    ? t(`levels:names.${selectedLevelId}`, { defaultValue: getLevel(selectedLevelId).name })
+    : "";
 
   if (confirming) {
     const isRestart = confirming === "restart";

@@ -1,7 +1,8 @@
+import { useTranslation } from "react-i18next";
 import type { ProgressData } from "../progress";
 import { ROBOT_SPECS } from "../sim/robotVariants";
 import type { RobotVariant } from "../sim/types";
-import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
+import { DAMAGE_TYPE_COLOR } from "../sim/world";
 import { useGame } from "../store";
 import { IconBolt } from "./MenuIcons";
 import { RobotDiorama } from "./RobotDiorama";
@@ -9,6 +10,7 @@ import { RobotDiorama } from "./RobotDiorama";
 const ROSTER: RobotVariant[] = ["george", "leela", "mike", "stan"];
 
 export const RobotCompendiumSection = ({ progress }: { progress: ProgressData }) => {
+  const { t } = useTranslation();
   const robotLocks = useGame((s) => s.compendiumLocks.robots);
   return (
     <div className="robot-compendium-scroll">
@@ -33,7 +35,7 @@ export const RobotCompendiumSection = ({ progress }: { progress: ProgressData })
                     <span className="robot-compendium-lock-price">
                       <IconBolt size={13} /> {spec.unlockBolts}
                     </span>
-                    <span className="robot-compendium-locked-label">LOCKED</span>
+                    <span className="robot-compendium-locked-label">{t("robotShop.locked")}</span>
                   </div>
                 )}
               </div>
@@ -45,46 +47,47 @@ export const RobotCompendiumSection = ({ progress }: { progress: ProgressData })
                     className="robot-compendium-dmg"
                     style={{ color: DAMAGE_TYPE_COLOR[spec.damageType] }}
                   >
-                    {DAMAGE_TYPE_LABEL[spec.damageType]}
+                    {t(`damageTypes.${spec.damageType}`)}
                   </span>
-                  <span className="robot-compendium-xp">{xp} XP</span>
+                  <span className="robot-compendium-xp">{t("robotShop.xpAmount", { xp })}</span>
                 </header>
 
-                <p className="robot-compendium-blurb">{spec.blurb}</p>
+                <p className="robot-compendium-blurb">{t(`robots:variants.${variant}.blurb`)}</p>
 
                 <dl className="robot-compendium-report">
                   <div className="robot-compendium-report-row robot-compendium-strength">
-                    <dt>Strengths</dt>
-                    <dd>{spec.strengths}</dd>
+                    <dt>{t("robotShop.strengths")}</dt>
+                    <dd>{t(`robots:variants.${variant}.strengths`)}</dd>
                   </div>
                   <div className="robot-compendium-report-row robot-compendium-weakness">
-                    <dt>Weakness</dt>
-                    <dd>{spec.weakness}</dd>
+                    <dt>{t("robotShop.weakness")}</dt>
+                    <dd>{t(`robots:variants.${variant}.weakness`)}</dd>
                   </div>
                 </dl>
 
                 <div className="robot-compendium-stats">
                   <div>
-                    <span>HP</span> {spec.maxHp}
+                    <span>{t("robotShop.statHp")}</span> {spec.maxHp}
                   </div>
                   <div>
-                    <span>SPD</span> {spec.speed}
+                    <span>{t("robotShop.statSpd")}</span> {spec.speed}
                   </div>
                   <div>
-                    <span>DMG</span> {spec.damage}
+                    <span>{t("robotShop.statDmg")}</span> {spec.damage}
                   </div>
                   <div>
-                    <span>RNG</span> {spec.range}
+                    <span>{t("robotShop.statRng")}</span> {spec.range}
                   </div>
                   <div>
-                    <span>ROF</span> {spec.fireRate}/s
+                    <span>{t("robotShop.statRof")}</span> {spec.fireRate}/s
                   </div>
                 </div>
 
                 <div className="robot-compendium-abilities">
-                  {spec.abilityLabels.map((lbl, i) => (
-                    <span key={lbl} className="robot-compendium-ability">
-                      <span aria-hidden>{spec.abilityGlyphs[i]}</span> {lbl}
+                  {spec.abilityGlyphs.map((glyph, i) => (
+                    <span key={glyph} className="robot-compendium-ability">
+                      <span aria-hidden>{glyph}</span>{" "}
+                      {t(`robots:variants.${variant}.abilityLabel.${i}`)}
                     </span>
                   ))}
                 </div>

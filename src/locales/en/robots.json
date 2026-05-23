@@ -1,0 +1,98 @@
+{
+  "variants": {
+    "george": {
+      "blurb": "Long-range kinetic sniper. Slow, deliberate, every shot a tracer that pierces armor.",
+      "strengths": "Longest engagement range. Massive single-shot damage. Bullet Storm unleashes an absurd-cadence frenzy on demand.",
+      "weakness": "Slow base fire cadence — packs of swarmers slip past between shots. Kinetic-resistant armored chassis shrug body hits.",
+      "abilityLabel": {
+        "0": "Sidestep",
+        "1": "Shockwave",
+        "2": "Spotter",
+        "3": "Bullet Storm"
+      },
+      "abilityBlurb": {
+        "0": "Sniper beam. Long reach, slow cadence, huge kinetic hit.",
+        "1": "Short i-frame hop; next shot is a piercing x2.5 crit.",
+        "2": "Close kinetic pulse for 95 damage and a small path push.",
+        "3": "Scope stance: more range and damage, slower feet, 40% resist.",
+        "4": "3.5s frenzy: x7 fire rate and +50% damage."
+      }
+    },
+    "leela": {
+      "blurb": "Electric skirmisher. Every shot chains. Storms tear apart anything that gets close.",
+      "strengths": "Highest mobility. Auto-attacks chain to two nearby targets. Storm Surge zaps every enemy in a wide ring for several seconds.",
+      "weakness": "Thin armor — eats hits at midrange. Electric-resistant titans absorb the kit.",
+      "abilityLabel": {
+        "0": "Phase Step",
+        "1": "Tesla Pulse",
+        "2": "Phase Veil",
+        "3": "Storm Surge"
+      },
+      "abilityBlurb": {
+        "0": "Fast electric zap. Each shot chains to two nearby targets.",
+        "1": "I-frame dash; end arcs hit 3 enemies for 24 electric.",
+        "2": "4-radius electric pulse, then 4 chain hops for 35 each.",
+        "3": "3s veil: speed, fire rate, damage, and 80% resist.",
+        "4": "5s storm: 4 electric arcs every 0.2s inside 7 radius."
+      }
+    },
+    "mike": {
+      "blurb": "Close-range flame mech. Heavy per-shot splash plus burn DoT — turns packs into bonfires.",
+      "strengths": "Biggest auto-attack splash of any robot. Ignition doubles fire rate. Inferno Ring washes flame waves out in every direction.",
+      "weakness": "Shortest engagement range. Para and armored matriarchs vent flame at ≤0.5×.",
+      "abilityLabel": {
+        "0": "Thruster",
+        "1": "Flame Nova",
+        "2": "Ignition",
+        "3": "Inferno"
+      },
+      "abilityBlurb": {
+        "0": "Short-range flame splash. Every shot hits a small pack.",
+        "1": "I-frame dash that leaves a 2.6s burning coal trail.",
+        "2": "4.5-radius nova for 95 flame, plus 40 burn.",
+        "3": "4s ignition: x2 fire rate, +30% damage, 35% resist.",
+        "4": "3 expanding flame rings, 95 each, plus burn."
+      }
+    },
+    "stan": {
+      "blurb": "Explosive artillery. Every shell detonates; ground pounds and giant warheads chunk packs.",
+      "strengths": "Every auto-attack is a splash. Ground Pound lands a 110-dmg blast. Annihilator drops a single warhead that flattens the lane.",
+      "weakness": "Slowest mobility — positioning drift hurts. Explosive resist on armored matriarchs softens the kit.",
+      "abilityLabel": {
+        "0": "Ground Pound",
+        "1": "Quake",
+        "2": "Bulwark",
+        "3": "Annihilator"
+      },
+      "abilityBlurb": {
+        "0": "Long-range explosive shells. Slow, wide splash, high impact.",
+        "1": "Short i-frame leap; landing blast deals 110 explosive.",
+        "2": "5-radius quake for 160 explosive and heavy path push.",
+        "3": "5s brace: +40% damage, 75% resist, half speed.",
+        "4": "Charged warhead: 700 direct, 320 splash."
+      }
+    }
+  },
+  "skills": {
+    "vitality": {
+      "name": "Reinforced Plating",
+      "blurb": "Permanent maximum HP boost.",
+      "rankDesc": { "0": "+25 HP", "1": "+60 HP", "2": "+120 HP" }
+    },
+    "firepower": {
+      "name": "Targeting Software",
+      "blurb": "Sustained weapon damage uplift.",
+      "rankDesc": { "0": "+10% damage", "1": "+22% damage", "2": "+38% damage" }
+    },
+    "mobility": {
+      "name": "Servo Tuning",
+      "blurb": "Walks faster between fights.",
+      "rankDesc": { "0": "+0.5 speed", "1": "+1.1 speed", "2": "+1.8 speed" }
+    },
+    "ultimate": {
+      "name": "Power Core",
+      "blurb": "Cuts every ability cooldown.",
+      "rankDesc": { "0": "-10% cooldowns", "1": "-22% cooldowns", "2": "-35% cooldowns" }
+    }
+  }
+}

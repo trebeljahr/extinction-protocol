@@ -6,7 +6,7 @@ import { isDebug } from "../debug";
 import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "../input/gamepad";
 import { useGamepadMenuNavigation } from "../input/useGamepadMenuNavigation";
 import { LEVELS } from "../levels";
-import { LEVEL_BRIEFING } from "../levels/briefings";
+import { hasLevelBriefing } from "../levels/briefings";
 import {
   getStars,
   hasUnlockedChallengeModes,
@@ -308,11 +308,13 @@ export const WorldMapUI = () => {
             <span className="text-[10px] font-bold text-gold tracking-mid uppercase">
               {t("worldMap.outpost", { id: hovered.id })}
             </span>
-            <span className="text-[15px] font-bold text-fg leading-tight">{hovered.name}</span>
+            <span className="text-[15px] font-bold text-fg leading-tight">
+              {t(`levels:names.${hovered.id}`)}
+            </span>
           </div>
-          {hoveredUnlocked && LEVEL_BRIEFING[hovered.id] && (
+          {hoveredUnlocked && hasLevelBriefing(hovered.id) && (
             <p className="text-[11px] leading-snug text-fg-muted italic mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
-              {LEVEL_BRIEFING[hovered.id]}
+              {t(`levels:briefings.${hovered.id}`)}
             </p>
           )}
           <TipRow label={t("common.waves")} value={hovered.waves.length} />

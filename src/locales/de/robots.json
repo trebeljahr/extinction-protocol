@@ -1,0 +1,98 @@
+{
+  "variants": {
+    "george": {
+      "blurb": "Kinetischer Langstrecken-Scharfschütze. Langsam, bedacht, jeder Schuss ein Leuchtspurgeschoss, das Panzerung durchschlägt.",
+      "strengths": "Größte Gefechtsreichweite. Massiver Einzelschuss-Schaden. Kugelhagel entfesselt auf Abruf einen Rausch mit absurder Kadenz.",
+      "weakness": "Langsame Grundfeuerkadenz — Schwärme schlüpfen zwischen den Schüssen vorbei. Kinetik-resistente Panzerchassis stecken Treffer weg.",
+      "abilityLabel": {
+        "0": "Ausweichschritt",
+        "1": "Schockwelle",
+        "2": "Späher",
+        "3": "Kugelhagel"
+      },
+      "abilityBlurb": {
+        "0": "Scharfschützenstrahl. Große Reichweite, langsame Kadenz, riesiger kinetischer Treffer.",
+        "1": "Kurzer Sprung mit Unverwundbarkeit; nächster Schuss ist ein durchschlagender x2,5-Krit.",
+        "2": "Naher kinetischer Puls für 95 Schaden und ein kleiner Pfad-Rückstoß.",
+        "3": "Zielfernrohr-Haltung: mehr Reichweite und Schaden, langsamere Füße, 40% Resistenz.",
+        "4": "3,5s Rausch: x7 Feuerrate und +50% Schaden."
+      }
+    },
+    "leela": {
+      "blurb": "Elektrischer Plänkler. Jeder Schuss springt über. Stürme zerreißen alles, was nah kommt.",
+      "strengths": "Höchste Mobilität. Auto-Angriffe springen auf zwei nahe Ziele über. Sturmwoge zappt sekundenlang jeden Gegner in einem weiten Ring.",
+      "weakness": "Dünne Panzerung — kassiert Treffer auf mittlere Distanz. Elektro-resistente Titanen schlucken das Arsenal.",
+      "abilityLabel": {
+        "0": "Phasenschritt",
+        "1": "Tesla-Puls",
+        "2": "Phasenschleier",
+        "3": "Sturmwoge"
+      },
+      "abilityBlurb": {
+        "0": "Schneller elektrischer Zap. Jeder Schuss springt auf zwei nahe Ziele über.",
+        "1": "Sprint mit Unverwundbarkeit; am Ende treffen Bögen 3 Gegner für 24 Elektro.",
+        "2": "Elektrischer Puls mit Radius 4, dann 4 Kettensprünge für je 35.",
+        "3": "3s Schleier: Tempo, Feuerrate, Schaden und 80% Resistenz.",
+        "4": "5s Sturm: 4 elektrische Bögen alle 0,2s im Radius 7."
+      }
+    },
+    "mike": {
+      "blurb": "Nahkampf-Flammenmech. Schwerer Flächenschaden pro Schuss plus Brand-DoT — macht Schwärme zu Lagerfeuern.",
+      "strengths": "Größter Auto-Angriffs-Flächenschaden aller Roboter. Zündung verdoppelt die Feuerrate. Inferno wäscht Flammenwellen in alle Richtungen aus.",
+      "weakness": "Kürzeste Gefechtsreichweite. Parasaurier- und Panzer-Matriarchinnen lassen Feuer bei ≤0,5× abperlen.",
+      "abilityLabel": {
+        "0": "Schubdüse",
+        "1": "Flammennova",
+        "2": "Zündung",
+        "3": "Inferno"
+      },
+      "abilityBlurb": {
+        "0": "Kurzstrecken-Flammenschaden. Jeder Schuss trifft einen kleinen Schwarm.",
+        "1": "Sprint mit Unverwundbarkeit, der eine 2,6s brennende Kohlenspur hinterlässt.",
+        "2": "Nova mit Radius 4,5 für 95 Feuer, plus 40 Brand.",
+        "3": "4s Zündung: x2 Feuerrate, +30% Schaden, 35% Resistenz.",
+        "4": "3 expandierende Flammenringe, je 95, plus Brand."
+      }
+    },
+    "stan": {
+      "blurb": "Explosive Artillerie. Jede Granate detoniert; Bodenstampfer und riesige Sprengköpfe zerfetzen Schwärme.",
+      "strengths": "Jeder Auto-Angriff ist Flächenschaden. Bodenstampfer landet eine 110-Schaden-Explosion. Vernichter wirft einen einzelnen Sprengkopf, der die Spur plattmacht.",
+      "weakness": "Langsamste Mobilität — Positionierungsdrift schmerzt. Explosiv-Resistenz bei Panzer-Matriarchinnen dämpft das Arsenal.",
+      "abilityLabel": {
+        "0": "Bodenstampfer",
+        "1": "Beben",
+        "2": "Bollwerk",
+        "3": "Vernichter"
+      },
+      "abilityBlurb": {
+        "0": "Explosive Langstreckengranaten. Langsam, weiter Flächenschaden, hohe Wucht.",
+        "1": "Kurzer Sprung mit Unverwundbarkeit; Aufschlagsexplosion verursacht 110 Explosiv.",
+        "2": "Beben mit Radius 5 für 160 Explosiv und schwerer Pfad-Rückstoß.",
+        "3": "5s Verschanzung: +40% Schaden, 75% Resistenz, halbes Tempo.",
+        "4": "Aufgeladener Sprengkopf: 700 direkt, 320 Flächenschaden."
+      }
+    }
+  },
+  "skills": {
+    "vitality": {
+      "name": "Verstärkte Panzerung",
+      "blurb": "Dauerhafte Erhöhung der maximalen HP.",
+      "rankDesc": { "0": "+25 HP", "1": "+60 HP", "2": "+120 HP" }
+    },
+    "firepower": {
+      "name": "Zielsoftware",
+      "blurb": "Anhaltende Steigerung des Waffenschadens.",
+      "rankDesc": { "0": "+10% Schaden", "1": "+22% Schaden", "2": "+38% Schaden" }
+    },
+    "mobility": {
+      "name": "Servo-Tuning",
+      "blurb": "Läuft zwischen den Kämpfen schneller.",
+      "rankDesc": { "0": "+0,5 Tempo", "1": "+1,1 Tempo", "2": "+1,8 Tempo" }
+    },
+    "ultimate": {
+      "name": "Energiekern",
+      "blurb": "Verkürzt jede Fähigkeiten-Abklingzeit.",
+      "rankDesc": { "0": "-10% Abklingzeit", "1": "-22% Abklingzeit", "2": "-35% Abklingzeit" }
+    }
+  }
+}

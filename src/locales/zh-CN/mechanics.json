@@ -2,26 +2,51 @@
   "shielded": {
     "label": "Shields",
     "subtitle": "Energy bubble",
-    "description": "Blue energy bubble. Absorbs damage before HP. Pool size scales with the host kind."
+    "description": "Blue energy bubble. Absorbs damage before HP. Pool size scales with the host kind.",
+    "stats": {
+      "0": { "label": "Pool", "val": "10–800 HP" },
+      "1": { "label": "Break", "val": "4s" },
+      "2": { "label": "Regen", "val": "25%/s" }
+    }
   },
   "healAura": {
     "label": "Healers",
     "subtitle": "Field medic",
-    "description": "Pulsing green ring. Heals nearby allies for 3 HP/sec within 3.5 tiles."
+    "description": "Pulsing green ring. Heals nearby allies for 3 HP/sec within 3.5 tiles.",
+    "stats": {
+      "0": { "label": "Range", "val": "3.5 tiles" },
+      "1": { "label": "Rate", "val": "3 HP/s" },
+      "2": { "label": "Self-heal", "val": "no" }
+    }
   },
   "regen": {
     "label": "Regen",
     "subtitle": "Self-heal",
-    "description": "Floating mint-green '+'. Passive 1.5 HP/sec while not taking damage."
+    "description": "Floating mint-green '+'. Passive 1.5 HP/sec while not taking damage.",
+    "stats": {
+      "0": { "label": "Rate", "val": "1.5 HP/s" },
+      "1": { "label": "Pause", "val": "1.5s on hit" },
+      "2": { "label": "Counters", "val": "Pyre T3 · Cryo T3" }
+    }
   },
   "slow": {
     "label": "Slow",
     "subtitle": "Speed debuff",
-    "description": "Applied only by Cryo Emitter. Reduces movement speed for the slow duration."
+    "description": "Applied only by Cryo Emitter. Reduces movement speed for the slow duration.",
+    "stats": {
+      "0": { "label": "Default", "val": "40% speed" },
+      "1": { "label": "Duration", "val": "1.5s" },
+      "2": { "label": "Source", "val": "Cryo only" }
+    }
   },
   "adaptation": {
     "label": "Adaptation",
     "subtitle": "Evolved resistance",
-    "description": "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch."
+    "description": "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch.",
+    "stats": {
+      "0": { "label": "Triggers", "val": "L12+" },
+      "1": { "label": "Max boost", "val": "95%" },
+      "2": { "label": "Window", "val": "3 waves" }
+    }
   }
 }

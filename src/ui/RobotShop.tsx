@@ -1,4 +1,5 @@
 import { type FC, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { isDebug } from "../debug";
 import { robotSkillBoltDelta } from "../sim/robotBolts";
 import {
@@ -15,7 +16,7 @@ import {
 } from "../sim/robotSkills";
 import { ROBOT_SPECS, type RobotVariantSpec, robotAbilityDamageType } from "../sim/robotVariants";
 import type { RobotVariant } from "../sim/types";
-import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
+import { DAMAGE_TYPE_COLOR } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import {
@@ -57,41 +58,46 @@ const RankPips = ({
   available: number;
   availableBolts: number;
   onClick: (target: number) => void;
-}) => (
-  <div className="robot-skill-pips">
-    {Array.from({ length: ROBOT_SKILL_MAX_RANK }).map((_, i) => {
-      const tier = i + 1;
-      const filled = tier <= rank;
-      const target = filled && tier === rank ? rank - 1 : tier;
-      const wouldSpend = Math.max(0, tier - rank);
-      const boltCost = robotSkillBoltDelta(rank, tier);
-      const hasPoints = wouldSpend <= available;
-      const hasBolts = isDebug || boltCost <= availableBolts;
-      const affordable = hasPoints && hasBolts;
-      const disabled = !filled && !affordable;
-      const needBolts = Math.max(0, boltCost - availableBolts);
-      const priceLabel = isDebug ? "free" : `${boltCost} bolts`;
-      const label = filled
-        ? `Rank ${tier} (click to refund)`
-        : affordable
-          ? `Upgrade to rank ${tier} for ${priceLabel}`
-          : !hasPoints
-            ? `Need ${wouldSpend} skill point${wouldSpend === 1 ? "" : "s"}`
-            : `Need ${needBolts} more bolts`;
-      return (
-        <button
-          key={`pip-${tier}`}
-          type="button"
-          className={`robot-skill-pip ${filled ? "filled" : affordable ? "affordable" : "locked"}`}
-          onClick={() => !disabled && onClick(target)}
-          disabled={disabled}
-          aria-label={label}
-          title={label}
-        />
-      );
-    })}
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="robot-skill-pips">
+      {Array.from({ length: ROBOT_SKILL_MAX_RANK }).map((_, i) => {
+        const tier = i + 1;
+        const filled = tier <= rank;
+        const target = filled && tier === rank ? rank - 1 : tier;
+        const wouldSpend = Math.max(0, tier - rank);
+        const boltCost = robotSkillBoltDelta(rank, tier);
+        const hasPoints = wouldSpend <= available;
+        const hasBolts = isDebug || boltCost <= availableBolts;
+        const affordable = hasPoints && hasBolts;
+        const disabled = !filled && !affordable;
+        const needBolts = Math.max(0, boltCost - availableBolts);
+        const priceLabel = isDebug
+          ? t("robotShop.free")
+          : t("robotShop.bolts", { count: boltCost });
+        const label = filled
+          ? t("robotShop.rankRefund", { tier })
+          : affordable
+            ? t("robotShop.upgradeToRank", { tier, price: priceLabel })
+            : !hasPoints
+              ? t("robotShop.needSkillPoints", { count: wouldSpend })
+              : t("robotShop.needMoreBolts", { count: needBolts });
+        return (
+          <button
+            key={`pip-${tier}`}
+            type="button"
+            className={`robot-skill-pip ${filled ? "filled" : affordable ? "affordable" : "locked"}`}
+            onClick={() => !disabled && onClick(target)}
+            disabled={disabled}
+            aria-label={label}
+            title={label}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 const SkillRow = ({
   variant,
@@ -106,10 +112,12 @@ const SkillRow = ({
   available: number;
   availableBolts: number;
 }) => {
+  const { t } = useTranslation();
   const setRank = useGame((s) => s.setRobotSkillRank);
   const Icon = SKILL_ICONS[node.id];
-  const nextDesc = rank < ROBOT_SKILL_MAX_RANK ? node.rankDesc[rank] : null;
-  const currentDesc = rank > 0 ? node.rankDesc[rank - 1] : null;
+  const nextDesc =
+    rank < ROBOT_SKILL_MAX_RANK ? t(`robots:skills.${node.id}.rankDesc.${rank}`) : null;
+  const currentDesc = rank > 0 ? t(`robots:skills.${node.id}.rankDesc.${rank - 1}`) : null;
   const nextCost = nextDesc ? robotSkillBoltDelta(rank, rank + 1) : 0;
   const canAffordNext = isDebug || availableBolts >= nextCost;
   return (
@@ -119,7 +127,7 @@ const SkillRow = ({
       </div>
       <div className="robot-skill-body">
         <div className="robot-skill-head">
-          <span className="robot-skill-name">{node.name}</span>
+          <span className="robot-skill-name">{t(`robots:skills.${node.id}.name`)}</span>
           <RankPips
             rank={rank}
             available={available}
@@ -131,7 +139,7 @@ const SkillRow = ({
           {currentDesc ? (
             <span className="robot-skill-current">{currentDesc}</span>
           ) : (
-            <span className="robot-skill-current dim">{node.blurb}</span>
+            <span className="robot-skill-current dim">{t(`robots:skills.${node.id}.blurb`)}</span>
           )}
           {nextDesc && (
             <>
@@ -160,6 +168,7 @@ const RosterCard = ({
   unlocked: boolean;
   onSelect: (v: RobotVariant) => void;
 }) => {
+  const { t } = useTranslation();
   const spec = ROBOT_SPECS[variant];
   const progress = useGame((s) => s.progress);
   const xp = progress.robotXp[variant] ?? 0;
@@ -171,15 +180,15 @@ const RosterCard = ({
       className={`robot-roster-card ${active ? "active" : ""} ${unlocked ? "" : "locked"}`}
       data-variant={variant}
       onClick={() => onSelect(variant)}
-      aria-label={`View ${spec.label}`}
+      aria-label={t("robotShop.viewRobot", { name: spec.label })}
     >
       <div className="robot-roster-portrait">
         <RobotPreview variant={variant} />
-        {active && <span className="robot-roster-active-tag">Active</span>}
+        {active && <span className="robot-roster-active-tag">{t("robotShop.active")}</span>}
         {!unlocked && (
           <span className="robot-roster-lock">
             <BoltPrice amount={spec.unlockBolts} className="robot-roster-lock-cost" />
-            <span className="robot-roster-lock-label">LOCKED</span>
+            <span className="robot-roster-lock-label">{t("robotShop.locked")}</span>
           </span>
         )}
       </div>
@@ -194,11 +203,11 @@ const RosterCard = ({
               borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
             }}
           >
-            {DAMAGE_TYPE_LABEL[spec.damageType]}
+            {t(`damageTypes.${spec.damageType}`)}
           </span>
           {unlocked && (
             <span className="robot-roster-level">
-              Lv {level}
+              {t("robotShop.levelShort", { level })}
               <span className="robot-roster-level-max">/{ROBOT_MAX_LEVEL}</span>
             </span>
           )}
@@ -208,20 +217,30 @@ const RosterCard = ({
   );
 };
 
-const formatAutoAttack = (spec: RobotVariantSpec): string[] => {
+const formatAutoAttack = (
+  spec: RobotVariantSpec,
+  t: ReturnType<typeof useTranslation>["t"],
+): string[] => {
   const lines = [
-    `Damage ${spec.damage} · Fire rate ${spec.fireRate.toFixed(1)}/s · Range ${spec.range.toFixed(1)}`,
+    t("robotShop.autoAttackLine", {
+      damage: spec.damage,
+      rate: spec.fireRate.toFixed(1),
+      range: spec.range.toFixed(1),
+    }),
   ];
   if (spec.attackSplashRadius > 0) {
-    lines.push(`Splash radius ${spec.attackSplashRadius.toFixed(1)} per shot`);
+    lines.push(t("robotShop.splashPerShot", { radius: spec.attackSplashRadius.toFixed(1) }));
   } else if (spec.attackTracer) {
-    lines.push("Hitscan tracer beam — no projectile travel");
+    lines.push(t("robotShop.hitscanTracer"));
   } else {
-    lines.push("Single-target projectile");
+    lines.push(t("robotShop.singleTarget"));
   }
   if (spec.attackChain) {
     lines.push(
-      `Chains to ${spec.attackChain.hops} nearby (${spec.attackChain.damagePerHop} bonus damage)`,
+      t("robotShop.chainsTo", {
+        hops: spec.attackChain.hops,
+        bonus: spec.attackChain.damagePerHop,
+      }),
     );
   }
   return lines;
@@ -263,9 +282,10 @@ const AbilityCard = ({
   expanded: boolean;
   onToggle: () => void;
 }) => {
-  const label = spec.abilityLabels[slot];
+  const { t } = useTranslation();
+  const label = t(`robots:variants.${spec.variant}.abilityLabel.${slot}`);
   const glyph = spec.abilityGlyphs[slot];
-  const blurb = spec.abilityBlurbs[slot + 1];
+  const blurb = t(`robots:variants.${spec.variant}.abilityBlurb.${slot + 1}`);
   const damageType = robotAbilityDamageType(spec, slot);
   const detailId = useId();
   return (
@@ -288,8 +308,8 @@ const AbilityCard = ({
             borderColor: DAMAGE_TYPE_COLOR[damageType],
           }}
         >
-          <DamageIcon type={damageType} size={10} title={DAMAGE_TYPE_LABEL[damageType]} />
-          {DAMAGE_TYPE_LABEL[damageType]}
+          <DamageIcon type={damageType} size={10} title={t(`damageTypes.${damageType}`)} />
+          {t(`damageTypes.${damageType}`)}
         </span>
         <span className="robot-ability-toggle" aria-hidden>
           {expanded ? "−" : "+"}
@@ -299,7 +319,7 @@ const AbilityCard = ({
         id={detailId}
         expanded={expanded}
         blurb={blurb}
-        stats={formatAbilityStats(spec, slot)}
+        stats={formatAbilityStats(spec, slot, t)}
       />
     </div>
   );
@@ -314,6 +334,7 @@ const AutoAttackCard = ({
   expanded: boolean;
   onToggle: () => void;
 }) => {
+  const { t } = useTranslation();
   const detailId = useId();
   return (
     <div className={`robot-ability-card ${expanded ? "expanded" : ""}`}>
@@ -327,7 +348,7 @@ const AutoAttackCard = ({
         <span className="robot-ability-glyph" aria-hidden>
           ◉
         </span>
-        <span className="robot-ability-name">Basic Attack</span>
+        <span className="robot-ability-name">{t("robotShop.basicAttack")}</span>
         <span
           className="robot-ability-type dmg-tag"
           style={{
@@ -335,8 +356,12 @@ const AutoAttackCard = ({
             borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
           }}
         >
-          <DamageIcon type={spec.damageType} size={10} title={DAMAGE_TYPE_LABEL[spec.damageType]} />
-          {DAMAGE_TYPE_LABEL[spec.damageType]}
+          <DamageIcon
+            type={spec.damageType}
+            size={10}
+            title={t(`damageTypes.${spec.damageType}`)}
+          />
+          {t(`damageTypes.${spec.damageType}`)}
         </span>
         <span className="robot-ability-toggle" aria-hidden>
           {expanded ? "−" : "+"}
@@ -345,8 +370,8 @@ const AutoAttackCard = ({
       <AttackDetail
         id={detailId}
         expanded={expanded}
-        blurb={spec.abilityBlurbs[0]}
-        stats={formatAutoAttack(spec)}
+        blurb={t(`robots:variants.${spec.variant}.abilityBlurb.0`)}
+        stats={formatAutoAttack(spec, t)}
       />
     </div>
   );
@@ -363,6 +388,7 @@ const RobotDetail = ({
   activeRobot: RobotVariant;
   unlocked: boolean;
 }) => {
+  const { t } = useTranslation();
   const spec = ROBOT_SPECS[variant];
   const progress = useGame((s) => s.progress);
   const unlockRobot = useGame((s) => s.unlockRobot);
@@ -398,25 +424,25 @@ const RobotDetail = ({
                   borderColor: DAMAGE_TYPE_COLOR[spec.damageType],
                 }}
               >
-                {DAMAGE_TYPE_LABEL[spec.damageType]}
+                {t(`damageTypes.${spec.damageType}`)}
               </span>
-              {active && <span className="robot-detail-active">Active</span>}
+              {active && <span className="robot-detail-active">{t("robotShop.active")}</span>}
             </div>
-            <p className="robot-detail-blurb">{spec.blurb}</p>
+            <p className="robot-detail-blurb">{t(`robots:variants.${variant}.blurb`)}</p>
           </div>
 
           <div className="robot-detail-stats">
             <div>
-              <span>HP</span> {spec.maxHp}
+              <span>{t("robotShop.statHp")}</span> {spec.maxHp}
             </div>
             <div>
-              <span>SPD</span> {spec.speed}
+              <span>{t("robotShop.statSpd")}</span> {spec.speed}
             </div>
             <div>
-              <span>DMG</span> {spec.damage}
+              <span>{t("robotShop.statDmg")}</span> {spec.damage}
             </div>
             <div>
-              <span>RNG</span> {spec.range}
+              <span>{t("robotShop.statRng")}</span> {spec.range}
             </div>
           </div>
 
@@ -442,10 +468,12 @@ const RobotDetail = ({
               <div className="robot-level-block">
                 <div className="robot-level-head">
                   <span className="robot-level-lvl">
-                    Lv {level}
+                    {t("robotShop.levelShort", { level })}
                     <span className="robot-level-max">/ {ROBOT_MAX_LEVEL}</span>
                   </span>
-                  <span className="robot-level-xp">{maxed ? "MAX" : `${into} / ${need} XP`}</span>
+                  <span className="robot-level-xp">
+                    {maxed ? t("robotShop.max") : t("robotShop.xpProgress", { into, need })}
+                  </span>
                 </div>
                 <div className="robot-level-bar">
                   <div
@@ -455,11 +483,14 @@ const RobotDetail = ({
                 </div>
                 <div className="robot-level-foot">
                   <span>
-                    XP grants {ROBOT_POINTS_PER_LEVEL} skill point per level · earned {pts.earned}
-                    {pts.earned >= ROBOT_TREE_TOTAL_POINTS ? " (tree max)" : ""}
+                    {t("robotShop.xpGrants", {
+                      points: ROBOT_POINTS_PER_LEVEL,
+                      earned: pts.earned,
+                    })}
+                    {pts.earned >= ROBOT_TREE_TOTAL_POINTS ? ` ${t("robotShop.treeMax")}` : ""}
                   </span>
                   <span className="robot-level-points">
-                    {pts.available} pt{pts.available === 1 ? "" : "s"} to spend
+                    {t("robotShop.pointsToSpend", { count: pts.available })}
                   </span>
                 </div>
               </div>
@@ -480,9 +511,9 @@ const RobotDetail = ({
                     type="button"
                     className="robot-skill-refund"
                     onClick={() => resetSkills(variant)}
-                    title={`Refund all ${investedTotal} pt${investedTotal === 1 ? "" : "s"}`}
+                    title={t("robotShop.refundAllCount", { count: investedTotal })}
                   >
-                    ↺ Refund {investedTotal}
+                    ↺ {t("robotShop.refund", { count: investedTotal })}
                   </button>
                 )}
               </div>
@@ -493,13 +524,13 @@ const RobotDetail = ({
                   className="btn btn-blue text-sm py-2"
                   onClick={() => setActiveRobot(variant)}
                 >
-                  Set Active
+                  {t("robotShop.setActive")}
                 </button>
               )}
             </>
           ) : (
             <div className="border-t border-border-faint pt-3 flex items-center gap-3">
-              <span className="text-[12px] text-fg-muted">Unlock cost</span>
+              <span className="text-[12px] text-fg-muted">{t("robotShop.unlockCost")}</span>
               <BoltPrice amount={spec.unlockBolts} className="text-base" />
               <button
                 type="button"
@@ -509,12 +540,12 @@ const RobotDetail = ({
                 title={
                   canUnlock
                     ? isDebug
-                      ? "Unlock free in debug"
-                      : "Unlock"
-                    : `Need ${spec.unlockBolts - availableBolts} more bolts`
+                      ? t("robotShop.unlockFreeDebug")
+                      : t("robotShop.unlock")
+                    : t("robotShop.needMoreBolts", { count: spec.unlockBolts - availableBolts })
                 }
               >
-                {canUnlock ? "Unlock" : "Locked"}
+                {canUnlock ? t("robotShop.unlock") : t("robotShop.lockedBtn")}
               </button>
             </div>
           )}
@@ -525,6 +556,7 @@ const RobotDetail = ({
 };
 
 export const RobotShop = () => {
+  const { t } = useTranslation();
   const open = useGame((s) => s.robotShopOpen);
   const setOpen = useGame((s) => s.setRobotShopOpen);
   const progress = useGame((s) => s.progress);
@@ -543,7 +575,7 @@ export const RobotShop = () => {
 
   return (
     <MenuOverlay
-      title={selected ? ROBOT_SPECS[selected].label : "Pilot Roster"}
+      title={selected ? ROBOT_SPECS[selected].label : t("robotShop.pilotRoster")}
       subtitle={selected ? ROBOT_SPECS[selected].callsign : null}
       onClose={handleClose}
       headerLeading={
@@ -552,9 +584,9 @@ export const RobotShop = () => {
             type="button"
             className="robot-detail-back"
             onClick={() => setSelected(null)}
-            aria-label="Back to roster"
+            aria-label={t("robotShop.backToRoster")}
           >
-            ← Roster
+            ← {t("robotShop.roster")}
           </button>
         ) : null
       }
@@ -599,17 +631,20 @@ const RobotShopToolbar = ({
   bolts: number;
   canRefundAll: boolean;
   onRefundAll: () => void;
-}) => (
-  <div className="lab-stars-toolbar">
-    <span className="lab-stars-chip" title={`${bolts} bolts gathered`}>
-      <IconBolt size={15} className="shrink-0" />
-      <span className="lab-stars-num tabular-nums">{bolts}</span>
-      <span className="lab-stars-lbl">bolts</span>
-    </span>
-    {canRefundAll && (
-      <button type="button" className="lab-stars-refund" onClick={onRefundAll}>
-        ↺ Refund all
-      </button>
-    )}
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="lab-stars-toolbar">
+      <span className="lab-stars-chip" title={t("robotShop.boltsGathered", { count: bolts })}>
+        <IconBolt size={15} className="shrink-0" />
+        <span className="lab-stars-num tabular-nums">{bolts}</span>
+        <span className="lab-stars-lbl">{t("robotShop.boltsLabel")}</span>
+      </span>
+      {canRefundAll && (
+        <button type="button" className="lab-stars-refund" onClick={onRefundAll}>
+          ↺ {t("robotShop.refundAll")}
+        </button>
+      )}
+    </div>
+  );
+};

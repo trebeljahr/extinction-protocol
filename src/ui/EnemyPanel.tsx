@@ -340,24 +340,29 @@ const ResistChip = ({
   nameColor: string;
   name: string;
   value: string;
-}) => (
-  <div
-    className={`flex flex-col items-center px-1 py-[5px] rounded-[5px] leading-tight border ${CHIP_BG[state]} ${
-      adapted ? "ring-1 ring-[rgba(255,178,102,0.55)]" : ""
-    }`}
-    title={title}
-  >
-    <span className="text-[9px] font-bold tracking-tight opacity-85" style={{ color: nameColor }}>
-      {name}
-    </span>
-    <span className={`text-[11px] font-bold tabular-nums ${CHIP_VAL_COLOR[state]}`}>{value}</span>
-    {adaptPct !== null && adaptPct !== undefined && (
-      <span
-        className="text-[8.5px] font-bold tabular-nums tracking-tight mt-[1px]"
-        style={{ color: "#ffb266" }}
-      >
-        {adaptPct > 0 ? `↓${adaptPct}% adapt` : `↑${-adaptPct}% adapt`}
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`flex flex-col items-center px-1 py-[5px] rounded-[5px] leading-tight border ${CHIP_BG[state]} ${
+        adapted ? "ring-1 ring-[rgba(255,178,102,0.55)]" : ""
+      }`}
+      title={title}
+    >
+      <span className="text-[9px] font-bold tracking-tight opacity-85" style={{ color: nameColor }}>
+        {name}
       </span>
-    )}
-  </div>
-);
+      <span className={`text-[11px] font-bold tabular-nums ${CHIP_VAL_COLOR[state]}`}>{value}</span>
+      {adaptPct !== null && adaptPct !== undefined && (
+        <span
+          className="text-[8.5px] font-bold tabular-nums tracking-tight mt-[1px]"
+          style={{ color: "#ffb266" }}
+        >
+          {adaptPct > 0
+            ? t("enemyPanel.adaptDown", { pct: adaptPct })
+            : t("enemyPanel.adaptUp", { pct: -adaptPct })}
+        </span>
+      )}
+    </div>
+  );
+};

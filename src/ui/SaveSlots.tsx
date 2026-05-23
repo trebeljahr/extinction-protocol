@@ -1,13 +1,8 @@
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { LEVELS } from "../levels";
-import {
-  DIFFICULTY_ACCENT,
-  DIFFICULTY_LABEL,
-  listSlots,
-  type SlotId,
-  type SlotInfo,
-} from "../progress";
+import { DIFFICULTY_ACCENT, listSlots, type SlotId, type SlotInfo } from "../progress";
 import { SaveSlotsScene } from "../render/SaveSlotsScene";
 import { useGame } from "../store";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
@@ -17,6 +12,7 @@ import { useIsMobile } from "./useMediaQuery";
 type MobileStage = "menu" | "slots";
 
 export const SaveSlots = () => {
+  const { t } = useTranslation();
   const selectSlot = useGame((s) => s.selectSlot);
   const deleteSlot = useGame((s) => s.deleteSlot);
   const isMobile = useIsMobile();
@@ -97,11 +93,11 @@ export const SaveSlots = () => {
           type="button"
           className="save-slots-back-btn"
           onClick={() => setStage("menu")}
-          aria-label="Back to main menu"
+          aria-label={t("saveSlots.backToMenu")}
           data-ui-sound="close"
         >
           <span aria-hidden>‹</span>
-          <span>Back</span>
+          <span>{t("saveSlots.back")}</span>
         </button>
       )}
 
@@ -109,7 +105,7 @@ export const SaveSlots = () => {
 
       <header className="save-slots-title">
         <h1>Mesozoic Protocol</h1>
-        {!showMenu && <div className="save-slots-subtitle">Select a save</div>}
+        {!showMenu && <div className="save-slots-subtitle">{t("saveSlots.selectSave")}</div>}
       </header>
 
       {showMenu && (
@@ -120,7 +116,7 @@ export const SaveSlots = () => {
             onClick={() => setStage("slots")}
             data-ui-sound="open"
           >
-            Start
+            {t("saveSlots.start")}
           </button>
         </div>
       )}
@@ -164,11 +160,12 @@ const SaveSlotTile = ({
   onConfirmDelete,
   onCancelDelete,
 }: TileProps) => {
+  const { t } = useTranslation();
   const filled = slot.exists;
   return (
     <div className={`save-slot-tile ${filled ? "filled" : "empty"}`}>
       <div className="save-slot-tile-head">
-        <div className="save-slot-id">SLOT {slot.id}</div>
+        <div className="save-slot-id">{t("saveSlots.slot", { id: slot.id })}</div>
         {filled && (
           <div
             className={`save-slot-difficulty ${DIFFICULTY_ACCENT[slot.progress.difficulty].text}`}
@@ -177,49 +174,49 @@ const SaveSlotTile = ({
               difficulty={slot.progress.difficulty}
               className="w-4 h-4 shrink-0"
             />
-            {DIFFICULTY_LABEL[slot.progress.difficulty].toUpperCase()}
+            {t(`modes:difficulty.label.${slot.progress.difficulty}`).toUpperCase()}
           </div>
         )}
       </div>
 
       {isConfirmingDelete ? (
         <div className="save-slot-confirm">
-          <div className="save-slot-confirm-text">Delete this save? This can't be undone.</div>
+          <div className="save-slot-confirm-text">{t("saveSlots.confirmDelete")}</div>
           <div className="save-slot-row">
             <button type="button" className="btn btn-danger btn--sm" onClick={onConfirmDelete}>
-              Delete
+              {t("saveSlots.delete")}
             </button>
             <button type="button" className="btn btn-ghost btn--sm" onClick={onCancelDelete}>
-              Cancel
+              {t("saveSlots.cancel")}
             </button>
           </div>
         </div>
       ) : (
         <>
-          <div className="save-slot-name">{filled ? slot.meta.name : "Empty"}</div>
+          <div className="save-slot-name">{filled ? slot.meta.name : t("saveSlots.empty")}</div>
           {filled ? (
             <div className="save-slot-stats">
               <div>
-                <span>Cleared</span>
+                <span>{t("saveSlots.cleared")}</span>
                 <strong>
                   {slot.levelsCleared} / {totalLevels}
                 </strong>
               </div>
               <div>
-                <span>Stars</span>
+                <span>{t("saveSlots.stars")}</span>
                 <strong>{slot.totalStars}</strong>
               </div>
             </div>
           ) : (
-            <div className="save-slot-empty-text">No data yet — start a fresh campaign.</div>
+            <div className="save-slot-empty-text">{t("saveSlots.emptyText")}</div>
           )}
           <div className="save-slot-actions">
             <button type="button" className="btn" onClick={onSelect}>
-              {filled ? "Continue" : "Start"}
+              {filled ? t("saveSlots.continue") : t("saveSlots.start")}
             </button>
             {filled && (
               <button type="button" className="btn btn-danger btn--sm" onClick={onBeginDelete}>
-                Delete
+                {t("saveSlots.delete")}
               </button>
             )}
           </div>

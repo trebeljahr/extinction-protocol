@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { RobotAbilitySlot } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
@@ -19,8 +20,10 @@ const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> =
 // robot overview overlay. Clicking an ability triggers it the same way
 // the hotkey would.
 export const RobotPanel = () => {
+  const { t } = useTranslation();
   const showKeyboardHints = useKeyboardHintsVisible();
   const label = useGame((s) => s.ui.robotLabel);
+  const variant = useGame((s) => s.ui.robotVariant);
   const hp = useGame((s) => s.ui.robotHp);
   const maxHp = useGame((s) => s.ui.robotMaxHp);
   const alive = useGame((s) => s.ui.robotAlive);
@@ -31,7 +34,6 @@ export const RobotPanel = () => {
   const cooldowns = useGame((s) => s.ui.robotAbilityCooldowns);
   const activeRemaining = useGame((s) => s.ui.robotAbilityActiveRemaining);
   const maxCooldowns = useGame((s) => s.ui.robotAbilityMaxCooldowns);
-  const labels = useGame((s) => s.ui.robotAbilityLabels);
   const glyphs = useGame((s) => s.ui.robotAbilityGlyphs);
   const kills = useGame((s) => s.ui.robotKills);
   const dps = useGame((s) => s.ui.robotDps);
@@ -61,32 +63,40 @@ export const RobotPanel = () => {
           if (isMobile) selectRobotUnit(next);
         }}
         aria-pressed={panelOpen}
-        aria-label="Toggle robot overview"
-        title="Robot overview"
+        aria-label={t("robotShop.toggleOverview")}
+        title={t("robotShop.robotOverview")}
       >
         <div className="robot-name">
-          MECHA · {label.toUpperCase()}
-          <span className="robot-level">Lv {level}</span>
+          {t("robotShop.mecha")} · {label.toUpperCase()}
+          <span className="robot-level">{t("robotShop.levelShort", { level })}</span>
         </div>
         <div className="robot-xp-row">
           <div className="robot-xp-bar">
             <div className="robot-xp-fill" style={{ width: `${xpPct * 100}%` }} />
           </div>
           <span className="robot-xp-value">
-            {xpInto}/{xpNeed} XP
+            {t("robotShop.xpValue", { into: xpInto, need: xpNeed })}
           </span>
         </div>
         <div className="robot-hp-row">
-          <span className="robot-hp-label">HP</span>
+          <span className="robot-hp-label">{t("robotShop.statHp")}</span>
           <div className="robot-hp-bar">
             <div className="robot-hp-fill" style={{ width: `${hpPct * 100}%` }} />
           </div>
           <span className="robot-hp-value">
-            {alive ? `${hp}/${maxHp}` : respawnRemaining > 0 ? `respawn ${respawnRemaining}s` : "—"}
+            {alive
+              ? `${hp}/${maxHp}`
+              : respawnRemaining > 0
+                ? t("robotShop.respawn", { seconds: respawnRemaining })
+                : "—"}
           </span>
         </div>
         <div className="robot-combat-row">
-          DPS {dps.toFixed(1)} · KILLS {kills} · DEALT {fmtCompact(damageDealt)}
+          {t("robotShop.combatRow", {
+            dps: dps.toFixed(1),
+            kills,
+            dealt: fmtCompact(damageDealt),
+          })}
         </div>
       </button>
       <div className="robot-abilities">
@@ -97,9 +107,14 @@ export const RobotPanel = () => {
           const ready = cd === 0 && alive;
           const fillPct = max > 0 ? clamp01(1 - cd / max) : 1;
           const hint = showKeyboardHints ? ` [${key}]` : "";
+          const abilityLabel = t(`robots:variants.${variant}.abilityLabel.${slot}`);
           const title = active
-            ? `${labels[slot]}${hint} - Active ${activeRemaining[slot].toFixed(1)}s remaining`
-            : `${labels[slot]}${hint}`;
+            ? t("robotShop.abilityActiveTitle", {
+                label: abilityLabel,
+                hint,
+                seconds: activeRemaining[slot].toFixed(1),
+              })
+            : `${abilityLabel}${hint}`;
           return (
             <button
               key={key}
@@ -114,7 +129,7 @@ export const RobotPanel = () => {
               <span className="robot-ability-glyph">{glyphs[slot]}</span>
               <span className="robot-ability-key kbd-only">{key}</span>
               <div className="robot-ability-fill" style={{ width: `${fillPct * 100}%` }} />
-              {active && <span className="robot-ability-active">ON</span>}
+              {active && <span className="robot-ability-active">{t("robotShop.on")}</span>}
               {cd > 0 && <span className="robot-ability-cd">{cd.toFixed(1)}</span>}
             </button>
           );

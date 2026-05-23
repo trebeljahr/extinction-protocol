@@ -23,7 +23,19 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = join(HERE, "..", "src", "locales");
 const REFERENCE = "en";
-const NAMESPACES = ["ui", "enemies", "towers", "mechanics", "achievements", "modes"];
+const NAMESPACES = [
+  "ui",
+  "enemies",
+  "towers",
+  "mechanics",
+  "achievements",
+  "modes",
+  "lore",
+  "levels",
+  "robots",
+  "skills",
+  "upgrades",
+];
 
 // Overflow heuristic: only the chrome namespace (ui) drives layout-sensitive
 // buttons/labels. Prose namespaces vary in length by nature.

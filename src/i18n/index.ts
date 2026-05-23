@@ -2,16 +2,26 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import deAchievements from "../locales/de/achievements.json";
 import deEnemies from "../locales/de/enemies.json";
+import deLevels from "../locales/de/levels.json";
+import deLore from "../locales/de/lore.json";
 import deMechanics from "../locales/de/mechanics.json";
 import deModes from "../locales/de/modes.json";
+import deRobots from "../locales/de/robots.json";
+import deSkills from "../locales/de/skills.json";
 import deTowers from "../locales/de/towers.json";
 import deUi from "../locales/de/ui.json";
+import deUpgrades from "../locales/de/upgrades.json";
 import enAchievements from "../locales/en/achievements.json";
 import enEnemies from "../locales/en/enemies.json";
+import enLevels from "../locales/en/levels.json";
+import enLore from "../locales/en/lore.json";
 import enMechanics from "../locales/en/mechanics.json";
 import enModes from "../locales/en/modes.json";
+import enRobots from "../locales/en/robots.json";
+import enSkills from "../locales/en/skills.json";
 import enTowers from "../locales/en/towers.json";
 import enUi from "../locales/en/ui.json";
+import enUpgrades from "../locales/en/upgrades.json";
 
 // Only en + de are wired into the runtime bundle. zh-CN and pt-BR exist on
 // disk as contributor starting points (see src/locales/) but are NOT loaded
@@ -35,6 +45,11 @@ export const NAMESPACES = [
   "mechanics",
   "achievements",
   "modes",
+  "lore",
+  "levels",
+  "robots",
+  "skills",
+  "upgrades",
 ] as const;
 
 const STORAGE_KEY = "mesozoic-protocol:lang";
@@ -76,6 +91,11 @@ const resources = {
     mechanics: enMechanics,
     achievements: enAchievements,
     modes: enModes,
+    lore: enLore,
+    levels: enLevels,
+    robots: enRobots,
+    skills: enSkills,
+    upgrades: enUpgrades,
   },
   de: {
     ui: deUi,
@@ -84,6 +104,11 @@ const resources = {
     mechanics: deMechanics,
     achievements: deAchievements,
     modes: deModes,
+    lore: deLore,
+    levels: deLevels,
+    robots: deRobots,
+    skills: deSkills,
+    upgrades: deUpgrades,
   },
 } as const;
 

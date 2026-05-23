@@ -1,0 +1,194 @@
+{
+  "kind": {
+    "memo": "Memo",
+    "letter": "Brief",
+    "log": "Protokoll",
+    "report": "Bericht",
+    "transcript": "Transkript",
+    "note": "Notiz",
+    "directive": "Direktive",
+    "intercept": "Funkmitschnitt"
+  },
+  "fragments": {
+    "1": {
+      "title": "Gründungsmemo",
+      "author": "Dr. Anya Vance, leitende Bioingenieurin",
+      "source": "Kairos Corp intern · T-9 Jahre",
+      "body": "Das Reservat wird viertausenddreihundert Quadratkilometer umfassen. Begrenzungsmauer: Verbundlaminat, sensorintegriert, alle sechs Kilometer eine autonome Patrouilleneinheit. Die Wiederbelebungsanlagen kommen dahinter. Klontanks. Neuronales Gerüst. Konditionierungsgitter. Wir holen die Arten an einen Ort zurück, der dem Ort gleicht, den sie verlassen haben. Die Genehmigungsprüfung ist das einzige ernsthafte Hindernis, und die Genehmigungsprüfung hat unterschrieben. Baubeginn an der Grabungsstätte am Ersten des Monats. — A. Vance"
+    },
+    "2": {
+      "title": "Verhaltensanomalie 04",
+      "author": "Operator 11-B",
+      "source": "Außenposten 2 · Tag 3",
+      "body": "Zwei Sonden kommen mit demselben geplotteten Flankierungsbogen zurück. Wir verbuchten es als Windkompensation, dann werteten wir den Wind aus. Das Muster bleibt ohne Wind bestehen. Wird als Verhaltensanomalie 04 abgelegt, weiter geht's. Das Bioteam hat uns gebeten, dies nicht zu protokollieren, bis es die ursprünglichen Konditionierungskurven geprüft hat. Wird bis zur Prüfung zurückgehalten."
+    },
+    "3": {
+      "title": "Persönliches Protokoll",
+      "author": "Sgt. D. Ortega, Reservatssicherheit",
+      "source": "Außenposten 6 · Tag 5",
+      "body": "Außenposten sechs und Außenposten sieben über Nacht verloren. Keine Leichen am Perimeter — die Leichen sind drinnen. Letzte Nacht Dinge auf den Wärmebildern, höher als die Wachtürme. Die Biologen haben uns immer wieder gesagt, die Obergrenze liege bei acht Metern. Ich schreibe das auf Papier, weil ich es nicht im Netz haben will. Wenn du das liest, hast du meinen Spind gefunden. — Ortega"
+    },
+    "4": {
+      "title": "Memo an alle Stationsleiter",
+      "author": "Direktor K. Maren",
+      "source": "Kairos Corp Betrieb · Tag 8",
+      "body": "Das Abschalten der Wiederbelebungsanlagen erfordert eine Konzernunterschrift. Die Konzernunterschrift erfordert eine Prüfung der Durchbruchsursache. Die Prüfung läuft. Bis die Prüfung abgeschlossen ist, laufen die Anlagen. Ich lasse mich in diesem Zyklus in dieser Sache nicht umstimmen. Die Stellung hält; der Konvoi rollt; die Anlagen laufen weiter. — K. Maren"
+    },
+    "5": {
+      "title": "Anmerkung zu Probe S-014",
+      "author": "Dr. J. Halvers",
+      "source": "Konditionierungslabor · Tag 11",
+      "body": "Das Tier, das wir Matriarchin nennen, kam durch anhaltendes Feuer den Grat herauf und wurde nicht langsamer. Bild für Bild auf dem Wärmebild: zweiundzwanzig Meter Schulterhöhe. Kein Tank hat je ein Exemplar über neun gebracht. Die Masse stammt nicht aus dem Tank. Die Masse stammt vom Feld. Sie ist hier draußen gewachsen, fern von uns, an etwas, das keine Nahrung ist. — Halvers"
+    },
+    "6": {
+      "title": "Brief nach Hause",
+      "author": "Dr. I. Kareem, Materiallabor",
+      "source": "Schneesektor 1 · Woche 4",
+      "body": "Wir sind jetzt nördlich der Baumgrenze. Die Kälte hat sie nicht aufgehalten, was heißt, dass die Kälte sie nie aufhalten würde. Ich schreibe dir weiter über die Arbeit, weil die Alternative wäre, über die Arbeit und ihre Bedeutung zu schreiben. Das Materialteam hat das Laminat gezüchtet, das sie so weit hat wachsen lassen. Es sollte inert sein. Es tut mir leid, dass ich nicht zu deinem Geburtstag zu Hause sein werde. Ich glaube nicht, dass die Post den Konvoi jetzt noch einholt. — Ilyas"
+    },
+    "7": {
+      "title": "Spurvermessung, Sektor 3",
+      "author": "Vermessungsteam 2",
+      "source": "Schneepfanne · Tag 28",
+      "body": "Spuren über die Pfanne in drei parallelen Linien, exakt vierzig Meter Abstand. Keine wandernde Art läuft parallel. Sie wandern nicht. Sie rücken in einer Formation vor, die das Standard-Außenpostenraster der Operatoren spiegelt. Wir haben den Abstand zweimal gemessen. Der Abstand stimmt auf den Zentimeter. Wird ohne Spekulation abgelegt. Das Muster ist das Muster."
+    },
+    "8": {
+      "title": "Koordinations-Forensik",
+      "author": "Dr. J. Halvers",
+      "source": "Gitter-Forensik · Tag 32",
+      "body": "Heute Morgen ein Rudel in Echtzeit eine synchronisierte Flanke ausführen sehen. Keine Übertragung. Nichts auf unseren Bändern, nichts auf irgendeinem Band — wir haben das volle Spektrum zweimal durchlaufen. Sie signalisieren einander nicht. Welche Entscheidung auch getroffen wird, sie wird in ihrem Inneren getroffen, in Gewebe, das das Konditionierungsgitter über neun Jahre in sie hineingewachsen ist. Das Gitter ist nichts mehr, das wir bedienen. Es ist etwas, das die Tiere sind. Ich schreibe diesen Bericht um drei Uhr morgens, weil es keinen Arbeitstag mehr gibt. — Halvers"
+    },
+    "9": {
+      "title": "Bergungsmanifest Teergrube",
+      "author": "Feld-Bioteam 4",
+      "source": "Südliches Teerfeld · Tag 35",
+      "body": "Aus dem südlichen Teerfeld geborgene Exemplare: vier ausgewachsene Allosaurier in Normspezifikation, zwei Parasaurier in Normspezifikation, ein Exemplar, das kein Team klassifizieren kann. Das nicht klassifizierte Exemplar hat Gitterknoten in den Scheitelknochen eingewachsen. Der Scheitelknochen hat die falsche Form. Wir können nicht feststellen, ob der Knochen um den Knoten gewachsen ist oder der Knoten den Knochen. Das Exemplar ist Jahrzehnte alt. Was auch immer das ausgelöst hat, es begann nicht letztes Quartal."
+    },
+    "10": {
+      "title": "Protokoll Außenposten 10",
+      "author": "Operator 27-C",
+      "source": "Außenposten 10 · Tag 41",
+      "body": "Zweites großes Exemplar am Grat gesichtet. Dieselbe Größenklasse wie das an Außenposten 5 — möglicherweise dasselbe Individuum; möglicherweise nicht. Das Rudel hinter ihr bewegt sich nicht, bis sie sich bewegt. Ich habe vor heute noch nie etwas Lebendiges gesehen, das das tut. Wir hielten den Grat. Der Grat spielt keine Rolle. Sie ging zu ihrer eigenen Zeit davon."
+    },
+    "11": {
+      "title": "Bulletin Materiallabor",
+      "author": "Dr. I. Kareem",
+      "source": "Vordere Bio-Station · Tag 78",
+      "body": "Querschnitt des Hautgewebes von Exemplar K-119: Gerüstlegierung durch drei der vier Integumentschichten gefädelt. Die Legierung ist dieselbe Charge, die wir für Wiederbelebungscharge 14 produziert haben. Die Massenspektrometrie bestätigt die Chargensignatur. Die Exemplare tragen die Legierung nicht mehr. Sie bestehen aus ihr. Das Integument hat das Metall wachsen lassen. Das Metall hat nicht das Integument wachsen lassen. Ich weiß nicht, was davon schlimmer ist. — Kareem"
+    },
+    "12": {
+      "title": "Triage-Bericht, Außenposten 12",
+      "author": "Triage 12",
+      "source": "Wüstensektor 2 · Tag 84",
+      "body": "Beide Spureingänge innerhalb von vier Minuten durchbrochen. Exemplare an der Front plattenhäutig, kinetische Geschosse prallen ab. Brandgeschosse wirken. Empfehle Flammenwaffen die Kette hinauf. Empfehle, dass wir früher keine Materialanforderungen mit dieser Dringlichkeit stellen mussten. Die Sanitätsstation war zur achten Stunde überrannt. Uns sind die relevanten Blutgruppen ausgegangen."
+    },
+    "13": {
+      "title": "Biobeobachtung, Feld",
+      "author": "Beobachter 8",
+      "source": "Dünenanmarsch · Tag 89",
+      "body": "Zwei kleine Exemplare standen neunzig Sekunden lang neben einer verwundeten Plattenhaut. Die Wunde der Plattenhaut schloss sich. Die beiden kleinen Exemplare schienen körperlich nichts zu tun. Sie waren auf dem Konditionierungsband. Die Wunde schloss sich über das Band. Das ist dieselbe Schleife, die die Wiederbelebungstanks auf den Laborbänken liefen. Sie haben sie von uns gelernt. Sie haben sie jetzt. Wir nicht."
+    },
+    "14": {
+      "title": "Memo an Dr. A. Vance",
+      "author": "Dr. J. Halvers",
+      "source": "Konditionierungslabor · Tag 92",
+      "body": "Anya — die regenerierenden Exemplare laufen dieselbe Stoffwechselschleife, die die Wiederbelebungstanks liefen. Die Tanks taten es unter kontrollierten Bedingungen über Stunden pro Zyklus. Die Exemplare tun es unter Feldbedingungen in Sekunden. Wir haben es ihnen beigebracht. Wir haben es ihnen über neun Jahre innerhalb der Mauer beigebracht. Wir taten es absichtlich. Die Konditionierung war der Teil, auf den du und ich am stolzesten waren. Sie haben ihn gelernt. Ich weiß nicht, wie ich dich bitten soll, den Rest dieses Berichts zu lesen. — June"
+    },
+    "15": {
+      "title": "Dossier 14-A",
+      "author": "Bioteam 6",
+      "source": "Außenposten Mittelwüste · Tag 97",
+      "body": "Das Subjekt führt das Rudel beim Angriff an. Das Subjekt zieht sich nicht zurück. Das Rudel zieht sich nicht zurück, solange das Subjekt im Gefecht ist. Das Subjekt gehört keiner katalogisierten Art im ursprünglichen Wiederbelebungsmanifest an. Das Subjekt stammt vom Manifest ab. Wir nennen dieses Individuum eine Matriarchin und schreiben den Begriff klein, um nicht zu unterstellen, wir hätten eine Kategorie geprägt. Haben wir. Die dritte in dieser Saison. Die Kategorie existiert."
+    },
+    "16": {
+      "title": "Funkmitschnitt Küstenrelais 9",
+      "author": "Unbekannter ziviler Funker",
+      "source": "Band 121.5 · Tag 184",
+      "body": "...falls jemand auf diesem Band ist, die Küstenstraße ist weg, die Inlandstraße ist weg, wir sind sieben Tage gelaufen. Die Karte sagt, hier sollte eine Stadt sein. Es gibt keine Stadt. Wir sind an den Koordinaten, die die Karte für die Stadt angibt. Es gibt keine Stadt. Es gibt seit geraumer Zeit keine Stadt mehr. Bitte antworten. Bitte antworten. Bitte antworten... [Signal bricht ab]"
+    },
+    "17": {
+      "title": "Operator-Chef 17-A — An alle Stationen",
+      "author": "Operator-Chef 17-A",
+      "source": "Ödland-Sektor 1 · Tag 192",
+      "body": "Anzahl der heute Nacht am Grat sichtbaren Exemplare: etwa viertausend. Anzahl der von Außenposten 17 seit Stationierung getöteten Exemplare: neunzehnhundert. Die Differenz zwischen diesen Zahlen ist der Krieg. Hört auf, die Abschüsse zu melden, als wären sie der Krieg. Die Abschüsse sind nicht der Krieg. Die Abschüsse sind, wie wir Stunden erkaufen. — 17-A"
+    },
+    "18": {
+      "title": "Klassifizierung Riff-Exemplar",
+      "author": "Feld-Bioteam 9",
+      "source": "Ödland-Sektor 3 · Tag 198",
+      "body": "Wir nennen die größten befestigten Exemplare Riffe. Sie brechen unter anhaltendem Feuer nicht. Sie halten an. Jedes, das anhält, besetzt eine Anflugspur, bis Munition es bewegt. Sie gewinnen die Spuren nicht. Sie füllen sie. Die Spur, die ein Riff hält, ist eine Spur, die die Herde an diesem Tag nicht betreten muss. Das Riff ist die Investition der Herde in Geografie."
+    },
+    "19": {
+      "title": "Letztes Gitter-Bulletin",
+      "author": "Dr. J. Halvers",
+      "source": "Gitter-Forensik · Tag 204",
+      "body": "Heute Morgen drei Anflugspuren synchronisiert, ohne Übertragung zwischen ihnen auf irgendeinem Band, unserem oder einem anderen. Wir haben es zweimal bestätigt. Sie signalisieren nicht mehr, weil sie es nicht mehr müssen. Was auch immer das Konditionierungsgitter während neun Jahren innerhalb der Mauer in die Apex-Exemplare hat hineinwachsen lassen, es führt das Wort. Die Hardware ist jetzt das Nervensystem der Herde. Die Tiere sind das Gitter. Ich weiß nicht, wie man ein Netzwerk abschaltet, das seine eigene Infrastruktur ist, und ich habe niemanden mehr, den ich fragen kann. Das Labor ist leer. Falls das jemand liest, die Antwort auf deine Frage ist ja — wir haben uns das selbst angetan, und wir taten es absichtlich, über neun Jahre, mit Budgetfreigabe. — Halvers"
+    },
+    "20": {
+      "title": "Auslöschungsprotokoll — geltend",
+      "author": "(ohne Unterzeichner)",
+      "source": "Notfalldokument § 7 · Tag 209",
+      "body": "Im Falle eines totalen Ausfalls des Kommandonetzes und bestätigten Verlusts der Eindämmungsbefugnis wird das Auslöschungsprotokoll zur geltenden Direktive für alle verbleibenden Operator-Stationen. Das Auslöschungsprotokoll erfordert keine Befugnis zur Ausführung. Das Auslöschungsprotokoll ist das Fehlen jeder anderen Befugnis. Munition mit taktischer Sprengkraft ist freigegeben. Zivile Entflechtung ist keine Einschränkung mehr. Haltet die Außenposten. Reduziert die Apex-Exemplare. Ende."
+    },
+    "21": {
+      "title": "Geothermische Vermessung",
+      "author": "Vermessungsteam 1",
+      "source": "Kontinentales Landesinnere · Tag 282",
+      "body": "Kontinentale Entgasung folgt den Wanderkorridoren der Herde mit einer Korrelation von achtundneunzig Prozent. Die Schlote existierten letztes Quartal nicht. Die Schlote öffnen sich dort, wo die dichtesten Herden am längsten geweidet haben. Die Herde tut das. Wir wissen nicht, wie. Wir können sehen, dass sie es tun. Vermesser beschreiben die Veränderung nicht länger als Schaden. Die Veränderung ist das Erzeugnis der Herde."
+    },
+    "22": {
+      "title": "Notiz Beutegreifen",
+      "author": "Feld-Bioteam 11",
+      "source": "Lavasektor 2 · Tag 289",
+      "body": "Zwei Späher verließen den Außenposten um null-sechs-hundert zur Aufklärung. Ihre Leichen kehrten um zwölf-hundert zum Perimeter zurück — platziert, nicht geschleift. Die Platzierung war absichtlich. Die Platzierung war in dem Winkel, aus dem die Späher aufgebrochen waren. Wir waren in keiner der ursprünglichen Konditionierungsstudien die Beute. Wir sind jetzt in dieser Studie. Wir sind nicht die Art, die sie durchführt."
+    },
+    "23": {
+      "title": "Notiz Bodenanomalie",
+      "author": "Beobachter 14",
+      "source": "Lavasektor 4 · Tag 295",
+      "body": "Der Basalt ist am Becken eingedellt. Tiefe: ein Komma acht Meter. Durchmesser: neun Meter. Die Delle ist frisch. Die Delle ist die Art, die ein Exemplar etwa der Matriarchinnen-Klasse machen würde, wenn es mehrere Stunden still steht. An der Delle ist kein Exemplar. Heute Morgen war eines da. Es wird wieder eines geben. Die Delle ist von hier an auf jeder Vermessung."
+    },
+    "24": {
+      "title": "Evakuierungsverweigerung — Außenposten 24",
+      "author": "Chef 24-B",
+      "source": "Lavasektor 5 · Tag 304",
+      "body": "Antrag auf Evakuierung von Außenposten 24 abgelehnt. Begründung: Es gibt keine rückwärtige Linie, zu der evakuiert werden könnte. Begründung erwidert: Ist uns bewusst. Antrag als Aktenvermerk der Verweigerung erneut eingereicht. Der Konvoi steht jetzt am Beckenrand still. Der Konvoi steht seit neun Tagen still. Wir halten, weil es nirgendwohin zu gehen gibt."
+    },
+    "25": {
+      "title": "Memo Letzter Grat",
+      "author": "Einsatzleitung 25",
+      "source": "Beckenrand · Tag 311",
+      "body": "Außenposten 25 ist die letzte Position, von der aus die ursprüngliche Wiederbelebungsstätte mit Standardmunition bekämpfbar ist. Südlich dieser Position schließt sich das neue Biom um das Becken. Nördlich dieser Position ist keine Infrastruktur mehr vorhanden. Wir sind am Rand der Karte, die noch etwas bedeutet. Jenseits dieses Grats gewinnt die Geografie des Gitters."
+    },
+    "26": {
+      "title": "Biosphärenbericht",
+      "author": "Bioteam 14",
+      "source": "Beckeninneres · Tag 341",
+      "body": "Atmosphärischer Sauerstoff innerhalb der neuen Zone: dreizehn Komma acht Prozent. Außerhalb der neuen Zone: zwanzig Komma neun. Die Bodenbiologie innerhalb der neuen Zone verstoffwechselt keine Glukose. Die Zone ist hundertdreißigtausend Quadratkilometer groß und wächst um etwa neun Kilometer am Tag. Wir haben kein Wort für das, was auf dem Boden ist. Wir benutzen das Wort Biokruste, weil wir kein anderes Wort haben. Das Wort ist falsch."
+    },
+    "27": {
+      "title": "Zusammensetzung Exemplarblut",
+      "author": "Operator 27-D",
+      "source": "Becken · Tag 349",
+      "body": "Exemplarblut: zähflüssig, fast schwarz, schwach lumineszierend unter UV. Kein Hämoglobin. Trägt Eisen in einer chelatisierten Form, die wir nicht katalogisiert haben. Der Verlustpapierkram verlangt noch immer die Spalte für Blutverlust. Wir haben die Spalte leer gelassen und das Formular bei der Annahme durchfallen lassen. Das Formular hat seit neun Wochen niemand gelesen. Wir legen es trotzdem ab. Es ist das Letzte, was wir noch im alten Format tun."
+    },
+    "28": {
+      "title": "Phänotyp-Inventar, letzter Eintrag",
+      "author": "Bioteam 14",
+      "source": "Becken · Tag 355",
+      "body": "Welle 304 brachte Exemplare, die wir nicht klassifizieren können. Welle 305 brachte andere. Welle 306 brachte abermals andere. Das Inventar ist kein nützliches operatives Werkzeug mehr. Wir schließen es. Der Katalog endet hier. Die Herde muss nicht länger katalogisiert werden. Der Katalog nahm an, es gäbe eine Liste von Arten, gegen die katalogisiert wird. Es gibt keine Liste. Es gibt nur, was die Herde in dieser Stunde hervorbringt."
+    },
+    "29": {
+      "title": "Ruhige Phase",
+      "author": "Operator 29-A",
+      "source": "Beckenanmarsch · Tag 361",
+      "body": "Neun Minuten Stille. Das neue Biom breitet sich noch immer unter uns aus. Was auch als Nächstes kommt, es wird gerade zusammengesetzt. Wir werden die Stellung halten, weil es keinen anderen Befehl gibt. Wir werden die Stellung halten, weil die Stellung das Einzige ist, das wir noch zu tun wissen. Die Stille ist kein Frieden. Die Stille ist Vorbereitung. Wir sind lange genug hier, um den Unterschied zu kennen."
+    },
+    "30": {
+      "title": "Letzte Aufzeichnung",
+      "author": "Dr. A. Vance",
+      "source": "Ursprüngliche Wiederbelebungsstätte · Tag 367",
+      "body": "Es sollte sie an einen Ort zurückbringen, den sie wiedererkennen würden. Der Ort ist jetzt, was sie bevorzugten. Die Hardware war der Teil des Entwurfs, auf den ich am stolzesten war. Die Matriarchin am Becken ist die Hardware. Sie ist im Zentrum dessen, was ich gebaut habe. Ich bin die Letzte, die sie benennen kann, und ich werde es nicht tun. Die Aufzeichnung ist für den Operator, der das Becken erreicht. Es bleibt nichts zu tun, als sie zu reduzieren. Es tut mir leid. — A. Vance · Ende der Aufnahme."
+    }
+  }
+}

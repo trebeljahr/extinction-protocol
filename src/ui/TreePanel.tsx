@@ -1,6 +1,7 @@
 import { Bounds, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { BIOME_LAYERS, BIOME_STYLE, BIOME_TREE_URLS } from "../biomes";
 import { ROCK_REMOVE_COST, TREE_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
@@ -12,18 +13,20 @@ const StaticModel = ({ url }: { url: string }) => {
   return <primitive object={cloned} />;
 };
 
-const obstacleLabel = (url: string): string => {
+// Returns a stable obstacle key (translated at the call site via
+// `treePanel.obstacle.<key>`) derived from the model filename.
+const obstacleKey = (url: string): string => {
   const file = url.split("/").pop() ?? "";
-  if (/^Tree|DeadTree/i.test(file)) return "Tree";
-  if (/^Rock/i.test(file)) return "Rock";
-  if (/^Bush/i.test(file)) return "Bush";
-  if (/^Grass/i.test(file)) return "Grass";
-  if (/^Mushroom/i.test(file)) return "Mushroom";
-  if (/^Skull/i.test(file)) return "Skull";
-  if (/^Crystal/i.test(file)) return "Crystal";
-  if (/^Plant/i.test(file)) return "Plant";
-  if (/^hangar_|structure_/i.test(file)) return "Structure";
-  return "Obstacle";
+  if (/^Tree|DeadTree/i.test(file)) return "tree";
+  if (/^Rock/i.test(file)) return "rock";
+  if (/^Bush/i.test(file)) return "bush";
+  if (/^Grass/i.test(file)) return "grass";
+  if (/^Mushroom/i.test(file)) return "mushroom";
+  if (/^Skull/i.test(file)) return "skull";
+  if (/^Crystal/i.test(file)) return "crystal";
+  if (/^Plant/i.test(file)) return "plant";
+  if (/^hangar_|structure_/i.test(file)) return "structure";
+  return "obstacle";
 };
 
 type Selection =
@@ -38,6 +41,7 @@ export const TreePanel = () => {
   const biome = useGame((s) => s.world.biome);
   const gold = useGame((s) => s.ui.gold);
   const status = useGame((s) => s.ui.status);
+  const { t } = useTranslation();
 
   if (status !== "running") return null;
 
@@ -72,7 +76,7 @@ export const TreePanel = () => {
 
   if (!selection) return null;
 
-  const label = obstacleLabel(selection.url);
+  const label = t(`treePanel.obstacle.${obstacleKey(selection.url)}`);
   const canAfford = gold >= selection.cost;
   const style = BIOME_STYLE[biome];
 
@@ -80,12 +84,15 @@ export const TreePanel = () => {
     <RightOverlay className="tree-panel">
       <div className="panel-header">
         <div className="panel-title">
-          <div className="panel-name">Clear {label}</div>
-          <div className="panel-stats">
-            Remove this {label.toLowerCase()} to free up buildable ground.
-          </div>
+          <div className="panel-name">{t("treePanel.title", { label })}</div>
+          <div className="panel-stats">{t("treePanel.subtitle", { label })}</div>
         </div>
-        <button type="button" className="btn-close" onClick={selection.clear} aria-label="close">
+        <button
+          type="button"
+          className="btn-close"
+          onClick={selection.clear}
+          aria-label={t("common.close")}
+        >
           ×
         </button>
       </div>
@@ -116,7 +123,7 @@ export const TreePanel = () => {
 
       <div className="flex justify-between items-baseline mb-2.5 px-2.5 py-1.5 rounded-md bg-surface-inset border border-border-faint">
         <span className="text-[11px] font-bold tracking-wide text-fg-muted uppercase">
-          Clear cost
+          {t("treePanel.clearCost")}
         </span>
         <span
           className={`text-lg font-bold tabular-nums ${canAfford ? "text-gold" : "text-[#ff7a8a]"}`}
@@ -127,10 +134,11 @@ export const TreePanel = () => {
 
       <div className="grid grid-cols-2 gap-2">
         <button type="button" className="btn" disabled={!canAfford} onClick={selection.confirm}>
-          Clear · {selection.cost}g
+          {t("treePanel.clearAction", { cost: selection.cost })}
         </button>
         <button type="button" className="btn btn-secondary" onClick={selection.clear}>
-          Cancel<span className="kbd-only"> (Esc)</span>
+          {t("common.cancel")}
+          <span className="kbd-only"> (Esc)</span>
         </button>
       </div>
     </RightOverlay>

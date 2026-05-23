@@ -1,30 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGamepadInput } from "../input/gamepad";
 import { LEVELS } from "../levels";
-import { LORE_FRAGMENT_KIND_LABEL, LORE_FRAGMENT_ORDER, LORE_FRAGMENTS } from "../levels/lore";
+import { LORE_FRAGMENT_KIND, LORE_FRAGMENT_ORDER } from "../levels/lore";
 import { getStars, hasEncountered, hasMatriarchEncountered } from "../progress";
-import {
-  ENEMY_DESCRIPTION,
-  ENEMY_SUBTITLE,
-  MATRIARCH_DESCRIPTION,
-  MATRIARCH_SUBTITLE,
-} from "../sim/enemyText";
-import {
-  MECHANIC_DESCRIPTION,
-  MECHANIC_LABEL,
-  MECHANIC_ORDER,
-  MECHANIC_STATS,
-  MECHANIC_SUBTITLE,
-  type MechanicId,
-} from "../sim/mechanicsText";
-import {
-  TOWER_BEHAVIOR,
-  TOWER_DESCRIPTION,
-  TOWER_MATCHUPS,
-  TOWER_SUBTITLE,
-} from "../sim/towerText";
+import { MECHANIC_ORDER, type MechanicId } from "../sim/mechanicsText";
 import type { BossVariant, DamageType, EnemyKind, TowerKind } from "../sim/types";
-import { UPGRADES } from "../sim/upgrades";
 import {
   ADAPT_TRIGGER_LEVEL,
   ADAPTIVE_TINT_BY_TYPE,
@@ -32,7 +13,6 @@ import {
   BOSS_VARIANT_RESIST,
   BOSS_VARIANT_SLOW_RESIST,
   BOSS_VARIANT_STATS,
-  DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
@@ -99,24 +79,23 @@ const entrySeen = (
 const entryLabel = (e: EnemyEntry): string =>
   e.kind === "species" ? ENEMY_LABEL[e.id] : BOSS_VARIANT_LABEL[e.variant];
 
-const entrySubtitle = (e: EnemyEntry): string =>
-  e.kind === "species" ? ENEMY_SUBTITLE[e.id] : MATRIARCH_SUBTITLE[e.variant];
+// i18n catalog keys — enemy/matriarch prose lives in the `enemies`
+// namespace, read via react-i18next so the compendium localizes.
+const entrySubtitleKey = (e: EnemyEntry): string =>
+  e.kind === "species" ? `enemies:${e.id}.subtitle` : `enemies:matriarch.${e.variant}.subtitle`;
 
-const entryDescription = (e: EnemyEntry): string =>
-  e.kind === "species" ? ENEMY_DESCRIPTION[e.id] : MATRIARCH_DESCRIPTION[e.variant];
+const entryDescriptionKey = (e: EnemyEntry): string =>
+  e.kind === "species"
+    ? `enemies:${e.id}.description`
+    : `enemies:matriarch.${e.variant}.description`;
+
 const TOWER_ORDER: TowerKind[] = ["pulse", "chain", "cryo", "mortar", "flame", "hive"];
 const DAMAGE_TYPES: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
 const SECTION_ORDER: Section[] = ["enemy", "tower", "mechanic", "robot", "lore"];
-const SECTION_LABEL: Record<Section, string> = {
-  enemy: "Enemies",
-  tower: "Towers",
-  mechanic: "Mechanics",
-  robot: "Robots",
-  lore: "Lore",
-};
 
 export const Compendium = () => {
+  const { t } = useTranslation();
   const progress = useGame((s) => s.progress);
   const compendiumLocks = useGame((s) => s.compendiumLocks);
   const setCompendiumOpen = useGame((s) => s.setCompendiumOpen);
@@ -180,14 +159,14 @@ export const Compendium = () => {
       <div className="compendium-card">
         <header className="compendium-header">
           <div>
-            <h1>Compendium</h1>
+            <h1>{t("compendium.title")}</h1>
           </div>
           <button
             type="button"
             className="btn-close compendium-close"
             onClick={() => setCompendiumOpen(false)}
-            aria-label="Close compendium"
-            title="Close compendium"
+            aria-label={t("compendium.close")}
+            title={t("compendium.close")}
           >
             ×
           </button>
@@ -202,7 +181,7 @@ export const Compendium = () => {
               onClick={() => setSection(s)}
               aria-pressed={section === s}
             >
-              {SECTION_LABEL[s]}
+              {t(`compendium.section.${s}`)}
             </button>
           ))}
         </div>
@@ -241,6 +220,7 @@ const EnemySectionView = ({
   progress: ReturnType<typeof useGame.getState>["progress"];
   compendiumLocks: CompendiumLocks;
 }) => {
+  const { t } = useTranslation();
   const selectedSeen = entrySeen(selected, progress, compendiumLocks);
   const selectedKey = entryKey(selected);
   return (
@@ -258,7 +238,7 @@ const EnemySectionView = ({
               onClick={() => setSelected(entry)}
               disabled={!seen}
               aria-pressed={selectedKey === key}
-              title={seen ? entryLabel(entry) : "Not yet encountered"}
+              title={seen ? entryLabel(entry) : t("compendium.notEncountered")}
             >
               <span className="compendium-tab-icon" aria-hidden>
                 {seen ? (
@@ -294,16 +274,18 @@ const EnemySectionView = ({
             <>
               <div className="compendium-detail-head">
                 <div className="compendium-detail-name">{entryLabel(selected)}</div>
-                <div className="compendium-detail-subtitle">{entrySubtitle(selected)}</div>
+                <div className="compendium-detail-subtitle">{t(entrySubtitleKey(selected))}</div>
               </div>
-              <p className="compendium-detail-desc">{entryDescription(selected)}</p>
+              <p className="compendium-detail-desc">{t(entryDescriptionKey(selected))}</p>
               {selected.kind === "matriarch" && (
                 <div className="flex items-center gap-2.5 px-3 py-2 mb-2 rounded-lg bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
                   <span className="text-[10px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
-                    Leak damage
+                    {t("enemyPanel.leakDamage")}
                   </span>
                   <span className="ml-auto text-[#ffb39a] text-[13px] font-semibold tabular-nums">
-                    {BOSS_VARIANT_STATS[selected.variant].damage} lives — instant loss
+                    {t("enemyPanel.leakLives", {
+                      damage: BOSS_VARIANT_STATS[selected.variant].damage,
+                    })}
                   </span>
                 </div>
               )}
@@ -312,10 +294,8 @@ const EnemySectionView = ({
             </>
           ) : (
             <div className="compendium-detail-locked-text">
-              <div className="compendium-detail-name">Unknown species</div>
-              <p className="compendium-detail-desc">
-                Encounter this enemy in combat to unlock its dossier.
-              </p>
+              <div className="compendium-detail-name">{t("compendium.unknownSpecies")}</div>
+              <p className="compendium-detail-desc">{t("compendium.unknownSpeciesDesc")}</p>
             </div>
           )}
         </div>
@@ -334,23 +314,24 @@ const slowResistFor = (entry: EnemyEntry) =>
   entry.kind === "species" ? ENEMY_SLOW_RESIST[entry.id] : BOSS_VARIANT_SLOW_RESIST[entry.variant];
 
 const EnemyStatRow = ({ entry }: { entry: EnemyEntry }) => {
+  const { t } = useTranslation();
   const s = statsFor(entry);
   return (
     <dl className="compendium-stats">
       <div>
-        <dt>HP</dt>
+        <dt>{t("compendium.stat.hp")}</dt>
         <dd>{s.hp}</dd>
       </div>
       <div>
-        <dt>Speed</dt>
+        <dt>{t("compendium.stat.speed")}</dt>
         <dd>{s.speed.toFixed(1)}</dd>
       </div>
       <div>
-        <dt>Damage</dt>
+        <dt>{t("compendium.stat.damage")}</dt>
         <dd>{s.damage}</dd>
       </div>
       <div>
-        <dt>Bounty</dt>
+        <dt>{t("compendium.stat.bounty")}</dt>
         <dd>{s.bounty}g</dd>
       </div>
     </dl>
@@ -358,23 +339,25 @@ const EnemyStatRow = ({ entry }: { entry: EnemyEntry }) => {
 };
 
 const EnemyResistRow = ({ entry }: { entry: EnemyEntry }) => {
+  const { t } = useTranslation();
   const slowResist = slowResistFor(entry);
   return (
     <div className="compendium-resist">
-      <div className="compendium-resist-label">vs. damage</div>
+      <div className="compendium-resist-label">{t("compendium.vsDamage")}</div>
       <div className="compendium-resist-chips">
         {DAMAGE_TYPES.map((dt) => {
           const mul = resistFor(entry, dt);
           const pct = Math.round((mul - 1) * 100);
           const tone = pct > 0 ? "weak" : pct < 0 ? "resist" : "neutral";
+          const dtLabel = t(`damageTypes.${dt}`);
           return (
             <div
               key={dt}
               className={`compendium-chip ${tone}`}
-              title={`${DAMAGE_TYPE_LABEL[dt]}: ${mul.toFixed(2)}×`}
+              title={`${dtLabel}: ${mul.toFixed(2)}×`}
             >
               <DamageIcon type={dt} size={20} />
-              <span className="compendium-chip-label">{DAMAGE_TYPE_LABEL[dt]}</span>
+              <span className="compendium-chip-label">{dtLabel}</span>
               <span className="compendium-chip-val">
                 {pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : "·"}
               </span>
@@ -384,12 +367,12 @@ const EnemyResistRow = ({ entry }: { entry: EnemyEntry }) => {
         {slowResist > 0 && (
           <div
             className="compendium-chip resist"
-            title={`Slow resist: ${Math.round(slowResist * 100)}%`}
+            title={t("compendium.slowResistTitle", { pct: Math.round(slowResist * 100) })}
           >
             <span className="compendium-chip-glyph" aria-hidden>
               S
             </span>
-            <span className="compendium-chip-label">Slow</span>
+            <span className="compendium-chip-label">{t("compendium.slow")}</span>
             <span className="compendium-chip-val">-{Math.round(slowResist * 100)}%</span>
           </div>
         )}
@@ -407,10 +390,10 @@ const TowerSectionView = ({
   selected: TowerKind;
   setSelected: (k: TowerKind) => void;
 }) => {
+  const { t } = useTranslation();
   const stats = TOWER_STATS[selected];
   const cost = TOWER_COST[selected];
   const pill = towerPillInfo(selected);
-  const tree = UPGRADES[selected];
   const isHive = selected === "hive";
   const isCryo = selected === "cryo";
   const isChain = selected === "chain";
@@ -434,7 +417,7 @@ const TowerSectionView = ({
               onClick={() => setSelected(kind)}
               disabled={locked}
               aria-pressed={selected === kind}
-              title={locked ? "Locked" : TOWER_LABEL[kind]}
+              title={locked ? t("worldMap.locked") : TOWER_LABEL[kind]}
             >
               <span className="compendium-tab-icon" aria-hidden>
                 {locked ? (
@@ -456,10 +439,8 @@ const TowerSectionView = ({
           </div>
           <div className="compendium-detail-info">
             <div className="compendium-detail-locked-text">
-              <div className="compendium-detail-name">Unknown defense</div>
-              <p className="compendium-detail-desc">
-                Field-test a successful deployment to unlock this tower's dossier.
-              </p>
+              <div className="compendium-detail-name">{t("compendium.unknownDefense")}</div>
+              <p className="compendium-detail-desc">{t("compendium.unknownDefenseDesc")}</p>
             </div>
           </div>
         </div>
@@ -474,54 +455,64 @@ const TowerSectionView = ({
               <div className="compendium-detail-subtitle">
                 <span className="compendium-detail-damage-type" style={{ color: pill.color }}>
                   <DamageIcon type={pill.type} size={14} />
-                  {pill.label}
+                  {pill.type === "support"
+                    ? t("towerPanel.support")
+                    : t(`damageTypes.${pill.type}`)}
                 </span>
                 <span className="compendium-detail-divider">·</span>
-                <span>{TOWER_SUBTITLE[selected]}</span>
+                <span>{t(`towers:${selected}.subtitle`)}</span>
                 <span className="compendium-detail-divider">·</span>
                 <span>{cost}g</span>
               </div>
             </div>
-            <p className="compendium-detail-desc">{TOWER_DESCRIPTION[selected]}</p>
+            <p className="compendium-detail-desc">{t(`towers:${selected}.description`)}</p>
 
             <dl className="compendium-stats">
               {isHive ? (
                 <>
                   <div>
-                    <dt>Drones</dt>
+                    <dt>{t("compendium.stat.drones")}</dt>
                     <dd>{HIVE_BASE_DRONES}</dd>
                   </div>
                   <div>
-                    <dt>Buff</dt>
+                    <dt>{t("compendium.stat.buff")}</dt>
                     <dd>+{Math.round(HIVE_BASE_SERVICE_BUFF * 100)}%</dd>
                   </div>
                   <div>
-                    <dt>Cost</dt>
+                    <dt>{t("compendium.stat.cost")}</dt>
                     <dd>{cost}g</dd>
                   </div>
                   <div>
-                    <dt>Role</dt>
-                    <dd>Support</dd>
+                    <dt>{t("compendium.stat.role")}</dt>
+                    <dd>{t("towerPanel.support")}</dd>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <dt>{isCryo ? "Slow" : "DMG"}</dt>
+                    <dt>{isCryo ? t("compendium.stat.slow") : t("compendium.stat.dmg")}</dt>
                     <dd>
                       {isCryo ? `${Math.round((1 - stats.slowFactor) * 100)}%` : stats.damage}
                     </dd>
                   </div>
                   <div>
-                    <dt>Rate</dt>
+                    <dt>{t("compendium.stat.rate")}</dt>
                     <dd>{stats.fireRate.toFixed(1)}/s</dd>
                   </div>
                   <div>
-                    <dt>Range</dt>
+                    <dt>{t("compendium.stat.range")}</dt>
                     <dd>{stats.range.toFixed(1)}</dd>
                   </div>
                   <div>
-                    <dt>{isMortar ? "Splash" : isChain ? "Chain" : isCryo ? "Chill" : "Cost"}</dt>
+                    <dt>
+                      {isMortar
+                        ? t("compendium.stat.splash")
+                        : isChain
+                          ? t("compendium.stat.chain")
+                          : isCryo
+                            ? t("compendium.stat.chill")
+                            : t("compendium.stat.cost")}
+                    </dt>
                     <dd>
                       {isMortar
                         ? stats.splashRadius.toFixed(1)
@@ -537,37 +528,39 @@ const TowerSectionView = ({
             </dl>
 
             <div className="compendium-section-block">
-              <div className="compendium-resist-label">Behavior</div>
-              <p className="compendium-detail-desc">{TOWER_BEHAVIOR[selected]}</p>
+              <div className="compendium-resist-label">{t("compendium.behavior")}</div>
+              <p className="compendium-detail-desc">{t(`towers:${selected}.behavior`)}</p>
             </div>
 
             <div className="compendium-section-block">
-              <div className="compendium-resist-label">Upgrade tree</div>
+              <div className="compendium-resist-label">{t("compendium.upgradeTree")}</div>
               <div className="compendium-upgrades">
-                {(["a", "b"] as const).map((branchId) => {
-                  const branch = tree[branchId];
-                  return (
-                    <div key={branchId} className="compendium-branch">
-                      <div className="compendium-branch-label">
-                        Path {branchId.toUpperCase()} · {branch.label}
-                      </div>
-                      <ol className="compendium-branch-tiers">
-                        {branch.tiers.map((tier) => (
-                          <li key={tier.name}>
-                            <span className="compendium-tier-name">{tier.name}</span>
-                            <span className="compendium-tier-desc">{tier.desc}</span>
-                          </li>
-                        ))}
-                      </ol>
+                {(["a", "b"] as const).map((branchId) => (
+                  <div key={branchId} className="compendium-branch">
+                    <div className="compendium-branch-label">
+                      {t("compendium.path", { id: branchId.toUpperCase() })} ·{" "}
+                      {t(`upgrades:tower.${selected}.${branchId}.label`)}
                     </div>
-                  );
-                })}
+                    <ol className="compendium-branch-tiers">
+                      {[0, 1, 2].map((i) => (
+                        <li key={`${branchId}-${i}`}>
+                          <span className="compendium-tier-name">
+                            {t(`upgrades:tower.${selected}.${branchId}.tier.${i}.name`)}
+                          </span>
+                          <span className="compendium-tier-desc">
+                            {t(`upgrades:tower.${selected}.${branchId}.tier.${i}.desc`)}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="compendium-section-block">
-              <div className="compendium-resist-label">Matchups</div>
-              <p className="compendium-detail-desc">{TOWER_MATCHUPS[selected]}</p>
+              <div className="compendium-resist-label">{t("compendium.matchups")}</div>
+              <p className="compendium-detail-desc">{t(`towers:${selected}.matchups`)}</p>
             </div>
           </div>
         </div>
@@ -585,6 +578,7 @@ const MechanicSectionView = ({
   selected: MechanicId;
   setSelected: (id: MechanicId) => void;
 }) => {
+  const { t } = useTranslation();
   // Same debug-only override pattern as towers — production never sets
   // entries here so mechanics always render unlocked under normal play.
   const mechLocks = useGame((s) => s.compendiumLocks.mechanics);
@@ -602,7 +596,7 @@ const MechanicSectionView = ({
               onClick={() => setSelected(id)}
               disabled={locked}
               aria-pressed={selected === id}
-              title={locked ? "Locked" : MECHANIC_LABEL[id]}
+              title={locked ? t("worldMap.locked") : t(`mechanics:${id}.label`)}
             >
               <span className="compendium-tab-icon" aria-hidden>
                 {locked ? (
@@ -611,7 +605,9 @@ const MechanicSectionView = ({
                   <MechanicIcon id={id} />
                 )}
               </span>
-              <span className="compendium-tab-name">{locked ? "???" : MECHANIC_LABEL[id]}</span>
+              <span className="compendium-tab-name">
+                {locked ? "???" : t(`mechanics:${id}.label`)}
+              </span>
             </button>
           );
         })}
@@ -624,10 +620,8 @@ const MechanicSectionView = ({
           </div>
           <div className="compendium-detail-info">
             <div className="compendium-detail-locked-text">
-              <div className="compendium-detail-name">Unknown mechanic</div>
-              <p className="compendium-detail-desc">
-                Encounter this mechanic in combat to unlock its dossier.
-              </p>
+              <div className="compendium-detail-name">{t("compendium.unknownMechanic")}</div>
+              <p className="compendium-detail-desc">{t("compendium.unknownMechanicDesc")}</p>
             </div>
           </div>
         </div>
@@ -642,16 +636,18 @@ const MechanicSectionView = ({
                 <MechanicIcon id={selected} size={56} />
               </span>
               <div>
-                <div className="compendium-detail-name">{MECHANIC_LABEL[selected]}</div>
-                <div className="compendium-detail-subtitle">{MECHANIC_SUBTITLE[selected]}</div>
+                <div className="compendium-detail-name">{t(`mechanics:${selected}.label`)}</div>
+                <div className="compendium-detail-subtitle">
+                  {t(`mechanics:${selected}.subtitle`)}
+                </div>
               </div>
             </div>
-            <p className="compendium-detail-desc">{MECHANIC_DESCRIPTION[selected]}</p>
+            <p className="compendium-detail-desc">{t(`mechanics:${selected}.description`)}</p>
             <dl className="compendium-stats compendium-mech-stats">
-              {MECHANIC_STATS[selected].map(([label, val]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{val}</dd>
+              {[0, 1, 2].map((i) => (
+                <div key={i}>
+                  <dt>{t(`mechanics:${selected}.stats.${i}.label`)}</dt>
+                  <dd>{t(`mechanics:${selected}.stats.${i}.val`)}</dd>
                 </div>
               ))}
             </dl>
@@ -666,37 +662,44 @@ const MechanicSectionView = ({
 // Per-damage-type discoloration legend shown beneath the adaptation
 // mechanic dossier. Reads the same ADAPTIVE_TINT_BY_TYPE the renderer
 // uses so a tuning change to a hue updates here automatically.
-const AdaptationTintRow = () => (
-  <div className="compendium-section-block">
-    <div className="compendium-resist-label">Discoloration per damage type</div>
-    <div className="compendium-resist-chips">
-      {DAMAGE_TYPES.map((dt) => {
-        const swatch = ADAPTIVE_TINT_BY_TYPE[dt];
-        return (
-          <div
-            key={dt}
-            className="compendium-chip"
-            title={`${DAMAGE_TYPE_LABEL[dt]}: body tints toward ${swatch} when the herd adapts to this type. Up to 95% damage reduction at peak streak from level ${ADAPT_TRIGGER_LEVEL}+.`}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: 3,
-                background: swatch,
-                border: "1px solid rgba(255,255,255,0.18)",
-                display: "inline-block",
-              }}
-            />
-            <span className="compendium-chip-label">{DAMAGE_TYPE_LABEL[dt]}</span>
-            <span className="compendium-chip-val">≤95%</span>
-          </div>
-        );
-      })}
+const AdaptationTintRow = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="compendium-section-block">
+      <div className="compendium-resist-label">{t("compendium.discoloration")}</div>
+      <div className="compendium-resist-chips">
+        {DAMAGE_TYPES.map((dt) => {
+          const swatch = ADAPTIVE_TINT_BY_TYPE[dt];
+          return (
+            <div
+              key={dt}
+              className="compendium-chip"
+              title={t("compendium.discolorationTitle", {
+                type: t(`damageTypes.${dt}`),
+                swatch,
+                level: ADAPT_TRIGGER_LEVEL,
+              })}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  background: swatch,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  display: "inline-block",
+                }}
+              />
+              <span className="compendium-chip-label">{t(`damageTypes.${dt}`)}</span>
+              <span className="compendium-chip-val">≤95%</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // --- Lore section ----------------------------------------------------------
 
@@ -709,6 +712,7 @@ const LoreSectionView = ({
 }: {
   progress: ReturnType<typeof useGame.getState>["progress"];
 }) => {
+  const { t } = useTranslation();
   const loreLocks = useGame((s) => s.compendiumLocks.lore);
   const loreUnlocked = (id: number): boolean => {
     const lockedOverride = loreLocks[id];
@@ -723,15 +727,13 @@ const LoreSectionView = ({
   );
   const initialId = unlockedIds.length > 0 ? unlockedIds[unlockedIds.length - 1] : 1;
   const [selectedId, setSelectedId] = useState<number>(initialId);
-  const selected = LORE_FRAGMENTS[selectedId];
   const selectedUnlocked = loreUnlocked(selectedId);
-  const levelName = LEVELS.find((l) => l.id === selectedId)?.name;
+  const hasLevelName = LEVELS.some((l) => l.id === selectedId);
 
   return (
     <div className="compendium-browser compendium-lore-browser">
       <div className="compendium-selector compendium-lore-selector">
         {LORE_FRAGMENT_ORDER.map((id) => {
-          const frag = LORE_FRAGMENTS[id];
           const unlocked = loreUnlocked(id);
           return (
             <button
@@ -741,14 +743,16 @@ const LoreSectionView = ({
               onClick={() => setSelectedId(id)}
               disabled={!unlocked}
               aria-pressed={selectedId === id}
-              title={unlocked ? frag.title : `Outpost ${id} — not yet held`}
+              title={
+                unlocked ? t(`lore:fragments.${id}.title`) : t("compendium.outpostNotHeld", { id })
+              }
             >
               <span className="compendium-lore-tab-num">#{id}</span>
               <span className="compendium-tab-name compendium-lore-tab-name">
-                {unlocked ? frag.title : "Sealed"}
+                {unlocked ? t(`lore:fragments.${id}.title`) : t("compendium.sealed")}
               </span>
               <span className="compendium-lore-tab-kind">
-                {unlocked ? LORE_FRAGMENT_KIND_LABEL[frag.kind] : "—"}
+                {unlocked ? t(`lore:kind.${LORE_FRAGMENT_KIND[id]}`) : "—"}
               </span>
             </button>
           );
@@ -759,34 +763,38 @@ const LoreSectionView = ({
         {selectedUnlocked ? (
           <div className="compendium-lore-document">
             <div className="compendium-lore-kind-chip">
-              {LORE_FRAGMENT_KIND_LABEL[selected.kind]}
+              {t(`lore:kind.${LORE_FRAGMENT_KIND[selectedId]}`)}
             </div>
-            <h2 className="compendium-lore-title">{selected.title}</h2>
+            <h2 className="compendium-lore-title">{t(`lore:fragments.${selectedId}.title`)}</h2>
             <div className="compendium-lore-meta">
               <div>
-                <span className="compendium-lore-meta-label">From</span>
-                <span className="compendium-lore-meta-value">{selected.author}</span>
+                <span className="compendium-lore-meta-label">{t("compendium.loreFrom")}</span>
+                <span className="compendium-lore-meta-value">
+                  {t(`lore:fragments.${selectedId}.author`)}
+                </span>
               </div>
               <div>
-                <span className="compendium-lore-meta-label">Source</span>
-                <span className="compendium-lore-meta-value">{selected.source}</span>
+                <span className="compendium-lore-meta-label">{t("compendium.loreSource")}</span>
+                <span className="compendium-lore-meta-value">
+                  {t(`lore:fragments.${selectedId}.source`)}
+                </span>
               </div>
-              {levelName && (
+              {hasLevelName && (
                 <div>
-                  <span className="compendium-lore-meta-label">Outpost</span>
+                  <span className="compendium-lore-meta-label">{t("compendium.loreOutpost")}</span>
                   <span className="compendium-lore-meta-value">
-                    #{selected.id} · {levelName}
+                    #{selectedId} · {t(`levels:names.${selectedId}`)}
                   </span>
                 </div>
               )}
             </div>
-            <p className="compendium-lore-body">{selected.body}</p>
+            <p className="compendium-lore-body">{t(`lore:fragments.${selectedId}.body`)}</p>
           </div>
         ) : (
           <div className="compendium-lore-document compendium-lore-document-locked">
-            <h2 className="compendium-lore-title">Sealed fragment</h2>
+            <h2 className="compendium-lore-title">{t("compendium.sealedFragment")}</h2>
             <p className="compendium-lore-body">
-              Hold Outpost {selected.id} to recover this document.
+              {t("compendium.holdOutpost", { id: selectedId })}
             </p>
           </div>
         )}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { baseDps } from "../sim/base";
 import {
   BASE_STAT_LABEL,
@@ -13,6 +14,7 @@ import { fmtCompact } from "./format";
 import { RightOverlay } from "./RightOverlay";
 
 export const BasePanel = () => {
+  const { t } = useTranslation();
   const selectedBase = useGame((s) => s.ui.selectedBase);
   useGame((s) => s.ui.towerVersion);
   const gold = useGame((s) => s.ui.gold);
@@ -28,35 +30,37 @@ export const BasePanel = () => {
       <div className="panel-header">
         <div className="panel-title">
           <div className="panel-name">
-            HQ Laser
+            {t("base.title")}
             <span
               className="dmg-tag"
               style={{ color: "#ff8a5a", borderColor: "#ff8a5a" }}
-              title="Last-ditch defensive laser firing from every HQ"
+              title={t("base.laserTitle")}
             >
-              KINETIC
+              {t("damageTypes.kinetic")}
             </span>
           </div>
           <div className="panel-stats">
-            DMG {base.damage.toFixed(1)} · RATE {base.fireRate.toFixed(2)}/s · RNG{" "}
-            {base.range.toFixed(1)} · DPS {baseDps(base, hqCount).toFixed(1)}
-            {hqCount > 1 && ` (×${hqCount} HQ)`} · KILLS {base.kills} · DEALT{" "}
-            {fmtCompact(base.damageDealt)}
+            {t("towerPanel.stat.dmg")} {base.damage.toFixed(1)} · {t("towerPanel.stat.rate")}{" "}
+            {base.fireRate.toFixed(2)}/s · {t("towerPanel.stat.rng")} {base.range.toFixed(1)} ·{" "}
+            {t("towerPanel.stat.dps")} {baseDps(base, hqCount).toFixed(1)}
+            {hqCount > 1 && ` (×${hqCount} HQ)`} · {t("towerPanel.stat.kills")} {base.kills} ·{" "}
+            {t("towerPanel.stat.dealt")} {fmtCompact(base.damageDealt)}
           </div>
         </div>
         <button
           type="button"
           className="btn-close"
           onClick={() => state.selectBase(false)}
-          aria-label="close"
+          aria-label={t("common.close")}
         >
           ×
         </button>
       </div>
 
       <div className="text-[11px] leading-snug text-fg-muted mb-3 px-2 py-2 rounded-[5px] border border-border-faint bg-surface-faint">
-        Short-range gate defense. Fires a focused laser at the enemy closest to leaking, from{" "}
-        {hqCount > 1 ? `each of the ${hqCount} HQs` : "the HQ"}. Persists across the run.
+        {t("base.blurb", {
+          where: hqCount > 1 ? t("base.eachHq", { count: hqCount }) : t("base.theHq"),
+        })}
       </div>
 
       <div className="branches">
@@ -68,6 +72,7 @@ export const BasePanel = () => {
 };
 
 const BaseBranchView = ({ branchId, gold }: { branchId: "a" | "b"; gold: number }) => {
+  const { t } = useTranslation();
   const state = useGame.getState();
   const base = state.world.base;
   const branch = BASE_UPGRADES[branchId];
@@ -78,15 +83,12 @@ const BaseBranchView = ({ branchId, gold }: { branchId: "a" | "b"; gold: number 
 
   return (
     <div className="branch">
-      <div className="branch-label">{branch.label}</div>
+      <div className="branch-label">{t(`upgrades:base.${branchId}.label`)}</div>
       <div className="tiers">
-        {branch.tiers.map((t, i) => (
-          <div
-            key={t.name}
-            className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}
-          >
-            <div className="tier-name">{t.name}</div>
-            <div className="tier-desc">{t.desc}</div>
+        {branch.tiers.map((_tier, i) => (
+          <div key={i} className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}>
+            <div className="tier-name">{t(`upgrades:base.${branchId}.tier.${i}.name`)}</div>
+            <div className="tier-desc">{t(`upgrades:base.${branchId}.tier.${i}.desc`)}</div>
           </div>
         ))}
       </div>
@@ -110,10 +112,10 @@ const BaseBranchView = ({ branchId, gold }: { branchId: "a" | "b"; gold: number 
             disabled={gold < next.cost}
             onClick={() => upgrade(branchId)}
           >
-            Upgrade · {next.cost}g
+            {t("towerPanel.upgrade", { cost: next.cost })}
           </button>
         ) : (
-          <div className="branch-max">Maxed Out</div>
+          <div className="branch-max">{t("towerPanel.maxedOut")}</div>
         )}
       </div>
     </div>

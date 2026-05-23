@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store";
 
 type CreditEntry = {
@@ -9,7 +10,11 @@ type CreditEntry = {
 };
 
 type CreditSection = {
-  title: string;
+  // Stable id used as a React key and to resolve the translated section
+  // heading via t(`credits.section.${id}`). The entry rows below are
+  // factual asset/library attribution (creator + license + URL, proper
+  // nouns) and stay verbatim across locales.
+  id: string;
   entries: CreditEntry[];
 };
 
@@ -29,7 +34,7 @@ type CreditSection = {
 //     files via md5, every SFX via md5 against /assets/sounds.
 const SECTIONS: CreditSection[] = [
   {
-    title: "3D Models",
+    id: "models3d",
     entries: [
       {
         name: "Sci-fi props — machines, satellite dishes, hangars, rocket bases, rover, barrels, crystals, structures, meteor (scifi/*)",
@@ -118,7 +123,7 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
-    title: "2D Sprites",
+    id: "sprites2d",
     entries: [
       {
         name: "Smoke billboard texture for explosion puffs (textures/fx/whitepuff15.png)",
@@ -129,7 +134,7 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
-    title: "Audio",
+    id: "audio",
     entries: [
       {
         name: "Magic Forest (audio/music/forest.mp3)",
@@ -326,7 +331,7 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
-    title: "Fonts",
+    id: "fonts",
     entries: [
       {
         name: "Rajdhani (display font)",
@@ -337,7 +342,7 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
-    title: "Icons",
+    id: "icons",
     entries: [
       // public/icon-source.html renders public/models/tower_pulse.glb to
       // generate icon.png + the 32×32 / 128×128 favicons. The icon credit
@@ -352,7 +357,7 @@ const SECTIONS: CreditSection[] = [
     ],
   },
   {
-    title: "Third-party libraries",
+    id: "libraries",
     entries: [
       {
         name: "React, React DOM",
@@ -461,6 +466,7 @@ const SECTIONS: CreditSection[] = [
 ];
 
 export const CreditsPanel = () => {
+  const { t } = useTranslation();
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
 
   useEffect(() => {
@@ -480,15 +486,15 @@ export const CreditsPanel = () => {
       <div className="achievements-card">
         <header className="achievements-header">
           <div>
-            <h1>Credits</h1>
-            <div className="achievements-subtitle">Assets, libraries, and tools</div>
+            <h1>{t("credits.title")}</h1>
+            <div className="achievements-subtitle">{t("credits.subtitle")}</div>
           </div>
           <button
             type="button"
             className="btn-close"
             onClick={() => setCreditsOpen(false)}
-            aria-label="Close credits"
-            title="Close credits"
+            aria-label={t("credits.close")}
+            title={t("credits.close")}
           >
             ×
           </button>
@@ -496,10 +502,9 @@ export const CreditsPanel = () => {
 
         <div className="credits-body">
           <section className="credits-section credits-about">
-            <h2 className="credits-section-title">Ricos Labs</h2>
+            <h2 className="credits-section-title">{t("credits.studioName")}</h2>
             <p className="credits-about-text">
-              Independent studio building browser games, real-time apps, and the developer tools
-              that hold them up. Extinction Protocol is built by Rico Trebeljahr. See{" "}
+              {t("credits.aboutBody")}{" "}
               <a
                 className="credits-url"
                 href="https://ricoslabs.com"
@@ -508,15 +513,15 @@ export const CreditsPanel = () => {
               >
                 ricoslabs.com
               </a>{" "}
-              for the rest of the catalogue.
+              {t("credits.aboutCatalogue")}
             </p>
           </section>
           {SECTIONS.map((section) => (
-            <section key={section.title} className="credits-section">
-              <h2 className="credits-section-title">{section.title}</h2>
+            <section key={section.id} className="credits-section">
+              <h2 className="credits-section-title">{t(`credits.section.${section.id}`)}</h2>
               <ul className="credits-list">
                 {section.entries.map((entry) => (
-                  <li key={`${section.title}-${entry.name}`} className="credits-row">
+                  <li key={`${section.id}-${entry.name}`} className="credits-row">
                     <div className="credits-row-name">{entry.name}</div>
                     <div className="credits-row-meta">
                       {entry.creator && <span className="credits-creator">{entry.creator}</span>}
@@ -528,7 +533,7 @@ export const CreditsPanel = () => {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Source ↗
+                          {t("credits.source")}
                         </a>
                       )}
                     </div>

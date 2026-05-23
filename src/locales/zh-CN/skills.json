@@ -1,0 +1,196 @@
+{
+  "branch": {
+    "pulse": {
+      "a": {
+        "label": "Ballistics",
+        "blurb": "Heavier rounds, then crits.",
+        "tier": {
+          "0": { "name": "Bore Rifling", "desc": "+6% damage" },
+          "1": { "name": "Sabot Round", "desc": "+12% damage" },
+          "2": { "name": "Critical Hit", "desc": "15% crit · 2× damage" },
+          "3": { "name": "Annihilator", "desc": "+18% damage, +15% crit" }
+        }
+      },
+      "b": {
+        "label": "Autoloader",
+        "blurb": "Faster cycling, extra reach.",
+        "tier": {
+          "0": { "name": "Quick Spool", "desc": "+6% fire rate" },
+          "1": { "name": "Hot Receiver", "desc": "+12% fire rate" },
+          "2": { "name": "Overclock", "desc": "+20% fire rate" },
+          "3": { "name": "Hyperfire", "desc": "+15% fire rate, +0.5 range" }
+        }
+      },
+      "c": {
+        "label": "Logistics",
+        "blurb": "Cheaper rifles, longer scopes.",
+        "tier": {
+          "0": { "name": "Surplus Stockpile", "desc": "-2g build cost" },
+          "1": { "name": "Bulk Order", "desc": "-2g build cost (-4g total)" },
+          "2": { "name": "Long Scope", "desc": "+0.6 range" },
+          "3": { "name": "Munitions Depot", "desc": "-3g (-7g total), +0.4 range" }
+        }
+      }
+    },
+    "chain": {
+      "a": {
+        "label": "Voltage",
+        "blurb": "Higher base voltage per arc.",
+        "tier": {
+          "0": { "name": "Stepped Coils", "desc": "+6% damage" },
+          "1": { "name": "High Tension", "desc": "+12% damage" },
+          "2": { "name": "Resonance", "desc": "+1 chain target" },
+          "3": { "name": "Arc Furnace", "desc": "+15% damage, +1 chain target" }
+        }
+      },
+      "b": {
+        "label": "Conductor",
+        "blurb": "Wider arcs, shock slow.",
+        "tier": {
+          "0": { "name": "Capacitor Bank", "desc": "+0.5 range" },
+          "1": { "name": "Quick Discharge", "desc": "+8% fire rate" },
+          "2": { "name": "Static Field", "desc": "Chain hits slow 20% · 0.5s" },
+          "3": { "name": "Overcharge", "desc": "+12% rate, slow 30% · 0.7s" }
+        }
+      },
+      "c": {
+        "label": "Coilworks",
+        "blurb": "Cheaper coils, longer reach.",
+        "tier": {
+          "0": { "name": "Surplus Coils", "desc": "-2g build cost" },
+          "1": { "name": "Bulk Order", "desc": "-2g build cost (-4g total)" },
+          "2": { "name": "Lensed Antenna", "desc": "+0.5 range" },
+          "3": { "name": "Reclamation", "desc": "-3g (-7g total), +0.1 falloff" }
+        }
+      }
+    },
+    "cryo": {
+      "a": {
+        "label": "Subzero",
+        "blurb": "Pushes the chill to a full stop.",
+        "tier": {
+          "0": { "name": "Cryogen Mix", "desc": "Slow factor 0.37" },
+          "1": { "name": "Deep Chill", "desc": "Slow factor 0.34" },
+          "2": { "name": "Flash Freeze", "desc": "12% freeze chance · 0.5s" },
+          "3": { "name": "Absolute Zero", "desc": "Slow 0.30, +8% freeze (20%)" }
+        }
+      },
+      "b": {
+        "label": "Resonator",
+        "blurb": "Longer reach, lingering frost.",
+        "tier": {
+          "0": { "name": "Shard Array", "desc": "+0.4 range" },
+          "1": { "name": "Crystal Lens", "desc": "+0.4 range (+0.8 total)" },
+          "2": { "name": "Lingering Frost", "desc": "+0.7s chill duration" },
+          "3": { "name": "Frost Cone", "desc": "+0.4 range, +0.5s chill" }
+        }
+      },
+      "c": {
+        "label": "Cryoworks",
+        "blurb": "Cheaper coolant, sharper chill.",
+        "tier": {
+          "0": { "name": "Surplus Cryo", "desc": "-3g build cost" },
+          "1": { "name": "Bulk Coolant", "desc": "-3g build cost (-6g total)" },
+          "2": { "name": "Insulated Cores", "desc": "+0.3 range" },
+          "3": { "name": "Industrial Chill", "desc": "-4g (-10g total), slow -0.02" }
+        }
+      }
+    },
+    "mortar": {
+      "a": {
+        "label": "Heavy Shells",
+        "blurb": "Denser payloads, fatter splash.",
+        "tier": {
+          "0": { "name": "Dense Packing", "desc": "+6% damage" },
+          "1": { "name": "Thermobaric", "desc": "+12% damage" },
+          "2": { "name": "Cluster Shells", "desc": "+20% splash radius" },
+          "3": { "name": "Annihilator", "desc": "+15% damage, +15% splash" }
+        }
+      },
+      "b": {
+        "label": "Targeting",
+        "blurb": "Faster, smarter shells.",
+        "tier": {
+          "0": { "name": "Spotter", "desc": "+0.4 range" },
+          "1": { "name": "Fire Control", "desc": "+8% fire rate" },
+          "2": { "name": "Smart Munitions", "desc": "+25% dmg vs clusters (3+)" },
+          "3": { "name": "Saturation", "desc": "+10% rate, cluster bonus → 40%" }
+        }
+      },
+      "c": {
+        "label": "Depot",
+        "blurb": "Cheaper shells, bigger boom.",
+        "tier": {
+          "0": { "name": "Surplus Shells", "desc": "-5g build cost" },
+          "1": { "name": "Bulk Order", "desc": "-5g build cost (-10g total)" },
+          "2": { "name": "Spotting Rig", "desc": "+0.4 range" },
+          "3": { "name": "Munitions Reserve", "desc": "-8g (-18g total), +6% splash" }
+        }
+      }
+    },
+    "flame": {
+      "a": {
+        "label": "Combustion",
+        "blurb": "Hotter mix, lingering burn.",
+        "tier": {
+          "0": { "name": "Hot Mix", "desc": "+8% damage" },
+          "1": { "name": "Accelerant", "desc": "+14% damage" },
+          "2": { "name": "Ignite", "desc": "Burn 2s after range · 4 dps" },
+          "3": { "name": "Napalm", "desc": "+15% damage, burn 3s · 7 dps" }
+        }
+      },
+      "b": {
+        "label": "Pressure",
+        "blurb": "Longer nozzle, hotter stream.",
+        "tier": {
+          "0": { "name": "Nozzle Tuning", "desc": "+0.3 range" },
+          "1": { "name": "Twin Burner", "desc": "+10% fire rate" },
+          "2": { "name": "Long Burn", "desc": "+0.4 range, +5% rate" },
+          "3": { "name": "Sunflare", "desc": "+0.5 range, +10% rate" }
+        }
+      },
+      "c": {
+        "label": "Refinery",
+        "blurb": "Cheaper fuel, longer reach.",
+        "tier": {
+          "0": { "name": "Surplus Fuel", "desc": "-3g build cost" },
+          "1": { "name": "Bulk Mix", "desc": "-3g build cost (-6g total)" },
+          "2": { "name": "Pre-Heater", "desc": "+0.3 range" },
+          "3": { "name": "Pyrolytic Stills", "desc": "-6g (-12g total), +5% damage" }
+        }
+      }
+    },
+    "hive": {
+      "a": {
+        "label": "Drone Bay",
+        "blurb": "More drones, sharper buffs.",
+        "tier": {
+          "0": { "name": "Spare Drone", "desc": "+1 drone (4 total)" },
+          "1": { "name": "Twin Bay", "desc": "+1 drone (5 total)" },
+          "2": { "name": "Reinforced Drones", "desc": "Drones grant +5% damage" },
+          "3": { "name": "Full Squadron", "desc": "+1 drone (6), +5% damage buff" }
+        }
+      },
+      "b": {
+        "label": "Service Link",
+        "blurb": "Stronger fire-rate buffs.",
+        "tier": {
+          "0": { "name": "Tuned Coils", "desc": "+3% buff per drone" },
+          "1": { "name": "Boosted Link", "desc": "+5% buff per drone" },
+          "2": { "name": "Harmonic Resonance", "desc": "+8% buff per drone" },
+          "3": { "name": "Overdrive", "desc": "+10% buff per drone" }
+        }
+      },
+      "c": {
+        "label": "Workshop",
+        "blurb": "Cheaper hives, extra polish.",
+        "tier": {
+          "0": { "name": "Surplus", "desc": "-6g build cost" },
+          "1": { "name": "Bulk Order", "desc": "-6g build cost (-12g total)" },
+          "2": { "name": "Refit Crew", "desc": "+3% buff per drone" },
+          "3": { "name": "Industrial Hive", "desc": "-10g (-22g total), +5% buff" }
+        }
+      }
+    }
+  }
+}

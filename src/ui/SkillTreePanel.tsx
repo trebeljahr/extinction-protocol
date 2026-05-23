@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { totalStars } from "../progress";
 import {
   BRANCH_IDS,
@@ -14,7 +15,7 @@ import {
   TIER_COST,
 } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
-import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
+import { DAMAGE_TYPE_COLOR, TOWER_DAMAGE_TYPE, TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { MenuOverlay } from "./MenuOverlay";
@@ -40,16 +41,19 @@ const BranchLadder = ({
   available: number;
 }) => {
   const setTier = useGame((s) => s.setMetaSkillTier);
+  const { t } = useTranslation();
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="px-1 mb-0.5">
         <div className="text-[12px] font-bold text-fg uppercase tracking-wide leading-tight">
-          {branch.label}
+          {t(`skills:branch.${kind}.${branchId}.label`)}
         </div>
-        <div className="text-[10px] text-fg-muted leading-snug">{branch.blurb}</div>
+        <div className="text-[10px] text-fg-muted leading-snug">
+          {t(`skills:branch.${kind}.${branchId}.blurb`)}
+        </div>
       </div>
-      {branch.tiers.map((tier, idx) => {
+      {branch.tiers.map((_tier, idx) => {
         const tierNum = idx + 1;
         const cost = TIER_COST[idx];
         const unlocked = tierNum <= currentTier;
@@ -78,13 +82,13 @@ const BranchLadder = ({
 
         const titleText = unlocked
           ? isTopmost
-            ? `Refund tier ${tierNum} (+${cost}★)`
-            : `Tier ${tierNum} — unlocked`
+            ? t("skillTree.tierRefund", { tier: tierNum, cost })
+            : t("skillTree.tierUnlocked", { tier: tierNum })
           : nextUp
             ? affordable
-              ? `Unlock tier ${tierNum} (-${cost}★)`
-              : `Need ${cost}★ to unlock`
-            : `Locked — unlock tier ${tierNum - 1} first`;
+              ? t("skillTree.tierUnlock", { tier: tierNum, cost })
+              : t("skillTree.tierNeed", { cost })
+            : t("skillTree.tierLocked", { tier: tierNum - 1 });
 
         return (
           <button
@@ -107,7 +111,7 @@ const BranchLadder = ({
               <span
                 className={`text-[12px] font-bold leading-tight truncate ${unlocked ? "text-fg" : "text-fg-secondary"}`}
               >
-                {tier.name}
+                {t(`skills:branch.${kind}.${branchId}.tier.${idx}.name`)}
               </span>
               <span
                 className={`ml-auto text-[10px] tabular-nums shrink-0 ${unlocked ? "text-mint" : "text-gold/80"}`}
@@ -118,7 +122,7 @@ const BranchLadder = ({
             <div
               className={`text-[10.5px] leading-snug mt-0.5 ${unlocked ? "text-mint" : "text-fg-muted"}`}
             >
-              {tier.desc}
+              {t(`skills:branch.${kind}.${branchId}.tier.${idx}.desc`)}
             </div>
           </button>
         );
@@ -134,6 +138,8 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
   const dmgType = TOWER_DAMAGE_TYPE[kind];
   const resetKind = useGame((s) => s.resetMetaSkillsForKind);
   const invested = spentForKind(metaSkills, kind);
+  const { t } = useTranslation();
+  const dmgLabel = t(`damageTypes.${dmgType}`);
 
   return (
     <div className="bg-surface-1 border border-border rounded-lg p-3 flex flex-col">
@@ -148,8 +154,8 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
               className="dmg-tag inline-flex items-center gap-1 text-[10px]"
               style={{ color: DAMAGE_TYPE_COLOR[dmgType], borderColor: DAMAGE_TYPE_COLOR[dmgType] }}
             >
-              <DamageIcon type={dmgType} size={10} title={DAMAGE_TYPE_LABEL[dmgType]} />
-              {DAMAGE_TYPE_LABEL[dmgType]}
+              <DamageIcon type={dmgType} size={10} title={dmgLabel} />
+              {dmgLabel}
             </span>
             <span className="text-[11px] text-gold tabular-nums">{cost}g</span>
           </div>
@@ -159,7 +165,7 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
             type="button"
             className="text-[10px] text-fg-muted hover:text-red transition-colors px-2 py-1 rounded border border-border-faint hover:border-red"
             onClick={() => resetKind(kind)}
-            title={`Refund all ${invested} star${invested === 1 ? "" : "s"}`}
+            title={t("skillTree.refundKind", { count: invested })}
           >
             ↺ {invested}★
           </button>
@@ -168,14 +174,14 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
       <div className="grid grid-cols-3 gap-2 mt-2.5">
         {BRANCH_IDS.map((branchId) => {
           const branch = tree[branchId];
-          const t = getTier(metaSkills, kind, branchId);
+          const tier = getTier(metaSkills, kind, branchId);
           return (
             <BranchLadder
               key={branchId}
               kind={kind}
               branchId={branchId}
               branch={branch}
-              currentTier={t}
+              currentTier={tier}
               available={available}
             />
           );
@@ -183,15 +189,17 @@ const TowerCard = ({ kind, available }: { kind: TowerKind; available: number }) 
       </div>
       <div className="mt-2 pt-2 border-t border-border-faint flex items-center gap-3 text-[10px] text-fg-muted">
         {BRANCH_IDS.map((branchId) => {
-          const t = getTier(metaSkills, kind, branchId);
-          const spent = branchSpent(t);
-          const next = nextTierCost(t);
+          const tier = getTier(metaSkills, kind, branchId);
+          const spent = branchSpent(tier);
+          const next = nextTierCost(tier);
           return (
             <span key={`${branchId}-status`} className="flex-1 truncate">
-              <span className="text-fg-secondary">{tree[branchId].label}:</span>{" "}
-              {t > 0 ? (
+              <span className="text-fg-secondary">
+                {t(`skills:branch.${kind}.${branchId}.label`)}:
+              </span>{" "}
+              {tier > 0 ? (
                 <span className="text-gold tabular-nums">
-                  T{t}/{MAX_TIER}
+                  T{tier}/{MAX_TIER}
                 </span>
               ) : (
                 <span className="text-fg-faint">—</span>
@@ -211,32 +219,31 @@ export const SkillTreePanel = () => {
   const progress = useGame((s) => s.progress);
   const setOpen = useGame((s) => s.setSkillTreeOpen);
   const resetAll = useGame((s) => s.resetAllMetaSkills);
+  const { t } = useTranslation();
   const earned = totalStars(progress);
   const spent = spentMetaStars(progress.metaSkills);
   const available = Math.max(0, earned - spent);
 
   return (
     <MenuOverlay
-      title="Operations · Lab"
-      subtitle={`${available} stars available · ${spent} invested · ${earned} earned`}
+      title={t("skillTree.title")}
+      subtitle={t("skillTree.subtitle", { available, spent, earned })}
       onClose={() => setOpen(false)}
       cardClassName="!w-[min(1280px,calc(100vw-48px))] !max-w-none"
     >
       <div className="skill-tree-panel w-full">
         <div className="flex items-center justify-between gap-3 px-1 mb-3">
           <p className="text-[11px] text-fg-muted leading-snug flex-1 min-w-0">
-            Permanent upgrades baked into every tower you build. Each tower has three branches with
-            four tiers; tiers unlock left-to-right. Refund any branch for free to re-spec between
-            runs.
+            {t("skillTree.intro")}
           </p>
           {spent > 0 && (
             <button
               type="button"
               className="btn btn-ghost text-xs py-1.5 px-3 shrink-0 whitespace-nowrap"
               onClick={resetAll}
-              title="Refund every tier across every tower"
+              title={t("skillTree.refundAllTitle")}
             >
-              Refund all
+              {t("skillTree.refundAll")}
             </button>
           )}
         </div>

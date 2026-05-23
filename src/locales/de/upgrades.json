@@ -1,0 +1,142 @@
+{
+  "tower": {
+    "pulse": {
+      "a": {
+        "label": "Ballistik",
+        "tier": {
+          "0": { "name": "Überbohrung", "desc": "+75% Schaden" },
+          "1": { "name": "Durchschlag", "desc": "+70% Schaden" },
+          "2": { "name": "Vernichter", "desc": "+140% Schaden, Panzerdurchschlag" }
+        }
+      },
+      "b": {
+        "label": "Lademechanik",
+        "tier": {
+          "0": { "name": "Spule", "desc": "+40% Feuerrate" },
+          "1": { "name": "Übertaktung", "desc": "+50% Feuerrate" },
+          "2": { "name": "Hyperfeuer", "desc": "+70% Feuerrate, +1 Reichweite" }
+        }
+      }
+    },
+    "chain": {
+      "a": {
+        "label": "Lichtbogen-Reichweite",
+        "tier": {
+          "0": { "name": "Gabelung", "desc": "+2 Kettenziele, weniger Abfall, +20% Feuerrate" },
+          "1": { "name": "Kaskade", "desc": "+3 Kette, viel weniger Abfall, +30% Feuerrate" },
+          "2": { "name": "Sturm", "desc": "+4 Kette, kein Abfall, +45% Feuerrate" }
+        }
+      },
+      "b": {
+        "label": "Spannung",
+        "tier": {
+          "0": { "name": "Hochsetzen", "desc": "+55% Schaden" },
+          "1": { "name": "Hochspannung", "desc": "+70% Schaden" },
+          "2": {
+            "name": "Lichtbogenofen",
+            "desc": "+120% Schaden; entzieht pro Treffer Elektro-Resistenz"
+          }
+        }
+      }
+    },
+    "cryo": {
+      "a": {
+        "label": "Unter Null",
+        "tier": {
+          "0": { "name": "Tiefkälte", "desc": "Langsamere Gegner" },
+          "1": { "name": "Raureif", "desc": "Beinahe-Stillstand + längere Kälte" },
+          "2": {
+            "name": "Kryo-Sperre",
+            "desc": "Beinahe-Stopp + lange Kälte; eingefrorene Gegner regenerieren nicht"
+          }
+        }
+      },
+      "b": {
+        "label": "Resonator",
+        "tier": {
+          "0": { "name": "Splitter", "desc": "+1,2 Reichweite" },
+          "1": { "name": "Frostbrand", "desc": "+1,2 Reichweite, +0,6s Kälte" },
+          "2": { "name": "Absoluter Nullpunkt", "desc": "28 Kälteschaden Fläche" }
+        }
+      }
+    },
+    "mortar": {
+      "a": {
+        "label": "Nutzlast",
+        "tier": {
+          "0": { "name": "Weitere Streuung", "desc": "+40% Flächenradius" },
+          "1": { "name": "Schwere Granate", "desc": "+35% Flächenradius" },
+          "2": { "name": "Thermobar", "desc": "+50% Fläche, +55% Schaden" }
+        }
+      },
+      "b": {
+        "label": "Durchbruch",
+        "tier": {
+          "0": { "name": "Sprenggranaten", "desc": "+75% Schaden" },
+          "1": { "name": "Bunkerbrecher", "desc": "+90% Schaden" },
+          "2": {
+            "name": "Singularität",
+            "desc": "+140% Schaden, +20% Feuerrate, 3× Schaden gg. Schilde"
+          }
+        }
+      }
+    },
+    "flame": {
+      "a": {
+        "label": "Verbrennung",
+        "tier": {
+          "0": { "name": "Brandbeschleuniger", "desc": "+60% Schaden" },
+          "1": { "name": "Thermit", "desc": "+70% Schaden" },
+          "2": {
+            "name": "Napalm",
+            "desc": "+130% Schaden, +0,8 Reichweite; unterdrückt Regeneration 2s/Treffer"
+          }
+        }
+      },
+      "b": {
+        "label": "Düse",
+        "tier": {
+          "0": { "name": "Unter Druck", "desc": "+30% Feuerrate" },
+          "1": { "name": "Doppelbrenner", "desc": "+35% Feuerrate, +0,5 Reichweite" },
+          "2": { "name": "Sonneneruption", "desc": "+55% Feuerrate, +0,7 Reichweite" }
+        }
+      }
+    },
+    "hive": {
+      "a": {
+        "label": "Drohnenhangar",
+        "tier": {
+          "0": { "name": "Ersatzdrohne", "desc": "+1 Drohne (4 gesamt)" },
+          "1": { "name": "Doppelhangar", "desc": "+1 Drohne (5 gesamt)" },
+          "2": { "name": "Volle Staffel", "desc": "+1 Drohne (6 gesamt)" }
+        }
+      },
+      "b": {
+        "label": "Servicelink",
+        "tier": {
+          "0": { "name": "Abgestimmte Spulen", "desc": "+5% Service-Buff (35% gesamt)" },
+          "1": { "name": "Verstärkter Link", "desc": "+5% Service-Buff (40% gesamt)" },
+          "2": { "name": "Overdrive", "desc": "+10% Service-Buff (50% gesamt)" }
+        }
+      }
+    }
+  },
+  "base": {
+    "a": {
+      "label": "Fokuslinse",
+      "tier": {
+        "0": { "name": "Abgestimmte Linse", "desc": "+60% Schaden" },
+        "1": { "name": "Phasenarray", "desc": "+70% Schaden" },
+        "2": { "name": "Vernichtungsstrahl", "desc": "+80% Schaden, +0,4 Reichweite" }
+      }
+    },
+    "b": {
+      "label": "Kondensatorbank",
+      "tier": {
+        "0": { "name": "Schnelltakt", "desc": "+30% Feuerrate" },
+        "1": { "name": "Überladung", "desc": "+35% Feuerrate, +0,4 Reichweite" },
+        "2": { "name": "Dauerstrahl", "desc": "+40% Feuerrate, +0,6 Reichweite" }
+      }
+    }
+  }
+}

@@ -2,26 +2,51 @@
   "shielded": {
     "label": "Schilde",
     "subtitle": "Energieblase",
-    "description": "Blaue Energieblase. Absorbiert Schaden vor den HP. Die Poolgröße skaliert mit der Trägerart."
+    "description": "Blaue Energieblase. Absorbiert Schaden vor den HP. Die Poolgröße skaliert mit der Trägerart.",
+    "stats": {
+      "0": { "label": "Pool", "val": "10–800 HP" },
+      "1": { "label": "Bruch", "val": "4s" },
+      "2": { "label": "Reg.", "val": "25%/s" }
+    }
   },
   "healAura": {
     "label": "Heiler",
     "subtitle": "Sanitäter",
-    "description": "Pulsierender grüner Ring. Heilt nahe Verbündete um 3 HP/Sek. im Umkreis von 3,5 Feldern."
+    "description": "Pulsierender grüner Ring. Heilt nahe Verbündete um 3 HP/Sek. im Umkreis von 3,5 Feldern.",
+    "stats": {
+      "0": { "label": "Reichw.", "val": "3,5 Felder" },
+      "1": { "label": "Rate", "val": "3 HP/s" },
+      "2": { "label": "Selbstheil.", "val": "nein" }
+    }
   },
   "regen": {
-    "label": "Regen",
+    "label": "Regeneration",
     "subtitle": "Selbstheilung",
-    "description": "Schwebendes mintgrünes ‚+‘. Passiv 1,5 HP/Sek., solange kein Schaden genommen wird."
+    "description": "Schwebendes mintgrünes ‚+‘. Passiv 1,5 HP/Sek., solange kein Schaden genommen wird.",
+    "stats": {
+      "0": { "label": "Rate", "val": "1,5 HP/s" },
+      "1": { "label": "Pause", "val": "1,5s bei Treffer" },
+      "2": { "label": "Konter", "val": "Pyre T3 · Cryo T3" }
+    }
   },
   "slow": {
     "label": "Verlangsamung",
     "subtitle": "Tempo-Malus",
-    "description": "Nur vom Cryo Emitter angewendet. Senkt das Bewegungstempo für die Verlangsamungsdauer."
+    "description": "Nur vom Cryo Emitter angewendet. Senkt das Bewegungstempo für die Verlangsamungsdauer.",
+    "stats": {
+      "0": { "label": "Standard", "val": "40% Tempo" },
+      "1": { "label": "Dauer", "val": "1,5s" },
+      "2": { "label": "Quelle", "val": "nur Cryo" }
+    }
   },
   "adaptation": {
     "label": "Anpassung",
     "subtitle": "Evolvierte Resistenz",
-    "description": "Wer sich zu sehr auf einen Schadenstyp verlässt, lässt die Herde sich anpassen. Ab Level 12 erscheint ein Teil jeder Welle mit gehärteter Resistenz gegen den Schadenstyp, den du in den letzten 3 Wellen am meisten ausgeteilt hast — je einseitiger dein Portfolio, desto größer der Anteil und desto tiefer die Resistenz (bis zur faktischen Immunität). Angepasste Gegner tragen eine andersfarbige Körpertönung, sodass du die Gefahr auf einen Blick erkennst. Konter: Türme diversifizieren oder einen T3-Anti-Modifikator-Zweig nutzen."
+    "description": "Wer sich zu sehr auf einen Schadenstyp verlässt, lässt die Herde sich anpassen. Ab Level 12 erscheint ein Teil jeder Welle mit gehärteter Resistenz gegen den Schadenstyp, den du in den letzten 3 Wellen am meisten ausgeteilt hast — je einseitiger dein Portfolio, desto größer der Anteil und desto tiefer die Resistenz (bis zur faktischen Immunität). Angepasste Gegner tragen eine andersfarbige Körpertönung, sodass du die Gefahr auf einen Blick erkennst. Konter: Türme diversifizieren oder einen T3-Anti-Modifikator-Zweig nutzen.",
+    "stats": {
+      "0": { "label": "Auslöser", "val": "ab L12" },
+      "1": { "label": "Max. Boost", "val": "95%" },
+      "2": { "label": "Fenster", "val": "3 Wellen" }
+    }
   }
 }

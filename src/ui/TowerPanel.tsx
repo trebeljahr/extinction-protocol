@@ -381,15 +381,16 @@ const BranchView = ({
 
   return (
     <div className="branch">
-      <div className="branch-label">{branch.label}</div>
+      <div className="branch-label">{tr(`upgrades:tower.${tower.kind}.${branchId}.label`)}</div>
       <div className="tiers">
-        {branch.tiers.map((t, i) => (
-          <div
-            key={t.name}
-            className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}
-          >
-            <div className="tier-name">{t.name}</div>
-            <div className="tier-desc">{t.desc}</div>
+        {branch.tiers.map((_tier, i) => (
+          <div key={i} className={`tier ${i < tier ? "owned" : i === tier ? "next" : "locked"}`}>
+            <div className="tier-name">
+              {tr(`upgrades:tower.${tower.kind}.${branchId}.tier.${i}.name`)}
+            </div>
+            <div className="tier-desc">
+              {tr(`upgrades:tower.${tower.kind}.${branchId}.tier.${i}.desc`)}
+            </div>
           </div>
         ))}
       </div>
