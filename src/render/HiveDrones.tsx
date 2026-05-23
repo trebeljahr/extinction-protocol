@@ -11,9 +11,10 @@ import { useGame } from "../store";
 // idle) or the tower it's been assigned to service. Sim-side logic in
 // towers.ts owns the assignment table — this is purely visuals.
 //
-// The drone mesh has multiple sub-primitives (Quaternius Enemy Flying),
-// so we walk the GLB and stand up a separate InstancedMesh per primitive,
-// same pattern as Rocks/Trees/BiomeCosmetics.
+// The drone mesh is KayKit Space Base Bits structure_tall (textured); we
+// walk the GLB and stand up a separate InstancedMesh per primitive, same
+// pattern as Rocks/Trees/BiomeCosmetics. This model is reserved for drones
+// — the outpost templates intentionally don't reuse structure-tall.
 
 const DRONE_URL = "/models/turrets/HiveDrone.glb";
 const TARGET_SIZE = 0.23;

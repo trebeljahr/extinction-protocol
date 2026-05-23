@@ -87,7 +87,7 @@ const SECTIONS: CreditSection[] = [
         url: "https://quaternius.com/packs/animateddinosaurs.html",
       },
       {
-        name: "Hive drone + Drone tower mesh (Enemy_Flying / Glub)",
+        name: "Drone tower mesh (Enemy_Flying / Glub)",
         creator: "Quaternius",
         license: "CC0 1.0",
         url: "https://quaternius.com/packs/ultimatemonsters.html",

@@ -104,13 +104,15 @@ const LANDING_OUTPOST: OutpostTemplate = {
   ],
 };
 
-// Comms / relay station — garage hab, twin antenna structures, solar.
+// Comms / relay station — garage hab, comms mast, low structure, solar.
+// structure-tall is reserved for the hive drone mesh, so the tall accent
+// here is a wind-turbine mast instead.
 const RELAY_STATION: OutpostTemplate = {
   id: "relay-station",
   footprint: 3.9,
   parts: [
     ...stack("basemodule-garage", "roofmodule-base", 0, 0),
-    { model: "structure-tall", dx: -2.3, dz: -1.0 },
+    { model: "windturbine-tall", dx: -2.3, dz: -1.0 },
     { model: "structure-low", dx: 2.2, dz: 1.3 },
     { model: "solarpanel", dx: 2.2, dz: -1.6, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: 2.9, dz: -1.6, yaw: -Math.PI / 2 },
@@ -162,9 +164,10 @@ export const HQ_COMMAND_TEMPLATE: OutpostTemplate = {
   parts: [
     // Command dome dead-centre at the back, with a comms roof.
     ...stack("basemodule-a", "roofmodule-base", 0, -1.9),
-    // Flanking habs.
+    // Flanking habs. structure-tall is the hive-drone mesh, so the right
+    // flank is a second habitat stack rather than reusing that model.
     ...stack("basemodule-c", "roofmodule-solarpanels", -2.5, -0.6, Math.PI / 2),
-    { model: "structure-tall", dx: 2.5, dz: -1.4 },
+    ...stack("basemodule-b", "roofmodule-cargo-a", 2.5, -1.4, -Math.PI / 2),
     // Right-side landing pad with a parked lander.
     { model: "landingpad-small", dx: 2.6, dz: 0.7 },
     { model: "lander-a", dx: 2.6, dz: 0.7, lift: 0.5, yaw: 0.5 },
