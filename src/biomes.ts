@@ -514,12 +514,12 @@ const ALIEN_LAYERS: BiomeLayerSpec = [
       "/models/biomes/alien/Plant_2.gltf",
       "/models/biomes/alien/Plant_3.gltf",
     ],
-    // Authored 1.82–3.26 max-dim; 0.22–0.45 lands ~0.4–1.5 world units
-    // (rock-sized) across the variants, so every plant reads as a
-    // removable obstacle rather than a tree-sized blob.
+    // Authored 1.82–3.26 max-dim; 0.43–0.52 lands ~0.8–1.7 world units
+    // (rock-sized) across the variants. Tight band — no mini variants —
+    // so every plant reads uniformly as a big removable obstacle.
     count: 12,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.28,
+    minScale: 0.43,
     maxScale: 0.52,
     castShadow: true,
     blocks: true,
@@ -535,7 +535,8 @@ const ALIEN_LAYERS: BiomeLayerSpec = [
     ],
     count: 22,
     clearance: PATH_WIDTH / 2 + 0.9,
-    minScale: 0.55,
+    // Tight high band — no mini rocks; every boulder reads as a big obstacle.
+    minScale: 1.1,
     maxScale: 1.35,
     castShadow: true,
     blocks: true,
@@ -547,7 +548,8 @@ const ALIEN_LAYERS: BiomeLayerSpec = [
     urls: BLUE_CRYSTAL_BLOCKER_URLS,
     count: 10,
     clearance: PATH_WIDTH / 2 + 0.8,
-    minScale: 0.11,
+    // Tight high band — no mini crystals; uniform big-obstacle silhouette.
+    minScale: 0.15,
     maxScale: 0.18,
     castShadow: true,
     blocks: true,
@@ -557,12 +559,12 @@ const ALIEN_LAYERS: BiomeLayerSpec = [
   {
     seed: 3434,
     urls: ["/models/biomes/alien/Crystal_Small_1.glb", "/models/biomes/alien/Crystal_Small_2.glb"],
-    // Authored 5.26 and 6.87 max-dim; 0.07–0.13 lands ~0.4–0.9 world units.
-    // Small but still clearly clickable, so the shards under the bigger
-    // crystals get the same remove-flow as everything else.
+    // Authored 5.26 and 6.87 max-dim; 0.13–0.16 lands ~0.7–1.1 world units.
+    // Tight high band so these shards read as big obstacles too — no mini
+    // variants — and get the same remove-flow as everything else.
     count: 3,
     clearance: PATH_WIDTH / 2 + 0.6,
-    minScale: 0.1,
+    minScale: 0.13,
     maxScale: 0.16,
     castShadow: true,
     blocks: true,
@@ -580,7 +582,7 @@ const ALIEN_LAYERS: BiomeLayerSpec = [
     blocks: true,
     footprint: 1.45,
   },
-  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 3, 5151, 0.55, 0.85),
+  DEAD_TREE_LAYER("/models/biomes/alien/Tree_Light_1.gltf", 3, 5151, 0.7, 0.85),
   {
     // Crystal dust — small alien-pack shards at miniature scale dotted
     // across the violet plains as luminous grit. Non-blocking; the same
@@ -699,6 +701,14 @@ export const BIOME_TREE_SCALE_MUL: Record<Biome, number> = {
   wasteland: 1.5,
   lava: 1,
   alien: 1,
+};
+
+// Per-biome clearable-tree scale range override. Unlisted biomes use the
+// global TREE_MIN_SCALE..TREE_MAX_SCALE spread (saplings → elders). Alien
+// obstacles must all read as the same "big obstacle" with no mini variants
+// (playtest note), so its clearable trees clamp to a tight high band.
+export const BIOME_TREE_SCALE_RANGE: Partial<Record<Biome, { min: number; max: number }>> = {
+  alien: { min: 0.9, max: 1.1 },
 };
 
 // Small cosmetic props scattered across levels via BiomeCosmetics.tsx. All

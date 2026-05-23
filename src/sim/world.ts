@@ -1,6 +1,7 @@
 import {
   BIOME_LAYERS,
   BIOME_TREE_SCALE_MUL,
+  BIOME_TREE_SCALE_RANGE,
   type Biome,
   type BiomeLayer,
   biomeForPos,
@@ -194,6 +195,9 @@ const buildTrees = (
   outposts: Outpost[],
 ): { trees: Tree[]; nextId: number } => {
   const biomeScale = BIOME_TREE_SCALE_MUL[biome] ?? 1;
+  const treeRange = BIOME_TREE_SCALE_RANGE[biome];
+  const treeMinScale = treeRange?.min ?? TREE_MIN_SCALE;
+  const treeMaxScale = treeRange?.max ?? TREE_MAX_SCALE;
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
   const pathR2 = clearance * clearance;
   const halfW = MAP_WIDTH / 2 + 11;
@@ -262,9 +266,9 @@ const buildTrees = (
       pos: { x: p.x, y: p.y },
       variant: Math.floor(rng() * TREE_VARIANTS),
       // Triangular distribution (avg of two uniforms) biases toward mid-size,
-      // so saplings and elders are uncommon but visible.
-      scale:
-        (TREE_MIN_SCALE + ((rng() + rng()) / 2) * (TREE_MAX_SCALE - TREE_MIN_SCALE)) * biomeScale,
+      // so saplings and elders are uncommon but visible. Biomes with a tight
+      // BIOME_TREE_SCALE_RANGE (alien) collapse this to a uniform big size.
+      scale: (treeMinScale + ((rng() + rng()) / 2) * (treeMaxScale - treeMinScale)) * biomeScale,
       rot: rng() * Math.PI * 2,
     });
   }
