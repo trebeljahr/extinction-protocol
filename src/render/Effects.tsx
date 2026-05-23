@@ -1,3 +1,4 @@
+import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -41,6 +42,10 @@ const makeBeamPair = (): { core: BeamPass; halo: BeamPass } => {
 };
 
 export const Effects = () => {
+  // Kenney soft-puff sprite — same asset the smoke billboards use, here on
+  // the additive spark particles so flame/impact bursts read as soft glows
+  // instead of hard-edged polygon discs.
+  const particleTex = useTexture("/textures/fx/whitepuff15.png");
   const particleRef = useRef<THREE.InstancedMesh>(null);
   const particleMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const explosionRef = useRef<THREE.InstancedMesh>(null);
@@ -341,9 +346,10 @@ export const Effects = () => {
         renderOrder={2}
         frustumCulled={false}
       >
-        <circleGeometry args={[1, 10]} />
+        <planeGeometry args={[2, 2]} />
         <meshBasicMaterial
           ref={particleMatRef}
+          map={particleTex}
           toneMapped={false}
           transparent
           opacity={0.55}

@@ -1,3 +1,4 @@
+import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -102,6 +103,10 @@ export const BiomeAmbientVfx = () => {
   const biome = useGame((s) => s.world.biome);
   const paths = useGame((s) => s.world.paths);
   const levelId = useGame((s) => s.world.levelId);
+  // Same Kenney soft-puff sprite as the smoke/spark billboards — embers,
+  // sparks and spores ride it (tinted per-particle) so the pool ambience
+  // reads as soft motes instead of hard low-poly spheres.
+  const tex = useTexture("/textures/fx/whitepuff15.png");
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -136,7 +141,7 @@ export const BiomeAmbientVfx = () => {
     return arr;
   }, []);
 
-  useFrame((_state, dt) => {
+  useFrame((state, dt) => {
     const mesh = meshRef.current;
     const mat = matRef.current;
     if (!mesh || !mat) return;
@@ -167,7 +172,7 @@ export const BiomeAmbientVfx = () => {
 
       dummy.position.set(p.x, p.y, p.z);
       dummy.scale.setScalar(size);
-      dummy.rotation.set(0, 0, 0);
+      dummy.quaternion.copy(state.camera.quaternion);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
 
@@ -190,15 +195,17 @@ export const BiomeAmbientVfx = () => {
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, POOL]} frustumCulled={false}>
-      <sphereGeometry args={[1, 6, 6]} />
+      <planeGeometry args={[2, 2]} />
       <meshBasicMaterial
         ref={matRef}
+        map={tex}
         color="#ff8a32"
         transparent
         opacity={0.85}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         toneMapped={false}
+        side={THREE.DoubleSide}
       />
     </instancedMesh>
   );
