@@ -3751,12 +3751,9 @@
       letter-spacing: 0.18em;
     }
     .world-map-actions {
-      top: calc(64px + var(--safe-top)) !important;
-      left: calc(8px + var(--safe-left));
-      right: calc(8px + var(--safe-right));
-      max-width: none;
+      top: calc(8px + var(--safe-top)) !important;
+      right: calc(8px + var(--safe-right)) !important;
       gap: 6px;
-      justify-content: flex-start;
     }
     .world-map-actions .quick-settings {
       flex: 0 0 auto;
