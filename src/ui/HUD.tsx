@@ -91,6 +91,13 @@ export const HUD = () => {
   // waves.
   const waveStatus =
     waveActive || (!endless && wave >= totalWaves) ? t("hud.active") : `${nextWaveIn}s`;
+  // During a campaign wave the status stat below carries the n/m count in
+  // its label ("WAVE · n/m" while active, "FINAL · n/m" on the last wave),
+  // so the standalone wave counter would just duplicate it — drop it then.
+  // Wave 0, the call-early window, the between-wave "NEXT" countdown and
+  // endless (no fixed total) keep the standalone counter as the only count.
+  const countInWaveStatus =
+    !endless && wave > 0 && !canCallEarly && (waveActive || wave >= totalWaves);
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
@@ -230,11 +237,13 @@ export const HUD = () => {
       <div className="hud-top">
         <Stat label={t("hud.gold")} value={gold} accentClass="text-gold" />
         <Stat label={t("hud.lives")} value={lives} accentClass="text-red" />
-        <Stat
-          label={t("hud.wave")}
-          value={endless ? `${wave}` : `${wave} / ${totalWaves}`}
-          accentClass="text-blue"
-        />
+        {!countInWaveStatus && (
+          <Stat
+            label={t("hud.wave")}
+            value={endless ? `${wave}` : `${wave} / ${totalWaves}`}
+            accentClass="text-blue"
+          />
+        )}
         {endless && (
           <Stat
             label={t("hud.best")}
@@ -278,7 +287,7 @@ export const HUD = () => {
                 : wave >= totalWaves
                   ? t("hud.final", { wave, total: totalWaves })
                   : waveActive
-                    ? t("hud.wave")
+                    ? t("hud.waveCount", { wave, total: totalWaves })
                     : t("hud.next")
             }
             value={waveStatus}

@@ -103,6 +103,7 @@
     "next": "NEXT",
     "active": "ACTIVE",
     "final": "FINAL · {{wave}}/{{total}}",
+    "waveCount": "WAVE · {{wave}}/{{total}}",
     "startWavesBtn": "START WAVES",
     "startWavesTitle": "Start waves",
     "startWavesTitleKey": "Start waves (Space)",

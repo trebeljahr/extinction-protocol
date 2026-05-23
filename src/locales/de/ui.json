@@ -103,6 +103,7 @@
     "next": "NÄCHSTE",
     "active": "AKTIV",
     "final": "FINALE · {{wave}}/{{total}}",
+    "waveCount": "WELLE · {{wave}}/{{total}}",
     "startWavesBtn": "WELLEN STARTEN",
     "startWavesTitle": "Wellen starten",
     "startWavesTitleKey": "Wellen starten (Leertaste)",
