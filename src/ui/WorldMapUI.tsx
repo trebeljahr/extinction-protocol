@@ -233,9 +233,9 @@ export const WorldMapUI = () => {
           <IconSquad size={16} className="shrink-0" />
           <span className="text-sm font-bold tracking-wide uppercase">{t("worldMap.robots")}</span>
           <span
-            className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-[rgba(215,191,130,0.95)] text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
+            className={`ml-1 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums ${bolts > 0 ? "text-[#d7bf82]" : "text-fg-muted"}`}
           >
-            <IconBolt size={10} className="shrink-0" />
+            <IconBolt size={15} className="shrink-0" />
             {bolts}
           </span>
         </button>
