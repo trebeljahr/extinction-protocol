@@ -10,7 +10,7 @@ import {
   TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
-import { poissonDiskSample } from "../sim/poisson";
+import { evenSpreadSpacing, poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Vec2 } from "../sim/types";
 import { sampleStratifiedFeatures } from "../sim/worley";
@@ -144,7 +144,9 @@ const placeLayerInBand = (
   if (targetCount === 0) return;
 
   const seedBase = layer.seed * 17 + levelId * 4451 + layerIndex * 991;
-  const rMin = layerMinSpacing(layer);
+  // Floor footprint spacing at the count-implied even spread (band area) so
+  // the rim layers cover the band evenly instead of clumping near seeds.
+  const rMin = Math.max(layerMinSpacing(layer), evenSpreadSpacing(BAND_AREA, targetCount));
 
   // Conservative footprint for the cross-layer check — use this layer's
   // max-scale instance so a worst-case sibling at the candidate position
@@ -200,12 +202,16 @@ const placeUniformInBand = (
 ): void => {
   if (count === 0 || pool.length === 0) return;
 
+  // Floor the caller's separation at the count-implied even spread so the
+  // band cosmetics cover the rim evenly instead of clumping near seeds.
+  const sep = Math.max(minSep, evenSpreadSpacing(BAND_AREA, count));
+
   const isValid = (x: number, y: number): boolean => {
     if (insideInner(x, y)) return false;
     for (const o of out) {
       const dx = o.pos.x - x;
       const dy = o.pos.y - y;
-      if (dx * dx + dy * dy < minSep * minSep) return false;
+      if (dx * dx + dy * dy < sep * sep) return false;
     }
     return true;
   };
@@ -217,7 +223,7 @@ const placeUniformInBand = (
 
   const points = poissonDiskSample({
     bounds: OUTER_BOUNDS,
-    radiusAt: () => minSep,
+    radiusAt: () => sep,
     isValid,
     maxCount: count,
     seed,

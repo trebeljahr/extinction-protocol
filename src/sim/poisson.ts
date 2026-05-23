@@ -31,6 +31,19 @@ export type PoissonConfig = {
   initialPoints?: ReadonlyArray<Vec2>;
 };
 
+// Even-spread disk radius for scattering `count` points across `area`. A
+// footprint-derived radius only stops meshes from physically overlapping;
+// when a layer's target count sits far below the rect's packing capacity,
+// Bridson grows tight rosettes around the seed frontiers and stops at
+// maxCount, leaving bare gaps between them — the "patchy" scatter. Flooring
+// the disk radius at a fraction of the count-implied grid spacing forces the
+// same N points to cover the whole area uniformly. The 0.72 factor keeps
+// Bridson's achievable capacity comfortably above `count` so path / blocker
+// carve-outs don't make the layer fall short.
+const EVEN_SPREAD_FRAC = 0.72;
+export const evenSpreadSpacing = (area: number, count: number): number =>
+  count > 0 ? EVEN_SPREAD_FRAC * Math.sqrt(area / count) : 0;
+
 const sampleInAnnulus = (
   rng: () => number,
   cx: number,

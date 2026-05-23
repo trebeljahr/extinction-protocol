@@ -10,7 +10,7 @@ import {
   isOnFlowSurface,
 } from "../flowGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
-import { poissonDiskSample } from "../sim/poisson";
+import { evenSpreadSpacing, poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
@@ -81,10 +81,16 @@ const buildLayer = (
   const seedBase = spec.seed + levelId * 1103 + layerIndex * 149;
 
   // Layer min-spacing — derived from footprint × avg scale × 2 (two
-  // halves touching) plus slack. Constant radius across the map yields
-  // a near-uniform Poisson scatter.
+  // halves touching) plus slack. This only guarantees meshes don't overlap;
+  // for a count well below the rect's capacity it leaves the radius far
+  // under the count-implied spacing, so Bridson clumps points near the seed
+  // frontiers and stops at maxCount with bare gaps between (the patchy look).
+  // Floor at the even-spread spacing so the same count covers the whole
+  // field uniformly. Constant radius across the map yields a uniform scatter.
   const avgScale = (spec.minScale + spec.maxScale) / 2;
-  const rMin = 2 * footprint * avgScale + PROP_SPACING_SLACK;
+  const collisionRMin = 2 * footprint * avgScale + PROP_SPACING_SLACK;
+  const area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+  const rMin = Math.max(collisionRMin, evenSpreadSpacing(area, spec.count));
   const radiusAt = (): number => rMin;
 
   // Conservative footprints for external checks — use max scale so a
