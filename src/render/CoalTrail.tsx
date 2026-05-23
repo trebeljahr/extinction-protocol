@@ -71,6 +71,7 @@ export const CoalTrail = () => {
         opacity={1}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
+        depthTest={false}
         side={THREE.DoubleSide}
       />
     </instancedMesh>

@@ -105,6 +105,7 @@ export const HealAuras = () => {
           opacity={0.85}
           side={THREE.DoubleSide}
           depthWrite={false}
+          depthTest={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
@@ -117,6 +118,7 @@ export const HealAuras = () => {
           opacity={0.9}
           side={THREE.DoubleSide}
           depthWrite={false}
+          depthTest={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
@@ -129,6 +131,7 @@ export const HealAuras = () => {
           opacity={0.5}
           side={THREE.DoubleSide}
           depthWrite={false}
+          depthTest={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
         />

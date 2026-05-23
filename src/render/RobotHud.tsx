@@ -242,17 +242,45 @@ export const RobotHud = () => {
 
   return (
     <group>
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} geometry={ringGeom}>
-        <meshBasicMaterial color={tint} transparent opacity={0.55} side={THREE.DoubleSide} />
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} geometry={ringGeom} renderOrder={1}>
+        <meshBasicMaterial
+          color={tint}
+          transparent
+          opacity={0.55}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          depthTest={false}
+        />
       </mesh>
-      <mesh ref={footRef} rotation={[-Math.PI / 2, 0, 0]} geometry={footGeom}>
-        <meshBasicMaterial color={tint} transparent opacity={0.12} side={THREE.DoubleSide} />
+      <mesh ref={footRef} rotation={[-Math.PI / 2, 0, 0]} geometry={footGeom} renderOrder={1}>
+        <meshBasicMaterial
+          color={tint}
+          transparent
+          opacity={0.12}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          depthTest={false}
+        />
       </mesh>
-      <mesh ref={moveRef} geometry={moveGeom}>
-        <meshBasicMaterial color={tint} transparent opacity={0.85} side={THREE.DoubleSide} />
+      <mesh ref={moveRef} geometry={moveGeom} renderOrder={2}>
+        <meshBasicMaterial
+          color={tint}
+          transparent
+          opacity={0.85}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          depthTest={false}
+        />
       </mesh>
-      <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom}>
-        <meshBasicMaterial color="#ffd66a" transparent opacity={0.9} side={THREE.DoubleSide} />
+      <mesh ref={selRef} rotation={[-Math.PI / 2, 0, 0]} geometry={selGeom} renderOrder={2}>
+        <meshBasicMaterial
+          color="#ffd66a"
+          transparent
+          opacity={0.9}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          depthTest={false}
+        />
       </mesh>
       <mesh ref={stormFillRef} geometry={stormFillGeom} visible={false} renderOrder={3}>
         <meshBasicMaterial
@@ -299,6 +327,7 @@ export const RobotHud = () => {
             opacity={0.85}
             toneMapped={false}
             depthWrite={false}
+            depthTest={false}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -309,6 +338,7 @@ export const RobotHud = () => {
             opacity={1}
             toneMapped={false}
             depthWrite={false}
+            depthTest={false}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -326,6 +356,7 @@ export const RobotHud = () => {
               opacity={0.65}
               toneMapped={false}
               depthWrite={false}
+              depthTest={false}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -337,6 +368,7 @@ export const RobotHud = () => {
             opacity={0.85}
             toneMapped={false}
             depthWrite={false}
+            depthTest={false}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -347,6 +379,7 @@ export const RobotHud = () => {
             opacity={0.55}
             toneMapped={false}
             depthWrite={false}
+            depthTest={false}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -383,6 +416,7 @@ export const RobotHud = () => {
           transparent
           opacity={0}
           depthWrite={false}
+          depthTest={false}
           toneMapped={false}
           side={THREE.DoubleSide}
           blending={THREE.AdditiveBlending}

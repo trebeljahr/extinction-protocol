@@ -69,7 +69,7 @@ export const SelectionRing = () => {
 
   return (
     <group>
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={10}>
         <ringGeometry args={[0.48, 0.5, 64]} />
         <meshBasicMaterial
           ref={ringMatRef}
@@ -77,6 +77,8 @@ export const SelectionRing = () => {
           transparent
           opacity={0.7}
           side={THREE.DoubleSide}
+          depthTest={false}
+          depthWrite={false}
         />
       </mesh>
       <instancedMesh
@@ -84,9 +86,17 @@ export const SelectionRing = () => {
         args={[undefined, undefined, MAX_BASE_RINGS]}
         visible={false}
         frustumCulled={false}
+        renderOrder={10}
       >
         <ringGeometry args={[0.48, 0.5, 64]} />
-        <meshBasicMaterial color="#ff8a5a" transparent opacity={0.75} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          color="#ff8a5a"
+          transparent
+          opacity={0.75}
+          side={THREE.DoubleSide}
+          depthTest={false}
+          depthWrite={false}
+        />
       </instancedMesh>
     </group>
   );
