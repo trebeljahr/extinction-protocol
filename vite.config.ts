@@ -141,27 +141,6 @@ export default defineConfig(async ({ command, mode }) => {
     baseInfo(msg, opts);
   };
 
-  // Re-add the Network: <tailscale/LAN IP> banner that the hatchkit
-  // plugin strips. Wraps `server.printUrls` after hatchkit's override
-  // so we still get Local (vite) → Network (this) → Tailscale (hatchkit,
-  // async). Loaded only on `vite` (serve), pass-through on build.
-  const networkUrlsPlugin: PluginOption = {
-    name: "print-network-urls",
-    apply: "serve",
-    configureServer(server) {
-      const wrapped = server.printUrls.bind(server);
-      server.printUrls = () => {
-        wrapped();
-        const network = server.resolvedUrls?.network ?? [];
-        for (const url of network) {
-          server.config.logger.info(
-            `  \x1b[32m➜\x1b[0m  \x1b[1mNetwork\x1b[0m: \x1b[36m${url}\x1b[0m`,
-          );
-        }
-      };
-    },
-  };
-
   return {
     plugins: [
       react(),
@@ -180,7 +159,6 @@ export default defineConfig(async ({ command, mode }) => {
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.
       ...hatchkitPlugins,
-      networkUrlsPlugin,
     ] as PluginOption[],
     clearScreen: false,
     customLogger: command === "serve" ? quietLogger : undefined,
@@ -194,24 +172,24 @@ export default defineConfig(async ({ command, mode }) => {
         // edits its own copy. Ignore everything under there.
         ignored: ["**/.claude/worktrees/**"],
       },
-      // Bind to all interfaces so LAN + Tailscale peers can hit the dev
-      // server by IP / MagicDNS hostname. `--host` on the CLI flips the
-      // same switch.
-      host: true,
+      // IPv4 loopback only — no LAN / Tailscale-IP broadcast during dev.
+      // Remote access is the Tailscale HTTPS URL (tailscale serve :443 →
+      // Caddy → 127.0.0.1), which already reaches every tailnet device.
+      // Must be the literal "127.0.0.1", NOT `false`/`localhost`: on macOS
+      // `localhost` resolves to ::1, so Vite would bind IPv6 loopback only
+      // and Caddy's IPv4 `reverse_proxy 127.0.0.1` could not reach it.
+      host: "127.0.0.1",
       // Vite 5+ rejects requests whose Host header doesn't match
-      // localhost. Without an explicit allow-list mobile testing hits 403
-      // on every asset (incl. /models/*.glb), which crashes the r3f scene
-      // with "Cannot read properties of undefined (reading 'max')" out of
-      // useGLTF -> meshSource.
+      // localhost. The Caddy reverse_proxy forwards the original Host
+      // (`mesozoic-protocol.local.trebeljahr.com`), so without this entry
+      // the Tailscale HTTPS URL 403s on every asset (incl. /models/*.glb),
+      // crashing the r3f scene with "Cannot read properties of undefined
+      // (reading 'max')" out of useGLTF -> meshSource.
       //
-      // Vite auto-allows: any IPv4/IPv6 literal, `localhost`, and
-      // `*.localhost`. So plain-IP testing on the LAN / tailnet works
-      // without entries here. We only need to whitelist named hosts:
-      //   - `.local.ricoslabs.com` — hatchkit local-dev URLs (Caddy + tailscale serve).
-      //   - `.ts.net` — Tailscale MagicDNS hostnames (direct, no Caddy).
-      //   - `.local`  — mDNS hostnames (e.g. macbook.local) for plain LAN.
-      // Production builds never read this field.
-      allowedHosts: [".local.ricoslabs.com", ".ts.net", ".local"],
+      // With loopback-only binding the Caddy HTTPS domain is the only
+      // remote surface, so it's the only host we whitelist. Production
+      // builds never read this field.
+      allowedHosts: [".local.trebeljahr.com"],
     },
     build: {
       target: "es2022",
