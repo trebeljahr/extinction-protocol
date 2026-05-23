@@ -33,10 +33,6 @@ export const ModePicker = () => {
   const close = useGame((s) => s.closeModePicker);
 
   useEffect(() => {
-    audio.ui("click");
-  }, []);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         e.preventDefault();

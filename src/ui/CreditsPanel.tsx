@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
 
 type CreditEntry = {
@@ -463,10 +462,6 @@ const SECTIONS: CreditSection[] = [
 
 export const CreditsPanel = () => {
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
-
-  useEffect(() => {
-    audio.ui("click");
-  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

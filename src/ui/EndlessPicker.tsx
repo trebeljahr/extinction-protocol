@@ -15,10 +15,6 @@ export const EndlessPicker = () => {
   const setOpen = useGame((s) => s.setEndlessPickerOpen);
 
   useEffect(() => {
-    audio.ui("click");
-  }, []);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         e.preventDefault();

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ACHIEVEMENTS, isAchievementUnlocked, totalUnlocked } from "../achievements";
-import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
 import { IconHiddenAchievement } from "./AchievementIcons";
 
@@ -9,10 +8,6 @@ export const AchievementsPanel = () => {
   const { t } = useTranslation();
   const progress = useGame((s) => s.progress);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
-
-  useEffect(() => {
-    audio.ui("click");
-  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

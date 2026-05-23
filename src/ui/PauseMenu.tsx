@@ -1,7 +1,6 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { getLevel } from "../levels";
 import { useGame } from "../store";
@@ -29,10 +28,6 @@ export const PauseMenu = ({ onResume }: Props) => {
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
   const [confirming, setConfirming] = useState<null | "worldMap" | "restart">(null);
   const showKeyboardHints = useKeyboardHintsVisible();
-
-  useEffect(() => {
-    audio.ui("click");
-  }, []);
 
   const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
 
