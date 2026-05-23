@@ -363,15 +363,24 @@ export const Placement = () => {
       state.triggerRobotAbility(0);
       return;
     }
-    // Click-after-select: while the robot is selected, every ground click
-    // is a move order (snapped to the path inside orderRobotMove). Robot
-    // stays selected — click the robot again to deselect.
+    // Click-after-select: while the robot is selected, a ground click is a
+    // move order (snapped to the path inside orderRobotMove) — UNLESS it
+    // landed on a tower or the HQ. A valid entity click runs that entity's
+    // normal select action and deselects the robot, so the player can go
+    // straight from commanding the robot to inspecting a tower. Dinos bubble
+    // through here (their mesh handler yields while the robot is selected)
+    // but aren't tower/HQ hits, so they stay move orders. Robot stays
+    // selected on empty ground — click the robot again to deselect.
     if (state.world.robot.selected && state.selectedKind === null) {
-      if (!state.orderRobotMove(pos)) {
-        audio.ui("error");
-        flashInvalidMove(pos);
+      if (!state.towerAtPos(pos) && !state.hqAtPos(pos)) {
+        if (!state.orderRobotMove(pos)) {
+          audio.ui("error");
+          flashInvalidMove(pos);
+        }
+        return;
       }
-      return;
+      // Fell on a tower/HQ — fall through to tryPlaceOrSelect, which selects
+      // the entity and clears robot.selected.
     }
     if (state.towerAtPos(pos)) audio.ui("select");
     state.tryPlaceOrSelect(pos, opts);

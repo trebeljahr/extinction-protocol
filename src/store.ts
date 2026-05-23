@@ -578,6 +578,7 @@ type GameStore = {
   tryPlaceOrSelect: (pos: Vec2, options?: { clearSelectionAfterPlacement?: boolean }) => void;
   canPlace: (pos: Vec2) => boolean;
   towerAtPos: (pos: Vec2) => Tower | null;
+  hqAtPos: (pos: Vec2) => boolean;
   clearSelection: () => void;
 
   orderRobotMove: (pos: Vec2) => boolean;
@@ -1569,6 +1570,8 @@ export const useGame = create<GameStore>((set, get) => ({
   canPlace: (pos) => canPlaceAt(get().world, pos),
 
   towerAtPos: (pos) => towerAt(get().world, pos),
+
+  hqAtPos: (pos) => hqAt(get().world, pos),
 
   orderRobotMove: (pos) => {
     const s = get();
