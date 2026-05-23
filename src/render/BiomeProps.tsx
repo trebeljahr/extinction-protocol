@@ -294,7 +294,11 @@ const buildPropPlan = (progress: ProgressData) => {
     // Dead dinos — only near cleared levels. The player's march of
     // death leaves 1–2 frozen carcasses per conquered node so the trail
     // reads as a few fallen along the way, not a graveyard.
-    const deadCount = cleared ? (rand() < 0.5 ? 2 : 1) : 0;
+    // Count is drawn from a SEPARATE stream so toggling cleared state
+    // (e.g. debug lock/unlock) never advances the shared `rand` and so
+    // never reshuffles the surrounding trees/rocks/foliage placement.
+    const deadRand = mulberry32(lvl.id * 6151 + 53);
+    const deadCount = cleared ? (deadRand() < 0.5 ? 2 : 1) : 0;
     const deadDinoBucket: PropRoleBucket = {
       urls: DEAD_DINO_URLS,
       count: deadCount,
