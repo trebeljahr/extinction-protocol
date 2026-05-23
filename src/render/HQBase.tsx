@@ -261,6 +261,11 @@ const InstancedPrimitiveMesh = ({
       raycast={noRaycast}
       castShadow
       receiveShadow
+      // Positions are baked into per-instance matrices, so the default
+      // origin-centered bounding sphere fails the frustum test once the
+      // player zooms in and pans away from origin — culling the whole
+      // batch and making base fences/lights vanish. Disable culling.
+      frustumCulled={false}
     />
   );
 };
@@ -337,6 +342,8 @@ const FencePostsOffset = ({ items, sign }: { items: PrimitiveInstance[]; sign: 1
       raycast={noRaycast}
       castShadow
       receiveShadow
+      // Baked per-instance matrices — see InstancedPrimitiveMesh above.
+      frustumCulled={false}
     />
   );
 };

@@ -362,6 +362,11 @@ const InstancedTraces = ({ items, biome }: { items: TraceMark[]; biome: Biome })
       ref={ref}
       args={[STORY_GEOMS.trace, material, items.length]}
       raycast={noRaycast}
+      // Positions are baked into per-instance matrices, so the default
+      // origin-centered bounding sphere fails the frustum test once the
+      // player zooms in and pans away from origin — culling the whole
+      // batch and making the cosmetics vanish. Disable per-batch culling.
+      frustumCulled={false}
     />
   );
 };
@@ -432,20 +437,25 @@ const InstancedMarkers = ({ items, biome }: { items: WarningMarker[]; biome: Bio
   if (items.length === 0) return null;
   return (
     <>
+      {/* frustumCulled={false}: positions baked into per-instance matrices
+          would otherwise be culled as a batch when zoomed in and panned. */}
       <instancedMesh
         ref={poleRef}
         args={[STORY_GEOMS.markerPole, mats.pole, items.length]}
         raycast={noRaycast}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={triRef}
         args={[STORY_GEOMS.markerTri, mats.tri, items.length]}
         raycast={noRaycast}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={accentRef}
         args={[STORY_GEOMS.markerTri, mats.accent, items.length]}
         raycast={noRaycast}
+        frustumCulled={false}
       />
     </>
   );

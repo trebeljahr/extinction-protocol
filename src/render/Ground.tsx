@@ -206,6 +206,11 @@ const NatureInstances = ({
       args={[source.geom, source.material, placements.length]}
       castShadow={castShadow}
       receiveShadow
+      // Positions are baked into per-instance matrices, so the default
+      // origin-centered bounding sphere fails the frustum test once the
+      // player zooms in and pans away from origin — culling the whole
+      // batch and making the ground decor vanish. Disable per-batch culling.
+      frustumCulled={false}
     />
   );
 };

@@ -65,6 +65,11 @@ const RockGroup = ({ url, rocks }: { url: string; rocks: Rock[] }) => {
           castShadow
           receiveShadow
           raycast={neverRaycast}
+          // Positions are baked into per-instance matrices, so the default
+          // origin-centered bounding sphere fails the frustum test once the
+          // player zooms in and pans away from origin — culling the whole
+          // batch and making every rock vanish. Disable per-batch culling.
+          frustumCulled={false}
         />
       ))}
     </group>

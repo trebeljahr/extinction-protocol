@@ -264,7 +264,15 @@ const ChimneySmokeColumn = ({
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, SMOKE_PARTICLE_COUNT]}>
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined, undefined, SMOKE_PARTICLE_COUNT]}
+      // Particle positions are baked into per-instance matrices, so the
+      // default origin-centered bounding sphere fails the frustum test
+      // when zoomed in near the chimney — culling the whole batch and
+      // making the smoke vanish exactly when looked at. Disable culling.
+      frustumCulled={false}
+    >
       <sphereGeometry args={[1, 8, 8]} />
       <meshBasicMaterial toneMapped={false} transparent opacity={0.85} depthWrite={false} />
     </instancedMesh>

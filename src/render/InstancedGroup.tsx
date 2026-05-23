@@ -71,6 +71,11 @@ export const InstancedGroup = <T extends GroupItem>({
           castShadow={castShadow}
           receiveShadow={receiveShadow}
           raycast={raycast}
+          // Positions are baked into per-instance matrices, so the default
+          // origin-centered bounding sphere fails the frustum test once the
+          // player zooms in and pans away from origin — culling the whole
+          // batch and making every prop vanish. Disable per-batch culling.
+          frustumCulled={false}
         />
       ))}
     </group>
