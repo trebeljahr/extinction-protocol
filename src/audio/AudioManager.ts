@@ -263,14 +263,8 @@ export class AudioManager {
 
   playShoot(kind: TowerKind, _towerId?: number) {
     if (kind === "flame") return;
-    // Main tower / pulse rifle: synthesised laser "pew" rather than a sample.
-    // The old shoot-pulse.mp3 had a percussive transient that read as an
-    // impact thud instead of an energy weapon — see playLaser.
-    if (kind === "pulse") {
-      this.playLaser();
-      return;
-    }
-    const map: Record<Exclude<TowerKind, "flame" | "pulse">, [string, number, number, number]> = {
+    const map: Record<Exclude<TowerKind, "flame">, [string, number, number, number]> = {
+      pulse: ["shoot-pulse", 0.4, 35, 0.4],
       chain: ["shoot-chain", 0.35, 90, 0.9],
       cryo: ["shoot-cryo", 0.45, 150, 1.1],
       mortar: ["shoot-mortar", 0.55, 200, 1.4],
@@ -278,65 +272,6 @@ export class AudioManager {
     };
     const [key, vol, cd, maxDur] = map[kind];
     this.play(key, "towers", vol, cd, maxDur);
-  }
-
-  // Laser-gun "pew" for the main tower / pulse rifle. Synthesised so it reads
-  // as a clean energy zap: a fast descending pitch sweep (saw body + detuned
-  // square edge) with everything high-passed to strip low-end. No sub-bass or
-  // noise thump — that body is exactly what made the old sample play as a
-  // percussive impact rather than a laser.
-  private lastLaserAt = 0;
-  private activeLasers = new Set<AudioScheduledSourceNode>();
-  playLaser(volumeScale = 0.4, cooldownMs = 35) {
-    const towersGain = this.busGains.towers;
-    if (!this.ctx || !towersGain || this.muted) return;
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    const wallNow = performance.now();
-    if (wallNow - this.lastLaserAt < cooldownMs) return;
-    if (this.activeLasers.size >= 8) return;
-    this.lastLaserAt = wallNow;
-
-    const dur = 0.16;
-    const peak = Math.min(0.6, volumeScale);
-
-    // High-pass removes any low-end body so the shot can't thump.
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 340;
-    hp.connect(towersGain);
-
-    // Per-shot pitch jitter so rapid fire doesn't machine-gun one tone.
-    const j = 0.97 + Math.random() * 0.06;
-
-    // Main descending sweep — the "pew". Sawtooth for a bright electric body.
-    const o1 = ctx.createOscillator();
-    o1.type = "sawtooth";
-    o1.frequency.setValueAtTime(1500 * j, now);
-    o1.frequency.exponentialRampToValueAtTime(320 * j, now + dur * 0.7);
-    const g1 = ctx.createGain();
-    g1.gain.setValueAtTime(0, now);
-    g1.gain.linearRampToValueAtTime(peak, now + 0.004);
-    g1.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    o1.connect(g1).connect(hp);
-
-    // Detuned square layer adds the buzzy laser edge above the sweep.
-    const o2 = ctx.createOscillator();
-    o2.type = "square";
-    o2.frequency.setValueAtTime(2100 * j, now);
-    o2.frequency.exponentialRampToValueAtTime(520 * j, now + dur * 0.6);
-    const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0, now);
-    g2.gain.linearRampToValueAtTime(peak * 0.4, now + 0.004);
-    g2.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.8);
-    o2.connect(g2).connect(hp);
-
-    for (const node of [o1, o2]) {
-      this.activeLasers.add(node);
-      node.onended = () => this.activeLasers.delete(node);
-      node.start(now);
-      node.stop(now + dur + 0.02);
-    }
   }
 
   // --- Continuous flamethrower sound (per-tower, looping sample) ---------
@@ -987,7 +922,7 @@ export class AudioManager {
         this.play("ui-click", "ui", 0.5, 0);
         break;
       case "towers":
-        this.playLaser(0.45, 0);
+        this.play("shoot-pulse", "towers", 0.45, 0, 0.4);
         break;
       case "enemies":
         this.playSplat(0.55);
@@ -1031,7 +966,6 @@ export class AudioManager {
     this.stopMusic();
     this.stopAllSfx();
     this.activeSplats.clear();
-    this.activeLasers.clear();
     this.samples.clear();
     this.trimmedKeys.clear();
     this.lastPlayedAt.clear();
