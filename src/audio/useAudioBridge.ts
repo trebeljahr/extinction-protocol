@@ -105,6 +105,10 @@ export const useAudioBridge = () => {
         case "impact":
           audio.play("impact", "enemies", 0.25, 60, 1.0);
           break;
+        case "hq-laser":
+          if (state.screen !== "playing" || state.world.status !== "running") break;
+          audio.playLaser();
+          break;
         case "death":
           audio.playSplat();
           break;

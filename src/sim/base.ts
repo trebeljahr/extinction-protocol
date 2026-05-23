@@ -83,7 +83,7 @@ export const updateBase = (world: World, dt: number) => {
     base.damageDealt += Math.min(prevHp + prevShield, hpDelta + shieldDelta);
     if (wasAlive && !target.alive) base.kills += 1;
     base.cooldowns[i] = 1 / base.fireRate;
-    emit(world, { type: "impact", pos: target.pos });
+    emit(world, { type: "hq-laser", pos: target.pos });
   }
 };
 

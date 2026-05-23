@@ -723,6 +723,7 @@ export type RunStatus = "running" | "paused" | "won" | "lost";
 export type GameEvent =
   | { type: "shoot"; towerId: number; towerKind: TowerKind; pos: Vec2 }
   | { type: "impact"; pos: Vec2 }
+  | { type: "hq-laser"; pos: Vec2 }
   | { type: "death"; pos: Vec2; target: "enemy"; enemyKind: EnemyKind; bolts: number }
   | { type: "death"; pos: Vec2; target: "robot" }
   | { type: "wave-start"; wave: number }

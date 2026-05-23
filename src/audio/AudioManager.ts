@@ -453,6 +453,84 @@ export class AudioManager {
     osc.stop(now + duration);
   }
 
+  // Sci-fi laser zap for the HQ base gun. A fast downward pitch sweep
+  // (the classic "pew") on a dual-oscillator core plus a short noise
+  // spark, so the last-ditch defence reads as an energy weapon firing
+  // rather than the projectile-impact thud it used to borrow. Synthesised
+  // (like playSplat) so multi-path levels can fire several beams a second
+  // without loop seams or shipping a sample.
+  private lastLaserAt = 0;
+  private activeLasers = new Set<AudioScheduledSourceNode>();
+  playLaser(volumeScale = 0.45) {
+    const towersGain = this.busGains.towers;
+    if (!this.ctx || !towersGain || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const wallNow = performance.now();
+    if (wallNow - this.lastLaserAt < 45) return;
+    if (this.activeLasers.size >= 8) return;
+    this.lastLaserAt = wallNow;
+
+    const dur = 0.16;
+    const peak = Math.min(0.6, volumeScale);
+    // Per-shot pitch jitter so a steady-firing HQ doesn't read as one
+    // looping sample.
+    const j = 0.96 + Math.random() * 0.08;
+
+    // Master envelope: fast attack, exponential decay — the discharge
+    // tailing off.
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(peak, now + 0.004);
+    env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    // Lowpass sweeps down with the pitch so the bright top doesn't sound
+    // thin/harsh.
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(5200, now);
+    lp.frequency.exponentialRampToValueAtTime(1400, now + dur);
+    lp.Q.value = 1;
+    lp.connect(env).connect(towersGain);
+
+    // Core sweep — saw drops fast from bright to low for the "pew".
+    const o1 = ctx.createOscillator();
+    o1.type = "sawtooth";
+    o1.frequency.setValueAtTime(1500 * j, now);
+    o1.frequency.exponentialRampToValueAtTime(300 * j, now + dur * 0.85);
+    const o1g = ctx.createGain();
+    o1g.gain.value = 0.5;
+    o1.connect(o1g).connect(lp);
+
+    // Detuned square higher up adds the electric edge.
+    const o2 = ctx.createOscillator();
+    o2.type = "square";
+    o2.frequency.setValueAtTime(2300 * j, now);
+    o2.frequency.exponentialRampToValueAtTime(460 * j, now + dur * 0.85);
+    const o2g = ctx.createGain();
+    o2g.gain.value = 0.18;
+    o2.connect(o2g).connect(lp);
+
+    // Spark transient — brief noise burst gives the discharge its bite.
+    const sparkDur = 0.012;
+    const noise = this.makeNoise(ctx, sparkDur);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(peak * 0.5, now);
+    ng.gain.exponentialRampToValueAtTime(0.001, now + sparkDur);
+    noise.connect(ng).connect(towersGain);
+
+    for (const osc of [o1, o2]) {
+      this.activeLasers.add(osc);
+      osc.onended = () => this.activeLasers.delete(osc);
+      osc.start(now);
+      osc.stop(now + dur + 0.02);
+    }
+    this.activeLasers.add(noise);
+    noise.onended = () => this.activeLasers.delete(noise);
+    noise.start(now);
+    noise.stop(now + sparkDur);
+  }
+
   // Footfall for heavy units. Synthesised (like playSplat) so the sim can
   // drive step rate freely without shipping per-surface samples or fighting
   // loop seams when many giants march at once. Two voices:
