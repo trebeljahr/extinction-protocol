@@ -814,6 +814,10 @@
     background: rgba(6, 10, 14, 0.4);
     overflow: hidden;
     min-height: 40px;
+    /* The panel is a flex column; without this the fold shrinks to its
+       min-height and overflow:hidden clips the last rows (e.g. the mortar
+       Spot target). Keep full content height and let the panel scroll. */
+    flex-shrink: 0;
   }
   .tower-info-fold.open {
     min-height: 260px;
