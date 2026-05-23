@@ -1261,7 +1261,7 @@ export const BOSS_VARIANT_MODEL: Record<
 > = {
   raptor: { url: "/models/Velociraptor.glb", targetSize: 9.0, timeScale: 0.62 },
   stego: { url: "/models/Stegosaurus.glb", targetSize: 7.2 },
-  para: { url: "/models/Parasaurolophus.glb", targetSize: 6.8 },
+  para: { url: "/models/Parasaurolophus.glb", targetSize: 10.0 },
   allosaur: { url: "/models/Trex.glb", targetSize: 6.4 },
   armored: { url: "/models/Triceratops.glb", targetSize: 6.3 },
   apex: { url: "/models/Apatosaurus.glb", targetSize: 20.0, clip: "Walk" },
@@ -1735,8 +1735,12 @@ export const HIVE_MAX_DRONES = 6;
 // of one overclocked pulse/flame anchor.
 export const HIVE_MAX_DRONES_PER_TOWER = 3;
 // Default fire-rate buff each assigned drone confers to its target.
-// Path B upgrades scale this — see upgrades.ts.
-export const HIVE_BASE_SERVICE_BUFF = 0.3;
+// Path B upgrades scale this — see upgrades.ts. Kept below the summed
+// Path B total (+0.26) so a maxed Service Link out-contributes the base
+// floor — investment beats the freebie. At 3 drones/tower this is +60%
+// fire rate on one anchor (was +90% at 0.30, which doubled an anchor's
+// DPS on its own).
+export const HIVE_BASE_SERVICE_BUFF = 0.2;
 
 export const TOWER_COST: Record<TowerKind, number> = {
   pulse: 50,

@@ -1130,9 +1130,9 @@ export const useGame = create<GameStore>((set, get) => ({
       }
     };
 
-    const queueSightings = (sightings: NewSightingId[]) => {
+    const queueSightings = (sightings: NewSightingId[], opts?: { immediate?: boolean }) => {
       if (sightings.length === 0) return;
-      if (bossOrTitanMomentActive(s.world)) {
+      if (!opts?.immediate && bossOrTitanMomentActive(s.world)) {
         const seen = new Set([...newEnemyQueue, ...deferredNewEnemyQueue].map(sightingKey));
         const additions = sightings.filter((sighting) => {
           const key = sightingKey(sighting);
@@ -1181,9 +1181,13 @@ export const useGame = create<GameStore>((set, get) => ({
         queueSightings(toQueue);
         runChecks(null);
       }
-      // Per-variant matriarch encounter — fires a NewEnemyAlert popup
-      // after the boss/apatosaur moment clears. Each biome's queen gets
-      // her own dossier popup, but not on top of her arrival beat.
+      // Per-variant matriarch encounter — fires a NewEnemyAlert dossier
+      // popup the moment her variant is first on screen (i.e. when she
+      // enters), pausing like any other first sighting. Flagged
+      // `immediate` so it bypasses the boss-wave deferral gate; that gate
+      // stays true for the whole boss wave (including her child trickle,
+      // which only ends when she dies), so deferring her own dossier
+      // behind it pushed the popup to *after she was dead*.
       if (variants.size > 0) {
         const newlySeenVariants = Array.from(variants).filter(
           (v) => !progress.matriarchsEncountered[v],
@@ -1195,7 +1199,7 @@ export const useGame = create<GameStore>((set, get) => ({
             tag: "matriarch" as const,
             variant: v,
           }));
-          queueSightings(toQueue);
+          queueSightings(toQueue, { immediate: true });
         }
       }
     }
