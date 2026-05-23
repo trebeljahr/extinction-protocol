@@ -4,6 +4,7 @@ import { clamp01 } from "../sim/vec2";
 import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
+import { RightOverlay } from "./RightOverlay";
 import { RobotPreview } from "./RobotPreview";
 import { formatAbilityStats } from "./robotAbilityStats";
 import { useKeyboardHintsVisible } from "./useInputMode";
@@ -42,7 +43,7 @@ export const RobotSelectionPanel = () => {
   const xpPct = xpNeed > 0 ? clamp01(xpInto / xpNeed) : 0;
 
   return (
-    <div className="tower-panel robot-selection-panel">
+    <RightOverlay className="tower-panel robot-selection-panel">
       <div className="panel-header">
         <RobotPreview variant={variant} />
         <div className="panel-title">
@@ -135,6 +136,6 @@ export const RobotSelectionPanel = () => {
       </div>
 
       <div className="robot-sel-blurb">{spec.blurb}</div>
-    </div>
+    </RightOverlay>
   );
 };

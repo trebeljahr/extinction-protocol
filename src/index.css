@@ -345,12 +345,17 @@
     }
   }
 
-  /* Panel base — shared by enemy/tree/tower side panels.
-   Each variant only overrides position and accent (border/bg tint). */
-  .enemy-panel,
-  .tree-panel,
-  .tower-panel {
+  /* Right-overlay base — single code path for every "slides in from the
+     right" panel (tower, HQ, hero/robot, enemy, environmental clear). Owns
+     size + placement; top:64px clears the top-right HUD corner cluster
+     (QuickSettings + menu at top:16 / z:46) so panels never sit behind it.
+     Change the offset here once and every overlay moves together. Variant
+     classes below only layer accent (bg/border) or re-anchor (enemy →
+     bottom). */
+  .right-overlay {
     position: absolute;
+    right: 16px;
+    top: 64px;
     width: 330px;
     padding: var(--space-4);
     border-radius: var(--radius-xl);
@@ -365,33 +370,27 @@
     scrollbar-color: rgba(120, 160, 200, 0.35) transparent;
     z-index: 24;
   }
-  .enemy-panel::-webkit-scrollbar,
-  .tree-panel::-webkit-scrollbar,
-  .tower-panel::-webkit-scrollbar {
+  .right-overlay::-webkit-scrollbar {
     width: 6px;
   }
-  .enemy-panel::-webkit-scrollbar-thumb,
-  .tree-panel::-webkit-scrollbar-thumb,
-  .tower-panel::-webkit-scrollbar-thumb {
+  .right-overlay::-webkit-scrollbar-thumb {
     background: rgba(120, 160, 200, 0.35);
     border-radius: 3px;
   }
-  .enemy-panel::-webkit-scrollbar-thumb:hover,
-  .tree-panel::-webkit-scrollbar-thumb:hover,
-  .tower-panel::-webkit-scrollbar-thumb:hover {
+  .right-overlay::-webkit-scrollbar-thumb:hover {
     background: rgba(120, 160, 200, 0.55);
   }
 
+  /* Enemy inspection — anchored bottom-right (overrides base top). */
   .enemy-panel {
-    right: 16px;
+    top: auto;
     bottom: 64px;
     background: rgba(18, 14, 14, 0.92);
     border-color: rgba(200, 120, 120, 0.22);
   }
 
+  /* Environmental clear (tree/rock) — green accent; placement from base. */
   .tree-panel {
-    right: 16px;
-    top: 16px;
     background: rgba(14, 20, 14, 0.92);
     border-color: rgba(140, 200, 140, 0.25);
   }
@@ -622,12 +621,6 @@
   .tower-hot {
     font-size: var(--fs-xs);
     opacity: 0.55;
-  }
-
-  /* Tower panel (right side) — uses .panel base above; default blueish accent. */
-  .tower-panel {
-    right: 16px;
-    top: 16px;
   }
 
   .panel-header {
@@ -4966,14 +4959,12 @@
     }
   }
 
-  /* Robot selection panel — reuses .tower-panel base styling. Top-right
-     slot; mutually exclusive with the tower/tree/enemy panels via the
-     store's selection invariant. Pushed below the corner cluster (z:46)
-     on desktop via top:64; raised to z:50 so on narrow viewports where
-     it still collides horizontally it renders on top of the cluster. */
+  /* Hero/robot details — placement from .right-overlay base; mutually
+     exclusive with the tower/tree/enemy panels via the store's selection
+     invariant. Raised to z:50 so on narrow viewports where it still
+     collides horizontally with the corner cluster (z:46) it renders on
+     top of the cluster rather than behind it. */
   .robot-selection-panel {
-    right: 16px;
-    top: 64px;
     z-index: 50;
     background: rgba(14, 18, 26, 0.92);
     border-color: rgba(120, 180, 220, 0.28);

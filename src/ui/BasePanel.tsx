@@ -10,6 +10,7 @@ import {
 } from "../sim/upgrades";
 import { useGame } from "../store";
 import { fmtCompact } from "./format";
+import { RightOverlay } from "./RightOverlay";
 
 export const BasePanel = () => {
   const selectedBase = useGame((s) => s.ui.selectedBase);
@@ -23,7 +24,7 @@ export const BasePanel = () => {
   const hqCount = state.world.paths.length;
 
   return (
-    <div className="tower-panel">
+    <RightOverlay className="tower-panel">
       <div className="panel-header">
         <div className="panel-title">
           <div className="panel-name">
@@ -62,7 +63,7 @@ export const BasePanel = () => {
         <BaseBranchView branchId="a" gold={gold} />
         <BaseBranchView branchId="b" gold={gold} />
       </div>
-    </div>
+    </RightOverlay>
   );
 };
 

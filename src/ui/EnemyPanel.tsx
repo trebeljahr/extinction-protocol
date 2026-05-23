@@ -18,6 +18,7 @@ import {
 } from "../sim/world";
 import { useGame } from "../store";
 import { EnemyIcon } from "./EnemyIcon";
+import { RightOverlay } from "./RightOverlay";
 
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
@@ -85,7 +86,7 @@ export const EnemyPanel = () => {
   if (regen) activeChips.push("regen");
 
   return (
-    <div className="enemy-panel">
+    <RightOverlay className="enemy-panel">
       <div className="panel-header">
         <div className={`enemy-swatch kind-${kind}`}>
           {isMatriarch ? (
@@ -308,7 +309,7 @@ export const EnemyPanel = () => {
           )}
         </div>
       )}
-    </div>
+    </RightOverlay>
   );
 };
 

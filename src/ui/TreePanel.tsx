@@ -4,6 +4,7 @@ import { Suspense, useMemo } from "react";
 import { BIOME_LAYERS, BIOME_STYLE, BIOME_TREE_URLS } from "../biomes";
 import { ROCK_REMOVE_COST, TREE_REMOVE_COST } from "../sim/world";
 import { useGame } from "../store";
+import { RightOverlay } from "./RightOverlay";
 
 const StaticModel = ({ url }: { url: string }) => {
   const { scene } = useGLTF(url);
@@ -76,7 +77,7 @@ export const TreePanel = () => {
   const style = BIOME_STYLE[biome];
 
   return (
-    <div className="tree-panel">
+    <RightOverlay className="tree-panel">
       <div className="panel-header">
         <div className="panel-title">
           <div className="panel-name">Clear {label}</div>
@@ -132,6 +133,6 @@ export const TreePanel = () => {
           Cancel<span className="kbd-only"> (Esc)</span>
         </button>
       </div>
-    </div>
+    </RightOverlay>
   );
 };

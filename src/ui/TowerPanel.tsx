@@ -23,6 +23,7 @@ import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { fmtCompact } from "./format";
 import { HiveDronePanel } from "./HiveDronePanel";
+import { RightOverlay } from "./RightOverlay";
 import { TowerPreview } from "./TowerPreview";
 import { useIsMobile } from "./useMediaQuery";
 
@@ -69,7 +70,7 @@ export const TowerPanel = () => {
   // panel reads as "what does this tower do for the others."
   if (tower.kind === "hive") {
     return (
-      <div className="tower-panel">
+      <RightOverlay className="tower-panel">
         <div className="panel-header">
           <TowerPreview kind={tower.kind} />
           <div className="panel-title">
@@ -120,7 +121,7 @@ export const TowerPanel = () => {
         </div>
 
         <SellFooter tower={tower} sellDisabled={sellDisabled} />
-      </div>
+      </RightOverlay>
     );
   }
 
@@ -129,7 +130,7 @@ export const TowerPanel = () => {
   const dmgLabel = t(`damageTypes.${pill.type}`);
 
   return (
-    <div className="tower-panel">
+    <RightOverlay className="tower-panel">
       <div className="panel-header">
         <TowerPreview kind={tower.kind} />
         <div className="panel-title">
@@ -189,7 +190,7 @@ export const TowerPanel = () => {
       </div>
 
       <SellFooter tower={tower} sellDisabled={sellDisabled} />
-    </div>
+    </RightOverlay>
   );
 };
 
