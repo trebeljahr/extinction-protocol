@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { createLogger, defineConfig, loadEnv, type PluginOption } from "vite";
@@ -92,6 +93,63 @@ const loadHatchkitLocalDev = async (): Promise<PluginOption[]> => {
   }
 };
 
+// Probe (never mutate) the tailnet for a raw-TCP `tailscale serve` bridge
+// on the dev port. The bridge itself is host-level state set up once with
+// `tailscale serve --bg --tcp=<port> tcp://127.0.0.1:<port>` — it survives
+// reboots and is shared like the host-wide :443 Caddy bridge, so the config
+// only reads it. Returns the node's MagicDNS name + whether the port is
+// currently served. Silent null when Tailscale is absent/offline.
+const probeTailnetServe = (port: number): { dnsName: string; served: boolean } | null => {
+  try {
+    const status = JSON.parse(
+      execFileSync("tailscale", ["status", "--json"], { timeout: 4000, encoding: "utf8" }),
+    ) as { Self?: { DNSName?: string } };
+    const dnsName = status.Self?.DNSName?.replace(/\.$/, "");
+    if (!dnsName) return null;
+
+    const serveStatus = execFileSync("tailscale", ["serve", "status"], {
+      timeout: 4000,
+      encoding: "utf8",
+    });
+    const served = new RegExp(`tcp://\\S*:${port}(?!\\d)`).test(serveStatus);
+    return { dnsName, served };
+  } catch {
+    return null;
+  }
+};
+
+// Append a `Tailnet:` line to Vite's dev banner pointing at the raw-port
+// MagicDNS URL (e.g. http://laptop.tailnet.ts.net:3286/). The TCP bridge
+// is tailnet-only — LAN (192.168.x) never reaches it — and the IP-literal
+// form bypasses the Vite host check; the MagicDNS name needs `.ts.net` in
+// `server.allowedHosts` (set below). If the bridge isn't up, print the
+// one-time enable command instead of a dead URL.
+const tailnetPortBanner = (port: number): PluginOption => ({
+  name: "tailnet-port-banner",
+  apply: "serve",
+  configureServer(server) {
+    const probe = probeTailnetServe(port);
+    if (!probe) return;
+
+    const { logger } = server.config;
+    const original = server.printUrls.bind(server);
+    server.printUrls = () => {
+      original();
+      const label = "\x1b[1mTailnet\x1b[0m";
+      if (probe.served) {
+        logger.info(
+          `  \x1b[32m➜\x1b[0m  ${label}:  \x1b[36mhttp://${probe.dnsName}:${port}/\x1b[0m`,
+        );
+      } else {
+        logger.info(
+          `  \x1b[33m➜\x1b[0m  ${label}:  not exposed. Run once: ` +
+            `\x1b[2mtailscale serve --bg --tcp=${port} tcp://127.0.0.1:${port}\x1b[0m`,
+        );
+      }
+    };
+  },
+});
+
 export default defineConfig(async ({ command, mode }) => {
   const env = loadEnv(mode, ".", "");
   const plausibleDomain = env.VITE_PLAUSIBLE_DOMAIN ?? "protocol.trebeljahr.com";
@@ -125,8 +183,8 @@ export default defineConfig(async ({ command, mode }) => {
       })();
     </script>`
     : "";
-  const hatchkitPlugins =
-    command === "serve" && env.HATCHKIT_LOCAL_DEV !== "0" ? await loadHatchkitLocalDev() : [];
+  const localDevEnabled = command === "serve" && env.HATCHKIT_LOCAL_DEV !== "0";
+  const hatchkitPlugins = localDevEnabled ? await loadHatchkitLocalDev() : [];
 
   // Quiet logger for dev: silence routine HMR chatter (hmr update,
   // hmr invalidate, page reload) so the terminal stays clean. Warnings
@@ -159,6 +217,11 @@ export default defineConfig(async ({ command, mode }) => {
       // Local/Tailscale. Set `HATCHKIT_LOCAL_DEV=0` in env to disable.
       // Host plumbing is the host's `hatchkit dev-setup init` job.
       ...hatchkitPlugins,
+      // Raw-port tailnet banner: prints the `tailscale serve --tcp=<port>`
+      // MagicDNS URL after Vite's own banner. Placed after the hatchkit
+      // plugin so its printUrls wrapper runs outermost (calls hatchkit's
+      // first, then appends the Tailnet line).
+      ...(localDevEnabled ? [tailnetPortBanner(DEV_PORT)] : []),
     ] as PluginOption[],
     clearScreen: false,
     customLogger: command === "serve" ? quietLogger : undefined,
@@ -173,8 +236,11 @@ export default defineConfig(async ({ command, mode }) => {
         ignored: ["**/.claude/worktrees/**"],
       },
       // IPv4 loopback only — no LAN / Tailscale-IP broadcast during dev.
-      // Remote access is the Tailscale HTTPS URL (tailscale serve :443 →
-      // Caddy → 127.0.0.1), which already reaches every tailnet device.
+      // Remote access is tailnet-only and rides on `tailscale serve`, which
+      // proxies into this loopback bind without ever touching the LAN iface:
+      //   - HTTPS  via the host-wide Caddy bridge (serve :443).
+      //   - raw port via `tailscale serve --tcp=<DEV_PORT>` — the URL the
+      //     tailnet-port-banner plugin prints on startup.
       // Must be the literal "127.0.0.1", NOT `false`/`localhost`: on macOS
       // `localhost` resolves to ::1, so Vite would bind IPv6 loopback only
       // and Caddy's IPv4 `reverse_proxy 127.0.0.1` could not reach it.
@@ -186,10 +252,15 @@ export default defineConfig(async ({ command, mode }) => {
       // crashing the r3f scene with "Cannot read properties of undefined
       // (reading 'max')" out of useGLTF -> meshSource.
       //
-      // With loopback-only binding the Caddy HTTPS domain is the only
-      // remote surface, so it's the only host we whitelist. Production
-      // builds never read this field.
-      allowedHosts: [".local.trebeljahr.com"],
+      // Two remote surfaces, both tailnet-only, both proxying to this
+      // loopback bind — so both Host values must be whitelisted:
+      //   - `.local.trebeljahr.com` — host-wide Caddy HTTPS (serve :443).
+      //   - `.ts.net`               — raw-port `tailscale serve --tcp=<port>`,
+      //     which forwards the MagicDNS Host (e.g. laptop.<tailnet>.ts.net)
+      //     unchanged. Without this the raw-port URL 403s the host check.
+      // (The IP-literal form of the raw-port URL bypasses the check, so it
+      // works regardless.) Production builds never read this field.
+      allowedHosts: [".local.trebeljahr.com", ".ts.net"],
     },
     build: {
       target: "es2022",
