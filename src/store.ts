@@ -1174,11 +1174,17 @@ export const useGame = create<GameStore>((set, get) => ({
       const nextProgress = markEncountered(progress, kindList);
       if (nextProgress) {
         progress = nextProgress;
-        const toQueue: NewSightingId[] = newlySeenSpecies.map((k) => ({
-          tag: "species" as const,
-          species: k,
-        }));
-        queueSightings(toQueue);
+        // Titan is its own "big moment" enemy: it trips the boss/titan
+        // deferral gate just by being on screen, so deferring its own
+        // dossier behind that gate pushed the card to *after it died*
+        // (same failure the matriarch had). Surface it immediately on
+        // entrance. Every other species keeps the deferral so a trickle
+        // or escort sighting doesn't interrupt an active boss/titan fight.
+        const toSighting = (k: EnemyKind): NewSightingId => ({ tag: "species", species: k });
+        queueSightings(newlySeenSpecies.filter((k) => k === "titan").map(toSighting), {
+          immediate: true,
+        });
+        queueSightings(newlySeenSpecies.filter((k) => k !== "titan").map(toSighting));
         runChecks(null);
       }
       // Per-variant matriarch encounter — fires a NewEnemyAlert dossier
