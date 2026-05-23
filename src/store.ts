@@ -510,6 +510,11 @@ type GameStore = {
   // LevelLoadOverlay — when true at level start the overlay is skipped.
   assetsPrewarmed: boolean;
   markAssetsPrewarmed: () => void;
+  // True between a cold (not-yet-prewarmed) level click and the play scene
+  // mounting. Lets the LevelLoadOverlay paint over the world map *before* the
+  // heavy buildWorldForLevel + PlayScene mount runs, so the map doesn't sit
+  // frozen on screen during the load. Cleared once the level scene is entered.
+  levelLoadPending: boolean;
   // GLB / texture download progress reported by THREE.DefaultLoadingManager
   // while the LevelLoadOverlay is on screen. null when nothing is in-flight.
   levelLoadProgress: { loaded: number; total: number } | null;
@@ -866,6 +871,7 @@ export const useGame = create<GameStore>((set, get) => ({
   autoPausedForNewEnemy: false,
   levelIntroVisible: false,
   assetsPrewarmed: false,
+  levelLoadPending: false,
   levelLoadProgress: null,
   treeClickCounts: {},
   rockClickCounts: {},
@@ -874,42 +880,62 @@ export const useGame = create<GameStore>((set, get) => ({
     const level = LEVELS.find((l) => l.id === id);
     if (!level) return;
     const s = get();
-    const { engine, progress } = s;
-    if (!isLevelUnlocked(id, progress)) return;
-    // Resolve the requested mode. Caller defaults to "normal"; heroic /
-    // iron must both be unlocked AND defined on the level (the picker
-    // already enforces this, but reject defensively in case startLevel
-    // is invoked from elsewhere — e.g. retry after the level was patched).
-    let mode: LevelMode = modeArg ?? "normal";
-    if (mode !== "normal") {
-      if (!levelHasMode(level, mode) || !isModeUnlocked(progress, id, mode)) mode = "normal";
+    if (!isLevelUnlocked(id, s.progress)) return;
+
+    // Builds the world and swaps to the play scene. Reads state at call time
+    // (not at click time) since the cold path runs this a couple frames later.
+    const enter = () => {
+      const cur = get();
+      const { engine, progress } = cur;
+      // Resolve the requested mode. Caller defaults to "normal"; heroic /
+      // iron must both be unlocked AND defined on the level (the picker
+      // already enforces this, but reject defensively in case startLevel
+      // is invoked from elsewhere — e.g. retry after the level was patched).
+      let mode: LevelMode = modeArg ?? "normal";
+      if (mode !== "normal") {
+        if (!levelHasMode(level, mode) || !isModeUnlocked(progress, id, mode)) mode = "normal";
+      }
+      engine.reset();
+      const built = buildWorldForLevel(level, mode, progress.difficulty, progress);
+      // Carry the debug invincibility flag across level starts/retries so a
+      // toggled-on tester doesn't have to flip it again every restart.
+      built.world.invincible = cur.invincible;
+      const showIntro = !!LEVEL_BRIEFING[id] && !progress.seenIntros?.[id];
+      if (showIntro) built.world.status = "paused";
+      set({
+        ...built,
+        selectedKind: null,
+        selectedTreeId: null,
+        selectedRockId: null,
+        selectedLevelId: id,
+        modePickerLevelId: null,
+        hoveredLevelId: null,
+        lastResult: null,
+        newEnemyQueue: [],
+        deferredNewEnemyQueue: [],
+        autoPausedForNewEnemy: false,
+        levelIntroVisible: showIntro,
+        levelLoadPending: false,
+        screen: "playing",
+        treeClickCounts: {},
+        rockClickCounts: {},
+        runMinDifficulty: progress.difficulty,
+      });
+      track("level_start", { level_id: id });
+    };
+
+    // Warm assets mount instantly — enter synchronously so the transition stays
+    // snappy (and keeps the click within the user-gesture window for the
+    // auto-fullscreen on mobile). Cold start instead paints the load overlay
+    // first, then builds two frames later so the heavy mount happens *under* the
+    // overlay rather than freezing the world map on screen for ~1s.
+    if (s.assetsPrewarmed) {
+      enter();
+      return;
     }
-    engine.reset();
-    const built = buildWorldForLevel(level, mode, progress.difficulty, progress);
-    // Carry the debug invincibility flag across level starts/retries so a
-    // toggled-on tester doesn't have to flip it again every restart.
-    built.world.invincible = s.invincible;
-    const showIntro = !!LEVEL_BRIEFING[id] && !progress.seenIntros?.[id];
-    if (showIntro) built.world.status = "paused";
-    set({
-      ...built,
-      selectedKind: null,
-      selectedTreeId: null,
-      selectedRockId: null,
-      selectedLevelId: id,
-      modePickerLevelId: null,
-      hoveredLevelId: null,
-      lastResult: null,
-      newEnemyQueue: [],
-      deferredNewEnemyQueue: [],
-      autoPausedForNewEnemy: false,
-      levelIntroVisible: showIntro,
-      screen: "playing",
-      treeClickCounts: {},
-      rockClickCounts: {},
-      runMinDifficulty: progress.difficulty,
-    });
-    track("level_start", { level_id: id });
+    if (s.levelLoadPending) return;
+    set({ levelLoadPending: true });
+    requestAnimationFrame(() => requestAnimationFrame(enter));
   },
 
   openModePicker: (id) => {
@@ -1018,6 +1044,7 @@ export const useGame = create<GameStore>((set, get) => ({
       deferredNewEnemyQueue: [],
       autoPausedForNewEnemy: false,
       levelIntroVisible: false,
+      levelLoadPending: false,
       runMinDifficulty: null,
       // The next level start rebuilds the world (and resets inspect),
       // but clear here so the EnemyPanel doesn't leak across the world-

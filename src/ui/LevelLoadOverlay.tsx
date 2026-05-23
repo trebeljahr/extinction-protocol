@@ -4,12 +4,17 @@
 // blocked on tower/dino GLBs and the GPU was compiling their materials.
 //
 // Visibility logic:
-//  - Only shown while `screen === "playing"`.
+//  - Shown from the moment a cold level click is registered (the store's
+//    `levelLoadPending` flag) — set synchronously on click, before the
+//    heavy buildWorldForLevel + PlayScene mount runs. This is what makes
+//    the transition appear *immediately* instead of letting the world map
+//    sit frozen on screen for ~1s while the load blocks the main thread.
+//  - Stays up through `screen === "playing"` until assets finish warming.
 //  - Hidden once the store's `assetsPrewarmed` flag flips true (set by
 //    either the worldmap idle prewarm or the PlayScene ShaderPrewarm).
 //  - When the worldmap prewarm finished before the click, the overlay
-//    is skipped entirely (mount-time check on alreadyWarm), so the
-//    transition is fully instantaneous.
+//    is skipped entirely (assetsPrewarmed already true → never active),
+//    so the transition is fully instantaneous.
 //
 // The progress bar reads from the global LoadingManager subscription
 // in useLevelLoadProgress — it'll show network progress for any GLBs
@@ -23,26 +28,32 @@ const FADE_MS = 220;
 export const LevelLoadOverlay = () => {
   const screen = useGame((s) => s.screen);
   const ready = useGame((s) => s.assetsPrewarmed);
+  const pending = useGame((s) => s.levelLoadPending);
   const progress = useGame((s) => s.levelLoadProgress);
 
-  const [mounted, setMounted] = useState(() => screen === "playing" && !ready);
+  // Active from the click (pending) through the play scene mounting, until
+  // assets finish warming. `pending` covers the gap before `screen` flips to
+  // "playing" so the overlay paints before the heavy build, not after.
+  const active = !ready && (pending || screen === "playing");
+
+  const [mounted, setMounted] = useState(active);
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    if (screen === "playing" && !ready) {
+    if (active) {
       setMounted(true);
       setExiting(false);
     }
-  }, [screen, ready]);
+  }, [active]);
 
   useEffect(() => {
     if (!mounted) return;
-    if (ready || screen !== "playing") {
+    if (!active) {
       setExiting(true);
       const t = window.setTimeout(() => setMounted(false), FADE_MS);
       return () => window.clearTimeout(t);
     }
-  }, [ready, screen, mounted]);
+  }, [active, mounted]);
 
   if (!mounted) return null;
 
