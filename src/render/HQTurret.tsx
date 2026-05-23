@@ -1,7 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { dampFactor, shortAngleDelta } from "../sim/angle";
 import { clamp01 } from "../sim/vec2";
@@ -93,6 +93,14 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   const isLost = status === "lost";
   const isKillingHQ = killingPathIndex === pose.pathIndex;
   const shouldExplode = isLost && isKillingHQ;
+  // Set once the chunk rigid bodies are actually committed (i.e. the rapier
+  // WASM Suspense below has resolved). The intact turret stays mounted until
+  // then so there's never a frame where the turret is gone but the chunks
+  // haven't appeared yet — that gap is what flashed the bare scene
+  // background, since the <Physics> suspend has no boundary above PlayScene
+  // and blanks the whole canvas while the WASM loads.
+  const [chunksLive, setChunksLive] = useState(false);
+  const handleChunksReady = useCallback(() => setChunksLive(true), []);
   // Smooth-rotated yaw of the turret. Drives outer.rotation so the
   // cannons pivot toward the live target before firing, then drift
   // back to the path-aligned rest pose when nothing is in range.
@@ -208,6 +216,14 @@ const HQOne = ({ pose }: { pose: Pose }) => {
     const center = bakedBox.getCenter(new THREE.Vector3());
     setFracture({ chunks: chunkList, center });
   }, [shouldExplode, fracture, scaledClone, pose.pathIndex]);
+
+  // HQOne persists across runs (retry / next level), so clear the
+  // chunks-live latch when the explosion is no longer active — otherwise a
+  // subsequent death would unmount the intact turret immediately on the
+  // stale latch and reopen the background-flash gap.
+  useEffect(() => {
+    if (!shouldExplode) setChunksLive(false);
+  }, [shouldExplode]);
 
   // Live event tracking — we read these inside useFrame rather than via
   // selectors so the component never re-mounts between waves.
@@ -421,7 +437,7 @@ const HQOne = ({ pose }: { pose: Pose }) => {
   return (
     <>
       <group ref={outerRef}>
-        {(!shouldExplode || !fracture) && <primitive object={scaledClone} />}
+        {(!shouldExplode || !fracture || !chunksLive) && <primitive object={scaledClone} />}
         {/* Death explosion: warm outer fireball + white-hot inner core.
             Hidden during regular play; ref-driven scaling/opacity during the
             loss cinematic. Both depth-write off so they layer cleanly over
@@ -467,13 +483,20 @@ const HQOne = ({ pose }: { pose: Pose }) => {
         </mesh>
       </group>
       {shouldExplode && fracture && fracture.chunks.length > 0 && (
-        <ChunkPhysics
-          chunks={fracture.chunks}
-          chunkMaterial={chunkMaterial}
-          sourceCenter={fracture.center}
-          pose={pose}
-          baseY={baseY}
-        />
+        // Boundary so the rapier WASM suspend (thrown on the first <Physics>
+        // mount, which happens here at death) only blanks this subtree —
+        // never the whole canvas. Fallback is null; the intact turret is
+        // held visible by `chunksLive` until these bodies commit.
+        <Suspense fallback={null}>
+          <ChunkPhysics
+            chunks={fracture.chunks}
+            chunkMaterial={chunkMaterial}
+            sourceCenter={fracture.center}
+            pose={pose}
+            baseY={baseY}
+            onReady={handleChunksReady}
+          />
+        </Suspense>
       )}
       {/* Laser beams + muzzle flares live in world space, not inside
           the rotating outer group, so the per-frame placeLaser() math
@@ -537,13 +560,21 @@ const ChunkPhysics = ({
   sourceCenter,
   pose,
   baseY,
+  onReady,
 }: {
   chunks: FractureChunk[];
   chunkMaterial: THREE.Material;
   sourceCenter: THREE.Vector3;
   pose: Pose;
   baseY: number;
+  onReady: () => void;
 }) => {
+  // Mounts only after the rapier WASM Suspense has resolved, so this effect
+  // is the signal that the chunk bodies are live — HQOne uses it to drop the
+  // intact turret without leaving a one-frame background-flash gap.
+  useEffect(() => {
+    onReady();
+  }, [onReady]);
   // Compute per-chunk launch in world space once at mount. Direction is
   // (chunk origin − model centroid) projected through the HQ yaw so each
   // piece flies outward from where it lived in the intact model.
