@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { getLevel, levelHasMode, resolveLevelMode } from "../levels";
@@ -31,6 +31,37 @@ export const ModePicker = () => {
   const progress = useGame((s) => s.progress);
   const startLevel = useGame((s) => s.startLevel);
   const close = useGame((s) => s.closeModePicker);
+
+  // The tap/click that OPENS this picker (a level node uses onPointerDown)
+  // emits a trailing synthetic `click` after the overlay has already
+  // mounted. On touch — and on desktop when the node sat under the cursor —
+  // that click lands on whichever mode button is now beneath the pointer and
+  // launches the level instantly, skipping the choice. Swallow exactly that
+  // ghost click: it is the only `click` that can fire before any pointerdown/
+  // keydown reaches the freshly-mounted overlay. A real activation always
+  // starts with one of those, which disarms the guard. Layout effect so the
+  // listeners attach during the same discrete-event flush, before the browser
+  // dispatches the trailing click.
+  useLayoutEffect(() => {
+    let armed = true;
+    const disarm = () => {
+      armed = false;
+    };
+    const swallowGhostClick = (e: MouseEvent) => {
+      if (!armed) return;
+      armed = false;
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    window.addEventListener("pointerdown", disarm, true);
+    window.addEventListener("keydown", disarm, true);
+    window.addEventListener("click", swallowGhostClick, true);
+    return () => {
+      window.removeEventListener("pointerdown", disarm, true);
+      window.removeEventListener("keydown", disarm, true);
+      window.removeEventListener("click", swallowGhostClick, true);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
