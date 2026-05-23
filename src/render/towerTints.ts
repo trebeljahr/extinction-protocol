@@ -43,15 +43,16 @@ export function computeTowerTints(kind: TowerKind, upgrades: TowerUpgrades): Tin
 
   switch (kind) {
     case "pulse": {
-      // Damage path drifts cool/blue, fire-rate path darkens the barrel.
+      // Damage path starts cool/blue and drifts toward neutral white,
+      // fire-rate path starts dark and brightens the barrel per tier.
       // Both bake into the same PaletteMaterial001, so we combine them.
       const damageHue: [number, number, number] = [
-        [1.0, 1.0, 1.0],
-        [0.78, 0.86, 1.0],
-        [0.6, 0.74, 1.0],
         [0.45, 0.62, 1.0],
+        [0.6, 0.74, 1.0],
+        [0.78, 0.86, 1.0],
+        [1.0, 1.0, 1.0],
       ][a] as [number, number, number];
-      const rateLum = [1.0, 0.85, 0.7, 0.58][b];
+      const rateLum = [0.58, 0.7, 0.85, 1.0][b];
       return atlas(damageHue, rateLum, "PaletteMaterial001");
     }
 
