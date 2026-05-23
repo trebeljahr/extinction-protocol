@@ -5,7 +5,7 @@ import { DAMAGE_TYPE_COLOR, DAMAGE_TYPE_LABEL } from "../sim/world";
 import { useGame } from "../store";
 import { DamageIcon } from "./DamageIcon";
 import { RobotPreview } from "./RobotPreview";
-import { formatAbilityStats } from "./RobotShop";
+import { formatAbilityStats } from "./robotAbilityStats";
 import { useKeyboardHintsVisible } from "./useInputMode";
 
 const SLOT_KEYS: Array<{ slot: RobotAbilitySlot; key: "Q" | "W" | "E" | "R" }> = [
