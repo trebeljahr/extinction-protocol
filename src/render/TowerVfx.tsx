@@ -50,8 +50,8 @@ export const TowerVfx = () => {
       const intensity = baseGlow + (1 - baseGlow) * charge * flicker;
       const orbY = 1.35;
 
-      // Path A (Arc Reach) drifts the orb + arcs toward purple. Path B
-      // is reflected on the body mesh in ModelTowerMesh.
+      // Path A (Arc Reach) drifts the orb + arcs toward a cool steel
+      // blue. Path B is reflected on the body mesh in ModelTowerMesh.
       const orbBase = chainOrbBase(t.upgrades.a);
       const arcABase = chainArcABase(t.upgrades.a);
       const arcBBase = chainArcBBase(t.upgrades.a);
@@ -108,7 +108,7 @@ export const TowerVfx = () => {
       </instancedMesh>
       <instancedMesh ref={chainArcARef} args={[arcGeom, undefined, MAX_PER_KIND]} renderOrder={1}>
         <meshBasicMaterial
-          color="#c48cff"
+          color="#9fd8ff"
           transparent
           opacity={0.55}
           blending={THREE.AdditiveBlending}

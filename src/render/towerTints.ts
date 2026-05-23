@@ -57,17 +57,19 @@ export function computeTowerTints(kind: TowerKind, upgrades: TowerUpgrades): Tin
     }
 
     case "chain": {
-      // Path A (Arc Reach) is handled in TowerVfx (orb/halo go purple).
-      // Path B (Voltage) tints the body — chain stays cool, drifts a bit
-      // darker and bluer with each tier so the tower reads as "more
-      // charged".
+      // Path A (Arc Reach) recolours the orb/arcs in TowerVfx.
+      // Path B (Voltage) tints the body — electric stays cool and
+      // drifts toward a cool steel blue with each tier so the tower
+      // reads as "more charged". Blue stays pinned while red drops hard
+      // and green settles mid, landing near steel blue (#4682B4) at the
+      // top tier; luminance holds high so the hue stays legible.
       const voltageHue: [number, number, number] = [
         [1.0, 1.0, 1.0],
-        [0.88, 0.9, 1.0],
-        [0.72, 0.78, 1.0],
-        [0.56, 0.66, 1.0],
+        [0.78, 0.88, 1.0],
+        [0.55, 0.76, 1.0],
+        [0.36, 0.64, 1.0],
       ][b] as [number, number, number];
-      const voltageLum = [1.0, 0.95, 0.85, 0.75][b];
+      const voltageLum = [1.0, 0.97, 0.9, 0.82][b];
       return atlas(voltageHue, voltageLum, "PaletteMaterial001");
     }
 
@@ -179,35 +181,38 @@ export function computeTowerTints(kind: TowerKind, upgrades: TowerUpgrades): Tin
 }
 
 // Per-instance chain VFX colour drift along Path A (Arc Reach) — the
-// orb + arcs go progressively purple. Returned multipliers replace the
-// base RGB constants in TowerVfx.tsx.
+// orb + arcs deepen from pale cool blue toward a saturated cool steel
+// blue. Blue stays pinned at 1.0 (additive glow), red drops hardest and
+// green settles mid so the hue tracks steel blue (#4682B4) as it
+// darkens. Returned multipliers replace the base RGB constants in
+// TowerVfx.tsx (which then multiply against each mesh's material colour).
 export function chainOrbBase(tierA: number): [number, number, number] {
   const t = Math.min(3, Math.max(0, tierA | 0));
   return [
-    [0.55, 0.82, 1.0],
-    [0.68, 0.62, 1.0],
-    [0.82, 0.46, 1.0],
-    [0.95, 0.34, 1.0],
+    [0.62, 0.86, 1.0],
+    [0.46, 0.74, 1.0],
+    [0.34, 0.62, 1.0],
+    [0.26, 0.52, 1.0],
   ][t] as [number, number, number];
 }
 
 export function chainArcABase(tierA: number): [number, number, number] {
   const t = Math.min(3, Math.max(0, tierA | 0));
   return [
-    [0.75, 0.45, 1.0],
-    [0.85, 0.38, 1.0],
-    [0.95, 0.3, 1.0],
-    [1.0, 0.22, 1.0],
+    [0.7, 0.85, 1.0],
+    [0.54, 0.74, 1.0],
+    [0.4, 0.62, 1.0],
+    [0.3, 0.54, 1.0],
   ][t] as [number, number, number];
 }
 
 export function chainArcBBase(tierA: number): [number, number, number] {
   const t = Math.min(3, Math.max(0, tierA | 0));
   return [
-    [0.6, 0.95, 1.0],
-    [0.72, 0.72, 1.0],
-    [0.86, 0.5, 1.0],
-    [0.98, 0.36, 1.0],
+    [0.66, 0.92, 1.0],
+    [0.5, 0.78, 1.0],
+    [0.38, 0.64, 1.0],
+    [0.28, 0.55, 1.0],
   ][t] as [number, number, number];
 }
 
