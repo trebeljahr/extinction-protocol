@@ -207,6 +207,10 @@ export const useAudioBridge = () => {
         }
         case "game-over":
           audio.stopAllSfx();
+          // Base destroyed: punctuate the fall with an explosion. Played
+          // after stopAllSfx so the fresh voice survives the cutoff; skipped
+          // on victory (won) since nothing blew up.
+          if (!e.won) audio.play("shoot-mortar", "enemies", 0.85, 0, 1.4);
           audio.stopMusic();
           break;
       }
