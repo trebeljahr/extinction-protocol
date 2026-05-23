@@ -3630,11 +3630,12 @@
     }
     .achievements-header .btn-close,
     .difficulty-header .btn-close {
-      width: 44px;
-      height: 44px;
-      min-width: 44px;
-      min-height: 44px;
-      font-size: var(--fs-lg);
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      font-size: 22px;
+      border: 2px solid var(--color-blue);
       flex-shrink: 0;
     }
     .difficulty-header .btn:not(.btn-close) {
@@ -3722,9 +3723,14 @@
       background: #121a24;
     }
     .menu-overlay-close {
-      width: 44px;
-      height: 44px;
-      font-size: var(--fs-lg);
+      width: 56px;
+      height: 56px;
+      font-size: 22px;
+      /* 2px light-blue outline so the only exit from a fullscreen overlay
+         reads as a real, tappable target. Declared here (not on base
+         .btn-close) so it beats the shared `border: 1px solid transparent`
+         that otherwise wins on source order. */
+      border: 2px solid var(--color-blue);
     }
     .confirmation-dialog-overlay {
       padding: calc(14px + var(--safe-top)) 16px calc(14px + var(--safe-bottom));
