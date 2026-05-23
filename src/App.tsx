@@ -42,6 +42,9 @@ const DifficultyPicker = lazy(() =>
   import("./ui/DifficultyPicker").then((m) => ({ default: m.DifficultyPicker })),
 );
 const ModePicker = lazy(() => import("./ui/ModePicker").then((m) => ({ default: m.ModePicker })));
+const EndlessPicker = lazy(() =>
+  import("./ui/EndlessPicker").then((m) => ({ default: m.EndlessPicker })),
+);
 const SkillTreePanel = lazy(() =>
   import("./ui/SkillTreePanel").then((m) => ({ default: m.SkillTreePanel })),
 );
@@ -92,6 +95,7 @@ export const App = () => {
   const creditsOpen = useGame((s) => s.creditsOpen);
   const difficultyPickerOpen = useGame((s) => s.difficultyPickerOpen);
   const modePickerOpen = useGame((s) => s.modePickerLevelId !== null);
+  const endlessPickerOpen = useGame((s) => s.endlessPickerOpen);
   const skillTreeOpen = useGame((s) => s.skillTreeOpen);
   const robotShopOpen = useGame((s) => s.robotShopOpen);
   const selectedKind = useGame((s) => s.selectedKind);
@@ -103,6 +107,7 @@ export const App = () => {
     creditsOpen ||
     difficultyPickerOpen ||
     modePickerOpen ||
+    endlessPickerOpen ||
     skillTreeOpen ||
     robotShopOpen;
   const sceneBlockingModalOpen =
@@ -110,6 +115,7 @@ export const App = () => {
     achievementsOpen ||
     creditsOpen ||
     modePickerOpen ||
+    endlessPickerOpen ||
     skillTreeOpen ||
     robotShopOpen;
   const isMobile = useIsMobile();
@@ -232,6 +238,11 @@ export const App = () => {
       {modePickerOpen && (
         <Suspense fallback={null}>
           <ModePicker />
+        </Suspense>
+      )}
+      {endlessPickerOpen && (
+        <Suspense fallback={null}>
+          <EndlessPicker />
         </Suspense>
       )}
       {skillTreeOpen && (

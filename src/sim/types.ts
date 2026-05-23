@@ -679,6 +679,28 @@ export type ActiveBossTrickle = {
   shielded?: boolean;
 };
 
+// Endless-mode run state. Present (non-null) only on endless arenas;
+// null for every campaign run. When set, the spawner generates waves on
+// demand via generateEndlessWave instead of indexing plannedWaves, and
+// the run-end / call-early gates treat the run as infinite (no win).
+export type EndlessState = {
+  // Seed for the deterministic wave generator. Fixed at run start so the
+  // whole wave sequence is reproducible from this seed + the arena.
+  seed: number;
+  mapId: string;
+  mapName: string;
+  // Difficulty HP multiplier, folded into every generated wave's hpMul on
+  // top of the wave-number escalation. Updated live when the player
+  // changes difficulty mid-run.
+  hpMul: number;
+  // Difficulty speed multiplier — the per-wave speed escalation factor is
+  // applied on top of this into world.speedMul at each wave start.
+  baseSpeedMul: number;
+  // Best wave reached on this arena+difficulty as of run start. Frozen for
+  // the HUD "best" readout; the live persisted best updates on game-over.
+  bestWave: number;
+};
+
 export type RunStatus = "running" | "paused" | "won" | "lost";
 
 export type GameEvent =
@@ -788,6 +810,10 @@ export type World = {
   forbiddenTowers: ReadonlySet<TowerKind>;
   lockedLoadout: readonly TowerKind[] | null;
   sellingDisabled: boolean;
+  // Endless-mode state. Null on every campaign run; set on endless
+  // arenas. Drives on-demand wave generation + infinite gating. See
+  // EndlessState.
+  endless: EndlessState | null;
   // Adaptive-resistance state. Updated inside applyDamage (per-type
   // tally) and read by startWave (computes dominantNext) and
   // spawnEnemy (snapshots into the spawned enemy). Inert when

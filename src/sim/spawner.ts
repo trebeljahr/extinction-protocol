@@ -1,3 +1,4 @@
+import { endlessSpeedFactor, generateEndlessWave } from "./endless";
 import type { BossVariant, DamageType, EnemyKind, WaveArchetype, WaveSpec, World } from "./types";
 import { clamp01 } from "./vec2";
 import {
@@ -57,9 +58,22 @@ const inferArchetype = (spec: WaveSpec): WaveArchetype => {
   return "intro";
 };
 
+// Single indirection the sim uses to fetch the spec for wave `n` (1-based).
+// Campaign indexes the finite plannedWaves array (unchanged behavior);
+// endless generates the spec on demand so the run can go forever. The rest
+// of the loop stays mode-agnostic.
+export const getWave = (world: World, n: number): WaveSpec | null => {
+  if (world.endless) {
+    if (n < 1) return null;
+    return generateEndlessWave(n, world.endless.seed, world.endless.hpMul, world.paths.length);
+  }
+  if (n < 1 || n > world.plannedWaves.length) return null;
+  return world.plannedWaves[n - 1];
+};
+
 export const getWavePlan = (world: World, wave: number): { archetype: WaveArchetype } | null => {
-  if (wave < 1 || wave > world.plannedWaves.length) return null;
-  const spec = world.plannedWaves[wave - 1];
+  const spec = getWave(world, wave);
+  if (!spec) return null;
   return { archetype: spec.archetype ?? inferArchetype(spec) };
 };
 
@@ -128,7 +142,7 @@ export const startWave = (world: World) => {
   // spawnEnemy can snapshot the type into each adapted enemy. Also
   // reap stale buckets so the Map doesn't grow unbounded across a
   // full run. See docs/adaptive-resistance.md.
-  if (ADAPTIVE_RESISTANCE_ENABLED) {
+  if (ADAPTIVE_RESISTANCE_ENABLED && !world.endless) {
     const prev = world.adaptation.dominantNext;
     const { type, share } = computeAdaptiveDominant(world);
     // Streak only ticks while a real dominant was found. A wave with
@@ -148,7 +162,17 @@ export const startWave = (world: World) => {
       if (w < keepFrom) world.adaptation.perWave.delete(w);
     }
   }
-  const spec = world.plannedWaves[world.wave - 1];
+  // Endless: bump the spawn-speed multiplier for this wave (read by
+  // spawnEnemy for every unit spawned while this wave is current) before
+  // fetching the generated spec. Mild + capped so it never runs away.
+  if (world.endless) {
+    world.speedMul = world.endless.baseSpeedMul * endlessSpeedFactor(world.wave);
+  }
+  const spec = getWave(world, world.wave);
+  if (!spec) {
+    world.waveActive = false;
+    return;
+  }
   const roster = rosterFromSpec(spec);
   world.waveTotalEnemies = roster.length;
   const hpMul = spec.hpMul ?? 1;
@@ -237,7 +261,7 @@ export const earlyCallBonus = (world: World): number => {
 
 export const canCallEarly = (world: World): boolean => {
   if (world.status !== "running") return false;
-  if (world.wave >= world.totalWaves) return false;
+  if (!world.endless && world.wave >= world.totalWaves) return false;
   if (!world.waveActive) return true;
   return midwaveThresholdCrossed(world) && world.midwaveTimerMax > 0;
 };
@@ -262,7 +286,7 @@ export const spawnerTick = (world: World, dt: number) => {
   if (!world.waveActive) {
     if (world.wave === 0) return;
     world.nextWaveIn = Math.max(0, world.nextWaveIn - dt);
-    if (world.nextWaveIn === 0 && world.wave < world.totalWaves) {
+    if (world.nextWaveIn === 0 && (world.endless || world.wave < world.totalWaves)) {
       startWave(world);
     }
     return;
@@ -291,7 +315,7 @@ export const spawnerTick = (world: World, dt: number) => {
     } else {
       world.midwaveTimer = Math.max(0, world.midwaveTimer - dt);
     }
-    if (world.midwaveTimer <= 0 && world.wave < world.totalWaves) {
+    if (world.midwaveTimer <= 0 && (world.endless || world.wave < world.totalWaves)) {
       world.nextWaveIn = 0;
       startWave(world);
       return;
@@ -307,7 +331,7 @@ export const spawnerTick = (world: World, dt: number) => {
       if (e.alive && e.leak) return;
     }
     world.waveActive = false;
-    world.nextWaveIn = world.wave < world.totalWaves ? WAVE_GAP_SECONDS : 0;
+    world.nextWaveIn = world.endless || world.wave < world.totalWaves ? WAVE_GAP_SECONDS : 0;
     world.midwaveTimer = 0;
     world.midwaveTimerMax = 0;
     const bonus = 5 + world.wave;
@@ -325,6 +349,7 @@ export const checkRunEnd = (world: World) => {
     return;
   }
   if (
+    !world.endless &&
     world.wave >= world.totalWaves &&
     !world.waveActive &&
     world.spawnQueue.length === 0 &&

@@ -43,6 +43,7 @@ import type {
   DamageType,
   EasterEgg,
   EasterEggScheduleEntry,
+  EndlessState,
   Enemy,
   EnemyKind,
   EntityId,
@@ -493,6 +494,10 @@ export const createWorld = (
   difficulty: DifficultyMultipliers = DIFFICULTY_MULTIPLIERS.medium,
   triggeredEggsOnLevel: ReadonlySet<string> = new Set(),
   robotCtx: RobotContext = DEFAULT_ROBOT_CONTEXT,
+  // Endless-mode input. Null for every campaign run. When provided, the
+  // returned world carries an EndlessState and the spawner generates
+  // waves on demand (see src/sim/endless.ts).
+  endless: { seed: number; mapId: string; mapName: string; bestWave: number } | null = null,
 ): World => {
   const biome = biomeForPos(level.nodePos);
   const modeConfig = resolveLevelMode(level, mode);
@@ -620,6 +625,19 @@ export const createWorld = (
   // Snap HP to maxHp post-skills so vitality ranks don't leave the robot
   // partly damaged. Done after applyRobotSkillsToRobot (which bumps both).
   robot.hp = robot.maxHp;
+  // Endless: fold the difficulty HP scale into hpMul (the generator
+  // multiplies the per-wave escalation on top) and snapshot the
+  // difficulty speed as the base for the per-wave speed factor.
+  const endlessState: EndlessState | null = endless
+    ? {
+        seed: endless.seed,
+        mapId: endless.mapId,
+        mapName: endless.mapName,
+        hpMul: baseHpScale,
+        baseSpeedMul: difficulty.speed,
+        bestWave: endless.bestWave,
+      }
+    : null;
   return {
     time: 0,
     tickCount: 0,
@@ -686,6 +704,7 @@ export const createWorld = (
     forbiddenTowers: new Set(modeConfig.forbiddenTowers ?? []),
     lockedLoadout: modeConfig.lockedLoadout ?? null,
     sellingDisabled: modeConfig.noSelling ?? false,
+    endless: endlessState,
     // Adaptive-resistance state — empty until applyDamage starts
     // tallying. dominantNext stays null until startWave picks it
     // from the trailing buckets.
@@ -1612,6 +1631,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
   // flag so it can be backed out in one flip.
   if (
     ADAPTIVE_RESISTANCE_ENABLED &&
+    !world.endless &&
     world.adaptation.dominantNext !== null &&
     world.levelId >= ADAPT_TRIGGER_LEVEL
   ) {

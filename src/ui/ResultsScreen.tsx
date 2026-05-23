@@ -60,6 +60,50 @@ export const ResultsScreen = () => {
 
   if (!result) return null;
 
+  // Endless runs have no stars and no "next level" — just the wave reached,
+  // the running best, and a new-best flag.
+  if (result.endless) {
+    const en = result.endless;
+    return (
+      <div className="overlay">
+        <div className="overlay-card min-w-[420px] px-10 py-8">
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <h1 className="!mb-0">Overrun.</h1>
+            {en.newBest && (
+              <span className="inline-flex items-center rounded border border-gold text-gold font-bold text-[11px] uppercase tracking-wide px-2 py-0.5">
+                New Best
+              </span>
+            )}
+          </div>
+          <div className="text-[13px] tracking-uber uppercase text-fg-dim mb-5">
+            <span className="text-cyan mr-2">Endless ∞ ·</span>
+            {en.mapName}
+          </div>
+
+          <div className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg px-4 py-3.5 mb-5">
+            <div className="flex flex-col items-center gap-0.5 mb-3">
+              <div className="text-[11px] uppercase tracking-uber text-fg-muted">Reached wave</div>
+              <div className="text-5xl font-bold text-blue tabular-nums leading-none">
+                {en.waveReached}
+              </div>
+            </div>
+            <ResultRow label="Best wave" value={`${en.bestWave}`} />
+            <ResultRow label="Enemies killed" value={`${en.enemiesKilled}`} />
+          </div>
+
+          <div className="flex gap-2.5 justify-center">
+            <button type="button" onClick={retry} className="btn">
+              Play Again<span className="kbd-only"> (R)</span>
+            </button>
+            <button type="button" onClick={goToMap} className="btn btn-secondary">
+              World Map<span className="kbd-only"> (Esc)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="overlay">
       <div className="overlay-card min-w-[420px] px-10 py-8">

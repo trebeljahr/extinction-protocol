@@ -41,6 +41,9 @@ export const HUD = () => {
   const lives = useGame((s) => s.ui.lives);
   const wave = useGame((s) => s.ui.wave);
   const totalWaves = useGame((s) => s.ui.totalWaves);
+  const endless = useGame((s) => s.ui.endless);
+  const endlessBestWave = useGame((s) => s.ui.endlessBestWave);
+  const endlessMapName = useGame((s) => s.ui.endlessMapName);
   const status = useGame((s) => s.ui.status);
   const waveActive = useGame((s) => s.ui.waveActive);
   const nextWaveIn = useGame((s) => s.ui.nextWaveIn);
@@ -61,9 +64,19 @@ export const HUD = () => {
   const forbidden = useGame((s) => s.world.forbiddenTowers);
   const lockedLoadout = useGame((s) => s.world.lockedLoadout);
 
-  const levelName = selectedLevelId ? getLevel(selectedLevelId).name : "";
-  const levelOrdinal = selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
+  // Endless drives the name off the snapshot (selectedLevelId is null on
+  // endless runs so getLevel is never called with an arena id). Campaign
+  // keeps the outpost name + ordinal.
+  const levelName = endless
+    ? endlessMapName
+    : selectedLevelId
+      ? getLevel(selectedLevelId).name
+      : "";
+  const levelOrdinal = !endless && selectedLevelId ? getLevelOrdinal(selectedLevelId) : null;
   const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}` : "";
+  const outpostLabel = endless
+    ? "ENDLESS"
+    : `OUTPOST${levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}`;
   const paused = status === "paused";
   // On the final wave the label embeds the n/m count, so the value
   // slot is free to show the wave state ("ACTIVE") rather than just
@@ -74,7 +87,7 @@ export const HUD = () => {
   // value would otherwise stick at "0s" until game-won fires. Keep
   // showing "ACTIVE" through that tail so the readout matches normal
   // waves.
-  const waveStatus = waveActive || wave >= totalWaves ? "ACTIVE" : `${nextWaveIn}s`;
+  const waveStatus = waveActive || (!endless && wave >= totalWaves) ? "ACTIVE" : `${nextWaveIn}s`;
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
@@ -214,7 +227,18 @@ export const HUD = () => {
       <div className="hud-top">
         <Stat label="GOLD" value={gold} accentClass="text-gold" />
         <Stat label="LIVES" value={lives} accentClass="text-red" />
-        <Stat label="WAVE" value={`${wave} / ${totalWaves}`} accentClass="text-blue" />
+        <Stat
+          label="WAVE"
+          value={endless ? `${wave}` : `${wave} / ${totalWaves}`}
+          accentClass="text-blue"
+        />
+        {endless && (
+          <Stat
+            label="BEST"
+            value={endlessBestWave > 0 ? `${endlessBestWave}` : "—"}
+            accentClass="text-gold"
+          />
+        )}
         {wave === 0 ? (
           <button
             type="button"
@@ -244,7 +268,15 @@ export const HUD = () => {
         ) : (
           <Stat
             label={
-              wave >= totalWaves ? `FINAL · ${wave}/${totalWaves}` : waveActive ? "WAVE" : "NEXT"
+              endless
+                ? waveActive
+                  ? "WAVE"
+                  : "NEXT"
+                : wave >= totalWaves
+                  ? `FINAL · ${wave}/${totalWaves}`
+                  : waveActive
+                    ? "WAVE"
+                    : "NEXT"
             }
             value={waveStatus}
             accentClass="text-mint"
@@ -252,9 +284,7 @@ export const HUD = () => {
         )}
         {levelName && (
           <div className="outpost-pill">
-            <div className="outpost-label">
-              OUTPOST{levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}
-            </div>
+            <div className="outpost-label">{outpostLabel}</div>
             <div className="outpost-name" title={`${levelOrdinalLabel} · ${levelName}`}>
               {levelName}
             </div>

@@ -155,6 +155,15 @@ export type ProgressData = {
   // clear, but the explanation only needs to surface the first time the
   // player crosses that gate on any level.
   seenModesUnlockExplainer?: true;
+  // Best wave reached per endless arena + difficulty. Key is
+  // `${mapId}:${difficulty}` (see endlessBestKey). Local-only; there is
+  // no online/Steam leaderboard. Persists across reloads like the rest of
+  // ProgressData.
+  endlessBest?: Record<string, number>;
+  // One-shot flag for the "Endless mode unlocked" world-map reveal. Set
+  // once the player dismisses the explainer after clearing the final
+  // campaign level. Mirrors seenModesUnlockExplainer.
+  seenEndlessUnlockExplainer?: true;
 };
 
 export type SlotMeta = {
@@ -196,6 +205,7 @@ export const emptyProgress = (): ProgressData => ({
   robotSkills: {},
   bolts: 0,
   triggeredEasterEggs: {},
+  endlessBest: {},
 });
 
 const defaultName = (id: SlotId) => `Save ${id}`;
@@ -236,6 +246,18 @@ const normalizeStarsMap = (raw: unknown): Record<number, ModeStars> => {
     const m = normalizeModeStars(v);
     if (m.normal === 0 && m.heroic === 0 && m.iron === 0) continue;
     out[id] = m;
+  }
+  return out;
+};
+
+// Endless best-wave records: a flat `${mapId}:${difficulty}` → wave map.
+// Drop any non-finite / negative entries so a corrupt save can't surface
+// a bogus best.
+const normalizeEndlessBest = (raw: unknown): Record<string, number> => {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = Math.floor(v);
   }
   return out;
 };
@@ -316,6 +338,8 @@ const normalizeProgress = (raw: Partial<ProgressData>): ProgressData => {
         ? (raw.triggeredEasterEggs as Record<string, true>)
         : {},
     seenModesUnlockExplainer: raw.seenModesUnlockExplainer === true ? true : undefined,
+    endlessBest: normalizeEndlessBest(raw.endlessBest),
+    seenEndlessUnlockExplainer: raw.seenEndlessUnlockExplainer === true ? true : undefined,
   };
 };
 
@@ -481,6 +505,41 @@ export const hasUnlockedChallengeModes = (p: ProgressData): boolean => {
 
 export const markModesUnlockExplainerSeen = (p: ProgressData): ProgressData =>
   p.seenModesUnlockExplainer ? p : { ...p, seenModesUnlockExplainer: true };
+
+// Final campaign level. Clearing it on normal (≥1 star) is the gate for
+// Endless mode. The level-unlock chain guarantees that clearing this
+// level implies every prior level is cleared too, so it doubles as an
+// "all campaign levels cleared" check. Hardcoded — the campaign is a
+// fixed 30-level arc (see src/biomes.ts band comments).
+export const ENDLESS_UNLOCK_LEVEL = 30;
+
+// True once the player has cleared the final campaign level on normal —
+// the moment Endless mode becomes available.
+export const hasUnlockedEndless = (p: ProgressData): boolean =>
+  getStars(p, ENDLESS_UNLOCK_LEVEL) >= 1;
+
+export const markEndlessUnlockExplainerSeen = (p: ProgressData): ProgressData =>
+  p.seenEndlessUnlockExplainer ? p : { ...p, seenEndlessUnlockExplainer: true };
+
+const endlessBestKey = (mapId: string, difficulty: Difficulty): string => `${mapId}:${difficulty}`;
+
+export const getEndlessBest = (p: ProgressData, mapId: string, difficulty: Difficulty): number =>
+  p.endlessBest?.[endlessBestKey(mapId, difficulty)] ?? 0;
+
+// Record a finished endless run's wave reached. Returns the same
+// ProgressData reference when it didn't beat the existing best (lets the
+// store skip a redundant persist), a new object when it did.
+export const recordEndlessResult = (
+  p: ProgressData,
+  mapId: string,
+  difficulty: Difficulty,
+  waveReached: number,
+): ProgressData => {
+  const key = endlessBestKey(mapId, difficulty);
+  const prev = p.endlessBest?.[key] ?? 0;
+  if (waveReached <= prev) return p;
+  return { ...p, endlessBest: { ...p.endlessBest, [key]: waveReached } };
+};
 
 export const isLevelUnlocked = (levelId: number, p: ProgressData): boolean => {
   if (levelId <= 1) return true;

@@ -6,11 +6,18 @@ import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from ".
 import { useGamepadMenuNavigation } from "../input/useGamepadMenuNavigation";
 import { LEVELS } from "../levels";
 import { LEVEL_BRIEFING } from "../levels/briefings";
-import { getStars, hasUnlockedChallengeModes, isLevelUnlocked, totalStars } from "../progress";
+import {
+  getStars,
+  hasUnlockedChallengeModes,
+  hasUnlockedEndless,
+  isLevelUnlocked,
+  totalStars,
+} from "../progress";
 import { spentMetaStars } from "../sim/metaSkills";
 import { useGame } from "../store";
 import { DebugProgressSettings } from "./DebugProgressSettings";
 import { DifficultyButton } from "./DifficultyButton";
+import { EndlessUnlockedModal } from "./EndlessUnlockedModal";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { FullscreenToggle } from "./FullscreenToggle";
 import {
@@ -57,12 +64,18 @@ export const WorldMapUI = () => {
   const setCreditsOpen = useGame((s) => s.setCreditsOpen);
   const setSkillTreeOpen = useGame((s) => s.setSkillTreeOpen);
   const setRobotShopOpen = useGame((s) => s.setRobotShopOpen);
+  const setEndlessPickerOpen = useGame((s) => s.setEndlessPickerOpen);
   const goToSlots = useGame((s) => s.goToSlots);
   const [menuOpen, setMenuOpen] = useState(false);
   // One-shot explainer for Heroic + Iron once the player has earned 3
   // stars on any level. Skipped if the slot has already dismissed it.
   const showModesUnlocked =
     !progress.seenModesUnlockExplainer && hasUnlockedChallengeModes(progress);
+  const endlessUnlocked = hasUnlockedEndless(progress);
+  // One-shot Endless reveal after the final outpost falls. Held back while
+  // the modes explainer is still pending so two dialogs never stack.
+  const showEndlessUnlocked =
+    !progress.seenEndlessUnlockExplainer && endlessUnlocked && !showModesUnlocked;
   const navRepeatRef = useRef<{ direction: -1 | 1 | 0; nextAt: number }>({
     direction: 0,
     nextAt: 0,
@@ -159,6 +172,20 @@ export const WorldMapUI = () => {
       </div>
 
       <div className="world-map-rd absolute bottom-6 right-6 pointer-events-none flex flex-col items-end gap-2">
+        {endlessUnlocked && (
+          <button
+            type="button"
+            className="world-map-utility-btn bg-surface-1 border border-blue/50 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
+            onClick={() => setEndlessPickerOpen(true)}
+            aria-label="Open endless mode"
+            title="Endless — survive infinite escalating waves"
+          >
+            <span className="text-base leading-none font-bold text-cyan shrink-0" aria-hidden>
+              ∞
+            </span>
+            <span className="text-sm font-bold tracking-wide uppercase">Endless</span>
+          </button>
+        )}
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
@@ -297,6 +324,7 @@ export const WorldMapUI = () => {
       )}
 
       {showModesUnlocked && <ModesUnlockedModal />}
+      {showEndlessUnlocked && <EndlessUnlockedModal />}
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "./level";
 import type { LevelConfig } from "./levels";
 import { getLevel, LEVELS, levelHasMode, resolveLevelMode } from "./levels";
 import { LEVEL_BRIEFING } from "./levels/briefings";
+import { getEndlessArena } from "./levels/endless";
 import { LORE_FRAGMENT_ORDER } from "./levels/lore";
 import type { Difficulty, LevelMode, ProgressData, SlotId, Stars } from "./progress";
 import {
@@ -18,15 +19,19 @@ import {
   DIFFICULTY_MULTIPLIERS,
   deleteSlot as deleteSlotStorage,
   emptyProgress,
+  getEndlessBest,
   getModeStars,
+  hasUnlockedEndless,
   isLevelUnlocked,
   isModeUnlocked,
   loadSlot,
   markEasterEggTriggered,
   markEncountered,
+  markEndlessUnlockExplainerSeen,
   markMatriarchsEncountered,
   markModesUnlockExplainerSeen,
   minDifficulty,
+  recordEndlessResult,
   recordLevelResult,
   saveSlot,
   setDifficulty as setDifficultyOnProgress,
@@ -34,6 +39,7 @@ import {
   totalStars,
   triggeredEasterEggIdsForLevel,
 } from "./progress";
+import { endlessSpeedFactor } from "./sim/endless";
 import { Engine } from "./sim/loop";
 import { MECHANIC_ORDER, type MechanicId } from "./sim/mechanicsText";
 import {
@@ -132,6 +138,16 @@ export type LastResult = {
   bestStars: number;
   improved: boolean;
   unlockedAchievements: AchievementId[];
+  // Set only for endless runs. Drives the endless results variant (wave
+  // reached + new-best indicator instead of stars). Absent on campaign.
+  endless?: {
+    mapId: string;
+    mapName: string;
+    waveReached: number;
+    bestWave: number;
+    newBest: boolean;
+    enemiesKilled: number;
+  };
 };
 
 type UiSnapshot = {
@@ -139,6 +155,12 @@ type UiSnapshot = {
   lives: number;
   wave: number;
   totalWaves: number;
+  // Endless-run readouts. `endless` is false on every campaign run, in
+  // which case the HUD keeps the "wave / totalWaves" display. When true,
+  // the HUD shows the climbing wave + best for this arena.
+  endless: boolean;
+  endlessBestWave: number;
+  endlessMapName: string;
   status: RunStatus;
   waveActive: boolean;
   nextWaveIn: number;
@@ -247,6 +269,9 @@ const snapshot = (
     lives: w.lives,
     wave: w.wave,
     totalWaves: w.totalWaves,
+    endless: w.endless !== null,
+    endlessBestWave: w.endless?.bestWave ?? 0,
+    endlessMapName: w.endless?.mapName ?? "",
     status: w.status,
     waveActive: w.waveActive,
     nextWaveIn: Math.ceil(w.nextWaveIn),
@@ -307,6 +332,9 @@ const uiEqual = (a: UiSnapshot, b: UiSnapshot) =>
   a.lives === b.lives &&
   a.wave === b.wave &&
   a.totalWaves === b.totalWaves &&
+  a.endless === b.endless &&
+  a.endlessBestWave === b.endlessBestWave &&
+  a.endlessMapName === b.endlessMapName &&
   a.status === b.status &&
   a.waveActive === b.waveActive &&
   a.nextWaveIn === b.nextWaveIn &&
@@ -513,6 +541,15 @@ type GameStore = {
   // !progress.seenModesUnlockExplainer); this setter persists the
   // dismissed flag so the dialog never reappears on this slot.
   dismissModesUnlockedExplainer: () => void;
+  // Endless mode. The picker overlay lists the dedicated arenas; starting
+  // one builds an endless World (no campaign mode/star machinery). Gated
+  // behind hasUnlockedEndless in the world-map UI.
+  endlessPickerOpen: boolean;
+  setEndlessPickerOpen: (open: boolean) => void;
+  startEndless: (mapId: string) => void;
+  // One-shot "Endless unlocked" world-map reveal dismissal — persists the
+  // seen flag so the dialog never reappears on this slot.
+  dismissEndlessUnlockExplainer: () => void;
   setSkillTreeOpen: (open: boolean) => void;
   setMetaSkillTier: (kind: TowerKind, branch: MetaBranchId, tier: number) => void;
   resetMetaSkillsForKind: (kind: TowerKind) => void;
@@ -808,6 +845,7 @@ export const useGame = create<GameStore>((set, get) => ({
   activeSlot: null,
   selectedLevelId: null,
   modePickerLevelId: null,
+  endlessPickerOpen: false,
   progress: emptyProgress(),
   hoveredLevelId: null,
   lastResult: null,
@@ -878,8 +916,84 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ modePickerLevelId: null });
   },
 
+  setEndlessPickerOpen: (open) => {
+    const s = get();
+    if (open && !hasUnlockedEndless(s.progress)) return;
+    set({ endlessPickerOpen: open });
+  },
+
+  dismissEndlessUnlockExplainer: () => {
+    const s = get();
+    const progress = markEndlessUnlockExplainerSeen(s.progress);
+    if (progress === s.progress) return;
+    persistProgress(s.activeSlot, progress);
+    set({ progress });
+  },
+
+  startEndless: (mapId) => {
+    const s = get();
+    const { engine, progress } = s;
+    if (!hasUnlockedEndless(progress)) return;
+    const arena = getEndlessArena(mapId);
+    if (!arena) return;
+    engine.reset();
+    const triggeredEggs = triggeredEasterEggIdsForLevel(progress, arena.id);
+    const world = createWorld(
+      arena,
+      "normal",
+      DIFFICULTY_MULTIPLIERS[progress.difficulty],
+      triggeredEggs,
+      {
+        variant: progress.activeRobot,
+        xp: progress.robotXp[progress.activeRobot] ?? 0,
+        skills: progress.robotSkills,
+      },
+      {
+        // Random seed per run so the wave sequence varies between attempts
+        // while staying deterministic within a run (stored on world.endless).
+        seed: (Math.random() * 0x1_0000_0000) >>> 0,
+        mapId,
+        mapName: arena.name,
+        bestWave: getEndlessBest(progress, mapId, progress.difficulty),
+      },
+    );
+    // Carry the debug invincibility flag across endless starts/retries,
+    // matching startLevel.
+    world.invincible = s.invincible;
+    set({
+      world,
+      ui: snapshot(world, 0, 0, emptyInspect),
+      towerVersion: 0,
+      treeVersion: 0,
+      inspectedEnemy: emptyInspect,
+      selectedKind: null,
+      selectedTreeId: null,
+      selectedRockId: null,
+      // Endless drives everything off world.endless; selectedLevelId stays
+      // null so campaign UI (getLevel(selectedLevelId), ordinals) is skipped.
+      selectedLevelId: null,
+      modePickerLevelId: null,
+      endlessPickerOpen: false,
+      hoveredLevelId: null,
+      lastResult: null,
+      newEnemyQueue: [],
+      deferredNewEnemyQueue: [],
+      autoPausedForNewEnemy: false,
+      levelIntroVisible: false,
+      screen: "playing",
+      treeClickCounts: {},
+      rockClickCounts: {},
+      runMinDifficulty: progress.difficulty,
+    });
+    track("endless_start", { map_id: mapId });
+  },
+
   retryCurrentLevel: () => {
     const s = get();
+    if (s.world.endless) {
+      s.startEndless(s.world.endless.mapId);
+      return;
+    }
     const id = s.selectedLevelId ?? 1;
     // Retry preserves the mode the player was in — restarting an Iron
     // attempt should keep the one-life + locked loadout, not silently
@@ -1075,6 +1189,22 @@ export const useGame = create<GameStore>((set, get) => ({
       const prevMin = s.runMinDifficulty ?? difficulty;
       updates.runMinDifficulty = minDifficulty(prevMin, difficulty);
       updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
+    } else if (s.screen === "playing" && s.world.endless) {
+      // Endless mid-run difficulty change: push the new multipliers onto
+      // the live world. Future generated waves read endless.hpMul; the
+      // current wave's remaining spawns pick up the new speed immediately.
+      const w = s.world;
+      const en = w.endless;
+      if (en) {
+        const mul = DIFFICULTY_MULTIPLIERS[difficulty];
+        w.goldKillMul = mul.goldKill;
+        en.hpMul = mul.hp;
+        en.baseSpeedMul = mul.speed;
+        w.speedMul = mul.speed * endlessSpeedFactor(w.wave);
+        const prevMin = s.runMinDifficulty ?? difficulty;
+        updates.runMinDifficulty = minDifficulty(prevMin, difficulty);
+        updates.ui = snapshot(w, s.towerVersion, s.treeVersion, s.inspectedEnemy);
+      }
     }
 
     set(updates);
@@ -1240,62 +1370,104 @@ export const useGame = create<GameStore>((set, get) => ({
         }
         if (ev.type === "game-over") {
           const w = s.world;
-          const mode: LevelMode = w.mode;
-          const stars = starsForRun(mode, w.lives, ev.won);
-          const prevModeStars = getModeStars(progress, w.levelId);
-          const prev =
-            mode === "normal"
-              ? prevModeStars.normal
-              : mode === "heroic"
-                ? prevModeStars.heroic
-                : prevModeStars.iron;
-          const improved = ev.won && stars > prev;
-          if (improved) progress = recordLevelResult(progress, w.levelId, mode, stars);
-          if (ev.won) {
-            progress = {
-              ...progress,
-              stats: { ...progress.stats, winsTotal: progress.stats.winsTotal + 1 },
+          if (w.endless) {
+            // Endless never "wins" — game-over here always means lives ran
+            // out. Score is the highest wave reached; persist it as the
+            // per-arena best and surface a new-best flag.
+            const en = w.endless;
+            const waveReached = w.wave;
+            let enemiesKilled = w.robot.kills + w.base.kills;
+            for (const t of w.towers) enemiesKilled += t.kills;
+            const prevBest = getEndlessBest(progress, en.mapId, progress.difficulty);
+            const newBest = waveReached > prevBest;
+            progress = recordEndlessResult(progress, en.mapId, progress.difficulty, waveReached);
+            lastResult = {
+              levelId: w.levelId,
+              levelName: en.mapName,
+              won: false,
+              livesRemaining: w.lives,
+              startingLives: w.startLives,
+              mode: "normal",
+              stars: 0,
+              bestStars: 0,
+              improved: newBest,
+              unlockedAchievements: [],
+              endless: {
+                mapId: en.mapId,
+                mapName: en.mapName,
+                waveReached,
+                bestWave: Math.max(prevBest, waveReached),
+                newBest,
+                enemiesKilled,
+              },
             };
-          }
-          const level = LEVELS.find((l) => l.id === w.levelId);
-          const bestStars = Math.max(prev, ev.won ? stars : 0);
-          lastResult = {
-            levelId: w.levelId,
-            levelName: level?.name ?? `Level ${w.levelId}`,
-            won: ev.won,
-            livesRemaining: w.lives,
-            startingLives: w.startLives,
-            mode,
-            stars,
-            bestStars,
-            improved,
-            unlockedAchievements: [],
-          };
-          if (ev.won) {
-            screen = "results";
-          } else {
-            // Hold the results screen back so the HQ destruction
-            // cinematic in HQTurret.tsx (tilt + sink + bright flash, ~1.1s)
-            // can complete before the overlay covers the world. The
-            // loss-rumble in CameraRig is timed to the same window.
+            // Hold results back for the HQ destruction cinematic, same as a
+            // campaign loss.
             setTimeout(() => {
               const cur = useGame.getState();
               if (cur.world.status === "lost" && cur.screen !== "results") {
                 set({ screen: "results" });
               }
             }, 1300);
-          }
-          if (ev.won) {
-            track("level_complete", {
-              level_id: w.levelId,
-              waves_survived: w.totalWaves,
-              stars,
-            });
+            track("endless_failed", { map_id: en.mapId, wave_reached: waveReached });
           } else {
-            track("level_failed", {
-              level_id: w.levelId,
-              wave_reached: w.wave,
-            });
+            const mode: LevelMode = w.mode;
+            const stars = starsForRun(mode, w.lives, ev.won);
+            const prevModeStars = getModeStars(progress, w.levelId);
+            const prev =
+              mode === "normal"
+                ? prevModeStars.normal
+                : mode === "heroic"
+                  ? prevModeStars.heroic
+                  : prevModeStars.iron;
+            const improved = ev.won && stars > prev;
+            if (improved) progress = recordLevelResult(progress, w.levelId, mode, stars);
+            if (ev.won) {
+              progress = {
+                ...progress,
+                stats: { ...progress.stats, winsTotal: progress.stats.winsTotal + 1 },
+              };
+            }
+            const level = LEVELS.find((l) => l.id === w.levelId);
+            const bestStars = Math.max(prev, ev.won ? stars : 0);
+            lastResult = {
+              levelId: w.levelId,
+              levelName: level?.name ?? `Level ${w.levelId}`,
+              won: ev.won,
+              livesRemaining: w.lives,
+              startingLives: w.startLives,
+              mode,
+              stars,
+              bestStars,
+              improved,
+              unlockedAchievements: [],
+            };
+            if (ev.won) {
+              screen = "results";
+            } else {
+              // Hold the results screen back so the HQ destruction
+              // cinematic in HQTurret.tsx (tilt + sink + bright flash, ~1.1s)
+              // can complete before the overlay covers the world. The
+              // loss-rumble in CameraRig is timed to the same window.
+              setTimeout(() => {
+                const cur = useGame.getState();
+                if (cur.world.status === "lost" && cur.screen !== "results") {
+                  set({ screen: "results" });
+                }
+              }, 1300);
+            }
+            if (ev.won) {
+              track("level_complete", {
+                level_id: w.levelId,
+                waves_survived: w.totalWaves,
+                stars,
+              });
+            } else {
+              track("level_failed", {
+                level_id: w.levelId,
+                wave_reached: w.wave,
+              });
+            }
           }
         }
         runChecks(ev);

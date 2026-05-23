@@ -1,0 +1,92 @@
+import { useEffect } from "react";
+import { audio } from "../audio/AudioManager";
+import { biomeForPos } from "../biomes";
+import { ENDLESS_ARENAS } from "../levels/endless";
+import { DIFFICULTY_LABEL, getEndlessBest } from "../progress";
+import { useGame } from "../store";
+
+// Endless arena selector. Reuses the achievements overlay/card visual
+// language (X-close, header, responsive card grid) so it matches the
+// rest of the world-map menus. Each card shows the player's best wave for
+// the current difficulty; tapping one starts that arena.
+export const EndlessPicker = () => {
+  const progress = useGame((s) => s.progress);
+  const startEndless = useGame((s) => s.startEndless);
+  const setOpen = useGame((s) => s.setEndlessPickerOpen);
+
+  useEffect(() => {
+    audio.ui("click");
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [setOpen]);
+
+  return (
+    <div className="overlay achievements-overlay">
+      <div className="achievements-card">
+        <header className="achievements-header">
+          <div>
+            <h1>Endless</h1>
+            <div className="achievements-subtitle">
+              Pick an arena · {DIFFICULTY_LABEL[progress.difficulty]} · survive forever
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setOpen(false)}
+            aria-label="Close endless picker"
+            title="Close endless picker"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 sm:gap-3 sm:p-5 overflow-y-auto">
+          {ENDLESS_ARENAS.map((arena) => {
+            const best = getEndlessBest(progress, arena.mapId, progress.difficulty);
+            const biome = biomeForPos(arena.nodePos);
+            return (
+              <button
+                key={arena.mapId}
+                type="button"
+                onClick={() => {
+                  audio.ui("select");
+                  startEndless(arena.mapId);
+                }}
+                className="relative flex flex-col items-stretch text-left gap-2 p-3 sm:p-4 rounded-lg border bg-surface-1 border-blue shadow-[0_0_24px_rgba(159,216,255,0.18)] cursor-pointer hover:brightness-110 transition-all"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-base font-bold text-blue tracking-mid">{arena.name}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-fg-dim">{biome}</span>
+                </div>
+                <div className="text-[11px] text-fg-muted leading-snug min-h-[36px]">
+                  {arena.blurb}
+                </div>
+                <ul className="flex flex-col gap-1 text-[11px] text-fg border-t border-border-faint pt-2 mt-1 tabular-nums">
+                  <li className="flex justify-between">
+                    <span className="text-fg-muted">Best wave</span>
+                    <span className="text-gold font-semibold">{best > 0 ? best : "—"}</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-fg-muted">Lanes</span>
+                    <span className="text-fg font-semibold">{arena.paths.length}</span>
+                  </li>
+                </ul>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
