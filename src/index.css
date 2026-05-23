@@ -2291,6 +2291,51 @@
     font-family: ui-monospace, "SF Mono", "Menlo", monospace;
   }
 
+  .level-intro-begin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    margin: 4px auto 12px;
+    padding: 11px 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(140, 200, 240, 0.5);
+    background: linear-gradient(
+      180deg,
+      rgba(40, 78, 108, 0.95) 0%,
+      rgba(26, 52, 74, 0.95) 100%
+    );
+    color: #eaf3fb;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    pointer-events: auto;
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s,
+      transform 0.08s;
+  }
+  .level-intro-begin:hover {
+    border-color: var(--color-blue, #9fd8ff);
+    box-shadow:
+      0 0 0 1px rgba(159, 216, 255, 0.4),
+      0 0 18px rgba(159, 216, 255, 0.2);
+    transform: translateY(-1px);
+  }
+  .level-intro-begin:active {
+    transform: translateY(0);
+  }
+  .level-intro-begin:focus {
+    outline: none;
+  }
+  .level-intro-begin:focus-visible {
+    outline: 2px solid var(--color-blue, #9fd8ff);
+    outline-offset: 2px;
+  }
+
   .level-intro-hint {
     font-size: 10px;
     letter-spacing: 0.18em;

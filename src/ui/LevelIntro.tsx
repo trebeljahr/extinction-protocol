@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LEVEL_BRIEFING, LEVEL_INTERSTITIAL } from "../levels/briefings";
 import { useGame } from "../store";
 import { useInputMode } from "./useInputMode";
@@ -11,49 +11,68 @@ export const LevelIntro = () => {
   const [exiting, setExiting] = useState(false);
   const input = useInputMode();
 
+  const exitingRef = useRef(false);
+  const aliveRef = useRef(true);
+
   const briefing = levelId !== null ? LEVEL_BRIEFING[levelId] : undefined;
   const commandNote = levelId !== null ? LEVEL_INTERSTITIAL[levelId] : undefined;
-  const hint =
-    input.mode === "gamepad"
-      ? "press a button to continue"
-      : input.mode === "keyboard" && !input.touchPrimary
-        ? "press any key to continue"
-        : "tap to continue";
+
+  const beginDefense = useCallback(() => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+    setExiting(true);
+    setTimeout(() => {
+      if (aliveRef.current) dismiss();
+    }, FADE_MS);
+  }, [dismiss]);
 
   useEffect(() => {
-    if (!briefing) return;
-    let cancelled = false;
-
-    const fadeOut = () => {
-      if (cancelled) return;
-      setExiting(true);
-      setTimeout(() => {
-        if (!cancelled) dismiss();
-      }, FADE_MS);
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
     };
+  }, []);
+
+  // Dismiss only on an explicit signal: any key (gamepad confirm arrives
+  // as a synthetic keydown), or a tap on the backdrop outside the card.
+  // Taps and scroll gestures *on* the card never dismiss — otherwise the
+  // first touch a player makes to scroll a long briefing would skip it.
+  // The "Begin defense" button starts the level from the card itself. A
+  // scroll gesture does not fire `click`, so dragging to read is safe.
+  useEffect(() => {
+    if (!briefing) return;
 
     const onKey = (e: KeyboardEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      fadeOut();
+      beginDefense();
     };
-    const onClick = (e: PointerEvent) => {
+    const onClick = (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (target?.closest(".quick-settings")) return;
-      fadeOut();
+      if (target?.closest(".level-intro-card")) return;
+      beginDefense();
     };
 
     window.addEventListener("keydown", onKey, true);
-    window.addEventListener("pointerdown", onClick, true);
+    window.addEventListener("click", onClick, true);
 
     return () => {
-      cancelled = true;
       window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("pointerdown", onClick, true);
+      window.removeEventListener("click", onClick, true);
     };
-  }, [briefing, dismiss]);
+  }, [briefing, beginDefense]);
 
   if (!briefing) return null;
+
+  const hint =
+    input.mode === "gamepad"
+      ? "press a button to begin"
+      : input.mode === "keyboard" && !input.touchPrimary
+        ? "press any key, or tap outside, to begin"
+        : commandNote
+          ? "scroll to read · tap Begin to start"
+          : "tap Begin, or tap outside, to start";
 
   return (
     <div className={`level-intro-overlay ${exiting ? "level-intro-exit" : ""}`}>
@@ -66,6 +85,16 @@ export const LevelIntro = () => {
             <p className="level-intro-command-note-text">{commandNote}</p>
           </div>
         )}
+        <button
+          type="button"
+          className="level-intro-begin"
+          onClick={(e) => {
+            e.stopPropagation();
+            beginDefense();
+          }}
+        >
+          Begin defense
+        </button>
         <div className="level-intro-hint">{hint}</div>
       </div>
     </div>

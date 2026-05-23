@@ -272,14 +272,22 @@ silhouettes. Shown, not told.
 
 1. **`docs/STORY.md`** (this file) — the bible.
 2. **`src/levels/briefings.ts`** — full 30-line pass of
-   `LEVEL_BRIEFING` against the voice rules above. Plus a new
-   `LEVEL_INTERSTITIAL` export holding one longer command update per biome
-   opener (L1, L6, L11, L16, L21, L26) — 4–6 sentences each,
-   command-memo voice, explaining the macro picture.
+   `LEVEL_BRIEFING` against the voice rules above. Plus a
+   `LEVEL_INTERSTITIAL` export holding one longer command update per
+   level (L1–L30) — 4–6 sentences each, command-memo voice, telling the
+   off-screen story of what has happened and the macro picture. The
+   biome openers (L1, L6, L11, L16, L21, L26) carry the load-bearing
+   premise/fall-back/adaptation framing; the intermediate levels narrate
+   the per-level beat that the operator briefing only states.
 3. **`src/ui/LevelIntro.tsx`** — render the command-update block below the
    per-level briefing when one is defined. `seenIntros` in progress
    already gates the whole overlay to first-play, so each command update is
-   read once per save slot.
+   read once per save slot. Because the command updates make the card tall
+   enough to scroll on phones, dismissal is by an explicit **Begin
+   defense** button, any key (gamepad confirm arrives as a synthetic
+   keydown), or a tap on the backdrop outside the card — taps and scroll
+   gestures *on* the card never dismiss, so a player can read the full text
+   without the first touch skipping it.
 4. **`src/index.css`** — `.level-intro-command-note` styling (monospace
    block, muted, divider rules) so the command update reads as a different
    document type than the operator field report above it.
