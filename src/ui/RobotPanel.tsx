@@ -3,6 +3,7 @@ import { clamp01 } from "../sim/vec2";
 import { useGame } from "../store";
 import { fmtCompact } from "./format";
 import { useKeyboardHintsVisible } from "./useInputMode";
+import { useIsMobile } from "./useMediaQuery";
 
 // QWER hotkey map. Slot 3 (R) is always the ultimate so the climactic
 // move sits on the same key across pilots — League-style muscle memory.
@@ -38,6 +39,8 @@ export const RobotPanel = () => {
   const trigger = useGame((s) => s.triggerRobotAbility);
   const panelOpen = useGame((s) => s.robotPanelOpen);
   const setRobotPanelOpen = useGame((s) => s.setRobotPanelOpen);
+  const selectRobotUnit = useGame((s) => s.selectRobotUnit);
+  const isMobile = useIsMobile();
 
   const hpPct = maxHp > 0 ? clamp01(hp / maxHp) : 0;
   const xpPct = xpNeed > 0 ? clamp01(xpInto / xpNeed) : 0;
@@ -47,7 +50,16 @@ export const RobotPanel = () => {
       <button
         type="button"
         className={`robot-portrait ${panelOpen ? "active" : ""}`}
-        onClick={() => setRobotPanelOpen(!panelOpen)}
+        onClick={() => {
+          const next = !panelOpen;
+          setRobotPanelOpen(next);
+          // Mobile lacks an easy tap target on the field robot, so the
+          // portrait doubles as the hero selector: opening also selects it
+          // for movement (next ground tap is a move order), closing clears
+          // the selection. Desktop keeps portrait = stats-only; the field
+          // mesh handles selection there.
+          if (isMobile) selectRobotUnit(next);
+        }}
         aria-pressed={panelOpen}
         aria-label="Toggle robot overview"
         title="Robot overview"
