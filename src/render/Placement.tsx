@@ -332,7 +332,10 @@ export const Placement = () => {
       return;
     }
 
-    handleGroundTap(pos, { clearSelectionAfterPlacement: true });
+    handleGroundTap(pos, {
+      clearSelectionAfterPlacement: true,
+      deselectRobotOnInvalidMove: true,
+    });
   };
 
   const onPointerCancel = (e: ThreeEvent<PointerEvent>) => {
@@ -350,7 +353,10 @@ export const Placement = () => {
     if (!controllerActiveRef.current) setHoverState(null);
   };
 
-  const handleGroundTap = (pos: Vec2, opts: { clearSelectionAfterPlacement?: boolean } = {}) => {
+  const handleGroundTap = (
+    pos: Vec2,
+    opts: { clearSelectionAfterPlacement?: boolean; deselectRobotOnInvalidMove?: boolean } = {},
+  ) => {
     const state = useGame.getState();
     // Dash aim active (any dash robot): a ground click commits the dash
     // in the current aim direction and swallows the click so we don't
@@ -374,8 +380,16 @@ export const Placement = () => {
     if (state.world.robot.selected && state.selectedKind === null) {
       if (!state.towerAtPos(pos) && !state.hqAtPos(pos)) {
         if (!state.orderRobotMove(pos)) {
-          audio.ui("error");
-          flashInvalidMove(pos);
+          // Tap landed off the path. On touch there's no right-click/Esc to
+          // back out of robot command mode, so a tap away from a valid path
+          // means "I'm done driving the robot" — deselect it. Desktop keeps
+          // the rejection cue since a stray left-click shouldn't drop it.
+          if (opts.deselectRobotOnInvalidMove) {
+            state.selectRobotUnit(false);
+          } else {
+            audio.ui("error");
+            flashInvalidMove(pos);
+          }
         }
         return;
       }
