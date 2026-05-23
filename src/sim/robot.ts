@@ -1,4 +1,4 @@
-import { isOnLavaSurface } from "../lavaGeometry";
+import { isOnFlowSurface } from "../flowGeometry";
 import { MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { dampFactor, shortAngleDelta } from "./angle";
 import { isEnemyTargetable } from "./enemyState";
@@ -976,7 +976,7 @@ export const updateRobot = (world: World, dt: number) => {
   // lava/water/goo so the visual lift + jet VFX read instantly; the
   // lava DOT is suppressed for that exact span so the jetpack does
   // what it looks like it does.
-  const onLiquid = isOnLavaSurface(world.lavaFeatures, robot.pos.x, robot.pos.y, ROBOT_RADIUS);
+  const onLiquid = isOnFlowSurface(world.flowFeatures, robot.pos.x, robot.pos.y, ROBOT_RADIUS);
   robot.hovering = onLiquid;
   const hoverTarget = onLiquid ? ROBOT_HOVER_HEIGHT : 0;
   robot.hoverHeight += (hoverTarget - robot.hoverHeight) * dampFactor(dt, ROBOT_HOVER_HALFLIFE);
@@ -985,7 +985,7 @@ export const updateRobot = (world: World, dt: number) => {
     world.biome === "lava" &&
     !robot.hovering &&
     world.time >= robot.abilityActiveUntil[0] &&
-    isOnLavaSurface(world.lavaFeatures, robot.pos.x, robot.pos.y, ROBOT_RADIUS)
+    isOnFlowSurface(world.flowFeatures, robot.pos.x, robot.pos.y, ROBOT_RADIUS)
   ) {
     damageRobot(world, 14 * dt);
   }

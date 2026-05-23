@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import type { Bridge } from "../lavaGeometry";
+import type { Bridge } from "../flowGeometry";
 import type { Vec2 } from "../sim/types";
 
 const VERT = /* glsl */ `

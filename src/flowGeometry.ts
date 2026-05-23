@@ -104,8 +104,7 @@ export const getFlowConfig = (biome: Biome): FlowConfig | null => FLOW_CONFIG[bi
 
 // Biomes that have any flow features at all (rivers, lakes, or both).
 // Trees/rocks/cosmetics consult this to know whether to query
-// `isOnLavaSurface` for placement filtering. Renamed from the legacy
-// "hasFlowFeatures" but the export is preserved for callers.
+// `isOnFlowSurface` for placement filtering.
 export const hasFlowFeatures = (biome: string): boolean => Boolean(FLOW_CONFIG[biome as Biome]);
 
 export type River = { points: Vec2[]; width: number };
@@ -125,7 +124,7 @@ export type Bridge = RectBridge | PlazaBridge;
 // never pull each other into a plaza. The pathIdx is dropped before the
 // renderer sees the result.
 type SourcedRect = RectBridge & { pathIdx: number };
-export type LavaFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
+export type FlowFeatures = { rivers: River[]; lakes: Lake[]; bridges: Bridge[] };
 
 // Meandering polyline crossing the map on the chosen axis. Endpoints push
 // well past the max-panned viewport (visible half ≈ 24 + pan ≈ 16 = 40 on
@@ -563,7 +562,7 @@ const mergeOverlappingBridges = (rects: SourcedRect[]): Bridge[] => {
   return out;
 };
 
-export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome): LavaFeatures => {
+export const buildFlowFeatures = (paths: Vec2[][], levelId: number, biome: Biome): FlowFeatures => {
   const config = getFlowConfig(biome);
   if (!config) return { rivers: [], lakes: [], bridges: [] };
 
@@ -588,7 +587,7 @@ export const buildLavaFeatures = (paths: Vec2[][], levelId: number, biome: Biome
   };
 };
 
-// Weighted sampling table over the lava surface (rivers + lakes). Built
+// Weighted sampling table over the flow surface (rivers + lakes). Built
 // once per level so per-frame ember spawns just pick a point in O(items).
 type SurfaceItem =
   | {
@@ -602,9 +601,9 @@ type SurfaceItem =
     }
   | { kind: "lake"; x: number; y: number; rx: number; ry: number; rot: number; weight: number };
 
-export type LavaSurface = { items: SurfaceItem[]; total: number };
+export type FlowSurface = { items: SurfaceItem[]; total: number };
 
-export const buildLavaSurface = (features: LavaFeatures): LavaSurface => {
+export const buildFlowSurface = (features: FlowFeatures): FlowSurface => {
   const items: SurfaceItem[] = [];
   let total = 0;
   for (const river of features.rivers) {
@@ -641,7 +640,7 @@ export const buildLavaSurface = (features: LavaFeatures): LavaSurface => {
   return { items, total };
 };
 
-const sampleOnce = (surface: LavaSurface, rand: () => number): { x: number; y: number } | null => {
+const sampleOnce = (surface: FlowSurface, rand: () => number): { x: number; y: number } | null => {
   if (surface.total <= 0) return null;
   let r = rand() * surface.total;
   for (const item of surface.items) {
@@ -704,12 +703,12 @@ export const isUnderBridge = (bridges: Bridge[], x: number, y: number): boolean 
   return false;
 };
 
-// Pick a random world-space (x, y) point on the lava surface, weighted by
+// Pick a random world-space (x, y) point on the flow surface, weighted by
 // area so larger features spawn proportionally more embers. Rejects samples
 // that fall under a bridge so embers don't poke through the deck. Returns
 // level (x, y) coords; caller maps y → -z for three.js.
-export const sampleLavaSurface = (
-  surface: LavaSurface,
+export const sampleFlowSurface = (
+  surface: FlowSurface,
   bridges: Bridge[],
   rand: () => number,
 ): { x: number; y: number } | null => {
@@ -723,12 +722,12 @@ export const sampleLavaSurface = (
   return sampleOnce(surface, rand);
 };
 
-// True if (x, y) lands on any molten lava surface (lake interior OR river
-// strip), padded outward by `padding` world units. Used to keep
-// environmental decorations off the molten parts of lava maps. Pass null
-// when the biome has no lava at all.
-export const isOnLavaSurface = (
-  features: LavaFeatures | null,
+// True if (x, y) lands on any flow surface (lake interior OR river strip),
+// padded outward by `padding` world units. Used to keep environmental
+// decorations off the rivers/lakes. Pass null when the biome has no flow
+// features at all.
+export const isOnFlowSurface = (
+  features: FlowFeatures | null,
   x: number,
   y: number,
   padding = 0,

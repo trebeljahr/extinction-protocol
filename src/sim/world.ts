@@ -7,11 +7,11 @@ import {
 } from "../biomes";
 import { EASTER_EGG_BY_ID, EASTER_EGG_DEFS, type EasterEggDef } from "../easterEggs";
 import {
-  buildLavaFeatures,
+  buildFlowFeatures,
+  type FlowFeatures,
   hasFlowFeatures,
-  isOnLavaSurface,
-  type LavaFeatures,
-} from "../lavaGeometry";
+  isOnFlowSurface,
+} from "../flowGeometry";
 import {
   HQ_PAD_BLOCKER_RADIUS,
   MAP_HEIGHT,
@@ -189,7 +189,7 @@ const buildTrees = (
   paths: Vec2[][],
   seed: number,
   firstId: number,
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
   biome: Biome,
   outposts: Outpost[],
 ): { trees: Tree[]; nextId: number } => {
@@ -217,7 +217,7 @@ const buildTrees = (
   const hqR2 = (HQ_PAD_BLOCKER_RADIUS + TREE_FOOTPRINT) ** 2;
 
   const isValid = (x: number, y: number): boolean => {
-    if (isOnLavaSurface(lava, x, y, TREE_FOOTPRINT)) return false;
+    if (isOnFlowSurface(flow, x, y, TREE_FOOTPRINT)) return false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
         if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
@@ -281,7 +281,7 @@ const buildRocks = (
   paths: Vec2[][],
   trees: Tree[],
   firstId: number,
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
   levelId: number,
   outposts: Outpost[],
 ): { rocks: Rock[]; nextId: number } => {
@@ -323,14 +323,14 @@ const buildRocks = (
     // them as fixed blockers (no overlap regardless of within-layer
     // density variation).
     const earlierRocks = rocks.slice();
-    // Conservative lava check — use max scale footprint so a max-scale
-    // rock at this position couldn't touch lava either.
-    const lavaFootprint = candidateR + 0.1;
+    // Conservative flow-surface check — use max scale footprint so a max-scale
+    // rock at this position couldn't touch the rivers/lakes either.
+    const flowFootprint = candidateR + 0.1;
 
     const hqRockR2 = (HQ_PAD_BLOCKER_RADIUS + candidateR) ** 2;
 
     const isValid = (x: number, y: number): boolean => {
-      if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
+      if (isOnFlowSurface(flow, x, y, flowFootprint)) return false;
       for (const path of paths) {
         for (let i = 0; i < path.length - 1; i++) {
           if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
@@ -415,7 +415,7 @@ const buildEasterEggs = (
   outposts: Outpost[],
   seed: number,
   firstId: number,
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
   triggeredEggsOnLevel: ReadonlySet<string>,
 ): { eggs: EasterEgg[]; nextId: number } => {
   // Only consider statically-placed eggs here — moving ones spawn on a
@@ -437,7 +437,7 @@ const buildEasterEggs = (
     attempts++;
     const x = (rng() - 0.5) * MAP_WIDTH * 0.88;
     const y = (rng() - 0.5) * MAP_HEIGHT * 0.88;
-    if (isOnLavaSurface(lava, x, y, 0.6)) continue;
+    if (isOnFlowSurface(flow, x, y, 0.6)) continue;
     let blocked = false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
@@ -538,7 +538,7 @@ const buildOutposts = (
   paths: Vec2[][],
   biome: Biome,
   levelId: number,
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
   firstId: number,
 ): { outposts: Outpost[]; nextId: number } => {
   const rng = mulberry32(levelId * 6451 + 17);
@@ -549,7 +549,7 @@ const buildOutposts = (
   const fits = (x: number, y: number, r: number): boolean => {
     // Full-radius flow check (same as trees/rocks): a colony must clear
     // every river/lake — water in forest, lava in lava, goo in alien.
-    if (isOnLavaSurface(lava, x, y, r)) return false;
+    if (isOnFlowSurface(flow, x, y, r)) return false;
     const pathLim = r + PATH_WIDTH / 2 + 0.8;
     const pathLimSq = pathLim * pathLim;
     for (const path of paths) {
@@ -663,7 +663,7 @@ export const createWorld = (
   const modeConfig = resolveLevelMode(level, mode);
   // Smooth the authored corner waypoints into the dense polyline that
   // everything downstream walks: enemy advancement, render strip, tower
-  // placement clearance, lava bridge cuts, decoration spacing. Doing this
+  // placement clearance, river-bridge cuts, decoration spacing. Doing this
   // once here is what keeps the painted lane and the enemy lane aligned —
   // if any consumer fell back to the raw waypoints they'd cut corners
   // that the others curved around.
@@ -677,19 +677,19 @@ export const createWorld = (
   // Ribbon + spawn ring both anchor at path[0], the lead-in point at the
   // fully zoomed-out entry bounds. Kept per-path for future offsets.
   const pathRibbonStart = level.paths.map(() => 0);
-  // Lava rivers and lakes block organic decoration placement so trees,
-  // rocks, and easter eggs don't spawn in molten terrain. Pass null for
-  // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
-  // share the same flow geometry — see hasFlowFeatures.
-  const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, level.id, biome) : null;
+  // Rivers and lakes block organic decoration placement so trees, rocks,
+  // and easter eggs don't spawn on the flow surface. Pass null for non-flow
+  // biomes so isOnFlowSurface short-circuits. The lava, forest, and alien
+  // biomes share the same flow geometry — see hasFlowFeatures.
+  const flow = hasFlowFeatures(biome) ? buildFlowFeatures(paths, level.id, biome) : null;
   // Outposts are placed first so trees and rocks treat them as fixed
   // blockers and never spawn inside an authored colony.
-  const { outposts, nextId: afterOutposts } = buildOutposts(paths, biome, level.id, lava, 1);
+  const { outposts, nextId: afterOutposts } = buildOutposts(paths, biome, level.id, flow, 1);
   const { trees, nextId: afterTrees } = buildTrees(
     paths,
     level.id * 7919 + 101,
     afterOutposts,
-    lava,
+    flow,
     biome,
     outposts,
   );
@@ -698,7 +698,7 @@ export const createWorld = (
     paths,
     trees,
     afterTrees,
-    lava,
+    flow,
     level.id,
     outposts,
   );
@@ -710,7 +710,7 @@ export const createWorld = (
     outposts,
     level.id * 2311 + 47,
     afterRocks,
-    lava,
+    flow,
     triggeredEggsOnLevel,
   );
   const easterEggSchedule = buildEasterEggSchedule(
@@ -879,7 +879,7 @@ export const createWorld = (
     speedMul: difficulty.speed,
     goldKillMul: difficulty.goldKill,
     invincible: false,
-    lavaFeatures: lava,
+    flowFeatures: flow,
     mode,
     forbiddenTowers: new Set(modeConfig.forbiddenTowers ?? []),
     lockedLoadout: modeConfig.lockedLoadout ?? null,

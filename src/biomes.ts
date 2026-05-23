@@ -112,7 +112,7 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
     endRing: "#ff5252",
   },
   // Scorched volcanic basin — dark cracked ground, dark scorched-stone
-  // paths, bright magma reserved for rivers/lakes (LavaFeatures.tsx).
+  // paths, bright magma reserved for rivers/lakes (FlowFeatures.tsx).
   // Hazy ember-tinted sky, tight fog for oppressive feel.
   lava: {
     groundColor: "#3a1c12",
@@ -132,7 +132,7 @@ export const BIOME_STYLE: Record<Biome, BiomeStyle> = {
     groundColor: "#3a2060",
     // Path is the walkable strip — kept a muted violet–stone tone so it reads
     // as ground, not as a neon-cyan ribbon. The "alien-ness" comes from goo
-    // rivers/lakes (see lavaGeometry generalised for alien biome) and the
+    // rivers/lakes (see flowGeometry generalised for alien biome) and the
     // Ultimate Space Kit vegetation, not from a glowing path.
     pathColor: "#5a4880",
     sceneBg: "#2a1545",

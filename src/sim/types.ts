@@ -453,7 +453,7 @@ export type Robot = {
   stuckTimer: number;
   // True while the robot is over a liquid surface (lava river/lake,
   // forest water, alien goo). Render lifts the mesh and spawns jet VFX;
-  // sim skips lava DOT. Recomputed each tick from world.lavaFeatures.
+  // sim skips lava DOT. Recomputed each tick from world.flowFeatures.
   hovering: boolean;
   // Smoothed visual hover height in world units. 0 on dry ground,
   // ~0.5 over liquid. Damped on the sim side so render can read it
@@ -830,7 +830,7 @@ export type World = {
   // Toggled by the debug menu; always false in production builds (the
   // toggle UI is gated by isDebug + dead-codes out).
   invincible: boolean;
-  lavaFeatures: import("../lavaGeometry").LavaFeatures | null;
+  flowFeatures: import("../flowGeometry").FlowFeatures | null;
   robot: Robot;
   // Per-run challenge-mode tags. Heroic + iron set these from their
   // ModeConfig; normal runs all default to permissive. The sim and HUD

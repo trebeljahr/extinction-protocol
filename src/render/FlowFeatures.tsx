@@ -1,16 +1,16 @@
 import { nanoid } from "nanoid";
 import { useMemo } from "react";
-import { buildLavaFeatures, type FlowPalette, getFlowConfig } from "../lavaGeometry";
+import { buildFlowFeatures, type FlowPalette, getFlowConfig } from "../flowGeometry";
 import { PATH_WIDTH } from "../level";
 import type { Vec2 } from "../sim/types";
 import { useGame } from "../store";
 import { ForestWaterGroup } from "./ForestWater";
 
-// Renders the per-biome flow geometry built by `buildLavaFeatures` —
+// Renders the per-biome flow geometry built by `buildFlowFeatures` —
 // rivers, lakes/puddles, and bridges over path crossings. Palette comes
 // from `getFlowConfig(biome).palette` so each biome (lava/forest/alien)
 // styles the same shapes differently.
-export const LavaFeatures = () => {
+export const FlowFeatures = () => {
   const biome = useGame((s) => s.world.biome);
   const paths = useGame((s) => s.world.paths);
   const levelId = useGame((s) => s.world.levelId);
@@ -18,7 +18,7 @@ export const LavaFeatures = () => {
   const decorated = useMemo(() => {
     const config = getFlowConfig(biome);
     if (!config) return null;
-    const features = buildLavaFeatures(paths, levelId, biome);
+    const features = buildFlowFeatures(paths, levelId, biome);
     return {
       palette: config.palette,
       rivers: features.rivers.map((r) => ({ ...r, id: nanoid() })),

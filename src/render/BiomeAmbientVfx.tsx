@@ -2,12 +2,12 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
-  buildLavaFeatures,
-  buildLavaSurface,
+  buildFlowFeatures,
+  buildFlowSurface,
+  type FlowFeatures,
   hasFlowFeatures,
-  type LavaFeatures,
-  sampleLavaSurface,
-} from "../lavaGeometry";
+  sampleFlowSurface,
+} from "../flowGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { useGame } from "../store";
 
@@ -33,14 +33,14 @@ type P = {
   brightness: number;
 };
 
-type FlowSpawn = { surface: ReturnType<typeof buildLavaSurface>; features: LavaFeatures };
+type FlowSpawn = { surface: ReturnType<typeof buildFlowSurface>; features: FlowFeatures };
 
 const freshLavaEmber = (p: P, flow: FlowSpawn | null) => {
   // 35% sparks (bright, snappy, tiny), 65% embers (slower, larger, dimmer)
   const isSpark = Math.random() < 0.35;
   p.kind = isSpark ? "spark" : "ember";
 
-  const sample = flow ? sampleLavaSurface(flow.surface, flow.features.bridges, Math.random) : null;
+  const sample = flow ? sampleFlowSurface(flow.surface, flow.features.bridges, Math.random) : null;
   if (sample) {
     p.x = sample.x;
     p.z = -sample.y;
@@ -73,7 +73,7 @@ const freshAlienSpore = (p: P, flow: FlowSpawn | null) => {
   p.kind = "alien";
   // Spores rise off the goo rivers/lakes — sampling the flow surface keeps
   // them tethered to the visible feature instead of fogging the whole map.
-  const sample = flow ? sampleLavaSurface(flow.surface, flow.features.bridges, Math.random) : null;
+  const sample = flow ? sampleFlowSurface(flow.surface, flow.features.bridges, Math.random) : null;
   if (sample) {
     p.x = sample.x;
     p.z = -sample.y;
@@ -112,8 +112,8 @@ export const BiomeAmbientVfx = () => {
   // and now both spawn ambient particles along the rivers/lakes only.
   const flowSpawn = useMemo<FlowSpawn | null>(() => {
     if (!hasFlowFeatures(biome)) return null;
-    const features = buildLavaFeatures(paths, levelId, biome);
-    return { features, surface: buildLavaSurface(features) };
+    const features = buildFlowFeatures(paths, levelId, biome);
+    return { features, surface: buildFlowSurface(features) };
   }, [biome, paths, levelId]);
 
   const pool = useMemo<P[]>(() => {

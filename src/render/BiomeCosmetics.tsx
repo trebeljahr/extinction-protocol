@@ -9,11 +9,11 @@ import {
   TARGET_SIZE_BY_ROLE,
 } from "../biomes";
 import {
-  buildLavaFeatures,
+  buildFlowFeatures,
+  type FlowFeatures,
   hasFlowFeatures,
-  isOnLavaSurface,
-  type LavaFeatures,
-} from "../lavaGeometry";
+  isOnFlowSurface,
+} from "../flowGeometry";
 import { HQ_PAD_BLOCKER_RADIUS, MAP_HEIGHT, MAP_WIDTH, PATH_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
@@ -100,7 +100,7 @@ const buildInstances = (
   paths: Vec2[][],
   levelId: number,
   blockers: { pos: Vec2; radius: number }[],
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
 ): Instance[] => {
   const urls = BIOME_COSMETICS[biome];
   if (urls.length === 0) return [];
@@ -116,7 +116,7 @@ const buildInstances = (
   const hqR2 = HQ_PAD_BLOCKER_RADIUS * HQ_PAD_BLOCKER_RADIUS;
 
   const isValid = (x: number, y: number): boolean => {
-    if (isOnLavaSurface(lava, x, y, 0.5)) return false;
+    if (isOnFlowSurface(flow, x, y, 0.5)) return false;
     for (const path of paths) {
       for (let i = 0; i < path.length - 1; i++) {
         if (distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathR2) {
@@ -172,7 +172,7 @@ const buildStoryDetails = (
   paths: Vec2[][],
   levelId: number,
   blockers: { pos: Vec2; radius: number }[],
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
 ): { instances: Instance[]; traces: TraceMark[]; markers: WarningMarker[] } => {
   const urls = BIOME_STORY_PROPS[biome];
   const style = BIOME_STORY_TRACE_STYLE[biome];
@@ -193,7 +193,7 @@ const buildStoryDetails = (
 
   const blockedByWorld = (x: number, y: number, radius: number): boolean => {
     if (!inBounds(x, y)) return true;
-    if (isOnLavaSurface(lava, x, y, radius)) return true;
+    if (isOnFlowSurface(flow, x, y, radius)) return true;
     for (const c of hqCenters) {
       const dx = c.x - x;
       const dy = c.y - y;
@@ -235,7 +235,7 @@ const buildStoryDetails = (
 
     for (let i = 0; i < 3; i++) {
       const p = at(clampFwd(1.6 + i * 1.25 + rng() * 0.35), sideSign * (rng() - 0.5) * 0.7);
-      if (!inBounds(p.x, p.y) || isOnLavaSurface(lava, p.x, p.y, 0.15)) continue;
+      if (!inBounds(p.x, p.y) || isOnFlowSurface(flow, p.x, p.y, 0.15)) continue;
       traces.push({
         pos: p,
         rotY: yaw + (rng() - 0.5) * 0.22,
@@ -469,10 +469,10 @@ export const BiomeCosmetics = () => {
       ...trees.map((t) => ({ pos: t.pos, radius: 0.9 * t.scale })),
       ...rocks.map((r) => ({ pos: r.pos, radius: 0.7 * r.scale })),
     ];
-    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
-    const story = buildStoryDetails(biome, paths, levelId, blockers, lava);
+    const flow = hasFlowFeatures(biome) ? buildFlowFeatures(paths, levelId, biome) : null;
+    const story = buildStoryDetails(biome, paths, levelId, blockers, flow);
     const instances = [
-      ...buildInstances(biome, paths, levelId, blockers, lava),
+      ...buildInstances(biome, paths, levelId, blockers, flow),
       ...story.instances,
     ];
     const byUrl = new Map<string, Instance[]>();

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ALL_BIOME_URLS, BIOME_LAYERS, BIOME_STYLE, type BiomeLayer } from "../biomes";
 import {
-  buildLavaFeatures,
+  buildFlowFeatures,
+  type FlowFeatures,
   hasFlowFeatures,
-  isOnLavaSurface,
-  type LavaFeatures,
-} from "../lavaGeometry";
+  isOnFlowSurface,
+} from "../flowGeometry";
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
@@ -61,13 +61,13 @@ const GROUND_COVER_CROSS_SLACK = 0.05;
 // sampling. Non-removable decor spreads evenly across the playable rect
 // (no Worley clustering) so the map reads as "alive and full" without
 // type-segregated clumps or bare patches. External constraints (paths,
-// lava, blockers, earlier decor) plug into `isValid`.
+// flow, blockers, earlier decor) plug into `isValid`.
 const buildLayer = (
   paths: Vec2[][],
   spec: BiomeLayer,
   decor: DecorEntry[],
   blockers: { x: number; y: number; r: number }[],
-  lava: LavaFeatures | null,
+  flow: FlowFeatures | null,
   levelId: number,
   layerIndex: number,
 ): Placement[][] => {
@@ -91,11 +91,11 @@ const buildLayer = (
   // max-scale instance at the candidate position couldn't graze any
   // blocker either.
   const candidateR = footprint * spec.maxScale;
-  const lavaFootprint = footprint * spec.maxScale + 0.2;
+  const flowFootprint = footprint * spec.maxScale + 0.2;
 
   const isValid = (x: number, y: number): boolean => {
     if (nearAnyPath(paths, x, y, spec.clearance)) return false;
-    if (isOnLavaSurface(lava, x, y, lavaFootprint)) return false;
+    if (isOnFlowSurface(flow, x, y, flowFootprint)) return false;
     for (const b of blockers) {
       const dx = b.x - x;
       const dy = b.y - y;
@@ -232,10 +232,10 @@ export const Ground = () => {
   const layers = useMemo(() => {
     const blockers = buildBlockers(trees, rocks);
     const decor: DecorEntry[] = [];
-    const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, levelId, biome) : null;
+    const flow = hasFlowFeatures(biome) ? buildFlowFeatures(paths, levelId, biome) : null;
     return specs.map((spec, layerIndex) => ({
       spec,
-      buckets: buildLayer(paths, spec, decor, blockers, lava, levelId, layerIndex).map(
+      buckets: buildLayer(paths, spec, decor, blockers, flow, levelId, layerIndex).map(
         (placements) => ({
           id: nanoid(),
           placements,

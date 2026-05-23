@@ -8,13 +8,13 @@ import { CameraRig } from "./CameraRig";
 import { CoalTrail } from "./CoalTrail";
 import { EasterEggs } from "./EasterEggs";
 import { Effects } from "./Effects";
+import { FlowFeatures } from "./FlowFeatures";
 import { Ground } from "./Ground";
 import { HealAuras } from "./HealAuras";
 import { HealthBars } from "./HealthBars";
 import { HiveDrones } from "./HiveDrones";
 import { HQBase } from "./HQBase";
 import { HQTurrets } from "./HQTurret";
-import { LavaFeatures } from "./LavaFeatures";
 import { ModelEnemyMesh } from "./ModelEnemyMesh";
 import { ModelRobotMesh } from "./ModelRobotMesh";
 import { ModelTowerMesh } from "./ModelTowerMesh";
@@ -72,7 +72,7 @@ export const PlayScene = () => {
       <ShaderPrewarm />
       <Ground />
       <OuterScenery />
-      <LavaFeatures />
+      <FlowFeatures />
       <Rocks />
       <Trees />
       <BiomeCosmetics />
