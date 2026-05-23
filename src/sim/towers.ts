@@ -319,21 +319,6 @@ export const FLAME_TAIL_FALLOFF = 0.45;
 const FLAME_DISTANCE_FALLOFF = 0.35;
 const FLAME_MIN_RANGE_MUL = 0.55;
 
-// --- Flame overheat -----------------------------------------------------
-//
-// Heat is in [0, 1]. Burning fills heat at GAIN per second; idle (no
-// target OR currently overheated) drains it at DRAIN per second. At 1
-// the tower flips overheated and stops firing visuals + damage until
-// heat fully drains to 0. The asymmetric rates pick a deliberate uptime
-// — long enough that flame still handles a normal wave, short enough
-// that a single tower can't solo a giant swarm cloud.
-export const FLAME_HEAT_GAIN_PER_SEC = 0.28; // overheat after ~3.6s of sustained fire
-export const FLAME_HEAT_DRAIN_PER_SEC = 0.45; // cooldown ~2.2s during lockout
-// Active uptime when constantly engaging: gain / (gain + drain).
-// Exported so wave-feasibility derates flame DPS by the same factor.
-export const FLAME_ACTIVE_DUTY =
-  FLAME_HEAT_DRAIN_PER_SEC / (FLAME_HEAT_GAIN_PER_SEC + FLAME_HEAT_DRAIN_PER_SEC);
-
 type FlameHit = {
   enemy: Enemy;
   distance: number;
@@ -586,38 +571,20 @@ export const updateTowers = (world: World, dt: number) => {
     t.targetId = target?.id ?? null;
 
     if (t.kind === "flame") {
-      const canBurn = target && !t.flameOverheated;
-      if (canBurn) {
-        // Heat ramps while firing; once it caps the tower vents and
-        // can't fire again until fully cool. Visual + damage gate on
-        // the same flag so the stream stops mid-target rather than
-        // burning silently.
-        t.flameHeat = Math.min(1, t.flameHeat + FLAME_HEAT_GAIN_PER_SEC * dt);
-        if (t.flameHeat >= 1) {
-          t.flameOverheated = true;
-          if (t.flameActive) {
-            t.flameActive = false;
-            emit(world, { type: "flame-stop", towerId: t.id });
-          }
-        } else {
-          if (!t.flameActive) {
-            t.flameActive = true;
-            emit(world, { type: "flame-start", towerId: t.id, pos: t.pos });
-          }
-          spawnFlameStream(world, t, target);
-          if (t.cooldown === 0) {
-            fireFlameDamage(world, t, target);
-            t.cooldown = 1 / effectiveFireRate(t);
-            emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
-          }
+      if (target) {
+        if (!t.flameActive) {
+          t.flameActive = true;
+          emit(world, { type: "flame-start", towerId: t.id, pos: t.pos });
         }
-      } else {
-        t.flameHeat = Math.max(0, t.flameHeat - FLAME_HEAT_DRAIN_PER_SEC * dt);
-        if (t.flameOverheated && t.flameHeat <= 0) t.flameOverheated = false;
-        if (t.flameActive) {
-          t.flameActive = false;
-          emit(world, { type: "flame-stop", towerId: t.id });
+        spawnFlameStream(world, t, target);
+        if (t.cooldown === 0) {
+          fireFlameDamage(world, t, target);
+          t.cooldown = 1 / effectiveFireRate(t);
+          emit(world, { type: "shoot", towerId: t.id, towerKind: t.kind, pos: t.pos });
         }
+      } else if (t.flameActive) {
+        t.flameActive = false;
+        emit(world, { type: "flame-stop", towerId: t.id });
       }
       continue;
     }

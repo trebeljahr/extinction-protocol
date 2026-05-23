@@ -2022,8 +2022,6 @@ export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => 
     kills: 0,
     damageDealt: 0,
     flameActive: false,
-    flameHeat: 0,
-    flameOverheated: false,
   };
   world.towers.push(tower);
   world.towerById.set(tower.id, tower);

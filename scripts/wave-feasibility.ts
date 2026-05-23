@@ -80,7 +80,7 @@ import {
 import { pathLength } from "../src/sim/path";
 import { type AllRobotSkills, applyRobotSkillsToRobot } from "../src/sim/robotSkills";
 import { ROBOT_SPECS, type RobotVariantSpec } from "../src/sim/robotVariants";
-import { FLAME_ACTIVE_DUTY, flameThroughputCapacity } from "../src/sim/towers";
+import { flameThroughputCapacity } from "../src/sim/towers";
 import type {
   Base,
   DamageType,
@@ -282,9 +282,8 @@ const aoeMultiplier = (kind: TowerKind, s: TowerConfig, enemiesOnScreen: number)
     // rough density-based estimate — a 1.8-radius splash hits ~2.5 enemies
     return Math.min(1 + s.splashRadius * 0.8, enemiesOnScreen);
   }
-  // Flame derates by the overheat duty cycle — sustained engagement
-  // only burns FLAME_ACTIVE_DUTY of the wallclock once heat caps.
-  if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen) * FLAME_ACTIVE_DUTY;
+  // Flame burns continuously while a target is in the cone.
+  if (kind === "flame") return flameThroughputCapacity(enemiesOnScreen);
   // Hive contributes 0 direct DPS — it buffs neighbour towers via
   // drones, which this feasibility model doesn't simulate. Keep at 0
   // so hive is never picked as a wave's "best" tower; do not reintroduce
