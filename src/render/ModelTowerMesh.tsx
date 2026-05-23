@@ -166,4 +166,3 @@ useGLTF.preload("/models/turrets/Missile Turret.glb");
 useGLTF.preload("/models/turrets/Emp Turret.glb");
 useGLTF.preload("/models/turrets/Flamethrower Turret.glb");
 useGLTF.preload("/models/turrets/Hive Turret.glb");
-useGLTF.preload("/models/turrets/Drone.glb");

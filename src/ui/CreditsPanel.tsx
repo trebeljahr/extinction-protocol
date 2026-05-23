@@ -87,12 +87,6 @@ const SECTIONS: CreditSection[] = [
         url: "https://quaternius.com/packs/animateddinosaurs.html",
       },
       {
-        name: "Drone tower mesh (Enemy_Flying / Glub)",
-        creator: "Quaternius",
-        license: "CC0 1.0",
-        url: "https://quaternius.com/packs/ultimatemonsters.html",
-      },
-      {
         name: "Modular turret meshes — EMP, Flamethrower, Gatling, Gun Cannon, Hive, Lightning, Missile, Plasma, Rail Gun, Shield + root-level tower_*/turret_* variants",
         creator: "Quaternius",
         license: "CC0 1.0",

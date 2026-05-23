@@ -31,7 +31,6 @@ const PREWARM_URLS = [
   "/models/turrets/Emp Turret.glb",
   "/models/turrets/Flamethrower Turret.glb",
   "/models/turrets/Hive Turret.glb",
-  "/models/turrets/Drone.glb",
   "/models/turrets/Plasma Turret.glb",
 ];
 
