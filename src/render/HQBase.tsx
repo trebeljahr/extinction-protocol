@@ -132,9 +132,9 @@ const HQ_CORPSE_SLOTS: { right: number; fwd: number }[] = [
 const HQ_CORPSE_SCALE_MIN = 0.32;
 const HQ_CORPSE_SCALE_MAX = 0.4;
 
-// Pad rectangle (HQBasePad mesh: 6.7×5.0 box at local (0, -0.1)).
-// Slot-vs-pad rejection uses pad-local distance from the slot to the rect
-// edge, so a corpse footprint can never poke into the HQ pad itself.
+// HQ keep-out rectangle (6.7×5.0 centered at local (0, -0.1)). Corpse
+// slot-vs-rect rejection uses pad-local distance from the slot to the rect
+// edge, so a corpse footprint can never poke into the HQ core/turret area.
 const HQ_PAD_HALF_RIGHT = 3.35;
 const HQ_PAD_HALF_FWD = 2.5;
 const HQ_PAD_FWD_CENTER = -0.1;
@@ -148,38 +148,6 @@ type PrimitiveInstance = {
   clearRadius: number;
   length: number;
 };
-
-const HQBasePad = ({ position, yaw }: { position: [number, number]; yaw: number }) => (
-  <group position={[position[0], 0, -position[1]]} rotation={[0, yaw, 0]}>
-    <mesh position={[0, 0.014, -0.1]} raycast={noRaycast}>
-      <boxGeometry args={[6.7, 0.035, 5.0]} />
-      <meshStandardMaterial
-        color="#303643"
-        roughness={0.82}
-        metalness={0.18}
-        transparent
-        opacity={0.48}
-        depthWrite={false}
-      />
-    </mesh>
-    <mesh position={[0, 0.038, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={noRaycast}>
-      <ringGeometry args={[1.05, 1.32, 40]} />
-      <meshBasicMaterial color="#8fb7d1" transparent opacity={0.24} />
-    </mesh>
-    <mesh position={[0, 0.041, 1.72]} raycast={noRaycast}>
-      <boxGeometry args={[1.9, 0.012, 0.12]} />
-      <meshBasicMaterial color="#f5c84b" transparent opacity={0.55} depthWrite={false} />
-    </mesh>
-    <mesh position={[-2.15, 0.041, -1.75]} raycast={noRaycast}>
-      <boxGeometry args={[1.35, 0.012, 0.12]} />
-      <meshBasicMaterial color="#86d8ff" transparent opacity={0.34} depthWrite={false} />
-    </mesh>
-    <mesh position={[2.15, 0.041, -1.75]} raycast={noRaycast}>
-      <boxGeometry args={[1.35, 0.012, 0.12]} />
-      <meshBasicMaterial color="#86d8ff" transparent opacity={0.34} depthWrite={false} />
-    </mesh>
-  </group>
-);
 
 // Shared geometries/materials for the instanced fences + lights. Built
 // once at module load — every HQ pad reuses the same buffers so the
@@ -354,10 +322,9 @@ export const HQBase = () => {
   const towerVersion = useGame((s) => s.ui.towerVersion);
   const towers = useGame.getState().world.towers;
 
-  const { clusters, pads, primitives } = useMemo(() => {
+  const { clusters, primitives } = useMemo(() => {
     const clusterList: PlacedOutpost[] = [];
     const primitiveList: PrimitiveInstance[] = [];
-    const padList: { position: [number, number]; yaw: number }[] = [];
 
     for (const path of paths) {
       if (path.length < 2) continue;
@@ -371,8 +338,6 @@ export const HQBase = () => {
       const rightX = faceY;
       const rightY = -faceX;
       const yaw = Math.atan2(dx, -dy);
-
-      padList.push({ position: [last.x, last.y], yaw });
 
       // Command base on the pad. The cluster yaw maps the template's local
       // +dz axis onto the approach direction (faceVec) and +dx onto the
@@ -396,7 +361,7 @@ export const HQBase = () => {
         });
       }
     }
-    return { clusters: clusterList, pads: padList, primitives: primitiveList };
+    return { clusters: clusterList, primitives: primitiveList };
   }, [paths]);
 
   // Only the perimeter fence/lights cull around towers + the path; the
@@ -577,10 +542,6 @@ export const HQBase = () => {
 
   return (
     <>
-      {pads.map((pad, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: stable per level
-        <HQBasePad key={i} position={pad.position} yaw={pad.yaw} />
-      ))}
       <BasePrimitives items={visiblePrimitives} />
       <OutpostClusters clusters={clusters} />
       {corpseGroups.map(([url, items]) => (
