@@ -23,6 +23,13 @@ const applyTints = (item: THREE.Object3D, kind: TowerKind, upgrades: TowerUpgrad
       // `color` *is* the base colour. setRGB does the right thing in
       // both cases — see towerTints.ts for the multiply vs replace split.
       mat.color.setRGB(tint.rgb[0], tint.rgb[1], tint.rgb[2]);
+      // Emissive lifts near-black texels toward a hue that multiply alone
+      // can't reach (e.g. the chain tower's black base shifting steel
+      // blue per Voltage tier). Always written so tier 0 resets to none.
+      if (tint.emissive) {
+        mat.emissive.setRGB(tint.emissive[0], tint.emissive[1], tint.emissive[2]);
+        mat.emissiveIntensity = 1;
+      }
       mat.needsUpdate = true;
     }
   });

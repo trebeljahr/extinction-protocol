@@ -25,6 +25,11 @@ export type TintEntry = {
   //   (atlas materials — pulse/chain/mortar).
   // multiply=false: tint replaces baseColor outright (cryo/flame/hive).
   multiply: boolean;
+  // Optional additive emissive (sRGB 0..1). `multiply`/`rgb` can only
+  // darken or hue-shift a texel — they can never lift a near-black region
+  // toward a brighter colour. Emissive adds on top of the lit albedo, so
+  // it's the only lever that can shift a black base toward a visible hue.
+  emissive?: [number, number, number];
 };
 
 const tier = (upgrades: TowerUpgrades) => ({
@@ -34,8 +39,18 @@ const tier = (upgrades: TowerUpgrades) => ({
 
 // Atlas helper: combine an A-path hue tint with a B-path luminance
 // multiplier so both purchases compound on the single shared material.
-const atlas = (hue: [number, number, number], lum: number, matchName: string): TintEntry[] => [
-  { match: matchName, rgb: [hue[0] * lum, hue[1] * lum, hue[2] * lum], multiply: true },
+const atlas = (
+  hue: [number, number, number],
+  lum: number,
+  matchName: string,
+  emissive?: [number, number, number],
+): TintEntry[] => [
+  {
+    match: matchName,
+    rgb: [hue[0] * lum, hue[1] * lum, hue[2] * lum],
+    multiply: true,
+    ...(emissive ? { emissive } : {}),
+  },
 ];
 
 export function computeTowerTints(kind: TowerKind, upgrades: TowerUpgrades): TintEntry[] {
@@ -70,7 +85,19 @@ export function computeTowerTints(kind: TowerKind, upgrades: TowerUpgrades): Tin
         [0.36, 0.64, 1.0],
       ][b] as [number, number, number];
       const voltageLum = [1.0, 0.97, 0.9, 0.82][b];
-      return atlas(voltageHue, voltageLum, "PaletteMaterial001");
+      // The Lighting Turret is a single atlas mesh and its base texels are
+      // near-black (22,19,16) — multiplying the voltage hue onto black
+      // stays black, so the multiply alone never lifts the base. Add a
+      // steel-blue emissive that ramps with Voltage so the dark base
+      // actually shifts toward #4682B4 as the tower upgrades. The ramp
+      // holds the steel-blue ratio (R≈0.39·B, G≈0.72·B) at every tier.
+      const voltageGlow: [number, number, number] = [
+        [0, 0, 0],
+        [0.07, 0.13, 0.18],
+        [0.12, 0.23, 0.32],
+        [0.18, 0.33, 0.46],
+      ][b] as [number, number, number];
+      return atlas(voltageHue, voltageLum, "PaletteMaterial001", voltageGlow);
     }
 
     case "mortar": {
