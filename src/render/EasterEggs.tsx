@@ -51,9 +51,19 @@ const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
   const clone = skinned ? (cloneSkinned(scene) as THREE.Object3D) : scene.clone(true);
   const box = measureVisibleBox(clone);
   const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
   const scale = def.targetSize / maxDim;
-  const minY = box.min.y;
+  // Some GLBs (the KayKit sci-fi props — rover, rocket, satellite, glyph,
+  // radio) are authored with their geometry sitting several units off the
+  // node origin (the rover mesh is at +2,+1.5 in model space). The egg
+  // group's origin is where the hit sphere and the click-burst particles
+  // live, so an uncorrected horizontal offset puts the visible model
+  // (which is itself raycastable) way off to the side of its own hitbox
+  // and particle origin. Recenter horizontally so model, hit sphere, and
+  // burst all coincide at egg.pos. Y is grounded separately via minY.
+  clone.position.x -= center.x;
+  clone.position.z -= center.z;
   applyVisual(clone, def.visual);
   clone.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -61,7 +71,14 @@ const buildInstance = (scene: THREE.Object3D, def: EasterEggDef) => {
     m.castShadow = true;
     m.receiveShadow = true;
   });
-  return { clone, scale, minY, minX: box.min.x };
+  return {
+    clone,
+    scale,
+    minY: box.min.y,
+    minX: box.min.x - center.x,
+    centerX: center.x,
+    centerZ: center.z,
+  };
 };
 
 // Damped scale oscillation for click-pop. Real-time-driven (not gated by
@@ -254,14 +271,19 @@ const ChimneySmokeColumn = ({
   );
 };
 
+// shiftX/shiftZ mirror the horizontal recenter applied to the model clone
+// in buildInstance, so the smoke column stays anchored to the chimney even
+// when the model's geometry was authored off its node origin.
 const chimneyLocal = (
   offset: ChimneyOffset,
   scale: number,
   yModel: number,
+  shiftX: number,
+  shiftZ: number,
 ): { x: number; y: number; z: number } => ({
-  x: offset.x * scale,
+  x: (offset.x - shiftX) * scale,
   y: yModel + offset.y * scale,
-  z: offset.z * scale,
+  z: (offset.z - shiftZ) * scale,
 });
 
 // Eggs must out-priority every other clickable (dinos, rocks, trees, the
@@ -301,7 +323,10 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
   const prevTriggeredRef = useRef<boolean>(false);
   const isUnlockPopRef = useRef<boolean>(false);
 
-  const { clone, scale, minY, minX } = useMemo(() => buildInstance(scene, def), [scene, def]);
+  const { clone, scale, minY, minX, centerX, centerZ } = useMemo(
+    () => buildInstance(scene, def),
+    [scene, def],
+  );
   const rollLift = Math.max(-minX, 0) * scale;
 
   // Triggered eggs with motion (the freed parasaur) swap their idle clip
@@ -463,7 +488,10 @@ const EasterEggMesh = ({ egg, def }: { egg: EasterEgg; def: EasterEggDef }) => {
         <primitive object={clone} />
       </group>
       {def.chimneyOffset ? (
-        <ChimneySmokeColumn egg={egg} chimney={chimneyLocal(def.chimneyOffset, scale, yModel)} />
+        <ChimneySmokeColumn
+          egg={egg}
+          chimney={chimneyLocal(def.chimneyOffset, scale, yModel, centerX, centerZ)}
+        />
       ) : null}
       <mesh position={[0, hitY, 0]} raycast={eggPriorityRaycast}>
         <sphereGeometry args={[hitRadius, 12, 8]} />
