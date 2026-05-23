@@ -2250,10 +2250,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
     if (applyUpgrade(s.world, t, branch)) {
-      // Hive drone-bay path adds an idle drone slot — flush it through
-      // the same round-robin pass that runs on placement so the new
-      // drone reaches whichever neighbour has the smallest stack.
-      if (t.kind === "hive") autoAssignDroneToNewTower(s.world, t);
+      // Hive drone-bay path adds an idle drone slot. Leave it idle so the
+      // player assigns it deliberately via the hive panel — auto-routing
+      // the extra drone to whatever neighbour had room read as the tower
+      // "quietly" scattering drones the player meant to stack on one.
       const newVersion = s.towerVersion + 1;
       set({
         towerVersion: newVersion,
@@ -2380,7 +2380,10 @@ export const useGame = create<GameStore>((set, get) => ({
     if (currentAssignment !== towerId) {
       const stacked = countDronesOnTower(s.world, towerId);
       if (stacked >= HIVE_MAX_DRONES_PER_TOWER) {
-        set({ assigningDroneSlot: null });
+        // Target already at the per-tower drone cap. Reject audibly and
+        // keep the pick cursor armed so the player can retarget — never
+        // silently reroute the drone onto a different tower.
+        emit(s.world, { type: "drone-assign-failed" });
         return;
       }
     }

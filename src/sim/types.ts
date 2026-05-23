@@ -735,6 +735,7 @@ export type GameEvent =
   | { type: "tower-placed"; towerKind: TowerKind }
   | { type: "tower-sold" }
   | { type: "place-failed"; reason: "gold" | "spot" }
+  | { type: "drone-assign-failed" }
   | { type: "new-enemy" }
   | { type: "wave-called-early" }
   | { type: "easter-egg-click"; defId: string }

@@ -633,14 +633,15 @@ export const countDronesOnTower = (world: World, towerId: number): number => {
 };
 
 // Auto-wire idle drones so the player doesn't have to drill into the
-// hive panel for every neighbour. Called on tower placement and after
-// a hive drone-bay upgrade (which adds a new idle slot).
+// hive panel for every neighbour. Called only on tower placement —
+// hive drone-bay upgrades intentionally leave the new drone idle so the
+// player picks its target, rather than the hive quietly scattering it.
 //
 // Two directions:
 //  1. Non-hive tower placed anywhere → grab closest hive's first idle
 //     drone.
-//  2. Hive placed (or upgraded) → fill its idle slots round-robin so
-//     drones spread across nearby towers instead of piling on one.
+//  2. Hive placed → fill its idle slots round-robin so drones spread
+//     across nearby towers instead of piling on one.
 //
 // Round-robin picks the candidate with the fewest currently-attached
 // drones; distance breaks ties so a hive still favours its local

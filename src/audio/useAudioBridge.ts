@@ -139,6 +139,9 @@ export const useAudioBridge = () => {
         case "place-failed":
           audio.ui("error");
           break;
+        case "drone-assign-failed":
+          audio.ui("error");
+          break;
         case "wave-called-early":
           audio.play("wave-clear", "notifications", 0.6, 500);
           break;
