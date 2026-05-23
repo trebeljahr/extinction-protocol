@@ -1,10 +1,12 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ACHIEVEMENTS, isAchievementUnlocked, totalUnlocked } from "../achievements";
 import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
 import { IconHiddenAchievement } from "./AchievementIcons";
 
 export const AchievementsPanel = () => {
+  const { t } = useTranslation();
   const progress = useGame((s) => s.progress);
   const setAchievementsOpen = useGame((s) => s.setAchievementsOpen);
 
@@ -31,17 +33,20 @@ export const AchievementsPanel = () => {
       <div className="achievements-card">
         <header className="achievements-header">
           <div>
-            <h1>Achievements</h1>
+            <h1>{t("achievements.title")}</h1>
             <div className="achievements-subtitle">
-              {unlockedCount} / {ACHIEVEMENTS.length} unlocked
+              {t("achievements.unlockedCount", {
+                count: unlockedCount,
+                total: ACHIEVEMENTS.length,
+              })}
             </div>
           </div>
           <button
             type="button"
             className="btn-close"
             onClick={() => setAchievementsOpen(false)}
-            aria-label="Close achievements"
-            title="Close achievements"
+            aria-label={t("achievements.close")}
+            title={t("achievements.close")}
           >
             ×
           </button>
@@ -54,20 +59,21 @@ export const AchievementsPanel = () => {
             const hideName = !unlocked && secrecy !== "visible";
             const hideIcon = !unlocked && secrecy !== "visible";
             const Icon = hideIcon ? IconHiddenAchievement : def.icon;
+            const unknown = t("achievements.unknown");
             const descText = unlocked
-              ? def.desc
+              ? t(`achievements:${def.id}.desc`)
               : secrecy === "hidden"
-                ? "???"
+                ? unknown
                 : secrecy === "hint"
-                  ? def.hint
-                  : def.desc;
+                  ? t(`achievements:${def.id}.hint`)
+                  : t(`achievements:${def.id}.desc`);
             const statusLabel = unlocked
-              ? "UNLOCKED"
+              ? t("achievements.statusUnlocked")
               : secrecy === "hidden"
-                ? "???"
+                ? unknown
                 : secrecy === "hint"
-                  ? "SECRET"
-                  : "LOCKED";
+                  ? t("achievements.statusSecret")
+                  : t("achievements.statusLocked");
             return (
               <div
                 key={def.id}
@@ -78,7 +84,9 @@ export const AchievementsPanel = () => {
                 </div>
                 <div className="achievement-tile-body">
                   <div className="achievement-tile-status">{statusLabel}</div>
-                  <div className="achievement-tile-name">{hideName ? "???" : def.name}</div>
+                  <div className="achievement-tile-name">
+                    {hideName ? unknown : t(`achievements:${def.id}.name`)}
+                  </div>
                   <div className="achievement-tile-desc">{descText}</div>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { LEVELS } from "./levels";
+import enAchievements from "./locales/en/achievements.json";
 import type { ProgressData } from "./progress";
 import { getStars, starsForLives } from "./progress";
 import type { EnemyKind, GameEvent, TowerKind, World } from "./sim/types";
@@ -55,219 +56,66 @@ export type AchievementDef = {
 
 type AchievementDefRaw = Omit<AchievementDef, "icon">;
 
-const hintAch = (
-  id: AchievementId,
-  name: string,
-  desc: string,
-  hint: string,
-): AchievementDefRaw => ({ id, name, desc, hint, secrecy: "hint" });
+type AchTextEntry = { name: string; desc: string; hint: string };
+
+// English achievement copy lives in the en i18n catalog
+// (src/locales/en/achievements.json); the localized AchievementsPanel reads
+// the same keys via react-i18next. The non-localized toast still reads these
+// English Records. The two ID lists below define display order + secrecy.
+const ACH_TEXT = enAchievements as Record<AchievementId, AchTextEntry>;
+
+const VISIBLE_IDS: AchievementId[] = [
+  "first_blood",
+  "extermination",
+  "apex_hunter",
+  "veteran",
+  "scholar",
+  "full_arsenal",
+  "fully_armed",
+  "architect",
+  "flawless",
+  "triple_star",
+  "full_spectrum",
+  "master_engineer",
+  "campaign",
+  "perfect_run",
+  "full_service",
+];
+
+const HINT_IDS: AchievementId[] = [
+  "tree_hugger",
+  "diamond_in_the_rough",
+  "whispering_skull",
+  "mushroom_puff",
+  "torch_lit",
+  "barrel_roll",
+  "cabin_smoke",
+  "crystal_shatter",
+  "cactus_bloom",
+  "ancient_glyph",
+  "rusted_radio",
+  "satellite_ping",
+  "fairy_ring",
+  "rocket_launch",
+  "tumbleweed",
+  "rover_roam",
+  "baby_raptor",
+  "buried_para",
+  "ghost_trike",
+  "haunted_ruins",
+];
+
+const rawAch = (id: AchievementId, secrecy?: AchievementSecrecy): AchievementDefRaw => ({
+  id,
+  name: ACH_TEXT[id].name,
+  desc: ACH_TEXT[id].desc,
+  hint: ACH_TEXT[id].hint,
+  ...(secrecy ? { secrecy } : {}),
+});
 
 const ACHIEVEMENTS_RAW: AchievementDefRaw[] = [
-  {
-    id: "first_blood",
-    name: "First Blood",
-    desc: "Eliminate your first runaway dinosaur.",
-    hint: "Any kill counts.",
-  },
-  {
-    id: "extermination",
-    name: "Extermination",
-    desc: "Eliminate 500 runaway dinosaurs across all runs.",
-    hint: "Lifetime kills.",
-  },
-  {
-    id: "apex_hunter",
-    name: "Apex Hunter",
-    desc: "Eliminate 2,500 runaway dinosaurs across all runs.",
-    hint: "Lifetime kills.",
-  },
-  {
-    id: "veteran",
-    name: "Veteran",
-    desc: "Win 10 missions across all runs.",
-    hint: "Lifetime mission wins.",
-  },
-  {
-    id: "scholar",
-    name: "Scholar",
-    desc: "Catalog every enemy species.",
-    hint: "Encounter all 7 species.",
-  },
-  {
-    id: "full_arsenal",
-    name: "Full Arsenal",
-    desc: "Build all six tower types in a single mission.",
-    hint: "Pulse + Chain + Cryo + Mortar + Flame + Hive.",
-  },
-  {
-    id: "fully_armed",
-    name: "Fully Armed",
-    desc: "Fully upgrade both branches of a single tower.",
-    hint: "Tier 3 on A and B.",
-  },
-  {
-    id: "architect",
-    name: "Architect",
-    desc: "Deploy ten towers in a single mission.",
-    hint: "Ten standing at once.",
-  },
-  {
-    id: "flawless",
-    name: "Flawless",
-    desc: "Win a mission without losing a single life.",
-    hint: "All 20 lives intact.",
-  },
-  {
-    id: "triple_star",
-    name: "Triple Star",
-    desc: "Earn a three-star rating on any mission.",
-    hint: "First perfect clear.",
-  },
-  {
-    id: "full_spectrum",
-    name: "Full Spectrum",
-    desc: "Face every enemy species and build every tower type in one mission.",
-    hint: "Late-game map + every tower.",
-  },
-  {
-    id: "master_engineer",
-    name: "Master Engineer",
-    desc: "Have one of every tower type fully upgraded at once.",
-    hint: "Six towers, each tier 3 on both branches.",
-  },
-  {
-    id: "campaign",
-    name: "Campaign Complete",
-    desc: "Win every mission.",
-    hint: "Clear the whole map.",
-  },
-  {
-    id: "perfect_run",
-    name: "Perfect Run",
-    desc: "Earn three stars on every mission.",
-    hint: "Max rating everywhere.",
-  },
-  {
-    id: "full_service",
-    name: "Full Service",
-    desc: "Have every tower on the map serviced by a Hive drone.",
-    hint: "Every non-hive tower needs at least one drone assigned.",
-  },
-  hintAch(
-    "tree_hugger",
-    "Tree Hugger",
-    "Click the same tree ten times.",
-    "Some trees are hiding more than shade.",
-  ),
-  hintAch(
-    "diamond_in_the_rough",
-    "Diamond in the Rough",
-    "Click the same rock ten times.",
-    "Persistence cracks more than stone.",
-  ),
-  hintAch(
-    "whispering_skull",
-    "Whispering Skull",
-    "Disturb the skull of the fallen.",
-    "The dead have things to say.",
-  ),
-  hintAch(
-    "mushroom_puff",
-    "Mushroom Puff",
-    "Squish a mushroom loose.",
-    "Some fungi don't like being poked.",
-  ),
-  hintAch("torch_lit", "Light the Way", "Ignite a snowbound torch.", "Cold places need fire."),
-  hintAch(
-    "barrel_roll",
-    "Barrel Roll",
-    "Knock over an abandoned barrel.",
-    "Not every barrel is staying put.",
-  ),
-  hintAch(
-    "cabin_smoke",
-    "Home Fires",
-    "Make smoke rise from a snow cabin.",
-    "Someone might still live there.",
-  ),
-  hintAch(
-    "crystal_shatter",
-    "Crystal Shatter",
-    "Shatter a crystal formation.",
-    "Crystals break on the fifth tap.",
-  ),
-  hintAch(
-    "cactus_bloom",
-    "Cactus Bloom",
-    "Coax a desert plant to flower.",
-    "Even cacti have a soft side.",
-  ),
-  hintAch(
-    "ancient_glyph",
-    "Ancient Glyph",
-    "Uncover the meaning of carved stone.",
-    "Worn markings light up under touch.",
-  ),
-  hintAch(
-    "rusted_radio",
-    "Static Response",
-    "Tune into a forgotten transmission.",
-    "The dead network still hums.",
-  ),
-  hintAch(
-    "satellite_ping",
-    "Distant Signal",
-    "Wake a dormant satellite dish.",
-    "Some dishes still listen.",
-  ),
-  hintAch(
-    "fairy_ring",
-    "Fairy Ring",
-    "Disturb a wild ring of blooms.",
-    "Flowers answer the third visitor.",
-  ),
-  hintAch(
-    "rocket_launch",
-    "Rocket Launch",
-    "Launch a forgotten rocket skyward.",
-    "Countdown starts at three.",
-  ),
-  hintAch(
-    "tumbleweed",
-    "Running Cactus",
-    "Catch a running cactus mid-sprint.",
-    "Watch the desert — something runs.",
-  ),
-  hintAch(
-    "rover_roam",
-    "Rover Roam",
-    "Stop a wasteland rover mid-drive.",
-    "The wastes aren't entirely deserted.",
-  ),
-  hintAch(
-    "baby_raptor",
-    "Baby Raptor",
-    "Find a hatchling hiding in the forest.",
-    "Small things hide among the trees.",
-  ),
-  hintAch(
-    "buried_para",
-    "Dig Out",
-    "Shake a snowbound Parasaur free.",
-    "Someone's stuck in the snow.",
-  ),
-  hintAch(
-    "ghost_trike",
-    "Phantom Trike",
-    "Catch a translucent Triceratops passing by.",
-    "Not all the dead stayed dead.",
-  ),
-  hintAch(
-    "haunted_ruins",
-    "Haunted Ruins",
-    "Wake the spirits of the wasteland.",
-    "Old stones answer three knocks.",
-  ),
+  ...VISIBLE_IDS.map((id) => rawAch(id)),
+  ...HINT_IDS.map((id) => rawAch(id, "hint")),
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENTS_RAW.map((a) => ({

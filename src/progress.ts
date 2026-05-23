@@ -1,3 +1,4 @@
+import enModes from "./locales/en/modes.json";
 import { type AllMetaSkills, migrateLegacyMetaSkills } from "./sim/metaSkills";
 import type { AllRobotSkills } from "./sim/robotSkills";
 import type { BossVariant, EnemyKind, RobotVariant } from "./sim/types";
@@ -22,17 +23,12 @@ export type LevelMode = "normal" | "heroic" | "iron";
 
 export const LEVEL_MODES: LevelMode[] = ["normal", "heroic", "iron"];
 
-export const LEVEL_MODE_LABEL: Record<LevelMode, string> = {
-  normal: "Standard",
-  heroic: "Heroic",
-  iron: "Iron",
-};
+// English label/tagline source is the en i18n catalog (src/locales/en/
+// modes.json). Localized pickers read the same keys via react-i18next; these
+// Records remain the canonical English values for non-localized lookups.
+export const LEVEL_MODE_LABEL: Record<LevelMode, string> = enModes.mode.label;
 
-export const LEVEL_MODE_TAGLINE: Record<LevelMode, string> = {
-  normal: "The intended campaign",
-  heroic: "Tougher waves. Towers denied.",
-  iron: "One life. Locked loadout. No selling.",
-};
+export const LEVEL_MODE_TAGLINE: Record<LevelMode, string> = enModes.mode.tagline;
 
 // Per-level mode-star record. Normal still grades 0-3 from lives saved;
 // heroic + iron are binary (clear = 1 bonus star). Sum across all modes
@@ -72,19 +68,9 @@ export const DIFFICULTY_MULTIPLIERS: Record<Difficulty, DifficultyMultipliers> =
   extinction: { hp: 1.8, startGold: 0.85, goldKill: 0.85, speed: 1.2, bossTrickleIntervalMul: 0.7 },
 };
 
-export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  easy: "Easy",
-  medium: "Medium",
-  hard: "Hard",
-  extinction: "Extinction",
-};
+export const DIFFICULTY_LABEL: Record<Difficulty, string> = enModes.difficulty.label;
 
-export const DIFFICULTY_TAGLINE: Record<Difficulty, string> = {
-  easy: "Roam in peace",
-  medium: "The intended hunt",
-  hard: "Pack pressure",
-  extinction: "The asteroid is here",
-};
+export const DIFFICULTY_TAGLINE: Record<Difficulty, string> = enModes.difficulty.tagline;
 
 // Single source of truth for the per-difficulty accent palette so every
 // surface that surfaces difficulty (world map, HUD, picker) reads from

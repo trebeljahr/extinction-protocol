@@ -1,7 +1,9 @@
+import { useTranslation } from "react-i18next";
 import { IconFullscreen, IconFullscreenExit } from "./MenuIcons";
 import { saveFullscreenPref, useFullscreen } from "./useFullscreen";
 
 export const FullscreenToggle = () => {
+  const { t } = useTranslation();
   const { active, toggle } = useFullscreen();
   return (
     <section className="settings-section fullscreen-toggle-section bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg pt-3 px-4 pb-3 mb-5">
@@ -12,7 +14,7 @@ export const FullscreenToggle = () => {
           ) : (
             <IconFullscreen size={14} className="shrink-0" />
           )}
-          FULLSCREEN
+          {t("fullscreen.title")}
         </div>
         <button
           type="button"
@@ -29,7 +31,7 @@ export const FullscreenToggle = () => {
           }}
           aria-pressed={active}
         >
-          {active ? "ON" : "OFF"}
+          {active ? t("fullscreen.on") : t("fullscreen.off")}
         </button>
       </div>
     </section>

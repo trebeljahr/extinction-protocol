@@ -1,0 +1,38 @@
+{
+  "pulse": {
+    "subtitle": "Direktfeuer, kinetisch",
+    "description": "Kinetisches Einzelschuss-Gewehr. Hohe Reichweite, gleichmäßige Rate.",
+    "behavior": "Feuert eine Kugel pro Schuss. Pfad A: Schaden; T3 ignoriert Resistenz-Chip-Immunität. Pfad B: Feuerrate; +1 Reichweite bei T3.",
+    "matchups": "Stark gegen Triceratops. Brauchbar gegen Parasaurs, Raptors und T-Rex. Schwächelt gegen andere schwere Gegner. Die Panzerdurchdringung des T3 Annihilator hebt die Resistenz-Chip-Immunität auf."
+  },
+  "chain": {
+    "subtitle": "Lichtbogen-Blitz",
+    "description": "Leitet Blitze zwischen Zielen weiter. Schaden nimmt pro Sprung ab.",
+    "behavior": "Trifft das Hauptziel und springt dann auf bis zu 4 nahe Ziele im Umkreis von 3,5 Feldern. Schaden fällt 40% pro Sprung (weniger mit Upgrades). Pfad A: mehr Sprünge; T3 entfernt den Abfall. Pfad B: Schaden; T3 entfernt Elektro-Resistenz bei Treffer.",
+    "matchups": "Spezialisierter Schwarm-Killer. Stark gegen Swarm, Parasaur, Stegosaur und Raptor. Kaum Wirkung gegen Triceratops, Apatosaur und Matriarch."
+  },
+  "cryo": {
+    "subtitle": "Frost-Aura",
+    "description": "Dauerhafte Frost-Aura. Vernachlässigbarer Schaden; die Verlangsamung ist der Zweck.",
+    "behavior": "Aura tickt alle ~0,67s. Verlangsamt Gegner in Reichweite für 1,5s auf 40% Tempo. Kein Schaden in der Basis. Pfad A: stärkere Verlangsamung; T3 pausiert Regen bei eingefrorenen Zielen. Pfad B: Reichweite; T3 schaltet einen Kälteschaden-AoE frei.",
+    "matchups": "Kälte ist der einzige wirksame Schadenstyp gegen Apatosaur und Matriarch. Die Verlangsamung ist gegen Stegosaur, Triceratops, Apatosaur und Matriarch reduziert."
+  },
+  "mortar": {
+    "subtitle": "Flächen-Artillerie",
+    "description": "Wirft Explosivgranaten. Großzügige Fläche, langsames Nachladen.",
+    "behavior": "Wirft eine Explosivgranate auf das Ziel. 1,8 Felder Fläche, 0,5 Schuss/Sek. Der Punkt-Modus visiert einen Engpass vor; Granaten fallen, sobald Gegner die Fläche betreten. Pfad B T3 (Singularity) macht 3× Schaden an Schilden.",
+    "matchups": "Für Swarms gemacht. Schwächelt gegen schwere Ziele. T3 Singularity ist der wichtigste Schild-Brecher."
+  },
+  "flame": {
+    "subtitle": "Feuerkegel",
+    "description": "Vorwärts gerichteter Feuerkegel. Kurze Reichweite, hohe Tickrate.",
+    "behavior": "60°-Kegel nach vorn mit 5 Ticks/Sek. Niedrig pro Tick, aber konstant; in großen Mengen fangen die vorderen Reihen die meiste Hitze ab. Pfad A: Schaden; T3 (Napalm) unterdrückt Regen bei Treffer. Pfad B: Feuerrate und Reichweite.",
+    "matchups": "Stark gegen Schwärme an der Kegelspitze, kaum gegen schwere Gegner. Riesige Fluten brauchen trotzdem Mortar-Unterstützung. Wichtigster Regen-Konter: T3 Napalm + Tickrate halten Regen unterdrückt."
+  },
+  "hive": {
+    "subtitle": "Drohnen-Support",
+    "description": "Drohnen umkreisen zugewiesene Türme und erhöhen deren Feuerrate. Macht keinen Schaden.",
+    "behavior": "Erzeugt 3 Drohnen; weise sie nahen Türmen für je +30% Feuerrate zu. Pfad A: bis zu 6 Drohnen. Höchstens 3 pro Turm. Pfad B: Buff bis +50%. Untätige Drohnen umkreisen den Hive.",
+    "matchups": "Verstärkt, worauf es zugewiesen ist. Starke Kombis mit Mortar (Schild-Brechen) und Cryo (schnellere Aura-Ticks)."
+  }
+}

@@ -18,6 +18,7 @@
     "lint": "biome lint .",
     "check": "biome check --write .",
     "check:enemy-text": "tsx scripts/check-enemy-text.ts",
+    "check:i18n": "tsx scripts/check-i18n.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -26,10 +27,12 @@
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.19.1",
     "@react-three/rapier": "^1.5.0",
+    "i18next": "^26.2.0",
     "nanoid": "^5.1.9",
     "postprocessing": "~6.37.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.8",
     "three": "^0.167.0",
     "three-bvh-csg": "^0.0.17",
     "three-mesh-bvh": "^0.7.8",

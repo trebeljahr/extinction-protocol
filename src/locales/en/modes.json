@@ -1,0 +1,28 @@
+{
+  "mode": {
+    "label": {
+      "normal": "Standard",
+      "heroic": "Heroic",
+      "iron": "Iron"
+    },
+    "tagline": {
+      "normal": "The intended campaign",
+      "heroic": "Tougher waves. Towers denied.",
+      "iron": "One life. Locked loadout. No selling."
+    }
+  },
+  "difficulty": {
+    "label": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard",
+      "extinction": "Extinction"
+    },
+    "tagline": {
+      "easy": "Roam in peace",
+      "medium": "The intended hunt",
+      "hard": "Pack pressure",
+      "extinction": "The asteroid is here"
+    }
+  }
+}

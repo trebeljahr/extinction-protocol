@@ -1,4 +1,4 @@
-import { ENEMY_DESCRIPTION, MATRIARCH_DESCRIPTION } from "../sim/enemyText";
+import { useTranslation } from "react-i18next";
 import type { DamageType, EnemyChip } from "../sim/types";
 import { clamp01 } from "../sim/vec2";
 import {
@@ -8,7 +8,6 @@ import {
   BOSS_VARIANT_SLOW_RESIST,
   BOSS_VARIANT_STATS,
   DAMAGE_TYPE_COLOR,
-  DAMAGE_TYPE_LABEL,
   ENEMY_LABEL,
   ENEMY_RESIST,
   ENEMY_SLOW_RESIST,
@@ -22,34 +21,22 @@ import { EnemyIcon } from "./EnemyIcon";
 
 const DAMAGE_TYPE_ORDER: DamageType[] = ["kinetic", "electric", "cold", "explosive", "flame"];
 
-// Chip metadata — color + short tooltip. Layout reads consistently
-// across the panel so combos read at a glance ("Shielded Regen Stego").
-type ChipInfo = { name: string; color: string; bg: string; border: string; title: string };
+// Chip swatch colors. Name + tooltip copy comes from the i18n catalog
+// (enemyPanel.chip.<key>); CHIP_KEY maps the chip id to its catalog key.
+type ChipInfo = { color: string; bg: string; border: string };
 const CHIP_INFO: Record<EnemyChip, ChipInfo> = {
-  shielded: {
-    name: "Shielded",
-    color: "#7fc8ff",
-    bg: "rgba(127,200,255,0.10)",
-    border: "rgba(127,200,255,0.5)",
-    title: "Shielded — energy bubble absorbs damage before HP, regens 4s after a full break",
-  },
-  healAura: {
-    name: "Healer",
-    color: "#7eff8a",
-    bg: "rgba(126,255,138,0.10)",
-    border: "rgba(126,255,138,0.5)",
-    title: `Healer — pulses ${HEAL_AURA_RATE} HP/sec to allies within ${HEAL_AURA_RANGE.toFixed(1)}u`,
-  },
-  regen: {
-    name: "Regen",
-    color: "#bbffc8",
-    bg: "rgba(187,255,200,0.10)",
-    border: "rgba(187,255,200,0.5)",
-    title: `Regen — heals ${REGEN_RATE} HP/sec, paused for ${REGEN_DAMAGE_PAUSE.toFixed(1)}s after damage`,
-  },
+  shielded: { color: "#7fc8ff", bg: "rgba(127,200,255,0.10)", border: "rgba(127,200,255,0.5)" },
+  healAura: { color: "#7eff8a", bg: "rgba(126,255,138,0.10)", border: "rgba(126,255,138,0.5)" },
+  regen: { color: "#bbffc8", bg: "rgba(187,255,200,0.10)", border: "rgba(187,255,200,0.5)" },
+};
+const CHIP_KEY: Record<EnemyChip, string> = {
+  shielded: "shielded",
+  healAura: "healer",
+  regen: "regen",
 };
 
 export const EnemyPanel = () => {
+  const { t } = useTranslation();
   const kind = useGame((s) => s.ui.inspectedEnemyKind);
   const bossVariant = useGame((s) => s.ui.inspectedBossVariant);
   const hp = useGame((s) => s.ui.inspectedEnemyHp);
@@ -74,7 +61,9 @@ export const EnemyPanel = () => {
     ? BOSS_VARIANT_SLOW_RESIST[bossVariant]
     : ENEMY_SLOW_RESIST[kind];
   const label = isMatriarch ? BOSS_VARIANT_LABEL[bossVariant] : ENEMY_LABEL[kind];
-  const description = isMatriarch ? MATRIARCH_DESCRIPTION[bossVariant] : ENEMY_DESCRIPTION[kind];
+  const description = isMatriarch
+    ? t(`enemies:matriarch.${bossVariant}.description`)
+    : t(`enemies:${kind}.description`);
 
   const hpPct = hp !== null && maxHp ? clamp01(hp / maxHp) : 0;
   const shieldPct = shield !== null && maxShield > 0 ? clamp01(shield / maxShield) : 0;
@@ -109,7 +98,7 @@ export const EnemyPanel = () => {
           <div className="panel-name">
             {label}
             <span className={`enemy-status ${alive ? "alive" : "dead"}`}>
-              {alive ? "ALIVE" : "KILLED"}
+              {alive ? t("enemyPanel.alive") : t("enemyPanel.killed")}
             </span>
           </div>
           <div className="panel-stats">{description}</div>
@@ -118,7 +107,7 @@ export const EnemyPanel = () => {
           type="button"
           className="btn-close"
           onClick={() => useGame.getState().clearInspectedEnemy()}
-          aria-label="close"
+          aria-label={t("common.close")}
         >
           ×
         </button>
@@ -128,14 +117,21 @@ export const EnemyPanel = () => {
         <div className="flex flex-wrap gap-1 mb-2">
           {activeChips.map((c) => {
             const info = CHIP_INFO[c];
+            const key = CHIP_KEY[c];
+            const values =
+              c === "healAura"
+                ? { rate: HEAL_AURA_RATE, range: HEAL_AURA_RANGE.toFixed(1) }
+                : c === "regen"
+                  ? { rate: REGEN_RATE, pause: REGEN_DAMAGE_PAUSE.toFixed(1) }
+                  : {};
             return (
               <span
                 key={c}
                 className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] border"
                 style={{ color: info.color, borderColor: info.border, background: info.bg }}
-                title={info.title}
+                title={t(`enemyPanel.chip.${key}Title`, values)}
               >
-                {info.name}
+                {t(`enemyPanel.chip.${key}`)}
               </span>
             );
           })}
@@ -147,18 +143,21 @@ export const EnemyPanel = () => {
               // resist is from a level-script chip rather than the
               // adaptive snapshot (no adaptiveType set).
               const fallbackType =
-                (Object.keys(extraResists) as DamageType[]).find((t) => extraResists[t] !== 1) ??
+                (Object.keys(extraResists) as DamageType[]).find((dt) => extraResists[dt] !== 1) ??
                 null;
               const tintType = adaptiveType ?? fallbackType;
               const tintHex = tintType
                 ? (ADAPTIVE_TINT_BY_TYPE[tintType] ?? DAMAGE_TYPE_COLOR[tintType])
                 : "#9be079";
-              const adaptLines = DAMAGE_TYPE_ORDER.flatMap((t) => {
-                const extra = extraResists[t];
+              const adaptLines = DAMAGE_TYPE_ORDER.flatMap((dt) => {
+                const extra = extraResists[dt];
                 if (extra === undefined || extra === 1) return [];
                 const pct = Math.round((1 - extra) * 100);
+                const typeLabel = t(`damageTypes.${dt}`);
                 return [
-                  `${DAMAGE_TYPE_LABEL[t]}: ${pct > 0 ? `${pct}% resistance` : `${-pct}% vulnerability`}`,
+                  pct > 0
+                    ? t("enemyPanel.resistanceSuffix", { type: typeLabel, pct })
+                    : t("enemyPanel.vulnerabilitySuffix", { type: typeLabel, pct: -pct }),
                 ];
               }).join(" · ");
               return (
@@ -169,9 +168,12 @@ export const EnemyPanel = () => {
                     borderColor: tintHex,
                     background: "rgba(255,255,255,0.04)",
                   }}
-                  title={`Adapted — herd has bumped resistance to ${tintType ? DAMAGE_TYPE_LABEL[tintType].toLowerCase() : "specific"} damage. Stays adapted as long as the player keeps leaning on the same type. ${adaptLines}`}
+                  title={t("enemyPanel.adaptedTitle", {
+                    type: tintType ? t(`damageTypes.${tintType}`).toLowerCase() : "specific",
+                    lines: adaptLines,
+                  })}
                 >
-                  Adapted · {adaptLines}
+                  {t("enemyPanel.adapted", { lines: adaptLines })}
                 </span>
               );
             })()}
@@ -193,7 +195,7 @@ export const EnemyPanel = () => {
             />
           </div>
           <div className="text-[11px] text-fg-muted mt-1 tabular-nums tracking-tight">
-            {Math.max(0, Math.ceil(shield ?? 0))} / {maxShield} Shield
+            {Math.max(0, Math.ceil(shield ?? 0))} / {maxShield} {t("enemyPanel.shield")}
           </div>
         </div>
       )}
@@ -210,7 +212,7 @@ export const EnemyPanel = () => {
       ) : (
         <div className="mb-3">
           <div className="text-[11px] text-fg-muted mt-1 tabular-nums tracking-tight opacity-65 italic">
-            Max HP this wave · {maxHp ?? "—"}
+            {t("enemyPanel.maxHpThisWave", { value: maxHp ?? "—" })}
           </div>
         </div>
       )}
@@ -218,16 +220,16 @@ export const EnemyPanel = () => {
       {isMatriarch && variantStats !== null && (
         <div className="flex items-center gap-2.5 px-2.5 py-1.5 mb-3 rounded-md bg-[rgba(255,90,58,0.10)] border border-[rgba(255,90,58,0.45)]">
           <span className="text-[9px] tracking-[0.16em] text-[#ff8a6a] uppercase font-bold">
-            Leak damage
+            {t("enemyPanel.leakDamage")}
           </span>
           <span className="ml-auto text-[#ffb39a] text-[12px] font-semibold tabular-nums">
-            {variantStats.damage} lives — instant loss
+            {t("enemyPanel.leakLives", { damage: variantStats.damage })}
           </span>
         </div>
       )}
 
       <div className="text-[11px] font-bold tracking-wide text-fg-muted uppercase mb-1.5">
-        Damage taken
+        {t("enemyPanel.damageTaken")}
       </div>
       <div className="grid grid-cols-5 auto-rows-fr gap-1 mb-3">
         {DAMAGE_TYPE_ORDER.map((type) => {
@@ -245,12 +247,13 @@ export const EnemyPanel = () => {
           else if (pct < 0) value = `${pct}%`;
           else value = "·";
           const state: "good" | "bad" | "neutral" = pct > 0 ? "bad" : pct < 0 ? "good" : "neutral";
-          const titleParts = [`${DAMAGE_TYPE_LABEL[type]}: ${mul.toFixed(2)}×`];
+          const typeLabel = t(`damageTypes.${type}`);
+          const titleParts = [`${typeLabel}: ${mul.toFixed(2)}×`];
           if (adapted) {
             titleParts.push(
               adaptPct > 0
-                ? `(adapted: ${adaptPct}% resistance)`
-                : `(adapted: ${-adaptPct}% extra damage)`,
+                ? t("enemyPanel.adaptedResist", { pct: adaptPct })
+                : t("enemyPanel.adaptedExtra", { pct: -adaptPct }),
             );
           }
           return (
@@ -261,7 +264,7 @@ export const EnemyPanel = () => {
               adaptPct={adapted ? adaptPct : null}
               title={titleParts.join(" ")}
               nameColor={DAMAGE_TYPE_COLOR[type]}
-              name={DAMAGE_TYPE_LABEL[type]}
+              name={typeLabel}
               value={value}
             />
           );
@@ -273,28 +276,34 @@ export const EnemyPanel = () => {
           {slowResist > 0 && (
             <ResistChip
               state="good"
-              title={`Chill resistance: ${Math.round(slowResist * 100)}%`}
+              title={t("enemyPanel.chillResistTitle", { pct: Math.round(slowResist * 100) })}
               nameColor={DAMAGE_TYPE_COLOR.cold}
-              name="Chill resist"
+              name={t("enemyPanel.chillResist")}
               value={`${Math.round(slowResist * 100)}%`}
             />
           )}
           {healAura && (
             <ResistChip
               state="good"
-              title={`Heal aura: ${HEAL_AURA_RATE} HP/sec within ${HEAL_AURA_RANGE.toFixed(1)}u`}
+              title={t("enemyPanel.healAuraTitle", {
+                rate: HEAL_AURA_RATE,
+                range: HEAL_AURA_RANGE.toFixed(1),
+              })}
               nameColor="#7eff8a"
-              name="Heal aura"
+              name={t("enemyPanel.healAura")}
               value={`${HEAL_AURA_RANGE.toFixed(1)}u`}
             />
           )}
           {regen && (
             <ResistChip
               state="good"
-              title={`Self-regen: ${REGEN_RATE} HP/sec, pauses ${REGEN_DAMAGE_PAUSE.toFixed(1)}s after damage`}
+              title={t("enemyPanel.selfRegenTitle", {
+                rate: REGEN_RATE,
+                pause: REGEN_DAMAGE_PAUSE.toFixed(1),
+              })}
               nameColor="#bbffc8"
-              name="Self regen"
-              value={`+${REGEN_RATE}/s`}
+              name={t("enemyPanel.selfRegen")}
+              value={t("enemyPanel.selfRegenValue", { rate: REGEN_RATE })}
             />
           )}
         </div>

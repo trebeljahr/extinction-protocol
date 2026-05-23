@@ -1,0 +1,28 @@
+{
+  "mode": {
+    "label": {
+      "normal": "Standard",
+      "heroic": "Heroisch",
+      "iron": "Eisen"
+    },
+    "tagline": {
+      "normal": "Die vorgesehene Kampagne",
+      "heroic": "Härtere Wellen. Türme gesperrt.",
+      "iron": "Ein Leben. Feste Ausrüstung. Kein Verkauf."
+    }
+  },
+  "difficulty": {
+    "label": {
+      "easy": "Leicht",
+      "medium": "Mittel",
+      "hard": "Schwer",
+      "extinction": "Auslöschung"
+    },
+    "tagline": {
+      "easy": "Streif in Frieden",
+      "medium": "Die vorgesehene Jagd",
+      "hard": "Rudeldruck",
+      "extinction": "Der Asteroid ist da"
+    }
+  }
+}

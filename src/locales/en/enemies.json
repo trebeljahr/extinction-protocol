@@ -1,0 +1,60 @@
+{
+  "raptor": {
+    "subtitle": "~80 kg trobotpod. Travels in groups.",
+    "description": "Fast pack hunter. Low HP, high count. Vulnerable to electric."
+  },
+  "swarm": {
+    "subtitle": "Juveniles. Disperse on contact, regroup within seconds.",
+    "description": "Tiny and fragile. Never travels alone. Vulnerable to electric and explosive."
+  },
+  "para": {
+    "subtitle": "Cursor. Sustained sprint observed at 8+ m/s.",
+    "description": "Crested runner. Vulnerable to electric, resists flame."
+  },
+  "allosaur": {
+    "subtitle": "Adult trobotpod. Aggressive on sight.",
+    "description": "Apex predator. Balanced resistance across all damage types."
+  },
+  "stego": {
+    "subtitle": "Plated dorsal armor. Slow gait.",
+    "description": "Plated hide. Resists kinetic and explosive. Vulnerable to electric."
+  },
+  "armored": {
+    "subtitle": "Ceratopsian. Reinforced frill, charges through cover.",
+    "description": "Juggernaut. Vulnerable to kinetic. Resists shock, blast, and flame. Heavy slow resistance."
+  },
+  "titan": {
+    "subtitle": "Sauropod-class. Mass ~12 t. Inertia is the threat.",
+    "description": "Colossus. Resists nearly everything except cold. Heavy slow resistance."
+  },
+  "boss": {
+    "subtitle": "Reproductive matriarch. Spawns en route.",
+    "description": "Apex matriarch. Resists nearly everything except cold. Heavy slow resistance. High bounty."
+  },
+  "matriarch": {
+    "raptor": {
+      "subtitle": "Forest-adapted. Sheds juvenile bursts on the move.",
+      "description": "Lean and fast. Sprints down the lane and sheds small swarm bursts every 1.25 seconds, spilling around her as she runs. Bring AoE or the pack stacks up. Vulnerable to electric."
+    },
+    "stego": {
+      "subtitle": "Cold-tolerant. Plates intact below freezing.",
+      "description": "Heavy plates everywhere; kinetic and explosive slide off. Calves a stego every six seconds. Electric is the only real lever."
+    },
+    "para": {
+      "subtitle": "Crest resonates audibly. Amplifies adjacent impact damage.",
+      "description": "Hollow crest acts as a resonator — chain damage rings through at 1.7×. Vents flame at 0.4×. Drops a para every 2.2 seconds, fast."
+    },
+    "allosaur": {
+      "subtitle": "Largest trobotpod observed. No environmental specialization.",
+      "description": "Balanced apex predator. No hard counter, no free win. Spawns a fresh allosaur every 3.8 seconds and hits harder than the other queens on a leak."
+    },
+    "armored": {
+      "subtitle": "Heat-tolerant. Continues function above 800 °C.",
+      "description": "Chrome-plated triceratops with heavy slow resistance. Drops an armored every 7.5s — sparse but each child is 300 HP. Electric is the only lever."
+    },
+    "apex": {
+      "subtitle": "Origin unclear. Earth-biology priors do not apply.",
+      "description": "Original matriarch. Cold is the only real lever; kinetic bullets scrape, explosives barely tickle. No child stream — the wave brings its own."
+    }
+  }
+}

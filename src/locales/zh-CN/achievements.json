@@ -1,0 +1,177 @@
+{
+  "first_blood": {
+    "name": "First Blood",
+    "desc": "Eliminate your first runaway dinosaur.",
+    "hint": "Any kill counts."
+  },
+  "extermination": {
+    "name": "Extermination",
+    "desc": "Eliminate 500 runaway dinosaurs across all runs.",
+    "hint": "Lifetime kills."
+  },
+  "apex_hunter": {
+    "name": "Apex Hunter",
+    "desc": "Eliminate 2,500 runaway dinosaurs across all runs.",
+    "hint": "Lifetime kills."
+  },
+  "veteran": {
+    "name": "Veteran",
+    "desc": "Win 10 missions across all runs.",
+    "hint": "Lifetime mission wins."
+  },
+  "scholar": {
+    "name": "Scholar",
+    "desc": "Catalog every enemy species.",
+    "hint": "Encounter all 7 species."
+  },
+  "full_arsenal": {
+    "name": "Full Arsenal",
+    "desc": "Build all six tower types in a single mission.",
+    "hint": "Pulse + Chain + Cryo + Mortar + Flame + Hive."
+  },
+  "fully_armed": {
+    "name": "Fully Armed",
+    "desc": "Fully upgrade both branches of a single tower.",
+    "hint": "Tier 3 on A and B."
+  },
+  "architect": {
+    "name": "Architect",
+    "desc": "Deploy ten towers in a single mission.",
+    "hint": "Ten standing at once."
+  },
+  "flawless": {
+    "name": "Flawless",
+    "desc": "Win a mission without losing a single life.",
+    "hint": "All 20 lives intact."
+  },
+  "triple_star": {
+    "name": "Triple Star",
+    "desc": "Earn a three-star rating on any mission.",
+    "hint": "First perfect clear."
+  },
+  "full_spectrum": {
+    "name": "Full Spectrum",
+    "desc": "Face every enemy species and build every tower type in one mission.",
+    "hint": "Late-game map + every tower."
+  },
+  "master_engineer": {
+    "name": "Master Engineer",
+    "desc": "Have one of every tower type fully upgraded at once.",
+    "hint": "Six towers, each tier 3 on both branches."
+  },
+  "campaign": {
+    "name": "Campaign Complete",
+    "desc": "Win every mission.",
+    "hint": "Clear the whole map."
+  },
+  "perfect_run": {
+    "name": "Perfect Run",
+    "desc": "Earn three stars on every mission.",
+    "hint": "Max rating everywhere."
+  },
+  "full_service": {
+    "name": "Full Service",
+    "desc": "Have every tower on the map serviced by a Hive drone.",
+    "hint": "Every non-hive tower needs at least one drone assigned."
+  },
+  "tree_hugger": {
+    "name": "Tree Hugger",
+    "desc": "Click the same tree ten times.",
+    "hint": "Some trees are hiding more than shade."
+  },
+  "diamond_in_the_rough": {
+    "name": "Diamond in the Rough",
+    "desc": "Click the same rock ten times.",
+    "hint": "Persistence cracks more than stone."
+  },
+  "whispering_skull": {
+    "name": "Whispering Skull",
+    "desc": "Disturb the skull of the fallen.",
+    "hint": "The dead have things to say."
+  },
+  "mushroom_puff": {
+    "name": "Mushroom Puff",
+    "desc": "Squish a mushroom loose.",
+    "hint": "Some fungi don't like being poked."
+  },
+  "torch_lit": {
+    "name": "Light the Way",
+    "desc": "Ignite a snowbound torch.",
+    "hint": "Cold places need fire."
+  },
+  "barrel_roll": {
+    "name": "Barrel Roll",
+    "desc": "Knock over an abandoned barrel.",
+    "hint": "Not every barrel is staying put."
+  },
+  "cabin_smoke": {
+    "name": "Home Fires",
+    "desc": "Make smoke rise from a snow cabin.",
+    "hint": "Someone might still live there."
+  },
+  "crystal_shatter": {
+    "name": "Crystal Shatter",
+    "desc": "Shatter a crystal formation.",
+    "hint": "Crystals break on the fifth tap."
+  },
+  "cactus_bloom": {
+    "name": "Cactus Bloom",
+    "desc": "Coax a desert plant to flower.",
+    "hint": "Even cacti have a soft side."
+  },
+  "ancient_glyph": {
+    "name": "Ancient Glyph",
+    "desc": "Uncover the meaning of carved stone.",
+    "hint": "Worn markings light up under touch."
+  },
+  "rusted_radio": {
+    "name": "Static Response",
+    "desc": "Tune into a forgotten transmission.",
+    "hint": "The dead network still hums."
+  },
+  "satellite_ping": {
+    "name": "Distant Signal",
+    "desc": "Wake a dormant satellite dish.",
+    "hint": "Some dishes still listen."
+  },
+  "fairy_ring": {
+    "name": "Fairy Ring",
+    "desc": "Disturb a wild ring of blooms.",
+    "hint": "Flowers answer the third visitor."
+  },
+  "rocket_launch": {
+    "name": "Rocket Launch",
+    "desc": "Launch a forgotten rocket skyward.",
+    "hint": "Countdown starts at three."
+  },
+  "tumbleweed": {
+    "name": "Running Cactus",
+    "desc": "Catch a running cactus mid-sprint.",
+    "hint": "Watch the desert — something runs."
+  },
+  "rover_roam": {
+    "name": "Rover Roam",
+    "desc": "Stop a wasteland rover mid-drive.",
+    "hint": "The wastes aren't entirely deserted."
+  },
+  "baby_raptor": {
+    "name": "Baby Raptor",
+    "desc": "Find a hatchling hiding in the forest.",
+    "hint": "Small things hide among the trees."
+  },
+  "buried_para": {
+    "name": "Dig Out",
+    "desc": "Shake a snowbound Parasaur free.",
+    "hint": "Someone's stuck in the snow."
+  },
+  "ghost_trike": {
+    "name": "Phantom Trike",
+    "desc": "Catch a translucent Triceratops passing by.",
+    "hint": "Not all the dead stayed dead."
+  },
+  "haunted_ruins": {
+    "name": "Haunted Ruins",
+    "desc": "Wake the spirits of the wasteland.",
+    "hint": "Old stones answer three knocks."
+  }
+}

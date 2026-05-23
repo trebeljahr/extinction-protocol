@@ -1,11 +1,10 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import {
   DIFFICULTIES,
   DIFFICULTY_ACCENT,
-  DIFFICULTY_LABEL,
   DIFFICULTY_MULTIPLIERS,
-  DIFFICULTY_TAGLINE,
   type Difficulty,
 } from "../progress";
 import { useGame } from "../store";
@@ -28,6 +27,7 @@ const formatPercent = (mul: number, deltaOnly = true): string => {
 };
 
 export const DifficultyPicker = () => {
+  const { t } = useTranslation();
   const current = useGame((s) => s.progress.difficulty);
   const setDifficulty = useGame((s) => s.setDifficulty);
   const setOpen = useGame((s) => s.setDifficultyPickerOpen);
@@ -53,15 +53,17 @@ export const DifficultyPicker = () => {
       <div className="difficulty-card">
         <header className="difficulty-header">
           <div>
-            <h1>Difficulty</h1>
-            <div className="difficulty-subtitle">Currently · {DIFFICULTY_LABEL[current]}</div>
+            <h1>{t("difficulty.title")}</h1>
+            <div className="difficulty-subtitle">
+              {t("difficulty.currently", { difficulty: t(`modes:difficulty.label.${current}`) })}
+            </div>
           </div>
           <button
             type="button"
             className="btn-close"
             onClick={() => setOpen(false)}
-            aria-label="Close difficulty picker"
-            title="Close difficulty picker"
+            aria-label={t("difficulty.close")}
+            title={t("difficulty.close")}
           >
             ×
           </button>
@@ -87,19 +89,25 @@ export const DifficultyPicker = () => {
                 }`}
                 aria-pressed={active}
               >
-                {active && <span className={`difficulty-active-badge ${accent.text}`}>Active</span>}
+                {active && (
+                  <span className={`difficulty-active-badge ${accent.text}`}>
+                    {t("common.active")}
+                  </span>
+                )}
                 <div className="difficulty-option-icon">
                   <DifficultyModelIcon difficulty={d} className="w-full h-full" />
                 </div>
                 <div className={`difficulty-option-label ${accent.text}`}>
-                  {DIFFICULTY_LABEL[d]}
+                  {t(`modes:difficulty.label.${d}`)}
                 </div>
-                <div className="difficulty-option-tagline">{DIFFICULTY_TAGLINE[d]}</div>
+                <div className="difficulty-option-tagline">
+                  {t(`modes:difficulty.tagline.${d}`)}
+                </div>
                 <ul className="difficulty-option-stats">
-                  <Stat label="Enemy HP" value={formatPercent(m.hp)} />
-                  <Stat label="Start gold" value={formatPercent(m.startGold)} />
-                  <Stat label="Gold/kill" value={formatPercent(m.goldKill)} />
-                  <Stat label="Speed" value={formatPercent(m.speed)} />
+                  <Stat label={t("difficulty.enemyHp")} value={formatPercent(m.hp)} />
+                  <Stat label={t("difficulty.startGold")} value={formatPercent(m.startGold)} />
+                  <Stat label={t("difficulty.goldKill")} value={formatPercent(m.goldKill)} />
+                  <Stat label={t("difficulty.speed")} value={formatPercent(m.speed)} />
                 </ul>
               </button>
             );

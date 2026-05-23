@@ -1,21 +1,27 @@
 // Compendium "Mechanics" tab — explainers for the layered defensive
 // effects that aren't obvious from looking at the enemy stat block.
 //
-// Copy is sourced from defensive.ts (shield/regen/heal-aura tick rules)
-// and types.ts (chip flag descriptions). When tuning constants change in
-// world.ts, update the numbers here too.
+// The prose (label/subtitle/description) is sourced from the i18n catalog at
+// src/locales/en/mechanics.json; the Records below are the English view used
+// by non-localized consumers. Tints + stat numbers stay here since they are
+// not translatable copy. When tuning constants change in world.ts, update
+// the numbers here too.
+
+import enMechanics from "../locales/en/mechanics.json";
 
 export type MechanicId = "shielded" | "healAura" | "regen" | "slow" | "adaptation";
 
 export const MECHANIC_ORDER: MechanicId[] = ["shielded", "healAura", "regen", "slow", "adaptation"];
 
-export const MECHANIC_LABEL: Record<MechanicId, string> = {
-  shielded: "Shields",
-  healAura: "Healers",
-  regen: "Regen",
-  slow: "Slow",
-  adaptation: "Adaptation",
-};
+type Entry = { label: string; subtitle: string; description: string };
+const cat = enMechanics as Record<MechanicId, Entry>;
+
+const pick = (get: (e: Entry) => string): Record<MechanicId, string> =>
+  Object.fromEntries(MECHANIC_ORDER.map((k) => [k, get(cat[k])])) as Record<MechanicId, string>;
+
+export const MECHANIC_LABEL: Record<MechanicId, string> = pick((e) => e.label);
+export const MECHANIC_SUBTITLE: Record<MechanicId, string> = pick((e) => e.subtitle);
+export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = pick((e) => e.description);
 
 export const MECHANIC_TINT: Record<MechanicId, string> = {
   shielded: "#9fd8ff",
@@ -23,23 +29,6 @@ export const MECHANIC_TINT: Record<MechanicId, string> = {
   regen: "#a8ffb6",
   slow: "#bfe9ff",
   adaptation: "#ffb266",
-};
-
-export const MECHANIC_SUBTITLE: Record<MechanicId, string> = {
-  shielded: "Energy bubble",
-  healAura: "Field medic",
-  regen: "Self-heal",
-  slow: "Speed debuff",
-  adaptation: "Evolved resistance",
-};
-
-export const MECHANIC_DESCRIPTION: Record<MechanicId, string> = {
-  shielded: "Blue energy bubble. Absorbs damage before HP. Pool size scales with the host kind.",
-  healAura: "Pulsing green ring. Heals nearby allies for 3 HP/sec within 3.5 tiles.",
-  regen: "Floating mint-green '+'. Passive 1.5 HP/sec while not taking damage.",
-  slow: "Applied only by Cryo Emitter. Reduces movement speed for the slow duration.",
-  adaptation:
-    "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch.",
 };
 
 // Compact key numbers per mechanic — rendered as a 3-cell stat grid in

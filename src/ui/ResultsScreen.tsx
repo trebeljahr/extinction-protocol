@@ -1,12 +1,14 @@
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { LEVELS } from "../levels";
-import { isLevelUnlocked, LEVEL_MODE_LABEL } from "../progress";
+import { isLevelUnlocked } from "../progress";
 import { useGame } from "../store";
 import { STAR_STAGGER_MS, StarDisplay } from "./StarDisplay";
 
 export const ResultsScreen = () => {
+  const { t } = useTranslation();
   const result = useGame((s) => s.lastResult);
   const progress = useGame((s) => s.progress);
   const retry = useGame((s) => s.retryCurrentLevel);
@@ -108,7 +110,7 @@ export const ResultsScreen = () => {
     <div className="overlay">
       <div className="overlay-card min-w-[420px] px-10 py-8">
         <div className="flex items-center justify-center gap-4 mb-1">
-          <h1 className="!mb-0">{result.won ? "Outpost held." : "Extinction complete."}</h1>
+          <h1 className="!mb-0">{result.won ? t("results.won") : t("results.lost")}</h1>
           {result.mode === "normal" ? (
             <StarDisplay count={result.stars as 0 | 1 | 2 | 3} size={28} animate />
           ) : (
@@ -118,7 +120,7 @@ export const ResultsScreen = () => {
         <div className="text-[13px] tracking-uber uppercase text-fg-dim mb-5">
           {result.mode !== "normal" && (
             <span className={result.mode === "heroic" ? "text-orange mr-2" : "text-red mr-2"}>
-              {LEVEL_MODE_LABEL[result.mode]} ·
+              {t(`modes:mode.label.${result.mode}`)} ·
             </span>
           )}
           {result.levelName}
@@ -126,11 +128,11 @@ export const ResultsScreen = () => {
 
         <div className="bg-[rgba(8,12,18,0.45)] border border-[rgba(120,160,200,0.14)] rounded-lg px-4 py-3.5 mb-5">
           <ResultRow
-            label="Lives remaining"
+            label={t("results.livesRemaining")}
             value={`${result.livesRemaining} / ${result.startingLives}`}
           />
           <ResultRow
-            label="Best"
+            label={t("common.best")}
             value={
               result.mode === "normal" ? (
                 <StarDisplay count={result.bestStars as 0 | 1 | 2 | 3} size={14} />
@@ -141,7 +143,7 @@ export const ResultsScreen = () => {
           />
           {showNext && (
             <div className="mt-1.5 text-center text-xs text-cyan tracking-[0.06em]">
-              Unlocked: {nextLevel!.name}
+              {t("results.unlocked", { level: nextLevel!.name })}
             </div>
           )}
         </div>
@@ -149,7 +151,8 @@ export const ResultsScreen = () => {
         <div className="flex gap-2.5 justify-center">
           {showNext && (
             <button type="button" onClick={() => startLevel(nextLevel!.id)} className="btn">
-              Next Level<span className="kbd-only"> (Enter)</span>
+              {t("results.nextLevel")}
+              <span className="kbd-only"> (Enter)</span>
             </button>
           )}
           <button
@@ -157,10 +160,12 @@ export const ResultsScreen = () => {
             onClick={goToMap}
             className={showNext ? "btn btn-secondary" : "btn"}
           >
-            World Map<span className="kbd-only"> (Esc)</span>
+            {t("results.worldMap")}
+            <span className="kbd-only"> (Esc)</span>
           </button>
           <button type="button" onClick={retry} className="btn btn-secondary">
-            Retry<span className="kbd-only"> (R)</span>
+            {t("results.retry")}
+            <span className="kbd-only"> (R)</span>
           </button>
         </div>
       </div>
@@ -187,6 +192,7 @@ const ModeBadge = ({
   earned: boolean;
   compact?: boolean;
 }) => {
+  const { t } = useTranslation();
   const icon = mode === "heroic" ? "✦" : "▣";
   const colorClass = mode === "heroic" ? "text-orange" : "text-red";
   const borderClass = mode === "heroic" ? "border-orange" : "border-red";
@@ -198,7 +204,7 @@ const ModeBadge = ({
       }`}
     >
       <span aria-hidden>{icon}</span>
-      <span className="text-[10px] uppercase tracking-wide">{mode}</span>
+      <span className="text-[10px] uppercase tracking-wide">{t(`modes:mode.label.${mode}`)}</span>
     </span>
   );
 };

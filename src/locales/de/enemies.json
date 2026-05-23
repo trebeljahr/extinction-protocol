@@ -1,0 +1,60 @@
+{
+  "raptor": {
+    "subtitle": "~80 kg Trobotpod. Bewegt sich in Gruppen.",
+    "description": "Schneller Rudeljäger. Wenig HP, hohe Anzahl. Anfällig gegen Elektrisch."
+  },
+  "swarm": {
+    "subtitle": "Jungtiere. Zerstreuen sich bei Kontakt, sammeln sich in Sekunden neu.",
+    "description": "Winzig und zerbrechlich. Nie allein unterwegs. Anfällig gegen Elektrisch und Explosiv."
+  },
+  "para": {
+    "subtitle": "Läufer. Dauersprint bei 8+ m/s beobachtet.",
+    "description": "Läufer mit Kamm. Anfällig gegen Elektrisch, resistent gegen Feuer."
+  },
+  "allosaur": {
+    "subtitle": "Ausgewachsener Trobotpod. Aggressiv bei Sicht.",
+    "description": "Spitzenprädator. Ausgewogene Resistenz gegen alle Schadenstypen."
+  },
+  "stego": {
+    "subtitle": "Gepanzerter Rückenschild. Langsamer Gang.",
+    "description": "Gepanzerte Haut. Resistent gegen Kinetisch und Explosiv. Anfällig gegen Elektrisch."
+  },
+  "armored": {
+    "subtitle": "Ceratopsier. Verstärkter Nackenschild, stürmt durch Deckung.",
+    "description": "Brocken. Anfällig gegen Kinetisch. Resistent gegen Schock, Explosion und Feuer. Hohe Verlangsamungs-Resistenz."
+  },
+  "titan": {
+    "subtitle": "Sauropoden-Klasse. Masse ~12 t. Die Trägheit ist die Gefahr.",
+    "description": "Koloss. Resistent gegen fast alles außer Kälte. Hohe Verlangsamungs-Resistenz."
+  },
+  "boss": {
+    "subtitle": "Fortpflanzende Matriarchin. Erzeugt Nachwuchs unterwegs.",
+    "description": "Spitzen-Matriarchin. Resistent gegen fast alles außer Kälte. Hohe Verlangsamungs-Resistenz. Hohe Belohnung."
+  },
+  "matriarch": {
+    "raptor": {
+      "subtitle": "An den Wald angepasst. Stößt unterwegs Jungtier-Schübe aus.",
+      "description": "Schlank und schnell. Sprintet die Bahn entlang und stößt alle 1,25 Sekunden kleine Schwarm-Schübe aus, die sich beim Laufen um sie verteilen. Bring AoE mit, sonst staut sich das Rudel. Anfällig gegen Elektrisch."
+    },
+    "stego": {
+      "subtitle": "Kältetolerant. Panzerplatten unter dem Gefrierpunkt intakt.",
+      "description": "Überall schwere Platten; Kinetisch und Explosiv prallen ab. Wirft alle sechs Sekunden einen Stego. Elektrisch ist der einzige echte Hebel."
+    },
+    "para": {
+      "subtitle": "Kamm schwingt hörbar. Verstärkt umliegenden Aufprallschaden.",
+      "description": "Der hohle Kamm wirkt als Resonator — Kettenschaden klingt mit 1,7× durch. Feuer entweicht mit 0,4×. Wirft schnell alle 2,2 Sekunden einen Para."
+    },
+    "allosaur": {
+      "subtitle": "Größter beobachteter Trobotpod. Keine Umwelt-Spezialisierung.",
+      "description": "Ausgewogener Spitzenprädator. Kein harter Konter, kein leichter Sieg. Erzeugt alle 3,8 Sekunden einen neuen Allosaurus und trifft beim Durchbruch härter als die anderen Königinnen."
+    },
+    "armored": {
+      "subtitle": "Hitzetolerant. Funktioniert auch über 800 °C weiter.",
+      "description": "Chromgepanzerter Triceratops mit hoher Verlangsamungs-Resistenz. Wirft alle 7,5s einen Gepanzerten — selten, aber jedes Junges hat 300 HP. Elektrisch ist der einzige Hebel."
+    },
+    "apex": {
+      "subtitle": "Herkunft unklar. Annahmen aus der Erdbiologie greifen nicht.",
+      "description": "Ur-Matriarchin. Kälte ist der einzige echte Hebel; kinetische Geschosse kratzen nur, Explosivstoffe kitzeln kaum. Kein Nachwuchsstrom — die Welle bringt ihren eigenen mit."
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "shielded": {
+    "label": "Shields",
+    "subtitle": "Energy bubble",
+    "description": "Blue energy bubble. Absorbs damage before HP. Pool size scales with the host kind."
+  },
+  "healAura": {
+    "label": "Healers",
+    "subtitle": "Field medic",
+    "description": "Pulsing green ring. Heals nearby allies for 3 HP/sec within 3.5 tiles."
+  },
+  "regen": {
+    "label": "Regen",
+    "subtitle": "Self-heal",
+    "description": "Floating mint-green '+'. Passive 1.5 HP/sec while not taking damage."
+  },
+  "slow": {
+    "label": "Slow",
+    "subtitle": "Speed debuff",
+    "description": "Applied only by Cryo Emitter. Reduces movement speed for the slow duration."
+  },
+  "adaptation": {
+    "label": "Adaptation",
+    "subtitle": "Evolved resistance",
+    "description": "Lean too hard on one damage type and the herd evolves. Starting at level 12, a share of each wave spawns with hardened resistance against the damage type you've dealt the most over the last 3 waves — the more concentrated your portfolio, the higher the share and the deeper the resistance (up to effective immunity). Adapted spawns carry an off-color body tint so you can read the threat at a glance. Counter: diversify your towers or lean on a T3 anti-modifier branch."
+  }
+}

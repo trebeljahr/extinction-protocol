@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { loadAudioPrefs, readAudioPrefs, saveAudioPrefs } from "../audio/preferences";
 import { IconFullscreen, IconFullscreenExit, IconSpeaker, IconSpeakerMute } from "./MenuIcons";
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export const QuickSettings = ({ className = "" }: Props) => {
+  const { t } = useTranslation();
   const { active: fullscreenActive, toggle: toggleFullscreen } = useFullscreen();
   const [muted, setMuted] = useState<boolean>(() => readAudioPrefs().muted);
 
@@ -35,8 +37,8 @@ export const QuickSettings = ({ className = "" }: Props) => {
         className="quick-settings-btn bg-surface-1 border border-border rounded-md w-9 h-9 flex items-center justify-center backdrop-blur-sm cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
         onClick={toggleMute}
         aria-pressed={!muted}
-        aria-label={muted ? "Unmute sound" : "Mute sound"}
-        title={muted ? "Unmute" : "Mute"}
+        aria-label={muted ? t("quickSettings.unmute") : t("quickSettings.mute")}
+        title={muted ? t("quickSettings.unmuteTitle") : t("quickSettings.muteTitle")}
       >
         {muted ? <IconSpeakerMute size={18} /> : <IconSpeaker size={18} />}
       </button>
@@ -45,8 +47,12 @@ export const QuickSettings = ({ className = "" }: Props) => {
         className="quick-settings-btn bg-surface-1 border border-border rounded-md w-9 h-9 flex items-center justify-center backdrop-blur-sm cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
         onClick={onFullscreen}
         aria-pressed={fullscreenActive}
-        aria-label={fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"}
-        title={fullscreenActive ? "Exit fullscreen" : "Fullscreen"}
+        aria-label={
+          fullscreenActive ? t("quickSettings.exitFullscreen") : t("quickSettings.enterFullscreen")
+        }
+        title={
+          fullscreenActive ? t("quickSettings.exitFullscreen") : t("quickSettings.fullscreenTitle")
+        }
       >
         {fullscreenActive ? <IconFullscreenExit size={18} /> : <IconFullscreen size={18} />}
       </button>

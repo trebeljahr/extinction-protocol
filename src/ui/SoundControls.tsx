@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import {
   type AudioPrefs,
@@ -11,13 +12,13 @@ import { IconSpeaker } from "./MenuIcons";
 
 type BusKey = Exclude<keyof AudioPrefs, "muted">;
 
-const SLIDERS: { key: BusKey; label: string }[] = [
-  { key: "master", label: "Master" },
-  { key: "music", label: "Music" },
-  { key: "ui", label: "UI" },
-  { key: "towers", label: "Towers" },
-  { key: "enemies", label: "Enemies" },
-  { key: "notifications", label: "Alerts" },
+const SLIDERS: { key: BusKey; labelKey: string }[] = [
+  { key: "master", labelKey: "sound.master" },
+  { key: "music", labelKey: "sound.music" },
+  { key: "ui", labelKey: "sound.ui" },
+  { key: "towers", labelKey: "sound.towers" },
+  { key: "enemies", labelKey: "sound.enemies" },
+  { key: "notifications", labelKey: "sound.alerts" },
 ];
 
 const applyBus = (key: BusKey, v: number) => {
@@ -32,6 +33,7 @@ const applyBus = (key: BusKey, v: number) => {
 const PREVIEW_THROTTLE_MS = 220;
 
 export const SoundControls = () => {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<AudioPrefs>(() => readAudioPrefs());
   const lastPreviewAt = useRef<Record<BusKey, number>>({
     master: 0,
@@ -87,7 +89,7 @@ export const SoundControls = () => {
       <div className="settings-section-header flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-uber text-gold">
           <IconSpeaker size={14} className="shrink-0" />
-          SOUND
+          {t("sound.title")}
         </div>
         <button
           type="button"
@@ -99,12 +101,12 @@ export const SoundControls = () => {
           onClick={toggleMute}
           aria-pressed={!prefs.muted}
         >
-          {prefs.muted ? "MUTED" : "ON"}
+          {prefs.muted ? t("sound.muted") : t("sound.on")}
         </button>
       </div>
-      {SLIDERS.map(({ key, label }) => (
+      {SLIDERS.map(({ key, labelKey }) => (
         <Row key={key}>
-          <Label htmlFor={`vol-${key}`}>{label}</Label>
+          <Label htmlFor={`vol-${key}`}>{t(labelKey)}</Label>
           <input
             id={`vol-${key}`}
             type="range"

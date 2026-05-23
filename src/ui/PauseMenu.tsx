@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { getLevel } from "../levels";
@@ -9,6 +10,7 @@ import { DebugMenuSection } from "./DebugMenuSection";
 import { DebugProgressSettings } from "./DebugProgressSettings";
 import { DifficultyButton } from "./DifficultyButton";
 import { FullscreenToggle } from "./FullscreenToggle";
+import { LanguageControls } from "./LanguageControls";
 import { IconBook, IconMap, IconRefresh, IconTrophy } from "./MenuIcons";
 import { MenuOverlay } from "./MenuOverlay";
 import { SoundControls } from "./SoundControls";
@@ -19,6 +21,7 @@ type Props = {
 };
 
 export const PauseMenu = ({ onResume }: Props) => {
+  const { t } = useTranslation();
   const selectedLevelId = useGame((s) => s.selectedLevelId);
   const goToWorldMap = useGame((s) => s.goToWorldMap);
   const retry = useGame((s) => s.retryCurrentLevel);
@@ -37,36 +40,43 @@ export const PauseMenu = ({ onResume }: Props) => {
     const isRestart = confirming === "restart";
     return (
       <ConfirmationDialog
-        title={isRestart ? "Restart Level?" : "Return to World Map?"}
-        confirmLabel={isRestart ? "Restart" : "Return"}
+        title={isRestart ? t("pause.restartTitle") : t("pause.returnTitle")}
+        confirmLabel={isRestart ? t("pause.restart") : t("pause.return")}
         confirmClassName={isRestart ? "btn-warn" : "btn-danger"}
         onCancel={() => setConfirming(null)}
         onConfirm={isRestart ? retry : goToWorldMap}
       >
-        Progress on <strong className="text-fg-secondary">{levelName}</strong> will be lost.
+        <Trans
+          i18nKey="pause.progressLost"
+          values={{ level: levelName }}
+          components={{ strong: <strong className="text-fg-secondary" /> }}
+        />
       </ConfirmationDialog>
     );
   }
 
   return (
     <MenuOverlay
-      title="Paused"
+      title={t("pause.paused")}
       subtitle={levelName || null}
       onClose={onResume}
-      closeLabel="Resume"
-      closeTitle={showKeyboardHints ? "Resume (Esc)" : "Resume"}
+      closeLabel={t("pause.resume")}
+      closeTitle={showKeyboardHints ? `${t("pause.resume")} (Esc)` : t("pause.resume")}
     >
       <div className="menu-panel-scroll">
         <DifficultyButton
           className="w-full min-h-11 mb-3 bg-surface-1 border border-border rounded-md px-3 py-2.5 flex items-center gap-3 cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
-          title="Change difficulty"
+          title={t("difficulty.change")}
           textStackClassName="flex-1"
           trailing={
-            <span className="text-[10px] tracking-wide text-fg-faint uppercase">Change</span>
+            <span className="text-[10px] tracking-wide text-fg-faint uppercase">
+              {t("common.change")}
+            </span>
           }
         />
         <SoundControls />
         <FullscreenToggle />
+        <LanguageControls />
         {isDebug && <DebugProgressSettings />}
         <ActionsCol>
           <button
@@ -75,7 +85,7 @@ export const PauseMenu = ({ onResume }: Props) => {
             onClick={() => setCompendiumOpen(true)}
           >
             <IconBook size={16} className="shrink-0" />
-            Compendium
+            {t("worldMap.compendium")}
           </button>
           <button
             type="button"
@@ -83,7 +93,7 @@ export const PauseMenu = ({ onResume }: Props) => {
             onClick={() => setAchievementsOpen(true)}
           >
             <IconTrophy size={16} className="shrink-0" />
-            Achievements
+            {t("worldMap.achievements")}
           </button>
           <button
             type="button"
@@ -91,7 +101,7 @@ export const PauseMenu = ({ onResume }: Props) => {
             onClick={() => setConfirming("restart")}
           >
             <IconRefresh size={16} className="shrink-0" />
-            Restart
+            {t("pause.restart")}
           </button>
           <button
             type="button"
@@ -99,7 +109,7 @@ export const PauseMenu = ({ onResume }: Props) => {
             onClick={() => setConfirming("worldMap")}
           >
             <IconMap size={16} className="shrink-0" />
-            Return to World Map
+            {t("pause.returnToMap")}
           </button>
         </ActionsCol>
         {isDebug && (

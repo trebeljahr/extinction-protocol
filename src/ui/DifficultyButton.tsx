@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DIFFICULTY_LABEL } from "../progress";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store";
 import { DifficultyTag } from "./DifficultyTag";
 
@@ -22,6 +22,7 @@ export const DifficultyButton = ({
   trailing,
   onBeforeOpen,
 }: Props) => {
+  const { t } = useTranslation();
   const difficulty = useGame((s) => s.progress.difficulty);
   const setDifficultyPickerOpen = useGame((s) => s.setDifficultyPickerOpen);
 
@@ -33,8 +34,11 @@ export const DifficultyButton = ({
         setDifficultyPickerOpen(true);
       }}
       className={`difficulty-open-button pointer-events-auto ${className}`}
-      title={title ?? `Difficulty · ${DIFFICULTY_LABEL[difficulty]} · Change`}
-      aria-label="Change difficulty"
+      title={
+        title ??
+        t("difficulty.buttonTitle", { difficulty: t(`modes:difficulty.label.${difficulty}`) })
+      }
+      aria-label={t("difficulty.changeAria")}
     >
       <DifficultyTag
         difficulty={difficulty}

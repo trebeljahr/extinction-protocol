@@ -1,14 +1,9 @@
+import type { TFunction } from "i18next";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { getLevel, levelHasMode, resolveLevelMode } from "../levels";
-import {
-  getModeStars,
-  isModeUnlocked,
-  LEVEL_MODE_LABEL,
-  LEVEL_MODE_TAGLINE,
-  LEVEL_MODES,
-  type LevelMode,
-} from "../progress";
+import { getModeStars, isModeUnlocked, LEVEL_MODES, type LevelMode } from "../progress";
 import { TOWER_LABEL } from "../sim/world";
 import { useGame } from "../store";
 
@@ -31,6 +26,7 @@ const MODE_ICON: Record<LevelMode, string> = {
 };
 
 export const ModePicker = () => {
+  const { t } = useTranslation();
   const levelId = useGame((s) => s.modePickerLevelId);
   const progress = useGame((s) => s.progress);
   const startLevel = useGame((s) => s.startLevel);
@@ -63,14 +59,14 @@ export const ModePicker = () => {
         <header className="achievements-header">
           <div>
             <h1>{level.name}</h1>
-            <div className="achievements-subtitle">Choose a challenge mode</div>
+            <div className="achievements-subtitle">{t("modePicker.subtitle")}</div>
           </div>
           <button
             type="button"
             className="btn-close"
             onClick={close}
-            aria-label="Close mode picker"
-            title="Close mode picker"
+            aria-label={t("modePicker.close")}
+            title={t("modePicker.close")}
           >
             ×
           </button>
@@ -85,7 +81,7 @@ export const ModePicker = () => {
               mode === "normal" ? modeStars.normal === 3 : (modeStars[mode] as number) >= 1;
             const accent = MODE_ACCENT[mode];
             const cfg = resolveLevelMode(level, mode);
-            const restrictions = describeMode(mode, level, cfg);
+            const restrictions = describeMode(mode, level, cfg, t);
             return (
               <button
                 key={mode}
@@ -107,7 +103,7 @@ export const ModePicker = () => {
                   <span
                     className={`absolute top-1 right-1 sm:top-2 sm:right-2 text-[9px] font-bold tracking-wide uppercase ${accent.text}`}
                   >
-                    Cleared
+                    {t("modePicker.cleared")}
                   </span>
                 )}
                 <div className="flex items-center gap-2">
@@ -115,24 +111,24 @@ export const ModePicker = () => {
                     {MODE_ICON[mode]}
                   </span>
                   <span className={`text-base font-bold ${accent.text} tracking-mid`}>
-                    {LEVEL_MODE_LABEL[mode]}
+                    {t(`modes:mode.label.${mode}`)}
                   </span>
                 </div>
                 <div className="text-[11px] text-fg-muted leading-snug min-h-[28px]">
-                  {LEVEL_MODE_TAGLINE[mode]}
+                  {t(`modes:mode.tagline.${mode}`)}
                 </div>
                 <ul className="flex flex-col gap-1 text-[11px] text-fg border-t border-border-faint pt-2 mt-1 tabular-nums">
-                  <Row label="Start gold" value={`${cfg.startGold}g`} />
-                  <Row label="Waves" value={String(cfg.waves.length)} />
+                  <Row label={t("modePicker.startGold")} value={`${cfg.startGold}g`} />
+                  <Row label={t("common.waves")} value={String(cfg.waves.length)} />
                   {restrictions.map((r) => (
                     <Row key={r.label} label={r.label} value={r.value} />
                   ))}
                 </ul>
-                {!defined && <div className="text-[10px] text-fg-dim italic">Coming soon</div>}
+                {!defined && (
+                  <div className="text-[10px] text-fg-dim italic">{t("modePicker.comingSoon")}</div>
+                )}
                 {defined && !unlocked && (
-                  <div className="text-[10px] text-fg-dim italic">
-                    Earn 3 stars on Standard to unlock
-                  </div>
+                  <div className="text-[10px] text-fg-dim italic">{t("modePicker.unlockHint")}</div>
                 )}
               </button>
             );
@@ -162,15 +158,17 @@ const describeMode = (
     singleLife?: boolean;
     noSelling?: boolean;
   },
+  t: TFunction,
 ): { label: string; value: string }[] => {
   const rows: { label: string; value: string }[] = [];
   if (mode === "iron") {
-    rows.push({ label: "Lives", value: cfg.singleLife ? "1" : "20" });
-    if (cfg.noSelling) rows.push({ label: "Selling", value: "Disabled" });
+    rows.push({ label: t("modePicker.lives"), value: cfg.singleLife ? "1" : "20" });
+    if (cfg.noSelling)
+      rows.push({ label: t("modePicker.selling"), value: t("modePicker.disabled") });
   }
   if (cfg.lockedLoadout && cfg.lockedLoadout.length > 0) {
     rows.push({
-      label: "Loadout",
+      label: t("modePicker.loadout"),
       value: cfg.lockedLoadout
         .map((k) => TOWER_LABEL[k as keyof typeof TOWER_LABEL] ?? k)
         .join(", "),
@@ -178,7 +176,7 @@ const describeMode = (
   }
   if (cfg.forbiddenTowers && cfg.forbiddenTowers.length > 0) {
     rows.push({
-      label: "Denied",
+      label: t("modePicker.denied"),
       value: cfg.forbiddenTowers
         .map((k) => TOWER_LABEL[k as keyof typeof TOWER_LABEL] ?? k)
         .join(", "),

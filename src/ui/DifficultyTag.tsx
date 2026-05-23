@@ -1,4 +1,5 @@
-import { DIFFICULTY_ACCENT, DIFFICULTY_LABEL, type Difficulty } from "../progress";
+import { useTranslation } from "react-i18next";
+import { DIFFICULTY_ACCENT, type Difficulty } from "../progress";
 import { DifficultyModelIcon } from "./DifficultyModelIcon";
 
 type Props = {
@@ -14,10 +15,11 @@ type Props = {
 // hint) can sit alongside this in the parent.
 export const DifficultyTag = ({
   difficulty,
-  label = "Difficulty",
+  label,
   size = "md",
   textStackClassName = "",
 }: Props) => {
+  const { t } = useTranslation();
   const accent = DIFFICULTY_ACCENT[difficulty];
   const iconClass = size === "sm" ? "w-7 h-7" : "w-8 h-8";
   const nameClass = size === "sm" ? "text-[13px]" : "text-sm";
@@ -25,9 +27,11 @@ export const DifficultyTag = ({
     <>
       <DifficultyModelIcon difficulty={difficulty} className={iconClass} />
       <div className={`flex flex-col items-start ${textStackClassName}`}>
-        <span className="text-[9px] font-bold tracking-wide text-gold uppercase">{label}</span>
+        <span className="text-[9px] font-bold tracking-wide text-gold uppercase">
+          {label ?? t("difficulty.label")}
+        </span>
         <span className={`${nameClass} font-bold leading-tight ${accent.text}`}>
-          {DIFFICULTY_LABEL[difficulty]}
+          {t(`modes:difficulty.label.${difficulty}`)}
         </span>
       </div>
     </>

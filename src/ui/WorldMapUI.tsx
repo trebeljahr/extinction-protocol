@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { isDebug } from "../debug";
 import { type GamepadInputFrame, snapGamepadDirection, useGamepadInput } from "../input/gamepad";
@@ -20,6 +21,7 @@ import { DifficultyButton } from "./DifficultyButton";
 import { EndlessUnlockedModal } from "./EndlessUnlockedModal";
 import { prewarmEnemyIcons } from "./EnemyIcon.specs";
 import { FullscreenToggle } from "./FullscreenToggle";
+import { LanguageControls } from "./LanguageControls";
 import {
   IconBolt,
   IconBook,
@@ -55,6 +57,7 @@ const gamepadMenuDirection = (frame: GamepadInputFrame): -1 | 0 | 1 => {
 };
 
 export const WorldMapUI = () => {
+  const { t } = useTranslation();
   const progress = useGame((s) => s.progress);
   const hoveredLevelId = useGame((s) => s.hoveredLevelId);
   const startLevel = useGame((s) => s.startLevel);
@@ -147,8 +150,8 @@ export const WorldMapUI = () => {
   return (
     <div className="hud">
       <div className="world-map-stats absolute top-6 left-6 flex flex-col gap-2 pointer-events-none">
-        <MetaChip label="TOTAL STARS" value={total} max={maxTotal} />
-        <MetaChip label="OUTPOSTS" value={completed} max={LEVELS.length} />
+        <MetaChip label={t("worldMap.totalStars")} value={total} max={maxTotal} />
+        <MetaChip label={t("worldMap.outposts")} value={completed} max={LEVELS.length} />
       </div>
 
       <div className="world-map-actions absolute top-6 right-6 pointer-events-none flex items-center gap-1.5">
@@ -157,8 +160,8 @@ export const WorldMapUI = () => {
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md w-9 h-9 flex items-center justify-center backdrop-blur-sm pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setMenuOpen(true)}
-          aria-label="Open menu"
-          title="Menu"
+          aria-label={t("common.openMenu")}
+          title={t("common.menu")}
         >
           <IconCog size={18} />
         </button>
@@ -167,7 +170,7 @@ export const WorldMapUI = () => {
       <div className="world-map-difficulty absolute bottom-6 left-6 pointer-events-none">
         <DifficultyButton
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3 py-1.5 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-border-strong hover:text-white"
-          title="Change difficulty"
+          title={t("difficulty.change")}
         />
       </div>
 
@@ -190,41 +193,45 @@ export const WorldMapUI = () => {
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setCompendiumOpen(true, "lore")}
-          aria-label="Open lore codex"
-          title="Lore — recovered field documents"
+          aria-label={t("worldMap.loreAria")}
+          title={t("worldMap.loreTitle")}
         >
           <IconScroll size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Lore</span>
+          <span className="text-sm font-bold tracking-wide uppercase">{t("worldMap.lore")}</span>
         </button>
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setCompendiumOpen(true)}
-          aria-label="Open compendium"
-          title="Compendium"
+          aria-label={t("worldMap.compendiumAria")}
+          title={t("worldMap.compendium")}
         >
           <IconBook size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Compendium</span>
+          <span className="text-sm font-bold tracking-wide uppercase">
+            {t("worldMap.compendium")}
+          </span>
         </button>
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-border rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setAchievementsOpen(true)}
-          aria-label="Open achievements"
-          title="Achievements"
+          aria-label={t("worldMap.achievementsAria")}
+          title={t("worldMap.achievements")}
         >
           <IconTrophy size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Achievements</span>
+          <span className="text-sm font-bold tracking-wide uppercase">
+            {t("worldMap.achievements")}
+          </span>
         </button>
         <button
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-blue/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-blue hover:text-white"
           onClick={() => setRobotShopOpen(true)}
-          aria-label="Open robot roster"
-          title={`Pilot roster — ${bolts} bolt${bolts === 1 ? "" : "s"} gathered`}
+          aria-label={t("worldMap.robotsAria")}
+          title={t("worldMap.robotsTitle", { count: bolts })}
         >
           <IconSquad size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Robots</span>
+          <span className="text-sm font-bold tracking-wide uppercase">{t("worldMap.robots")}</span>
           <span
             className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${bolts > 0 ? "bg-[rgba(215,191,130,0.95)] text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
           >
@@ -236,15 +243,15 @@ export const WorldMapUI = () => {
           type="button"
           className="world-map-utility-btn bg-surface-1 border border-gold/40 rounded-md px-3.5 py-2 backdrop-blur-sm flex items-center gap-2 pointer-events-auto cursor-pointer font-[inherit] text-fg-secondary transition-colors hover:border-gold hover:text-white"
           onClick={() => setSkillTreeOpen(true)}
-          aria-label="Open lab"
+          aria-label={t("worldMap.labAria")}
           title={
             availableStars > 0
-              ? `Lab — ${availableStars} star${availableStars === 1 ? "" : "s"} unspent`
-              : "Lab"
+              ? t("worldMap.labTitleUnspent", { count: availableStars })
+              : t("worldMap.labTitle")
           }
         >
           <IconLab size={16} className="shrink-0" />
-          <span className="text-sm font-bold tracking-wide uppercase">Lab</span>
+          <span className="text-sm font-bold tracking-wide uppercase">{t("worldMap.lab")}</span>
           <span
             className={`ml-1 inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 px-1.5 rounded-full ${availableStars > 0 ? "bg-gold text-black" : "bg-surface-2 text-fg-muted border border-border"} text-[11px] font-bold tabular-nums`}
           >
@@ -255,15 +262,16 @@ export const WorldMapUI = () => {
       </div>
 
       {menuOpen && (
-        <MenuOverlay title="Menu" onClose={() => setMenuOpen(false)}>
+        <MenuOverlay title={t("common.menu")} onClose={() => setMenuOpen(false)}>
           <div className="menu-panel-scroll">
             <SoundControls />
             <FullscreenToggle />
+            <LanguageControls />
             {isDebug && <DebugProgressSettings />}
             <div className="menu-panel-actions">
               <DifficultyButton
                 className="btn btn-ghost w-full flex items-center justify-center gap-2"
-                label="Difficulty"
+                label={t("difficulty.label")}
                 size="sm"
                 onBeforeOpen={() => setMenuOpen(false)}
               />
@@ -276,7 +284,7 @@ export const WorldMapUI = () => {
                 }}
               >
                 <IconCoin size={16} className="shrink-0" />
-                Credits
+                {t("menu.credits")}
               </button>
               <button
                 type="button"
@@ -287,7 +295,7 @@ export const WorldMapUI = () => {
                 }}
               >
                 <IconFloppy size={16} className="shrink-0" />
-                Change save slot
+                {t("menu.changeSaveSlot")}
               </button>
             </div>
           </div>
@@ -298,7 +306,7 @@ export const WorldMapUI = () => {
         <div className="world-map-hover-card absolute left-6 bottom-24 min-w-[280px] max-w-[340px] bg-surface-2 border border-border-strong rounded-xl px-4 py-3.5 backdrop-blur-md pointer-events-none">
           <div className="flex flex-col gap-0.5 mb-2.5 pb-2.5 border-b border-[rgba(120,160,200,0.14)]">
             <span className="text-[10px] font-bold text-gold tracking-mid uppercase">
-              Outpost {hovered.id}
+              {t("worldMap.outpost", { id: hovered.id })}
             </span>
             <span className="text-[15px] font-bold text-fg leading-tight">{hovered.name}</span>
           </div>
@@ -307,17 +315,21 @@ export const WorldMapUI = () => {
               {LEVEL_BRIEFING[hovered.id]}
             </p>
           )}
-          <TipRow label="Waves" value={hovered.waves.length} />
-          <TipRow label="Starting gold" value={`${hovered.startGold}g`} />
+          <TipRow label={t("common.waves")} value={hovered.waves.length} />
+          <TipRow label={t("worldMap.startingGold")} value={`${hovered.startGold}g`} />
           <TipRow
-            label="Best"
+            label={t("common.best")}
             value={
-              hoveredUnlocked ? <StarDisplay count={hoveredStars} size={14} /> : "\u{1F512} Locked"
+              hoveredUnlocked ? (
+                <StarDisplay count={hoveredStars} size={14} />
+              ) : (
+                `\u{1F512} ${t("worldMap.locked")}`
+              )
             }
           />
           {hoveredUnlocked && (
             <div className="mt-2.5 pt-2.5 border-t border-[rgba(120,160,200,0.14)] text-[11px] text-cyan tracking-wide uppercase text-center">
-              Deploy
+              {t("worldMap.deploy")}
             </div>
           )}
         </div>

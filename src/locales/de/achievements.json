@@ -1,0 +1,177 @@
+{
+  "first_blood": {
+    "name": "Erstes Blut",
+    "desc": "Eliminiere deinen ersten entlaufenen Dinosaurier.",
+    "hint": "Jeder Kill zählt."
+  },
+  "extermination": {
+    "name": "Ausrottung",
+    "desc": "Eliminiere 500 entlaufene Dinosaurier über alle Läufe.",
+    "hint": "Kills insgesamt."
+  },
+  "apex_hunter": {
+    "name": "Spitzenjäger",
+    "desc": "Eliminiere 2.500 entlaufene Dinosaurier über alle Läufe.",
+    "hint": "Kills insgesamt."
+  },
+  "veteran": {
+    "name": "Veteran",
+    "desc": "Gewinne 10 Missionen über alle Läufe.",
+    "hint": "Missionssiege insgesamt."
+  },
+  "scholar": {
+    "name": "Gelehrter",
+    "desc": "Katalogisiere jede Gegnerart.",
+    "hint": "Begegne allen 7 Arten."
+  },
+  "full_arsenal": {
+    "name": "Volles Arsenal",
+    "desc": "Baue alle sechs Turmtypen in einer Mission.",
+    "hint": "Pulse + Chain + Cryo + Mortar + Flame + Hive."
+  },
+  "fully_armed": {
+    "name": "Voll bewaffnet",
+    "desc": "Verbessere beide Zweige eines Turms vollständig.",
+    "hint": "Stufe 3 auf A und B."
+  },
+  "architect": {
+    "name": "Architekt",
+    "desc": "Setze zehn Türme in einer Mission ein.",
+    "hint": "Zehn gleichzeitig stehend."
+  },
+  "flawless": {
+    "name": "Makellos",
+    "desc": "Gewinne eine Mission, ohne ein einziges Leben zu verlieren.",
+    "hint": "Alle 20 Leben intakt."
+  },
+  "triple_star": {
+    "name": "Drei Sterne",
+    "desc": "Erhalte eine Drei-Sterne-Wertung in einer Mission.",
+    "hint": "Erster perfekter Abschluss."
+  },
+  "full_spectrum": {
+    "name": "Volles Spektrum",
+    "desc": "Begegne jeder Gegnerart und baue jeden Turmtyp in einer Mission.",
+    "hint": "Spätspiel-Karte + jeder Turm."
+  },
+  "master_engineer": {
+    "name": "Meisteringenieur",
+    "desc": "Habe von jedem Turmtyp einen gleichzeitig voll verbessert.",
+    "hint": "Sechs Türme, jeder Stufe 3 auf beiden Zweigen."
+  },
+  "campaign": {
+    "name": "Kampagne abgeschlossen",
+    "desc": "Gewinne jede Mission.",
+    "hint": "Schließe die ganze Karte ab."
+  },
+  "perfect_run": {
+    "name": "Perfekter Lauf",
+    "desc": "Erhalte drei Sterne in jeder Mission.",
+    "hint": "Höchstwertung überall."
+  },
+  "full_service": {
+    "name": "Rundum-Service",
+    "desc": "Lass jeden Turm auf der Karte von einer Hive-Drohne versorgen.",
+    "hint": "Jeder Nicht-Hive-Turm braucht mindestens eine zugewiesene Drohne."
+  },
+  "tree_hugger": {
+    "name": "Baumumarmer",
+    "desc": "Klicke zehnmal auf denselben Baum.",
+    "hint": "Manche Bäume verbergen mehr als nur Schatten."
+  },
+  "diamond_in_the_rough": {
+    "name": "Rohdiamant",
+    "desc": "Klicke zehnmal auf denselben Felsen.",
+    "hint": "Beharrlichkeit knackt mehr als nur Stein."
+  },
+  "whispering_skull": {
+    "name": "Flüsternder Schädel",
+    "desc": "Störe den Schädel der Gefallenen.",
+    "hint": "Die Toten haben etwas zu sagen."
+  },
+  "mushroom_puff": {
+    "name": "Pilzwölkchen",
+    "desc": "Drück einen Pilz los.",
+    "hint": "Manche Pilze mögen es nicht, angestupst zu werden."
+  },
+  "torch_lit": {
+    "name": "Erleuchte den Weg",
+    "desc": "Entzünde eine verschneite Fackel.",
+    "hint": "Kalte Orte brauchen Feuer."
+  },
+  "barrel_roll": {
+    "name": "Fassrolle",
+    "desc": "Wirf ein verlassenes Fass um.",
+    "hint": "Nicht jedes Fass bleibt liegen."
+  },
+  "cabin_smoke": {
+    "name": "Heimisches Feuer",
+    "desc": "Lass Rauch aus einer Schneehütte aufsteigen.",
+    "hint": "Vielleicht wohnt dort noch jemand."
+  },
+  "crystal_shatter": {
+    "name": "Kristallbruch",
+    "desc": "Zertrümmere eine Kristallformation.",
+    "hint": "Kristalle brechen beim fünften Tippen."
+  },
+  "cactus_bloom": {
+    "name": "Kaktusblüte",
+    "desc": "Bring eine Wüstenpflanze zum Blühen.",
+    "hint": "Selbst Kakteen haben eine weiche Seite."
+  },
+  "ancient_glyph": {
+    "name": "Uralte Glyphe",
+    "desc": "Enthülle die Bedeutung von geritztem Stein.",
+    "hint": "Verwitterte Zeichen leuchten bei Berührung auf."
+  },
+  "rusted_radio": {
+    "name": "Statische Antwort",
+    "desc": "Stimme dich auf eine vergessene Übertragung ein.",
+    "hint": "Das tote Netz summt noch."
+  },
+  "satellite_ping": {
+    "name": "Fernes Signal",
+    "desc": "Wecke eine schlafende Satellitenschüssel.",
+    "hint": "Manche Schüsseln hören noch zu."
+  },
+  "fairy_ring": {
+    "name": "Feenring",
+    "desc": "Störe einen wilden Blütenring.",
+    "hint": "Blumen antworten dem dritten Besucher."
+  },
+  "rocket_launch": {
+    "name": "Raketenstart",
+    "desc": "Schieß eine vergessene Rakete in den Himmel.",
+    "hint": "Countdown beginnt bei drei."
+  },
+  "tumbleweed": {
+    "name": "Laufender Kaktus",
+    "desc": "Fang einen laufenden Kaktus im Sprint.",
+    "hint": "Beobachte die Wüste — etwas rennt."
+  },
+  "rover_roam": {
+    "name": "Rover-Streife",
+    "desc": "Stoppe einen Ödland-Rover während der Fahrt.",
+    "hint": "Das Ödland ist nicht ganz menschenleer."
+  },
+  "baby_raptor": {
+    "name": "Baby-Raptor",
+    "desc": "Finde einen Schlüpfling, der sich im Wald versteckt.",
+    "hint": "Kleine Dinge verstecken sich zwischen den Bäumen."
+  },
+  "buried_para": {
+    "name": "Ausgraben",
+    "desc": "Schüttle einen eingeschneiten Parasaur frei.",
+    "hint": "Jemand steckt im Schnee fest."
+  },
+  "ghost_trike": {
+    "name": "Phantom-Trike",
+    "desc": "Erwische einen durchscheinenden Triceratops im Vorbeiziehen.",
+    "hint": "Nicht alle Toten blieben tot."
+  },
+  "haunted_ruins": {
+    "name": "Spukruinen",
+    "desc": "Wecke die Geister des Ödlands.",
+    "hint": "Alte Steine antworten auf drei Klopfer."
+  }
+}

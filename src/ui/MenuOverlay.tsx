@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   title: string;
@@ -19,13 +20,15 @@ export const MenuOverlay = ({
   title,
   subtitle,
   onClose,
-  closeLabel = "Close",
+  closeLabel,
   closeTitle,
   headerLeading,
   overlayClassName = "",
   cardClassName = "",
   children,
 }: Props) => {
+  const { t } = useTranslation();
+  const resolvedCloseLabel = closeLabel ?? t("common.close");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -71,8 +74,8 @@ export const MenuOverlay = ({
             type="button"
             className="btn-close menu-overlay-close"
             onClick={onClose}
-            title={closeTitle ?? closeLabel}
-            aria-label={closeLabel}
+            title={closeTitle ?? resolvedCloseLabel}
+            aria-label={resolvedCloseLabel}
           >
             ✕
           </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getLevel, getLevelOrdinal } from "../levels";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
@@ -35,6 +36,7 @@ const HOTKEYS: Record<TowerKind, string> = {
 };
 
 export const HUD = () => {
+  const { t } = useTranslation();
   // Atomic selectors so a single tick ticking down `nextWaveIn` doesn't
   // re-render the whole tower picker (and its 6 Canvas previews).
   const gold = useGame((s) => s.ui.gold);
@@ -76,7 +78,7 @@ export const HUD = () => {
   const levelOrdinalLabel = levelOrdinal ? `${levelOrdinal.current}` : "";
   const outpostLabel = endless
     ? "ENDLESS"
-    : `OUTPOST${levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}`;
+    : `${t("hud.outpost")}${levelOrdinalLabel ? ` ${levelOrdinalLabel}` : ""}`;
   const paused = status === "paused";
   // On the final wave the label embeds the n/m count, so the value
   // slot is free to show the wave state ("ACTIVE") rather than just
@@ -87,7 +89,8 @@ export const HUD = () => {
   // value would otherwise stick at "0s" until game-won fires. Keep
   // showing "ACTIVE" through that tail so the readout matches normal
   // waves.
-  const waveStatus = waveActive || (!endless && wave >= totalWaves) ? "ACTIVE" : `${nextWaveIn}s`;
+  const waveStatus =
+    waveActive || (!endless && wave >= totalWaves) ? t("hud.active") : `${nextWaveIn}s`;
   const levelIntroVisible = useGame((s) => s.levelIntroVisible);
   const compendiumOpen = useGame((s) => s.compendiumOpen);
   // NewEnemyAlert auto-pauses the world but the pause-menu screen
@@ -225,16 +228,16 @@ export const HUD = () => {
   return (
     <div className="hud">
       <div className="hud-top">
-        <Stat label="GOLD" value={gold} accentClass="text-gold" />
-        <Stat label="LIVES" value={lives} accentClass="text-red" />
+        <Stat label={t("hud.gold")} value={gold} accentClass="text-gold" />
+        <Stat label={t("hud.lives")} value={lives} accentClass="text-red" />
         <Stat
-          label="WAVE"
+          label={t("hud.wave")}
           value={endless ? `${wave}` : `${wave} / ${totalWaves}`}
           accentClass="text-blue"
         />
         {endless && (
           <Stat
-            label="BEST"
+            label={t("hud.best")}
             value={endlessBestWave > 0 ? `${endlessBestWave}` : "—"}
             accentClass="text-gold"
           />
@@ -244,22 +247,22 @@ export const HUD = () => {
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title={showKeyboardHints ? "Start waves (Space)" : "Start waves"}
+            title={showKeyboardHints ? t("hud.startWavesTitleKey") : t("hud.startWavesTitle")}
           >
             <div className="stat-label">
-              ▶ START WAVES <span className="kbd-only">[Space]</span>
+              ▶ {t("hud.startWavesBtn")} <span className="kbd-only">[Space]</span>
             </div>
-            <div className="stat-value">Click to begin</div>
+            <div className="stat-value">{t("hud.clickToBegin")}</div>
           </button>
         ) : canCallEarly ? (
           <button
             type="button"
             className="stat call-wave-btn"
             onClick={callWaveEarly}
-            title={showKeyboardHints ? "Call next wave early (Space)" : "Call next wave early"}
+            title={showKeyboardHints ? t("hud.callWaveTitleKey") : t("hud.callWaveTitle")}
           >
             <div className="stat-label">
-              ▶ CALL NEXT WAVE <span className="kbd-only">[Space]</span>
+              ▶ {t("hud.callWaveBtn")} <span className="kbd-only">[Space]</span>
             </div>
             <div className="stat-value">
               +{callEarlyBonus}g<span className="call-wave-sub"> · {callEarlyTimer}s</span>
@@ -270,13 +273,13 @@ export const HUD = () => {
             label={
               endless
                 ? waveActive
-                  ? "WAVE"
-                  : "NEXT"
+                  ? t("hud.wave")
+                  : t("hud.next")
                 : wave >= totalWaves
-                  ? `FINAL · ${wave}/${totalWaves}`
+                  ? t("hud.final", { wave, total: totalWaves })
                   : waveActive
-                    ? "WAVE"
-                    : "NEXT"
+                    ? t("hud.wave")
+                    : t("hud.next")
             }
             value={waveStatus}
             accentClass="text-mint"
@@ -292,7 +295,7 @@ export const HUD = () => {
         )}
         <DifficultyButton
           className="bg-surface-1 border border-border rounded-md px-2.5 py-2 backdrop-blur-sm flex items-center gap-2 cursor-pointer font-[inherit] text-fg transition-colors hover:border-border-strong"
-          label="Mode"
+          label={t("hud.mode")}
           size="sm"
         />
         {runMode !== "normal" && (
@@ -302,10 +305,10 @@ export const HUD = () => {
                 ? "border-orange text-orange bg-[rgba(255,178,102,0.10)]"
                 : "border-red text-red bg-[rgba(255,90,122,0.10)]"
             }`}
-            title={runMode === "heroic" ? "Heroic challenge mode" : "Iron challenge mode"}
+            title={runMode === "heroic" ? t("hud.heroicMode") : t("hud.ironMode")}
           >
             <span aria-hidden>{runMode === "heroic" ? "✦" : "▣"}</span>
-            <span>{runMode}</span>
+            <span>{t(`modes:mode.label.${runMode}`)}</span>
           </div>
         )}
       </div>
@@ -316,8 +319,8 @@ export const HUD = () => {
           type="button"
           className="hud-menu-btn"
           onClick={togglePause}
-          aria-label="Open menu"
-          title={showKeyboardHints ? "Menu (Esc)" : "Menu"}
+          aria-label={t("common.openMenu")}
+          title={showKeyboardHints ? `${t("common.menu")} (Esc)` : t("common.menu")}
         >
           <IconCog size={18} />
           <span className="kbd-only text-[10px] font-bold tracking-wide px-1.5 py-0.5 border border-[rgba(159,216,255,0.35)] rounded-sm text-blue bg-tint-blue-soft uppercase">
@@ -337,15 +340,15 @@ export const HUD = () => {
             setPickerOpen(true);
           }}
           aria-expanded={false}
-          aria-label="Open build menu"
-          title="Build"
+          aria-label={t("hud.openBuildMenu")}
+          title={t("hud.build")}
         >
           <span className="tower-picker-handle-icon" aria-hidden>
             <span />
             <span />
             <span />
           </span>
-          <span className="tower-picker-handle-label">Build</span>
+          <span className="tower-picker-handle-label">{t("hud.build")}</span>
         </button>
       )}
 
@@ -354,14 +357,14 @@ export const HUD = () => {
           type="button"
           className="tower-picker-handle tower-picker-handle-cancel"
           onClick={() => useGame.getState().clearSelection()}
-          aria-label={`Cancel placing ${TOWER_LABEL[selectedKind]}`}
-          title="Cancel placement"
+          aria-label={t("hud.cancelPlacingAria", { tower: TOWER_LABEL[selectedKind] })}
+          title={t("hud.cancelPlacement")}
           data-ui-sound="close"
         >
           <span className="tower-picker-handle-cancel-icon" aria-hidden>
             ×
           </span>
-          <span className="tower-picker-handle-label">Cancel</span>
+          <span className="tower-picker-handle-label">{t("common.cancel")}</span>
           <span className="tower-picker-handle-active">{TOWER_LABEL[selectedKind]}</span>
         </button>
       )}
@@ -371,14 +374,14 @@ export const HUD = () => {
           type="button"
           className="tower-picker-handle tower-picker-handle-confirm"
           onClick={() => useGame.getState().confirmTouchPlacement()}
-          aria-label={`Confirm placing ${TOWER_LABEL[selectedKind]}`}
-          title="Confirm placement"
+          aria-label={t("hud.confirmPlacingAria", { tower: TOWER_LABEL[selectedKind] })}
+          title={t("hud.confirmPlacement")}
           data-ui-sound="select"
         >
           <span className="tower-picker-handle-confirm-icon" aria-hidden>
             ✓
           </span>
-          <span className="tower-picker-handle-label">Place</span>
+          <span className="tower-picker-handle-label">{t("hud.place")}</span>
         </button>
       )}
 
@@ -389,8 +392,8 @@ export const HUD = () => {
               type="button"
               className="tower-picker-close"
               onClick={() => setPickerOpen(false)}
-              aria-label="Close build menu"
-              title="Close"
+              aria-label={t("hud.closeBuildMenu")}
+              title={t("common.close")}
             >
               ×
             </button>
@@ -414,7 +417,7 @@ export const HUD = () => {
                   setSelectedKind(selectedKind === kind ? null : kind);
                   e.currentTarget.blur();
                 }}
-                title={`${TOWER_LABEL[kind]} · ${pill.label} · ${cost}g${showKeyboardHints ? ` [${HOTKEYS[kind]}]` : ""}`}
+                title={`${TOWER_LABEL[kind]} · ${t(`damageTypes.${pill.type}`)} · ${cost}g${showKeyboardHints ? ` [${HOTKEYS[kind]}]` : ""}`}
               >
                 {active && (
                   <span className="card-cancel" aria-hidden>

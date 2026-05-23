@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { audio } from "../audio/AudioManager";
 import { useGame } from "../store";
 import { SettingsMenu } from "./SettingsMenu";
@@ -11,6 +12,7 @@ const MAX_DISPLAY_MS = 6000;
 const FADE_MS = 220;
 
 export const Splash = () => {
+  const { t } = useTranslation();
   const dismissSplash = useGame((s) => s.dismissSplash);
   const [exiting, setExiting] = useState(false);
 
@@ -80,7 +82,7 @@ export const Splash = () => {
           <img src="/icons/icon.png" alt="" />
         </div>
         <h1 className="splash-title">Mesozoic Protocol</h1>
-        <div className="splash-subtitle">Defense Network · Initializing</div>
+        <div className="splash-subtitle">{t("splash.subtitle")}</div>
         <div className="splash-bar" aria-hidden>
           <div className="splash-bar-fill" />
         </div>

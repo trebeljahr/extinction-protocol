@@ -1,0 +1,27 @@
+{
+  "shielded": {
+    "label": "Schilde",
+    "subtitle": "Energieblase",
+    "description": "Blaue Energieblase. Absorbiert Schaden vor den HP. Die Poolgröße skaliert mit der Trägerart."
+  },
+  "healAura": {
+    "label": "Heiler",
+    "subtitle": "Sanitäter",
+    "description": "Pulsierender grüner Ring. Heilt nahe Verbündete um 3 HP/Sek. im Umkreis von 3,5 Feldern."
+  },
+  "regen": {
+    "label": "Regen",
+    "subtitle": "Selbstheilung",
+    "description": "Schwebendes mintgrünes ‚+‘. Passiv 1,5 HP/Sek., solange kein Schaden genommen wird."
+  },
+  "slow": {
+    "label": "Verlangsamung",
+    "subtitle": "Tempo-Malus",
+    "description": "Nur vom Cryo Emitter angewendet. Senkt das Bewegungstempo für die Verlangsamungsdauer."
+  },
+  "adaptation": {
+    "label": "Anpassung",
+    "subtitle": "Evolvierte Resistenz",
+    "description": "Wer sich zu sehr auf einen Schadenstyp verlässt, lässt die Herde sich anpassen. Ab Level 12 erscheint ein Teil jeder Welle mit gehärteter Resistenz gegen den Schadenstyp, den du in den letzten 3 Wellen am meisten ausgeteilt hast — je einseitiger dein Portfolio, desto größer der Anteil und desto tiefer die Resistenz (bis zur faktischen Immunität). Angepasste Gegner tragen eine andersfarbige Körpertönung, sodass du die Gefahr auf einen Blick erkennst. Konter: Türme diversifizieren oder einen T3-Anti-Modifikator-Zweig nutzen."
+  }
+}
