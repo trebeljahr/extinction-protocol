@@ -780,6 +780,27 @@
       0 0 0 1px var(--color-blue),
       0 0 10px rgba(159, 216, 255, 0.2);
   }
+  /* Spot button while the player is actively picking an aim point — orange
+     to match the pulsing range ring drawn in the 3D scene. */
+  .targeting-btn.arming {
+    background: rgba(255, 138, 60, 0.22);
+    border-color: #ff8a3c;
+    color: #fff;
+    animation: spot-arm-pulse 1s ease-in-out infinite;
+  }
+  @keyframes spot-arm-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px #ff8a3c,
+        0 0 6px rgba(255, 138, 60, 0.25);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px #ff8a3c,
+        0 0 14px rgba(255, 138, 60, 0.6);
+    }
+  }
 
   .targeting-hint {
     margin: -8px 0 12px;

@@ -437,6 +437,12 @@ type GameStore = {
   // Cleared by completing the assignment, clicking the same hive,
   // canceling, or selling/deselecting the hive.
   assigningDroneSlot: { hiveId: number; droneIdx: number } | null;
+  // True while the player is actively picking a ground spot for the
+  // selected mortar — armed only by clicking the "Spot" targeting
+  // button. The next in-range map click sets the aim point and disarms.
+  // Selecting the mortar (e.g. clicking it to open its panel) must NOT
+  // arm this, otherwise an innocent click re-aims the mortar.
+  spotSelecting: boolean;
   towerVersion: number;
   treeVersion: number;
   inspectedEnemy: InspectState;
@@ -795,6 +801,7 @@ export const useGame = create<GameStore>((set, get) => ({
   selectedRockId: null,
   pendingTouchPlacement: null,
   assigningDroneSlot: null,
+  spotSelecting: false,
   eventListeners: [],
 
   screen: "splash",
@@ -1370,6 +1377,9 @@ export const useGame = create<GameStore>((set, get) => ({
       // Picking up a tower-to-place implicitly cancels any in-flight
       // drone assignment — the user is doing something else now.
       assigningDroneSlot: kind !== null ? null : s.assigningDroneSlot,
+      // Same for an armed mortar spot-pick — arming a build kind means
+      // the next click drops a tower, not a mortar aim point.
+      spotSelecting: kind !== null ? false : s.spotSelecting,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
@@ -1547,6 +1557,7 @@ export const useGame = create<GameStore>((set, get) => ({
       pendingTouchPlacement: null,
       inspectedEnemy: emptyInspect,
       robotPanelOpen: false,
+      spotSelecting: false,
       ui: snapshot(world, towerVersion, treeVersion, emptyInspect),
     });
   },
@@ -1575,6 +1586,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedTreeId: null,
       selectedRockId: null,
       inspectedEnemy: inspect,
+      spotSelecting: false,
       ui: snapshot(world, towerVersion, treeVersion, inspect),
     });
   },
@@ -1877,6 +1889,7 @@ export const useGame = create<GameStore>((set, get) => ({
         selectedTreeId: null,
         selectedRockId: null,
         inspectedEnemy: emptyInspect,
+        spotSelecting: false,
         ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
       });
       return;
@@ -1894,6 +1907,7 @@ export const useGame = create<GameStore>((set, get) => ({
         selectedTreeId: null,
         selectedRockId: null,
         inspectedEnemy: emptyInspect,
+        spotSelecting: false,
         ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
       });
       return;
@@ -1906,11 +1920,12 @@ export const useGame = create<GameStore>((set, get) => ({
       return;
     }
 
-    // Spot-targeting: while a mortar is selected in "spot" mode, every
-    // empty-ground click sets/updates its aim point. The mode ends when
-    // the user selects something else (another tower, tree, rock), not
-    // when they click open ground.
-    if (s.selectedKind === null && w.selectedTowerId !== null) {
+    // Spot-targeting: only while the player armed ground-pick mode by
+    // clicking the "Spot" button (spotSelecting). The next in-range click
+    // sets the aim point and disarms — a one-shot pick. Merely having the
+    // mortar selected no longer arms this, so clicking the tower to open
+    // its panel can't accidentally re-aim it.
+    if (s.spotSelecting && s.selectedKind === null && w.selectedTowerId !== null) {
       const sel = w.towerById.get(w.selectedTowerId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") {
         const dx = pos.x - sel.pos.x;
@@ -1920,11 +1935,12 @@ export const useGame = create<GameStore>((set, get) => ({
           sel.targetId = null;
           const newVersion = s.towerVersion + 1;
           set({
+            spotSelecting: false,
             towerVersion: newVersion,
             ui: snapshot(w, newVersion, s.treeVersion, s.inspectedEnemy),
           });
         }
-        // Out-of-range click: do nothing, keep mortar selected + armed.
+        // Out-of-range click: stay armed so the player can retry in range.
         return;
       }
     }
@@ -1943,6 +1959,7 @@ export const useGame = create<GameStore>((set, get) => ({
           selectedTreeId: null,
           selectedRockId: null,
           inspectedEnemy: emptyInspect,
+          spotSelecting: false,
           ui: snapshot(w, s.towerVersion, s.treeVersion, emptyInspect),
         });
       }
@@ -2029,6 +2046,7 @@ export const useGame = create<GameStore>((set, get) => ({
       selectedRockId: null,
       inspectedEnemy: nextInspect,
       assigningDroneSlot: keepAssigning ? s.assigningDroneSlot : null,
+      spotSelecting: false,
       ui: snapshot(world, towerVersion, treeVersion, nextInspect),
     });
   },
@@ -2073,11 +2091,26 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.world.selectedTowerId === null) return;
     const t = s.world.towerById.get(s.world.selectedTowerId);
     if (!t) return;
+    // The "Spot" button always (re-)arms ground-pick mode — even when the
+    // mortar is already in spot mode. Clicking it again is the ONLY way to
+    // re-enter aim-point selection, which is what the player expects.
+    if (mode === "spot") {
+      t.targetingMode = "spot";
+      t.targetId = null;
+      const newVersion = s.towerVersion + 1;
+      set({
+        spotSelecting: true,
+        towerVersion: newVersion,
+        ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
+      });
+      return;
+    }
     if (t.targetingMode === mode) return;
     t.targetingMode = mode;
     t.targetId = null;
     const newVersion = s.towerVersion + 1;
     set({
+      spotSelecting: false,
       towerVersion: newVersion,
       ui: snapshot(s.world, newVersion, s.treeVersion, s.inspectedEnemy),
     });

@@ -239,12 +239,14 @@ const ResistRow = ({ damageType }: { damageType: DamageType }) => (
 
 const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) => {
   const [open, setOpen] = useState(false);
+  const spotSelecting = useGame((s) => s.spotSelecting);
   const currentMode =
     tower.targetingMode === "spot"
       ? "Spot"
       : (TARGETING_MODES.find(({ mode }) => mode === tower.targetingMode)?.label ?? "Near");
-  const showSpotHint =
-    tower.kind === "mortar" && tower.targetingMode === "spot" && !tower.targetSpot;
+  // Only prompt for a click while the player has actually armed spot-pick
+  // (via the Spot button). Just being in spot mode no longer arms it.
+  const showSpotHint = tower.kind === "mortar" && tower.targetingMode === "spot" && spotSelecting;
   const controls = (
     <>
       <div className="targeting-row">
@@ -264,9 +266,11 @@ const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) 
           {tower.kind === "mortar" && (
             <button
               type="button"
-              className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""}`}
+              className={`targeting-btn ${tower.targetingMode === "spot" ? "active" : ""} ${
+                spotSelecting ? "arming" : ""
+              }`}
               onClick={() => useGame.getState().setTargetingMode("spot")}
-              title="Fire only at a fixed map spot — click the map to set it"
+              title="Fire only at a fixed map spot — click Spot, then click the map to aim"
             >
               Spot
             </button>
@@ -275,7 +279,7 @@ const TargetingSection = ({ tower, mobile }: { tower: Tower; mobile: boolean }) 
       </div>
       {showSpotHint && (
         <div className="targeting-hint">
-          Click a spot on the map within range to set the aim point.
+          Click inside the pulsing range ring to set the aim point. Press Spot again to re-aim.
         </div>
       )}
     </>
