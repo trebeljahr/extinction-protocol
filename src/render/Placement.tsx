@@ -6,7 +6,7 @@ import { GAMEPAD_STICK_DEADZONE, scaleGamepadAxis, useGamepadInput } from "../in
 import { MAP_HEIGHT, MAP_WIDTH } from "../level";
 import { effectiveTowerCost } from "../sim/metaSkills";
 import type { TowerKind } from "../sim/types";
-import { TOWER_STATS } from "../sim/world";
+import { TOWER_CLEAR_RADIUS, TOWER_STATS } from "../sim/world";
 import { useGame } from "../store";
 import { GhostTower } from "./GhostTower";
 
@@ -484,7 +484,7 @@ export const Placement = () => {
         <>
           <group position={[activeHover!.x, 0, -activeHover!.y]}>
             <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[0.55, 0.7, 24]} />
+              <ringGeometry args={[0.55, TOWER_CLEAR_RADIUS, 24]} />
               <meshBasicMaterial
                 color={placementColor}
                 transparent

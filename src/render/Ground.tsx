@@ -14,7 +14,7 @@ import { poissonDiskSample } from "../sim/poisson";
 import { mulberry32 } from "../sim/random";
 import type { Rock, Tree, Vec2 } from "../sim/types";
 import { distPointToSegSq } from "../sim/vec2";
-import { ROCK_FOOTPRINT, TOWER_FOOTPRINT, TREE_FOOTPRINT } from "../sim/world";
+import { ROCK_FOOTPRINT, TOWER_CLEAR_RADIUS, TREE_FOOTPRINT } from "../sim/world";
 import { sampleStratifiedFeatures } from "../sim/worley";
 import { useGame } from "../store";
 
@@ -250,7 +250,7 @@ export const Ground = () => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
   const culledLayers = useMemo(() => {
     if (towers.length === 0) return layers;
-    const towerR = TOWER_FOOTPRINT * 0.5;
+    const towerR = TOWER_CLEAR_RADIUS;
     return layers.map(({ spec, buckets }) => ({
       spec,
       buckets: buckets.map(({ id, placements }) => ({

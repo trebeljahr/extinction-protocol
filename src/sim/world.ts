@@ -1973,6 +1973,13 @@ export const TOWER_LABEL: Record<TowerKind, string> = {
 
 export const TOWER_FOOTPRINT = 1.0;
 
+// Radius of the placement highlight disc drawn under a tower/spawn. Decor
+// (ground cover) overlapping this disc is culled on placement so the base
+// sits on clean ground with nothing poking through the visible ring. Must
+// equal the placement ring's outer radius in Placement.tsx so the cleared
+// area matches exactly what the player sees highlighted.
+export const TOWER_CLEAR_RADIUS = 0.7;
+
 export const createTower = (world: World, kind: TowerKind, pos: Vec2): Tower => {
   const stats = TOWER_STATS[kind];
   const tower: Tower = {
