@@ -1537,6 +1537,11 @@ export const useGame = create<GameStore>((set, get) => ({
       // aim so the next ground click places the tower instead of
       // firing the dash. Cooldown wasn't consumed by the aim stage.
       if (world.robot.dashAim) world.robot.dashAim = null;
+      // Arming a tower also drops robot selection — placement and robot
+      // control are mutually exclusive, so ground clicks read as
+      // placement, not move orders. Mirrors selectRobotUnit nulling
+      // selectedKind in the other direction.
+      if (world.robot.selected) world.robot.selected = false;
     }
     const nextInspect = kind !== null ? emptyInspect : s.inspectedEnemy;
     const nextTree = kind !== null ? null : s.selectedTreeId;
@@ -1574,11 +1579,19 @@ export const useGame = create<GameStore>((set, get) => ({
   triggerRobotAbility: (slot) => {
     const s = get();
     if (s.world.status !== "running") return;
+    const hadAim = s.world.robot.dashAim !== null;
     if (!simTriggerRobotAbility(s.world, slot)) return;
+    // Entering a re-targeting stage (dash aim) cancels active tower
+    // placement so the next ground click commits the dash instead of
+    // dropping a tower. Symmetric with setSelectedKind clearing dashAim.
+    const enteredAim = !hadAim && s.world.robot.dashAim !== null;
     // Snapshot so the HUD reflects the freshly-triggered cooldown
     // immediately, not on the next tick. Cheap because uiEqual culls
     // no-op renders.
-    set({ ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy) });
+    set({
+      ...(enteredAim && s.selectedKind !== null ? { selectedKind: null } : {}),
+      ui: snapshot(s.world, s.towerVersion, s.treeVersion, s.inspectedEnemy),
+    });
   },
 
   setRobotDashAimDir: (dir) => {

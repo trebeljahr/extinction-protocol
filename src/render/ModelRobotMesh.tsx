@@ -310,14 +310,17 @@ export const ModelRobotMesh = () => {
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     const state = useGame.getState();
-    // Tower placement / mortar spot mode wins over robot selection.
-    if (state.selectedKind !== null) return;
+    // Mortar spot mode still wins — clicking the robot while aiming a
+    // mortar sets the spot, not the selection.
     const selId = state.world.selectedTowerId;
     if (selId !== null) {
       const sel = state.world.towerById.get(selId);
       if (sel && sel.kind === "mortar" && sel.targetingMode === "spot") return;
     }
     e.stopPropagation();
+    // Selecting the robot cancels active tower placement (selectRobotUnit
+    // nulls selectedKind), so a click on the robot mid-placement switches
+    // intent to the robot instead of dropping a tower under it.
     state.selectRobotUnit(!state.world.robot.selected);
   };
 
