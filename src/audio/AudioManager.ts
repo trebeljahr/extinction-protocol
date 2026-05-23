@@ -453,6 +453,138 @@ export class AudioManager {
     osc.stop(now + duration);
   }
 
+  // Footfall for heavy units. Synthesised (like playSplat) so the sim can
+  // drive step rate freely without shipping per-surface samples or fighting
+  // loop seams when many giants march at once. Two voices:
+  //   "dino"  — sub-bass body thump + dull low-passed earth impact.
+  //   "robot" — metallic servo tick + tonal clank + actuator whir + foot thud.
+  private lastFootstepAt = 0;
+  private activeFootsteps = new Set<AudioScheduledSourceNode>();
+  playFootstep(source: "dino" | "robot", weight = 1) {
+    const bus = source === "robot" ? this.busGains.towers : this.busGains.enemies;
+    if (!this.ctx || !bus || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const wallNow = performance.now();
+    // Global throttle + voice cap: a wave of synced giants can't machine-gun
+    // the mix or spawn unbounded nodes.
+    if (wallNow - this.lastFootstepAt < 26) return;
+    if (this.activeFootsteps.size >= 12) return;
+    this.lastFootstepAt = wallNow;
+    if (source === "robot") this.synthRobotStep(ctx, bus, now);
+    else this.synthDinoStep(ctx, bus, now, weight);
+  }
+
+  private trackStep(node: AudioScheduledSourceNode, start: number, stop: number) {
+    this.activeFootsteps.add(node);
+    node.onended = () => this.activeFootsteps.delete(node);
+    node.start(start);
+    node.stop(stop);
+  }
+
+  private makeNoise(ctx: AudioContext, durSec: number): AudioBufferSourceNode {
+    const len = Math.ceil(durSec * ctx.sampleRate);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const node = ctx.createBufferSource();
+    node.buffer = buf;
+    return node;
+  }
+
+  private synthDinoStep(ctx: AudioContext, dst: AudioNode, now: number, weight: number) {
+    const w = Math.max(0.2, Math.min(1, weight));
+    // Bigger creature → lower pitch, louder. Per-step jitter so a column of
+    // titans doesn't read as one looping sample.
+    const pitch = (1.05 - 0.25 * w) * (0.97 + Math.random() * 0.06);
+    const vol = 0.3 * w;
+    const dur = 0.22;
+
+    // Sub-bass body thump — the weight landing.
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.setValueAtTime(82 * pitch, now);
+    sub.frequency.exponentialRampToValueAtTime(34 * pitch, now + dur * 0.6);
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0, now);
+    subGain.gain.linearRampToValueAtTime(vol, now + 0.006);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    sub.connect(subGain).connect(dst);
+    this.trackStep(sub, now, now + dur);
+
+    // Dull earth impact — short low-passed noise burst.
+    const noiseDur = 0.1;
+    const noise = this.makeNoise(ctx, noiseDur);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 320 * pitch;
+    lp.Q.value = 0.7;
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0, now);
+    nGain.gain.linearRampToValueAtTime(vol * 0.55, now + 0.004);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + noiseDur);
+    noise.connect(lp).connect(nGain).connect(dst);
+    this.trackStep(noise, now, now + noiseDur);
+  }
+
+  private synthRobotStep(ctx: AudioContext, dst: AudioNode, now: number) {
+    const jitter = 0.95 + Math.random() * 0.1;
+
+    // Metallic servo tick — band-passed noise click reads as struck metal.
+    const tickDur = 0.06;
+    const noise = this.makeNoise(ctx, tickDur);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1500 * jitter;
+    bp.Q.value = 5;
+    const tickGain = ctx.createGain();
+    tickGain.gain.setValueAtTime(0, now);
+    tickGain.gain.linearRampToValueAtTime(0.09, now + 0.002);
+    tickGain.gain.exponentialRampToValueAtTime(0.001, now + tickDur);
+    noise.connect(bp).connect(tickGain).connect(dst);
+    this.trackStep(noise, now, now + tickDur);
+
+    // Two short inharmonic partials add a tonal clank over the noise tick.
+    for (const f of [760, 1140]) {
+      const p = ctx.createOscillator();
+      p.type = "triangle";
+      p.frequency.value = f * jitter;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.04, now + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      p.connect(g).connect(dst);
+      this.trackStep(p, now, now + 0.06);
+    }
+
+    // Actuator whir — quick downward sweep, the leg moving.
+    const servo = ctx.createOscillator();
+    servo.type = "sawtooth";
+    servo.frequency.setValueAtTime(300 * jitter, now);
+    servo.frequency.exponentialRampToValueAtTime(110, now + 0.09);
+    const servoLp = ctx.createBiquadFilter();
+    servoLp.type = "lowpass";
+    servoLp.frequency.value = 900;
+    const servoGain = ctx.createGain();
+    servoGain.gain.setValueAtTime(0, now);
+    servoGain.gain.linearRampToValueAtTime(0.05, now + 0.005);
+    servoGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    servo.connect(servoLp).connect(servoGain).connect(dst);
+    this.trackStep(servo, now, now + 0.1);
+
+    // Small foot thud — mech weight, lighter than a dino's.
+    const thud = ctx.createOscillator();
+    thud.type = "sine";
+    thud.frequency.setValueAtTime(80 * jitter, now);
+    thud.frequency.exponentialRampToValueAtTime(46, now + 0.09);
+    const thudGain = ctx.createGain();
+    thudGain.gain.setValueAtTime(0, now);
+    thudGain.gain.linearRampToValueAtTime(0.13, now + 0.005);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    thud.connect(thudGain).connect(dst);
+    this.trackStep(thud, now, now + 0.12);
+  }
+
   ui(kind: "click" | "tab" | "open" | "close" | "error" | "select") {
     const map: Record<typeof kind, [string, number, number, number]> = {
       click: ["ui-click", 0.4, 30, 0.4],

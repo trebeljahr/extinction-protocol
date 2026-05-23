@@ -161,6 +161,10 @@ export const useAudioBridge = () => {
         case "flame-stop":
           audio.stopFlame(e.towerId);
           break;
+        case "footstep":
+          if (state.screen !== "playing" || state.world.status !== "running") break;
+          audio.playFootstep(e.source, e.weight);
+          break;
         case "robot-ability": {
           // Per-ability voicing reuses the existing tower/shot sample
           // library so the player gets feedback on every cast without

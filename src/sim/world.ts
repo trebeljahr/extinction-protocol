@@ -147,6 +147,7 @@ const robotDefaults = (variant: RobotVariant, pos: Vec2, id: EntityId, xp: numbe
     hovering: false,
     hoverHeight: 0,
     motionState: "idle",
+    footstepAccum: 0,
     lastDeathAt: -1000,
     dashAim: null,
     mikeCoalDropAt: 0,
@@ -1802,6 +1803,7 @@ export const spawnEnemy = (world: World, kind: EnemyKind, opts: SpawnOptions = {
     bossVariant: effectiveVariant,
     childSpawnAt: childCfg ? world.time + childCfg.interval : undefined,
     barrageSpawnAt: barrageCfg ? world.time + barrageCfg.interval : undefined,
+    footstepAccum: 0,
   };
   // Adaptive resistance snapshot — a fraction of spawns at L12+ mutate
   // their extraResists toward immunity for the dominant damage type

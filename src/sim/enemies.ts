@@ -17,6 +17,15 @@ const LEAK_POSE_SECONDS = 0.34;
 const LEAK_ATTACK_STANDOFF = 0.18;
 const LEAK_TRIGGER_MIN_DISTANCE = 0.28;
 const LEAK_TRIGGER_MAX_DISTANCE = 0.75;
+
+// Heavy kinds that thud as they walk. `stride` = world units between
+// footfalls (longer = sparser steps); `weight` 0..1 scales the synth's depth
+// and loudness. Scoped to the slow giants — titan and the matriarch bosses.
+// Every other kind is omitted: lighter/faster dinos' patter just clutters.
+const FOOTSTEP_PROFILE: Partial<Record<EnemyKind, { stride: number; weight: number }>> = {
+  titan: { stride: 1.2, weight: 1.0 },
+  boss: { stride: 1.1, weight: 0.9 },
+};
 const remainingPathDistance = (path: Vec2[], segment: number, segmentT: number): number => {
   if (path.length < 2) return 0;
   let total = segmentLength(path, segment) * (1 - segmentT);
@@ -306,6 +315,27 @@ export const updateEnemies = (world: World, dt: number) => {
       }
     } else {
       e.pos = adv.pos;
+    }
+
+    // Footfall cadence — accumulate ground distance and emit a step each time
+    // it crosses the kind's stride. Distance-based (not a wall-clock timer) so
+    // cryo slow / freeze thin the steps out in lockstep with the slowed walk
+    // animation; a single oversized frame collapses to one step, never a burst.
+    const footProfile = FOOTSTEP_PROFILE[e.kind];
+    if (footProfile && !adv.finished) {
+      const moved = effectiveSpeed * dt;
+      if (moved > 0) {
+        e.footstepAccum += moved;
+        if (e.footstepAccum >= footProfile.stride) {
+          e.footstepAccum %= footProfile.stride;
+          emit(world, {
+            type: "footstep",
+            source: "dino",
+            pos: e.pos,
+            weight: footProfile.weight,
+          });
+        }
+      }
     }
 
     const triggerDistance = Math.max(

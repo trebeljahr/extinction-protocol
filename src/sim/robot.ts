@@ -52,6 +52,10 @@ const ROBOT_REGEN_PER_SEC = 38;
 const ROBOT_AVOID_LOOKAHEAD = 2.6;
 const ROBOT_AVOID_CLEARANCE = 0.25;
 const ROBOT_AVOID_STRENGTH = 2.4;
+// World units the robot walks between footfalls. Step rate = speed / stride,
+// so fast variants patter quicker and slow ones plod — matches the shared
+// walk clip well enough without hooking animation frames.
+const ROBOT_FOOTSTEP_STRIDE = 1.45;
 // Visual hover offset (world units) while over a liquid surface.
 const ROBOT_HOVER_HEIGHT = 0.55;
 const ROBOT_HOVER_HALFLIFE = 0.12;
@@ -1010,6 +1014,20 @@ export const updateRobot = (world: World, dt: number) => {
   else if (world.time < robot.shootFlashUntil && !walking) robot.motionState = "shoot";
   else if (walking) robot.motionState = "walk";
   else robot.motionState = "idle";
+
+  // Footfall cadence for the walk cycle. Uses real displacement (post-
+  // collision) so a robot grinding against an obstacle doesn't keep stepping.
+  // Dash is excluded — it has its own ability voicing. Primed to the stride
+  // whenever not walking so the first step lands the moment the robot moves.
+  if (robot.motionState === "walk") {
+    robot.footstepAccum += Math.hypot(robot.pos.x - prevX, robot.pos.y - prevY);
+    if (robot.footstepAccum >= ROBOT_FOOTSTEP_STRIDE) {
+      robot.footstepAccum %= ROBOT_FOOTSTEP_STRIDE;
+      emit(world, { type: "footstep", source: "robot", pos: robot.pos, weight: 1 });
+    }
+  } else {
+    robot.footstepAccum = ROBOT_FOOTSTEP_STRIDE;
+  }
 };
 
 // --- Player-issued actions ---------------------------------------------

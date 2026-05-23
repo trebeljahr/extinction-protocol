@@ -143,6 +143,10 @@ export type Enemy = {
   // adaptation. Scales with level so later mutations read as more
   // pronounced on screen. 0..1; only the renderer reads it.
   adaptiveResistAmount?: number;
+  // Distance marched since the last footfall, in world units. Only ticks for
+  // kinds in FOOTSTEP_PROFILE (heavy dinos); crossing the kind's stride emits
+  // a footstep event and subtracts the stride. See updateEnemies.
+  footstepAccum: number;
 };
 
 export type TowerKind = "pulse" | "chain" | "cryo" | "mortar" | "flame" | "hive";
@@ -457,6 +461,11 @@ export type Robot = {
   hoverHeight: number;
   // High-level animation state — render picks the clip based on this.
   motionState: "idle" | "walk" | "dash" | "shoot" | "dead";
+  // Distance walked since the last footfall, in world units. Accumulates only
+  // while motionState === "walk"; crossing ROBOT_FOOTSTEP_STRIDE emits a robot
+  // footstep. Primed to the stride when not walking so the first step lands
+  // as soon as the robot starts moving. See updateRobot.
+  footstepAccum: number;
   // world.time when this robot last died (alive transitioned true→false).
   // Drives the death explosion shockwave/flash render window. -1000
   // means never died this run.
@@ -737,6 +746,11 @@ export type GameEvent =
   | { type: "easter-egg-click"; defId: string }
   | { type: "flame-start"; towerId: number; pos: Vec2 }
   | { type: "flame-stop"; towerId: number }
+  // Footfall for heavy units — big dinos (titan + matriarch bosses, plus the
+  // large quadrupeds) and the robot's walk cycle. Emitted on a distance
+  // cadence from the sim so step rate tracks actual ground speed (slow/frozen
+  // = fewer steps). `weight` 0..1 scales depth + loudness (titan heaviest).
+  | { type: "footstep"; source: "dino" | "robot"; pos: Vec2; weight: number }
   | {
       type: "robot-ability";
       kind: "dash-aim" | "dash" | "burst" | "buff" | "storm" | "flameRings" | "frenzy" | "killshot";
