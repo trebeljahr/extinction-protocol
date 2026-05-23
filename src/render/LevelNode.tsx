@@ -8,8 +8,10 @@ import { type LevelConfig, levelHasMode } from "../levels";
 import {
   getModeStars,
   getStars,
+  hasUnlockedChallengeModes,
   isLevelUnlocked,
   isModeUnlocked,
+  LEVEL_MODE_LABEL,
   type LevelMode,
   type Stars,
 } from "../progress";
@@ -37,6 +39,23 @@ const STAR_SHAPE = (() => {
 const STAR_GEOM = new THREE.ShapeGeometry(STAR_SHAPE);
 const STAR_SLOTS = ["slot-left", "slot-center", "slot-right"] as const;
 
+// World-map challenge-mode badge styling. Glyph is the mode's visual
+// identity; the letter is derived from the localized label initial so it
+// tracks renames. Three render states (locked / unlocked / cleared) are
+// chosen at the call site.
+const MODE_BADGE: Record<
+  "heroic" | "iron",
+  { glyph: string; text: string; border: string; bg: string }
+> = {
+  heroic: {
+    glyph: "✦",
+    text: "text-orange",
+    border: "border-orange",
+    bg: "bg-[rgba(255,178,102,0.10)]",
+  },
+  iron: { glyph: "▣", text: "text-red", border: "border-red", bg: "bg-[rgba(255,90,122,0.10)]" },
+};
+
 export const LevelNode = ({ level }: Props) => {
   const groupRef = useRef<THREE.Group>(null);
   const progress = useGame((s) => s.progress);
@@ -62,6 +81,22 @@ export const LevelNode = ({ level }: Props) => {
       (m) => levelHasMode(level, m) && isModeUnlocked(progress, level.id, m),
     );
   const modeStars = getModeStars(progress, level.id);
+
+  // Challenge-mode badges surface per-level state (locked / unlocked /
+  // cleared) at a glance. Hidden until the player first unlocks challenge
+  // modes anywhere, so the early-game map stays clean; then every unlocked
+  // level that authors a mode advertises whether it's still locked behind
+  // a 3-star Standard run, open to attempt, or already beaten.
+  const challengeBadges =
+    unlocked && hasUnlockedChallengeModes(progress)
+      ? (["heroic", "iron"] as const)
+          .filter((m) => levelHasMode(level, m))
+          .map((m) => ({
+            mode: m,
+            cleared: modeStars[m] > 0,
+            open: isModeUnlocked(progress, level.id, m),
+          }))
+      : [];
 
   const { baseColor, emissive, emissiveIntensity } = useMemo(() => {
     if (!unlocked) return { baseColor: "#3a4452", emissive: "#000000", emissiveIntensity: 0 };
@@ -210,7 +245,7 @@ export const LevelNode = ({ level }: Props) => {
         </group>
       )}
 
-      {(modeStars.heroic > 0 || modeStars.iron > 0) && (
+      {challengeBadges.length > 0 && (
         <Html
           center
           position={[0, 0.05, labelZ + 0.7]}
@@ -218,22 +253,25 @@ export const LevelNode = ({ level }: Props) => {
           wrapperClass="map-label-wrap"
         >
           <div className="flex gap-1 text-[11px] font-bold tabular-nums select-none">
-            {modeStars.heroic > 0 && (
-              <span
-                className="px-1.5 py-0.5 rounded border border-orange text-orange bg-[rgba(255,178,102,0.10)]"
-                title="Heroic cleared"
-              >
-                ✦ H
-              </span>
-            )}
-            {modeStars.iron > 0 && (
-              <span
-                className="px-1.5 py-0.5 rounded border border-red text-red bg-[rgba(255,90,122,0.10)]"
-                title="Iron cleared"
-              >
-                ▣ I
-              </span>
-            )}
+            {challengeBadges.map(({ mode, cleared, open }) => {
+              const b = MODE_BADGE[mode];
+              const state = cleared ? "cleared" : open ? "unlocked" : "locked";
+              const cls = cleared
+                ? `${b.border} ${b.text} ${b.bg}`
+                : open
+                  ? `${b.border} ${b.text} bg-transparent`
+                  : "border-border-faint text-fg-dim bg-transparent opacity-60";
+              return (
+                <span
+                  key={mode}
+                  className={`px-1.5 py-0.5 rounded border ${cls}`}
+                  title={`${LEVEL_MODE_LABEL[mode]} — ${state}`}
+                >
+                  {b.glyph} {LEVEL_MODE_LABEL[mode].charAt(0)}
+                  {cleared ? " ✓" : ""}
+                </span>
+              );
+            })}
           </div>
         </Html>
       )}

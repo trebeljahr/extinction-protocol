@@ -2,8 +2,8 @@
   "mode": {
     "label": {
       "normal": "Standard",
-      "heroic": "Heroic",
-      "iron": "Iron"
+      "heroic": "Breach",
+      "iron": "Lockdown"
     },
     "tagline": {
       "normal": "The intended campaign",

@@ -106,6 +106,21 @@ export const ModePicker = () => {
             const available = defined && unlocked;
             const cleared =
               mode === "normal" ? modeStars.normal === 3 : (modeStars[mode] as number) >= 1;
+            // Status pill: Standard only flags a full 3-star clear; the
+            // challenge modes surface all three states so the player can
+            // tell locked from open from beaten without reading the hint.
+            const status: "cleared" | "unlocked" | "locked" | null =
+              mode === "normal"
+                ? cleared
+                  ? "cleared"
+                  : null
+                : !defined
+                  ? null
+                  : cleared
+                    ? "cleared"
+                    : unlocked
+                      ? "unlocked"
+                      : "locked";
             const accent = MODE_ACCENT[mode];
             const cfg = resolveLevelMode(level, mode);
             const restrictions = describeMode(mode, level, cfg, t);
@@ -126,11 +141,15 @@ export const ModePicker = () => {
                 }`}
                 aria-disabled={!available}
               >
-                {cleared && (
+                {status && (
                   <span
-                    className={`absolute top-1 right-1 sm:top-2 sm:right-2 text-[9px] font-bold tracking-wide uppercase ${accent.text}`}
+                    className={`absolute top-1 right-1 sm:top-2 sm:right-2 text-[9px] font-bold tracking-wide uppercase ${
+                      status === "locked" ? "text-fg-dim" : accent.text
+                    }`}
                   >
-                    {t("modePicker.cleared")}
+                    {status === "cleared"
+                      ? `✓ ${t("modePicker.cleared")}`
+                      : t(`modePicker.${status}`)}
                   </span>
                 )}
                 <div className="flex items-center gap-2">
