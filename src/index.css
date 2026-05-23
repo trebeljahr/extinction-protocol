@@ -4897,10 +4897,12 @@
     left: calc(8px + var(--safe-left));
     bottom: calc(8px + var(--safe-bottom));
     min-width: 0;
+    /* Upper bound sized so the four flex:1 ability buttons fill out to ~57px
+       square (4*57 + 3*4 gap + 14 padding), matching their 57px height. */
     width: clamp(
       124px,
       calc(100vw - 188px - var(--safe-left) - var(--safe-right)),
-      196px
+      254px
     );
     padding: 6px 7px;
     gap: 4px;
