@@ -34,6 +34,7 @@ import { SmokePuffs } from "./SmokePuffs";
 import { SpotTargetMarker } from "./SpotTargetMarker";
 import { TowerVfx } from "./TowerVfx";
 import { Trees } from "./Trees";
+import { WorldOutposts } from "./WorldOutposts";
 
 export const PlayScene = () => {
   const biome = useGame((s) => s.world.biome);
@@ -81,6 +82,7 @@ export const PlayScene = () => {
       <PathLine />
       <HQTurrets />
       <HQBase />
+      <WorldOutposts />
 
       <ModelEnemyMesh kind="raptor" url="/models/Velociraptor.glb" targetSize={1.6} />
       <ModelEnemyMesh kind="swarm" url="/models/Velociraptor.glb" targetSize={0.8} />

@@ -12,6 +12,7 @@ import { BiomeProps } from "./BiomeProps";
 import { LevelNode } from "./LevelNode";
 import { MapRoute } from "./MapRoute";
 import { MapOrbitControls } from "./useMapGestures";
+import { WorldMapOutposts } from "./WorldMapOutposts";
 import { WorldMapPrewarm } from "./WorldMapPrewarm";
 
 // Level node bounds span x: [-24, 22], y: [-14, 26] — content grew taller
@@ -227,6 +228,7 @@ export const WorldMapScene = () => {
 
       <BiomeGround width={GROUND_W} height={GROUND_H} />
       <BiomeProps />
+      <WorldMapOutposts />
 
       <MapRoute />
 

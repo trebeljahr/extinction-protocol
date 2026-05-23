@@ -39,6 +39,12 @@ const SECTIONS: CreditSection[] = [
         url: "https://kenney.nl/assets/space-kit",
       },
       {
+        name: "Space Base Bits — modular outpost colonies: habitat domes, drills, landing pads, landers, solar panels, wind turbines, cargo, rovers (outpost/*)",
+        creator: "Kay Lousberg",
+        license: "CC0 1.0",
+        url: "https://kaylousberg.itch.io/space-base-bits",
+      },
+      {
         name: "Hexagon-kit landmarks — Crystal1 (snow), Crystal1 (wasteland)",
         creator: "Kenney",
         license: "CC0 1.0",

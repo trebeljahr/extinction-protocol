@@ -1,4 +1,3 @@
-import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { PATH_WIDTH } from "../level";
@@ -13,29 +12,19 @@ import {
   type DeadDinoItem,
   deadDinoCollisionRadius,
 } from "./DeadDinos";
-import { type GroupItem, InstancedGroup } from "./InstancedGroup";
-import type { MeshSource } from "./meshSource";
+import { OutpostClusters } from "./OutpostClusters";
+import { HQ_COMMAND_TEMPLATE, KIT_SCALE, type PlacedOutpost } from "./outpostKit";
 
-// Decorative sci-fi props placed around each HQ endpoint so the plasma
-// turret reads as the centrepiece of a small research compound rather
-// than a lone gun in a field. Render-only: they are culled around towers
-// and the path corridor, and never participate in placement blocking.
-//
-// Layout convention: `fwd > 0` is along the approach corridor (where
-// dinos walk). Anything with positive `fwd` must keep |right| greater
-// than PATH_WIDTH/2 + its clearRadius + margin, otherwise enemies will
-// path through or visibly clip into it. A path-cull pass below is the
-// belt-and-braces check so curved approaches don't sneak past.
+// The player's HQ reads as a small modular colony: a KayKit command base
+// (HQ_COMMAND_TEMPLATE) sits behind the turret on each HQ pad, ringed by a
+// procedural perimeter fence + corner lights, with the occasional dead-dino
+// carcass strewn outside the fence. Render-only — none of it blocks tower
+// placement.
 
-type PropDef = {
-  url: string;
-  right: number;
-  fwd: number;
-  targetHeight: number;
-  clearRadius: number;
-  facesHQ?: boolean;
-  yawOffset?: number;
-};
+// Cluster scale so the command base fits the 6.7×5.0 pad. Its clearance
+// radius gates dead-dino carcasses so they never overlap the buildings.
+const HQ_CLUSTER_SCALE = 0.9;
+const HQ_CLUSTER_RADIUS = HQ_COMMAND_TEMPLATE.footprint * KIT_SCALE * HQ_CLUSTER_SCALE;
 
 type PrimitiveDef = {
   kind: "fence" | "light";
@@ -45,68 +34,6 @@ type PrimitiveDef = {
   length?: number;
   yawOffset?: number;
 };
-
-// Approach corridor sits at |right| <= PATH_WIDTH/2 = 1.4. For any
-// prop with fwd > 0 (approach side) we need |right| >= 1.4 + clearRadius
-// + small margin so dinos cleanly path past.
-const BASE_PROPS: PropDef[] = [
-  {
-    url: "/models/scifi/structure_detailed.glb",
-    right: 1.55,
-    fwd: -1.75,
-    targetHeight: 1.18,
-    clearRadius: 0.95,
-    facesHQ: true,
-  },
-  {
-    url: "/models/scifi/structure_closed.glb",
-    right: -2.85,
-    fwd: -0.35,
-    targetHeight: 0.95,
-    clearRadius: 0.85,
-    facesHQ: true,
-  },
-  {
-    url: "/models/scifi/gate_simple.glb",
-    right: 0,
-    fwd: -2.65,
-    targetHeight: 0.78,
-    clearRadius: 0.7,
-    facesHQ: true,
-  },
-  {
-    // Tucked inside the left fence (left fence sits at right = -3.25); the
-    // dish's clearRadius (~0.8) used to extend its silhouette to -3.75,
-    // poking the antenna visibly past the perimeter posts.
-    url: "/models/scifi/satelliteDish_detailed.glb",
-    right: -2.4,
-    fwd: -1.65,
-    targetHeight: 1.18,
-    clearRadius: 0.8,
-    facesHQ: true,
-  },
-  {
-    url: "/models/scifi/machine_generatorLarge.glb",
-    right: 2.85,
-    fwd: -0.35,
-    targetHeight: 1.0,
-    clearRadius: 0.85,
-  },
-  {
-    url: "/models/scifi/machine_wirelessCable.glb",
-    right: -1.1,
-    fwd: -2.55,
-    targetHeight: 0.72,
-    clearRadius: 0.6,
-  },
-  {
-    url: "/models/scifi/machine_barrelLarge.glb",
-    right: 2.55,
-    fwd: -2.45,
-    targetHeight: 0.62,
-    clearRadius: 0.55,
-  },
-];
 
 // Perimeter fence: 3 sides closed (back + left + right), front open where the
 // approach path connects. Segment endpoints land under each corner torch so
@@ -212,22 +139,14 @@ const HQ_PAD_HALF_RIGHT = 3.35;
 const HQ_PAD_HALF_FWD = 2.5;
 const HQ_PAD_FWD_CENTER = -0.1;
 
-const ALL_URLS = [...new Set(BASE_PROPS.map((p) => p.url))];
 const noRaycast: THREE.Mesh["raycast"] = () => {};
 
-type Instance = GroupItem & { url: string; clearRadius: number };
 type PrimitiveInstance = {
   kind: PrimitiveDef["kind"];
   pos: Vec2;
   rotY: number;
   clearRadius: number;
   length: number;
-};
-
-const baseScaleFor = (source: MeshSource, url: string): number => {
-  const def = BASE_PROPS.find((p) => p.url === url);
-  const target = def?.targetHeight ?? 0.8;
-  return target / Math.max(source.height, 0.001);
 };
 
 const HQBasePad = ({ position, yaw }: { position: [number, number]; yaw: number }) => (
@@ -428,8 +347,8 @@ export const HQBase = () => {
   const towerVersion = useGame((s) => s.ui.towerVersion);
   const towers = useGame.getState().world.towers;
 
-  const { instances, pads, primitives } = useMemo(() => {
-    const insts: Instance[] = [];
+  const { clusters, pads, primitives } = useMemo(() => {
+    const clusterList: PlacedOutpost[] = [];
     const primitiveList: PrimitiveInstance[] = [];
     const padList: { position: [number, number]; yaw: number }[] = [];
 
@@ -448,19 +367,15 @@ export const HQBase = () => {
 
       padList.push({ position: [last.x, last.y], yaw });
 
-      for (let pi = 0; pi < BASE_PROPS.length; pi++) {
-        const def = BASE_PROPS[pi];
-        const wx = last.x + def.right * rightX + def.fwd * faceX;
-        const wy = last.y + def.right * rightY + def.fwd * faceY;
-        const propYaw = yaw + (def.facesHQ ? Math.PI : 0) + (def.yawOffset ?? 0);
-        insts.push({
-          url: def.url,
-          pos: { x: wx, y: wy },
-          scale: 1,
-          rotY: propYaw,
-          clearRadius: def.clearRadius,
-        });
-      }
+      // Command base on the pad. The cluster yaw maps the template's local
+      // +dz axis onto the approach direction (faceVec) and +dx onto the
+      // right vector, so all structures sit behind/around the turret.
+      clusterList.push({
+        template: HQ_COMMAND_TEMPLATE,
+        pos: { x: last.x, y: last.y },
+        yaw: Math.atan2(-faceX, faceY),
+        scale: HQ_CLUSTER_SCALE,
+      });
 
       for (const def of BASE_PRIMITIVES) {
         const wx = last.x + def.right * rightX + def.fwd * faceX;
@@ -474,14 +389,16 @@ export const HQBase = () => {
         });
       }
     }
-    return { instances: insts, pads: padList, primitives: primitiveList };
+    return { clusters: clusterList, pads: padList, primitives: primitiveList };
   }, [paths]);
 
+  // Only the perimeter fence/lights cull around towers + the path; the
+  // command base itself is a fixed fixture on the pad.
   // biome-ignore lint/correctness/useExhaustiveDependencies: towerVersion is the intended invalidation key
-  const visible = useMemo(() => {
+  const visiblePrimitives = useMemo(() => {
     const towerR = TOWER_FOOTPRINT * 0.5;
     const pathHalf = PATH_WIDTH * 0.5;
-    const clear = <T extends { pos: Vec2; clearRadius: number }>(item: T) => {
+    const clear = (item: PrimitiveInstance) => {
       for (const tower of towers) {
         const dx = tower.pos.x - item.pos.x;
         const dy = tower.pos.y - item.pos.y;
@@ -497,24 +414,8 @@ export const HQBase = () => {
       }
       return true;
     };
-    return {
-      instances: instances.filter(clear),
-      primitives: primitives.filter(clear),
-    };
-  }, [instances, primitives, towers, paths, towerVersion]);
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, Instance[]>();
-    for (const inst of visible.instances) {
-      let arr = map.get(inst.url);
-      if (!arr) {
-        arr = [];
-        map.set(inst.url, arr);
-      }
-      arr.push(inst);
-    }
-    return map;
-  }, [visible.instances]);
+    return primitives.filter(clear);
+  }, [primitives, towers, paths, towerVersion]);
 
   // Per-HQ dead-dinosaur corpses. Deterministic per level so the same node
   // always shows the same aftermath, but per-path RNG so two HQs in the
@@ -524,10 +425,7 @@ export const HQBase = () => {
   // never overlaps a path, building, pad rim, or another corpse.
   const corpseGroups = useMemo(() => {
     const pathHalf = PATH_WIDTH * 0.5;
-    // Building clearRadius is conservative for gameplay placement; for
-    // visual corpse-vs-prop checks, shrink it so the carcass can sit
-    // believably close without false rejects on every slot.
-    const propVisualScale = 0.7;
+    const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
     const byUrl = new Map<string, DeadDinoItem[]>();
 
     for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
@@ -596,11 +494,11 @@ export const HQBase = () => {
         }
         if (blocked) continue;
 
-        // Base building props.
-        for (const inst of instances) {
-          const ix = inst.pos.x - wx;
-          const iy = inst.pos.y - wy;
-          const lim = corpseR + inst.clearRadius * propVisualScale;
+        // HQ command base footprint — keep carcasses off the buildings.
+        for (const c of hqCenters) {
+          const ix = c.x - wx;
+          const iy = c.y - wy;
+          const lim = corpseR + HQ_CLUSTER_RADIUS;
           if (ix * ix + iy * iy < lim * lim) {
             blocked = true;
             break;
@@ -668,7 +566,7 @@ export const HQBase = () => {
       }
     }
     return Array.from(byUrl.entries());
-  }, [paths, levelId, instances, primitives]);
+  }, [paths, levelId, primitives]);
 
   return (
     <>
@@ -676,21 +574,11 @@ export const HQBase = () => {
         // biome-ignore lint/suspicious/noArrayIndexKey: stable per level
         <HQBasePad key={i} position={pad.position} yaw={pad.yaw} />
       ))}
-      <BasePrimitives items={visible.primitives} />
-      {[...grouped.entries()].map(([url, items]) => (
-        <InstancedGroup
-          key={url}
-          url={url}
-          items={items}
-          baseScaleFor={baseScaleFor}
-          raycast={noRaycast}
-        />
-      ))}
+      <BasePrimitives items={visiblePrimitives} />
+      <OutpostClusters clusters={clusters} />
       {corpseGroups.map(([url, items]) => (
         <DeadDinoInstancer key={url} url={url} items={items} />
       ))}
     </>
   );
 };
-
-for (const url of ALL_URLS) useGLTF.preload(url);

@@ -252,6 +252,20 @@ export type Rock = {
   rot: number;
 };
 
+// A placed modular outpost (KayKit colony) — authored cluster of pieces.
+// `interior` ones sit inside the playfield and block tower placement;
+// the rest are decorative set-dressing in the outer scenery band.
+export type Outpost = {
+  id: EntityId;
+  templateId: string;
+  pos: Vec2;
+  yaw: number;
+  scale: number;
+  // World-unit clearance radius (template footprint × kit scale × scale).
+  radius: number;
+  interior: boolean;
+};
+
 export type RobotVariant = "george" | "leela" | "mike" | "stan";
 
 // Slot index used by the HUD + key bindings (Q/W/E/R). Semantic ability
@@ -754,6 +768,7 @@ export type World = {
   towerById: Map<EntityId, Tower>;
   trees: Tree[];
   rocks: Rock[];
+  outposts: Outpost[];
   projectiles: Projectile[];
   beams: Beam[];
   explosions: Explosion[];

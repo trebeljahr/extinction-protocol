@@ -22,6 +22,14 @@ import {
 } from "../level";
 import { type LevelConfig, resolveLevelMode } from "../levels";
 import { DIFFICULTY_MULTIPLIERS, type DifficultyMultipliers, type LevelMode } from "../progress";
+import {
+  COMPACT_TEMPLATE_IDS,
+  HERO_TEMPLATE_IDS,
+  OUTPOST_BY_ID,
+  outpostBiomeConfig,
+  outpostRadius,
+  outpostScaleBand,
+} from "../render/outpostKit";
 import { availableDamageTypes, ensureImmunityCoverage } from "./immunityCoverage";
 import { prependLeadInToBounds, samplePath, smoothPath } from "./path";
 import { poissonDiskSample } from "./poisson";
@@ -49,6 +57,7 @@ import type {
   EntityId,
   Explosion,
   GameEvent,
+  Outpost,
   Projectile,
   ProjectileKind,
   Robot,
@@ -181,6 +190,7 @@ const buildTrees = (
   firstId: number,
   lava: LavaFeatures | null,
   biome: Biome,
+  outposts: Outpost[],
 ): { trees: Tree[]; nextId: number } => {
   const biomeScale = BIOME_TREE_SCALE_MUL[biome] ?? 1;
   const clearance = PATH_WIDTH / 2 + TREE_CLEARANCE_MARGIN;
@@ -218,6 +228,12 @@ const buildTrees = (
       const dx = c.x - x;
       const dy = c.y - y;
       if (dx * dx + dy * dy < hqR2) return false;
+    }
+    for (const o of outposts) {
+      const dx = o.pos.x - x;
+      const dy = o.pos.y - y;
+      const lim = o.radius + TREE_FOOTPRINT;
+      if (dx * dx + dy * dy < lim * lim) return false;
     }
     return true;
   };
@@ -266,6 +282,7 @@ const buildRocks = (
   firstId: number,
   lava: LavaFeatures | null,
   levelId: number,
+  outposts: Outpost[],
 ): { rocks: Rock[]; nextId: number } => {
   const rocks: Rock[] = [];
   const halfW = MAP_WIDTH / 2 + 11;
@@ -324,6 +341,12 @@ const buildRocks = (
         const dx = c.x - x;
         const dy = c.y - y;
         if (dx * dx + dy * dy < hqRockR2) return false;
+      }
+      for (const o of outposts) {
+        const dx = o.pos.x - x;
+        const dy = o.pos.y - y;
+        const lim = o.radius + candidateR;
+        if (dx * dx + dy * dy < lim * lim) return false;
       }
       for (const tr of trees) {
         const dx = tr.pos.x - x;
@@ -388,6 +411,7 @@ const buildEasterEggs = (
   paths: Vec2[][],
   trees: Tree[],
   rocks: Rock[],
+  outposts: Outpost[],
   seed: number,
   firstId: number,
   lava: LavaFeatures | null,
@@ -442,6 +466,16 @@ const buildEasterEggs = (
       }
     }
     if (blocked) continue;
+    for (const o of outposts) {
+      const dx = o.pos.x - x;
+      const dy = o.pos.y - y;
+      const lim = o.radius + minPropGap;
+      if (dx * dx + dy * dy < lim * lim) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
     const egg: EasterEgg = {
       id: firstId,
       defId: def.id,
@@ -488,6 +522,131 @@ const DEFAULT_ROBOT_CONTEXT: RobotContext = {
   skills: {},
 };
 
+// Playfield rectangle — band colonies hug just outside this perimeter,
+// interior colonies fit inside it.
+const OUTPOST_INNER_HALF_W = MAP_WIDTH / 2;
+const OUTPOST_INNER_HALF_H = MAP_HEIGHT / 2;
+
+// Authored modular colonies. Hero colonies ring the playfield in the outer
+// band (decorative); a compact colony may also drop into a roomy interior
+// dead-zone where it becomes a tower-placement blocker. Deterministic per
+// level so a map always looks the same, but independent of the tree/rock
+// streams. Returned in placement order; trees, rocks and tower placement
+// all treat these as fixed blockers.
+const buildOutposts = (
+  paths: Vec2[][],
+  biome: Biome,
+  levelId: number,
+  lava: LavaFeatures | null,
+  firstId: number,
+): { outposts: Outpost[]; nextId: number } => {
+  const rng = mulberry32(levelId * 6451 + 17);
+  const hqCenters = paths.filter((p) => p.length >= 2).map((p) => p[p.length - 1]);
+  const placed: Outpost[] = [];
+  let nextId = firstId;
+
+  const fits = (x: number, y: number, r: number): boolean => {
+    // Full-radius flow check (same as trees/rocks): a colony must clear
+    // every river/lake — water in forest, lava in lava, goo in alien.
+    if (isOnLavaSurface(lava, x, y, r)) return false;
+    const pathLim = r + PATH_WIDTH / 2 + 0.8;
+    const pathLimSq = pathLim * pathLim;
+    for (const path of paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if (
+          distPointToSegSq(x, y, path[i].x, path[i].y, path[i + 1].x, path[i + 1].y) < pathLimSq
+        ) {
+          return false;
+        }
+      }
+    }
+    for (const c of hqCenters) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      const lim = r + HQ_PAD_BLOCKER_RADIUS + 1.0;
+      if (dx * dx + dy * dy < lim * lim) return false;
+    }
+    for (const o of placed) {
+      const dx = o.pos.x - x;
+      const dy = o.pos.y - y;
+      const lim = r + o.radius + 1.5;
+      if (dx * dx + dy * dy < lim * lim) return false;
+    }
+    return true;
+  };
+
+  const band = outpostScaleBand(biome);
+  const shuffle = <T>(arr: T[]): T[] => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  // Drop up to `count` colonies, scanning a shuffled candidate list and
+  // placing at the first anchor each fits. Scanning fixed candidates
+  // (rather than pure random sampling) reliably finds the open spots even
+  // on lava-choked or tightly-wound maps. A band anchor's outward normal
+  // nudges its colony off the playfield edge so it hugs the rim.
+  type Anchor = { x: number; y: number; nx: number; ny: number };
+  const place = (ids: readonly string[], anchors: Anchor[], count: number) => {
+    let done = 0;
+    for (const a of anchors) {
+      if (done >= count) break;
+      const template = OUTPOST_BY_ID[ids[Math.floor(rng() * ids.length)]];
+      const scale = band.min + rng() * (band.max - band.min);
+      const r = outpostRadius(template, scale);
+      const x = a.x + a.nx * r * 0.55;
+      const y = a.y + a.ny * r * 0.55;
+      if (!fits(x, y, r)) continue;
+      placed.push({
+        id: nextId++,
+        templateId: template.id,
+        pos: { x, y },
+        yaw: rng() * Math.PI * 2,
+        scale,
+        radius: r,
+        interior: Math.abs(x) < OUTPOST_INNER_HALF_W && Math.abs(y) < OUTPOST_INNER_HALF_H,
+      });
+      done++;
+    }
+  };
+
+  // Band anchors walk the playfield perimeter; the outward normal pushes
+  // each colony just off the edge so it frames the map while staying mostly
+  // out of the play area.
+  const bandAnchors: Anchor[] = [];
+  const edgeStep = 5;
+  for (let x = -OUTPOST_INNER_HALF_W; x <= OUTPOST_INNER_HALF_W; x += edgeStep) {
+    bandAnchors.push({ x, y: OUTPOST_INNER_HALF_H, nx: 0, ny: 1 });
+    bandAnchors.push({ x, y: -OUTPOST_INNER_HALF_H, nx: 0, ny: -1 });
+  }
+  for (let y = -OUTPOST_INNER_HALF_H + edgeStep; y < OUTPOST_INNER_HALF_H; y += edgeStep) {
+    bandAnchors.push({ x: OUTPOST_INNER_HALF_W, y, nx: 1, ny: 0 });
+    bandAnchors.push({ x: -OUTPOST_INNER_HALF_W, y, nx: -1, ny: 0 });
+  }
+
+  // Interior anchors: a grid over the playfield for the optional blocker
+  // colony that lands in a roomy dead-zone.
+  const interiorAnchors: Anchor[] = [];
+  for (let x = -14; x <= 14; x += 4) {
+    for (let y = -8; y <= 8; y += 4) interiorAnchors.push({ x, y, nx: 0, ny: 0 });
+  }
+
+  const cfg = outpostBiomeConfig(biome);
+  place(HERO_TEMPLATE_IDS, shuffle(bandAnchors), cfg.band);
+  place(COMPACT_TEMPLATE_IDS, shuffle(interiorAnchors), cfg.interior);
+  // Guarantee a minimum visible presence: even flow-choked lava/alien maps
+  // get a couple of colonies by falling back to the smaller templates on
+  // any remaining open anchor.
+  if (placed.length < 2) {
+    place(COMPACT_TEMPLATE_IDS, shuffle([...bandAnchors, ...interiorAnchors]), 2 - placed.length);
+  }
+
+  return { outposts: placed, nextId };
+};
+
 export const createWorld = (
   level: LevelConfig,
   mode: LevelMode = "normal",
@@ -522,13 +681,32 @@ export const createWorld = (
   // non-flow biomes so isOnLavaSurface short-circuits. The lava + alien biomes
   // share the same flow geometry — see hasFlowFeatures.
   const lava = hasFlowFeatures(biome) ? buildLavaFeatures(paths, level.id, biome) : null;
-  const { trees, nextId: afterTrees } = buildTrees(paths, level.id * 7919 + 101, 1, lava, biome);
-  const { rocks, nextId: afterRocks } = buildRocks(biome, paths, trees, afterTrees, lava, level.id);
+  // Outposts are placed first so trees and rocks treat them as fixed
+  // blockers and never spawn inside an authored colony.
+  const { outposts, nextId: afterOutposts } = buildOutposts(paths, biome, level.id, lava, 1);
+  const { trees, nextId: afterTrees } = buildTrees(
+    paths,
+    level.id * 7919 + 101,
+    afterOutposts,
+    lava,
+    biome,
+    outposts,
+  );
+  const { rocks, nextId: afterRocks } = buildRocks(
+    biome,
+    paths,
+    trees,
+    afterTrees,
+    lava,
+    level.id,
+    outposts,
+  );
   const { eggs, nextId } = buildEasterEggs(
     biome,
     paths,
     trees,
     rocks,
+    outposts,
     level.id * 2311 + 47,
     afterRocks,
     lava,
@@ -652,6 +830,7 @@ export const createWorld = (
     towerById: new Map(),
     trees,
     rocks,
+    outposts,
     projectiles: [],
     beams: [],
     explosions: [],

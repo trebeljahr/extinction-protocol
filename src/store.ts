@@ -407,6 +407,11 @@ const canPlaceAt = (world: World, pos: Vec2): boolean => {
     const blockR = base * r.scale + TOWER_FOOTPRINT * 0.5;
     if (distSq(r.pos, pos) < blockR * blockR) return false;
   }
+  // Modular colonies are solid — no building on a base (band colonies can
+  // poke a little into the playfield edge, so block on all of them).
+  for (const o of world.outposts) {
+    if (distSq(o.pos, pos) < o.radius * o.radius) return false;
+  }
   return true;
 };
 
