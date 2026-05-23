@@ -4,8 +4,8 @@ import type { Vec2 } from "../sim/types";
 
 // KayKit "Space Base Bits" (CC0, Kay Lousberg). A matched low-poly kit of
 // white-dome habitat modules that stack (basemodule -> roofmodule), plus
-// drills, landing pads, landers, solar panels, wind turbines, cargo and
-// little rover trucks. We assemble them into authored "outpost" clusters
+// drills, landing pads, landers, solar panels, cargo and little rover
+// trucks. We assemble them into authored "outpost" clusters
 // that read as small modular colonies — used as set-dressing in the outer
 // scenery band, as in-map blockers, on the HQ pad, and on the world map.
 //
@@ -57,11 +57,11 @@ const stack = (base: string, roof: string, dx: number, dz: number, yaw = 0): Out
 // Hand-authored colony layouts. Coordinates are native kit units; the
 // renderer applies KIT_SCALE + the per-cluster scale/rotation. Pieces are
 // arranged to read as a working base: habitat domes clustered with a
-// landing pad, a drill or turbine for vertical interest, a solar row, and
-// scattered cargo / a parked rover.
+// landing pad, a drill for vertical interest, solar banks, and scattered
+// cargo / a parked rover.
 
 // Big mining colony — two habitat towers, a drill, a landing pad with a
-// lander, solar row, wind turbine, cargo yard and a rover.
+// lander, solar banks, cargo yard and a rover.
 const MINING_COLONY: OutpostTemplate = {
   id: "mining-colony",
   footprint: 5.4,
@@ -74,7 +74,9 @@ const MINING_COLONY: OutpostTemplate = {
     { model: "solarpanel", dx: -3.1, dz: -1.2, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: -3.1, dz: -1.9, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: -3.1, dz: -2.6, yaw: -Math.PI / 2 },
-    { model: "windturbine-tall", dx: -3.4, dz: 2.8 },
+    { model: "solarpanel", dx: -3.1, dz: -3.3, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: -3.3, dz: 2.6, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: -3.3, dz: 3.3, yaw: -Math.PI / 2 },
     { model: "cargo-a-stacked", dx: 0.7, dz: -2.3, yaw: 0.3 },
     { model: "cargo-a", dx: 1.5, dz: -2.6, yaw: 0.8 },
     { model: "containers-a", dx: -0.9, dz: -2.2 },
@@ -93,9 +95,11 @@ const LANDING_OUTPOST: OutpostTemplate = {
     { model: "landingpad-large", dx: 0, dz: 0 },
     { model: "lander-a", dx: 0, dz: 0, lift: 0.5, yaw: 0.4 },
     ...stack("basemodule-b", "roofmodule-cargo-a", -2.7, 0.3, -Math.PI / 2),
-    { model: "windturbine-low", dx: 2.6, dz: 2.0 },
+    { model: "solarpanel", dx: 2.7, dz: 1.6, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: 2.7, dz: 2.3, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: -2.6, dz: -2.0, yaw: 0 },
     { model: "solarpanel", dx: -1.9, dz: -2.0, yaw: 0 },
+    { model: "solarpanel", dx: -1.2, dz: -2.0, yaw: 0 },
     { model: "spacetruck-large", dx: 1.8, dz: -2.2, yaw: 1.6 },
     { model: "spacetruck-trailer", dx: 2.5, dz: -2.4, yaw: 1.6 },
     { model: "containers-b", dx: -2.3, dz: 2.2 },
@@ -104,16 +108,16 @@ const LANDING_OUTPOST: OutpostTemplate = {
   ],
 };
 
-// Comms / relay station — garage hab, comms mast, low structure, solar.
-// structure-tall is reserved for the hive drone mesh, so the tall accent
-// here is a wind-turbine mast instead.
+// Comms / relay station — garage hab, low structure, solar banks east
+// and west.
 const RELAY_STATION: OutpostTemplate = {
   id: "relay-station",
   footprint: 3.9,
   parts: [
     ...stack("basemodule-garage", "roofmodule-base", 0, 0),
-    { model: "windturbine-tall", dx: -2.3, dz: -1.0 },
     { model: "structure-low", dx: 2.2, dz: 1.3 },
+    { model: "solarpanel", dx: -2.3, dz: -1.0, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: -2.3, dz: -1.7, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: 2.2, dz: -1.6, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: 2.9, dz: -1.6, yaw: -Math.PI / 2 },
     { model: "cargo-b", dx: -1.8, dz: 1.8, yaw: 0.5 },
@@ -148,7 +152,9 @@ const SOLAR_POST: OutpostTemplate = {
     { model: "solarpanel", dx: -2.0, dz: 0.0, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: -2.0, dz: -0.7, yaw: -Math.PI / 2 },
     { model: "solarpanel", dx: -2.0, dz: 0.7, yaw: -Math.PI / 2 },
-    { model: "windturbine-low", dx: 1.9, dz: 1.6 },
+    { model: "solarpanel", dx: 1.9, dz: 0.6, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: 1.9, dz: 1.3, yaw: -Math.PI / 2 },
+    { model: "solarpanel", dx: 1.9, dz: 2.0, yaw: -Math.PI / 2 },
     { model: "cargo-a", dx: 1.6, dz: -1.4, yaw: 0.5 },
     { model: "rock-a", dx: -1.0, dz: 1.8 },
   ],
