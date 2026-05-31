@@ -21,8 +21,3 @@ services:
     # Port matches the Dockerfile's nginx `EXPOSE 80`.
     expose:
       - "80"
-    environment:
-      - NODE_ENV=production
-      # Forwarded from Coolify's app env. dotenvx inside the
-      # container uses this to decrypt .env.production at runtime.
-      - DOTENV_PRIVATE_KEY_PRODUCTION

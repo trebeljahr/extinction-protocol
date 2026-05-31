@@ -59,5 +59,6 @@ venv/
 .env.production
 .env.staging
 .env.test
+.env.keys
 .envrc.local
 .vercel/
